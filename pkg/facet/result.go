@@ -24,6 +24,9 @@ func (a *Result) Merge(b Result) {
 
 func (r *Result) Intersect(b Result) {
 	var ids []int64
+	if len(b.Ids) == 0 {
+		r.Ids = []int64{}
+	}
 	for _, id := range r.Ids {
 		for _, id2 := range b.Ids {
 			if id == id2 {

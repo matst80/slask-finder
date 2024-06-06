@@ -111,15 +111,20 @@ type StringSearch struct {
 
 func (i *Index) Match(strings []StringSearch, numbers []NumberSearch) []int64 {
 	result := facet.Result{Ids: i.itemIds}
-	for _, field := range strings {
-		if f, ok := i.Fields[field.Id]; ok {
-			result.Intersect(f.Matches(field.Value))
-		}
-	}
 	for _, field := range numbers {
 		if f, ok := i.NumberFields[field.Id]; ok {
-			result.Intersect(f.Matches(field.Min, field.Max))
+			if len(result.Ids) > 0 {
+				result.Intersect(f.Matches(field.Min, field.Max))
+			}
 		}
 	}
+	for _, field := range strings {
+		if f, ok := i.Fields[field.Id]; ok {
+			if len(result.Ids) > 0 {
+				result.Intersect(f.Matches(field.Value))
+			}
+		}
+	}
+
 	return result.Ids
 }
