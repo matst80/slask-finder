@@ -34,19 +34,19 @@ func (i *Index) AddItem(item Item) {
 
 	i.Items[item.Id] = item
 	i.itemIds = append(i.itemIds, item.Id)
-	for _, field := range item.Fields {
+	for key, value := range item.Fields {
 
-		if f, ok := i.Fields[field.Id]; ok {
-			f.AddValueLink(field.Value, item.Id)
+		if f, ok := i.Fields[key]; ok {
+			f.AddValueLink(value, item.Id)
 		} else {
-			log.Fatalf("Field not found %v", field.Id)
+			log.Fatalf("Field not found %v", key)
 		}
 	}
-	for _, field := range item.NumberFields {
-		if f, ok := i.NumberFields[field.Id]; ok {
-			f.AddValueLink(field.Value, item.Id)
+	for key, value := range item.NumberFields {
+		if f, ok := i.NumberFields[key]; ok {
+			f.AddValueLink(value, item.Id)
 		} else {
-			log.Fatalf("NumberField not found %v", field.Id)
+			log.Fatalf("NumberField not found %v", key)
 			//i.NumberFields[field.Id] = facet.NewNumberValueField(facet.Field{}, field.Value, item.Id)
 		}
 	}
@@ -80,18 +80,18 @@ func (i *Index) GetFacetsFromResultIds(ids []int64) Facets {
 	}
 	for _, id := range ids {
 		item := i.Items[id]
-		for _, field := range item.Fields {
-			if f, ok := r.Fields[field.Id]; ok {
-				f.AddValueLink(field.Value, item.Id)
+		for key, value := range item.Fields {
+			if f, ok := r.Fields[key]; ok {
+				f.AddValueLink(value, item.Id)
 			} else {
-				r.Fields[field.Id] = facet.NewValueField(i.Fields[field.Id].Field, field.Value, item.Id)
+				r.Fields[key] = facet.NewValueField(i.Fields[key].Field, value, item.Id)
 			}
 		}
-		for _, numberField := range item.NumberFields {
-			if f, ok := r.NumberFields[numberField.Id]; ok {
-				f.AddValueLink(numberField.Value, item.Id)
+		for key, value := range item.NumberFields {
+			if f, ok := r.NumberFields[key]; ok {
+				f.AddValueLink(value, item.Id)
 			} else {
-				r.NumberFields[numberField.Id] = facet.NewNumberValueField(i.NumberFields[numberField.Id].Field, numberField.Value, item.Id)
+				r.NumberFields[key] = facet.NewNumberValueField(i.NumberFields[key].Field, value, item.Id)
 			}
 		}
 	}

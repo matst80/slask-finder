@@ -19,11 +19,13 @@ type SearchRequest struct {
 }
 
 type ValueResponse struct {
+	Id     int64       `json:"id"`
 	Field  facet.Field `json:"field"`
 	Values []string    `json:"values"`
 }
 
 type NumberValueResponse struct {
+	Id     int64       `json:"id"`
 	Field  facet.Field `json:"field"`
 	Values []float64   `json:"values"`
 	Min    float64     `json:"min"`
@@ -52,6 +54,7 @@ func toResponse(facets index.Facets) FacetResponse {
 		values := field.Values()
 		if len(values) > 0 {
 			fields = append(fields, ValueResponse{
+				Id:     field.Id,
 				Field:  field.Field,
 				Values: values,
 			})
@@ -61,12 +64,19 @@ func toResponse(facets index.Facets) FacetResponse {
 	for _, field := range facets.NumberFields {
 		v := field.Values()
 		if len(v.Values) > 0 {
+
 			numberFields = append(numberFields, NumberValueResponse{
-				Field:  field.Field,
-				Values: v.Values,
-				Min:    v.Min,
-				Max:    v.Max,
+				Id:    field.Id,
+				Field: field.Field,
+
+				Min: v.Min,
+				Max: v.Max,
 			})
+			if len(v.Values) > 100 {
+				// TODO Get median or something
+			} else {
+				numberFields[len(numberFields)-1].Values = v.Values
+			}
 		}
 	}
 	return FacetResponse{

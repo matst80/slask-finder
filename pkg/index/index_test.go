@@ -11,12 +11,12 @@ func TestIndexMatch(t *testing.T) {
 	i := NewIndex()
 	item := Item{
 		Id: 1,
-		Fields: []facet.StringFieldReference{
-			{Value: "test", Id: 1},
-			{Value: "hej", Id: 2},
+		Fields: map[int64]string{
+			1: "test",
+			2: "hej",
 		},
-		NumberFields: []facet.NumberFieldReference{
-			{Value: 1, Id: 3},
+		NumberFields: map[int64]float64{
+			3: 1,
 		},
 	}
 	i.AddItem(item)
@@ -35,12 +35,12 @@ func CreateIndex() *Index {
 	i.AddItem(Item{
 		Id:    1,
 		Title: "item1",
-		Fields: []facet.StringFieldReference{
-			{Value: "test", Id: 1},
-			{Value: "hej", Id: 2},
+		Fields: map[int64]string{
+			1: "test",
+			2: "hej",
 		},
-		NumberFields: []facet.NumberFieldReference{
-			{Value: 1, Id: 3},
+		NumberFields: map[int64]float64{
+			3: 1,
 		},
 		Props: map[string]string{
 			"test": "test",
@@ -49,12 +49,12 @@ func CreateIndex() *Index {
 	i.AddItem(Item{
 		Id:    2,
 		Title: "item2",
-		Fields: []facet.StringFieldReference{
-			{Value: "test", Id: 1},
-			{Value: "slask", Id: 2},
+		Fields: map[int64]string{
+			1: "test",
+			2: "slask",
 		},
-		NumberFields: []facet.NumberFieldReference{
-			{Value: 1, Id: 3},
+		NumberFields: map[int64]float64{
+			3: 1,
 		},
 		Props: map[string]string{
 			"hej": "hej",

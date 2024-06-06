@@ -15,12 +15,12 @@ func main() {
 	srv.Index.AddItem(index.Item{
 		Id:    1,
 		Title: "item1",
-		Fields: []facet.StringFieldReference{
-			{Value: "test", Id: 1},
-			{Value: "hej", Id: 2},
+		Fields: map[int64]string{
+			1: "test",
+			2: "hej",
 		},
-		NumberFields: []facet.NumberFieldReference{
-			{Value: 1, Id: 3},
+		NumberFields: map[int64]float64{
+			3: 1,
 		},
 		Props: map[string]string{
 			"test": "test",
@@ -29,12 +29,12 @@ func main() {
 	srv.Index.AddItem(index.Item{
 		Id:    2,
 		Title: "item2",
-		Fields: []facet.StringFieldReference{
-			{Value: "testar", Id: 1},
-			{Value: "hej", Id: 2},
+		Fields: map[int64]string{
+			1: "testar",
+			2: "hej",
 		},
-		NumberFields: []facet.NumberFieldReference{
-			{Value: 3, Id: 3},
+		NumberFields: map[int64]float64{
+			3: 3,
 		},
 		Props: map[string]string{
 			"hej": "hej",
