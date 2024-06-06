@@ -83,9 +83,14 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches)
-	//w.WriteHeader(http.StatusOK)
-	//w.Header().Set("content-type", "application/json; charset=utf-8")
+
 	items := ws.Index.GetItems(matching)
+	if len(items) == 0 {
+		w.WriteHeader(204)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	facets := ws.Index.GetFacetsFromResultIds(matching)
 	data := SearchResponse{
 		Items:  items,
@@ -99,7 +104,10 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) StartServer() {
-
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
 	http.HandleFunc("/search", ws.Search)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
