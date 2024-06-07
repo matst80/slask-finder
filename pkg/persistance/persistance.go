@@ -39,11 +39,11 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
-	for k, fld := range v.Fields {
-		idx.AddField(k, fld)
+	for _, fld := range v.Fields {
+		idx.AddField(fld)
 	}
-	for k, fld := range v.NumberFields {
-		idx.AddNumberField(k, fld)
+	for _, fld := range v.NumberFields {
+		idx.AddNumberField(fld)
 	}
 	for _, item := range v.Items {
 		idx.AddItem(item)
@@ -59,11 +59,11 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	}
 	fields := make(map[int64]facet.Field)
 	numberFields := make(map[int64]facet.Field)
-	for k, fld := range idx.Fields {
-		fields[k] = fld.Field
+	for _, fld := range idx.Fields {
+		fields[fld.Field.Id] = fld.Field
 	}
-	for k, fld := range idx.NumberFields {
-		numberFields[k] = fld.Field
+	for _, fld := range idx.NumberFields {
+		numberFields[fld.Field.Id] = fld.Field
 	}
 
 	toSave := IndexStorage{

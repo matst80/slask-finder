@@ -2,6 +2,7 @@ package index
 
 import (
 	"log"
+	"time"
 
 	"tornberg.me/facet-search/pkg/facet"
 )
@@ -22,12 +23,12 @@ func NewIndex() *Index {
 	}
 }
 
-func (i *Index) AddField(id int64, field facet.Field) {
-	i.Fields[id] = facet.EmptyValueField(field)
+func (i *Index) AddField(field facet.Field) {
+	i.Fields[field.Id] = facet.EmptyValueField(field)
 }
 
-func (i *Index) AddNumberField(id int64, field facet.Field) {
-	i.NumberFields[id] = facet.EmptyNumberField(field)
+func (i *Index) AddNumberField(field facet.Field) {
+	i.NumberFields[field.Id] = facet.EmptyNumberField(field)
 }
 
 func (i *Index) AddItemValues(item Item) {
@@ -75,28 +76,30 @@ type Facets struct {
 	NumberFields map[int64]facet.NumberValueField `json:"numberFields"`
 }
 
-func (i *Index) GetFacetsFromResultIds(ids []int64) Facets {
+func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
+	start := time.Now()
 	r := Facets{
 		Fields:       map[int64]facet.ValueField{},
 		NumberFields: map[int64]facet.NumberValueField{},
 	}
-	for _, id := range ids {
+	for _, id := range result.Ids() {
 		item := i.Items[id]
 		for key, value := range item.Fields {
 			if f, ok := r.Fields[key]; ok {
-				f.AddValueLink(value, item.Id)
+				f.AddValueLink(value, id)
 			} else {
-				r.Fields[key] = facet.NewValueField(i.Fields[key].Field, value, item.Id)
+				r.Fields[key] = facet.NewValueField(i.Fields[key].Field, value, id)
 			}
 		}
 		for key, value := range item.NumberFields {
 			if f, ok := r.NumberFields[key]; ok {
-				f.AddValueLink(value, item.Id)
+				f.AddValueLink(value)
 			} else {
-				r.NumberFields[key] = facet.NewNumberValueField(i.NumberFields[key].Field, value, item.Id)
+				r.NumberFields[key] = facet.NewNumberValueField(i.NumberFields[key].Field, value)
 			}
 		}
 	}
+	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 	return r
 }
 
@@ -111,22 +114,38 @@ type StringSearch struct {
 	Value string `json:"value"`
 }
 
-func (i *Index) Match(strings []StringSearch, numbers []NumberSearch) []int64 {
-	result := facet.Result{Ids: i.itemIds}
-	for _, field := range numbers {
-		if f, ok := i.NumberFields[field.Id]; ok {
-			if len(result.Ids) > 0 {
-				result.Intersect(f.Matches(field.Min, field.Max))
-			}
-		}
-	}
-	for _, field := range strings {
-		if f, ok := i.Fields[field.Id]; ok {
-			if len(result.Ids) > 0 {
-				result.Intersect(f.Matches(field.Value))
-			}
-		}
-	}
+func (i *Index) Match(strings []StringSearch, numbers []NumberSearch) facet.Result {
 
-	return result.Ids
+	log.Printf("Items: %v", len(i.itemIds))
+
+	results := make(chan facet.Result)
+	len := 0
+	for _, fld := range numbers {
+		if f, ok := i.NumberFields[fld.Id]; ok {
+			len++
+			go func(field NumberSearch) {
+
+				start := time.Now()
+				results <- f.Matches(field.Min, field.Max)
+
+				log.Printf("Match took %v", time.Since(start))
+
+			}(fld)
+			//}
+		}
+	}
+	for _, fld := range strings {
+		if f, ok := i.Fields[fld.Id]; ok {
+			len++
+			go func(field StringSearch) {
+				start := time.Now()
+				results <- f.Matches(field.Value)
+
+				log.Printf("Match took %v", time.Since(start))
+
+			}(fld)
+		}
+	}
+	return facet.MakeIntersectResult(results, len)
+
 }

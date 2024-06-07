@@ -94,6 +94,8 @@ func toResponse(facets index.Facets) FacetResponse {
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	page := 0
 	pageSize := 25
+	itemsChan := make(chan []index.Item)
+	facetsChan := make(chan index.Facets)
 	var sr SearchRequest
 	err := json.NewDecoder(r.Body).Decode(&sr)
 	if err != nil {
@@ -101,21 +103,27 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches)
+	ids := matching.Ids()
 
-	items := ws.Index.GetItems(matching, page, pageSize)
-	if len(items) == 0 {
+	if len(ids) == 0 {
 		w.WriteHeader(204)
 		return
 	}
+	go func() {
+		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
+	}()
+	go func() {
+		facetsChan <- ws.Index.GetFacetsFromResult(matching)
+	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	facets := ws.Index.GetFacetsFromResultIds(matching)
+
 	data := SearchResponse{
-		Items:     items,
-		Facets:    toResponse(facets),
+		Items:     <-itemsChan,
+		Facets:    toResponse(<-facetsChan),
 		Page:      page,
 		PageSize:  pageSize,
-		TotalHits: len(matching),
+		TotalHits: len(ids),
 	}
 
 	encErr := json.NewEncoder(w).Encode(data)

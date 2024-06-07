@@ -12,7 +12,7 @@ type ValueField struct {
 }
 
 func (f *ValueField) Matches(search_strings ...string) Result {
-	result := Result{}
+	result := NewResult()
 	for _, v := range search_strings {
 		for key, ids := range f.values {
 			if key == v {
@@ -35,9 +35,6 @@ func (f *ValueField) Values() []string {
 }
 
 func (f *ValueField) AddValueLink(value string, ids ...int64) {
-	if f.values == nil {
-		f.values = make(map[string][]int64)
-	}
 	f.values[value] = append(f.values[value], ids...)
 }
 

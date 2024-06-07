@@ -38,10 +38,10 @@ func main() {
 	// 		"hej": "hej",
 	// 	},
 	// })
-	srv.Index.AddField(1, facet.Field{Name: "Article Type"})
-	srv.Index.AddField(2, facet.Field{Name: "Brand", Description: "Brand name"})
-	srv.Index.AddField(3, facet.Field{Name: "Market", Description: "Country of sale"})
-	srv.Index.AddNumberField(4, facet.Field{Name: "Price", Description: "Current price"})
+	srv.Index.AddField(facet.Field{Id: 1, Name: "Article Type"})
+	srv.Index.AddField(facet.Field{Id: 2, Name: "Brand", Description: "Brand name"})
+	srv.Index.AddField(facet.Field{Id: 3, Name: "Market", Description: "Country of sale"})
+	srv.Index.AddNumberField(facet.Field{Id: 4, Name: "Price", Description: "Current price"})
 
 	srv.StartServer()
 

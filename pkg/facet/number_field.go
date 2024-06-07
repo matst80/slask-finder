@@ -6,10 +6,8 @@ type NumberValueField struct {
 }
 
 func (f *NumberValueField) Matches(min float64, max float64) Result {
-	result := Result{}
-	if f.values == nil {
-		return result
-	}
+	result := NewResult()
+
 	for v, ids := range f.values {
 		if v >= min && v <= max {
 			result.Add(ids...)
@@ -43,9 +41,7 @@ func (f *NumberValueField) Values() NumberRange {
 }
 
 func (f *NumberValueField) AddValueLink(value float64, ids ...int64) {
-	if f.values == nil {
-		f.values = make(map[float64][]int64)
-	}
+
 	f.values[value] = append(f.values[value], ids...)
 }
 
