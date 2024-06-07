@@ -38,8 +38,11 @@ type FacetResponse struct {
 }
 
 type SearchResponse struct {
-	Items  []index.Item  `json:"items"`
-	Facets FacetResponse `json:"facets"`
+	Items     []index.Item  `json:"items"`
+	Facets    FacetResponse `json:"facets"`
+	Page      int           `json:"page"`
+	PageSize  int           `json:"pageSize"`
+	TotalHits int           `json:"totalHits"`
 }
 
 func NewWebServer() WebServer {
@@ -47,6 +50,8 @@ func NewWebServer() WebServer {
 		Index: index.NewIndex(),
 	}
 }
+
+type AddItemRequest []index.Item
 
 func toResponse(facets index.Facets) FacetResponse {
 	fields := []ValueResponse{}
@@ -64,19 +69,20 @@ func toResponse(facets index.Facets) FacetResponse {
 	for _, field := range facets.NumberFields {
 		v := field.Values()
 		if len(v.Values) > 0 {
-
-			numberFields = append(numberFields, NumberValueResponse{
+			nr := NumberValueResponse{
 				Id:    field.Id,
 				Field: field.Field,
 
 				Min: v.Min,
 				Max: v.Max,
-			})
-			if len(v.Values) > 100 {
+			}
+			if len(v.Values) > 10 {
 				// TODO Get median or something
 			} else {
-				numberFields[len(numberFields)-1].Values = v.Values
+				nr.Values = v.Values
 			}
+			numberFields = append(numberFields, nr)
+
 		}
 	}
 	return FacetResponse{
@@ -86,6 +92,8 @@ func toResponse(facets index.Facets) FacetResponse {
 }
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
+	page := 0
+	pageSize := 25
 	var sr SearchRequest
 	err := json.NewDecoder(r.Body).Decode(&sr)
 	if err != nil {
@@ -94,7 +102,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches)
 
-	items := ws.Index.GetItems(matching)
+	items := ws.Index.GetItems(matching, page, pageSize)
 	if len(items) == 0 {
 		w.WriteHeader(204)
 		return
@@ -103,8 +111,11 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	facets := ws.Index.GetFacetsFromResultIds(matching)
 	data := SearchResponse{
-		Items:  items,
-		Facets: toResponse(facets),
+		Items:     items,
+		Facets:    toResponse(facets),
+		Page:      page,
+		PageSize:  pageSize,
+		TotalHits: len(matching),
 	}
 
 	encErr := json.NewEncoder(w).Encode(data)
@@ -113,11 +124,25 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
+	items := AddItemRequest{}
+	err := json.NewDecoder(r.Body).Decode(&items)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	for _, item := range items {
+		ws.Index.AddItem(item)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ws *WebServer) StartServer() {
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
 	http.HandleFunc("/search", ws.Search)
+	http.HandleFunc("/add", ws.AddItem)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

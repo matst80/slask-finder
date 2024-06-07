@@ -60,9 +60,9 @@ func (i *Index) HasItem(id int64) bool {
 	return i.Items[id].Id == id
 }
 
-func (i *Index) GetItems(ids []int64) []Item {
+func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
 	items := []Item{}
-	for _, id := range ids {
+	for _, id := range ids[page*pageSize : min(len(ids), (page+1)*pageSize)] {
 		items = append(items, i.Items[id])
 	}
 	return items

@@ -102,7 +102,7 @@ func TestMultipleIndexMatch(t *testing.T) {
 func TestGetMatchItems(t *testing.T) {
 	i := CreateIndex()
 	matching := i.Match([]StringSearch{{Id: 1, Value: "test"}}, []NumberSearch{{Id: 3, Min: 1, Max: 2}})
-	items := i.GetItems(matching)
+	items := i.GetItems(matching, 0, 10)
 	if items[0].Id != 1 || items[1].Id != 2 {
 		t.Errorf("Expected ids [1,2] but got %v", items)
 	}
