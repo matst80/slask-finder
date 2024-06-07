@@ -1,12 +1,12 @@
 package facet
 
 type Field struct {
+	Id          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
 type ValueField struct {
-	Id     int64 `json:"id"`
 	Field  `json:"field"`
 	values map[string][]int64
 }

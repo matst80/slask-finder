@@ -30,12 +30,8 @@ func (i *Index) AddNumberField(id int64, field facet.Field) {
 	i.NumberFields[id] = facet.EmptyNumberField(field)
 }
 
-func (i *Index) AddItem(item Item) {
-
-	i.Items[item.Id] = item
-	i.itemIds = append(i.itemIds, item.Id)
+func (i *Index) AddItemValues(item Item) {
 	for key, value := range item.Fields {
-
 		if f, ok := i.Fields[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
@@ -50,6 +46,12 @@ func (i *Index) AddItem(item Item) {
 			//i.NumberFields[field.Id] = facet.NewNumberValueField(facet.Field{}, field.Value, item.Id)
 		}
 	}
+}
+
+func (i *Index) AddItem(item Item) {
+	i.Items[item.Id] = item
+	i.itemIds = append(i.itemIds, item.Id)
+	i.AddItemValues(item)
 }
 
 func (i *Index) GetItem(id int64) Item {

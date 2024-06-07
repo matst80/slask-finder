@@ -2,16 +2,13 @@ package main
 
 import (
 	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/persistance"
 	"tornberg.me/facet-search/pkg/server"
 )
 
 func main() {
-
-	srv := server.NewWebServer()
-	srv.Index.AddField(1, facet.Field{Name: "Article Type"})
-	srv.Index.AddField(2, facet.Field{Name: "Brand", Description: "Brand name"})
-	srv.Index.AddField(3, facet.Field{Name: "Market", Description: "Country of sale"})
-	srv.Index.AddNumberField(4, facet.Field{Name: "Price", Description: "Current price"})
+	db := persistance.NewPersistance()
+	srv := server.NewWebServer(&db)
 
 	// srv.Index.AddItem(index.Item{
 	// 	Id:    1,
@@ -41,5 +38,11 @@ func main() {
 	// 		"hej": "hej",
 	// 	},
 	// })
+	srv.Index.AddField(1, facet.Field{Name: "Article Type"})
+	srv.Index.AddField(2, facet.Field{Name: "Brand", Description: "Brand name"})
+	srv.Index.AddField(3, facet.Field{Name: "Market", Description: "Country of sale"})
+	srv.Index.AddNumberField(4, facet.Field{Name: "Price", Description: "Current price"})
+
 	srv.StartServer()
+
 }

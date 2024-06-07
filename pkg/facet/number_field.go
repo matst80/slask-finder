@@ -1,14 +1,15 @@
 package facet
 
 type NumberValueField struct {
-	Id     int64 `json:"id"`
 	Field  `json:"field"`
 	values map[float64][]int64
 }
 
 func (f *NumberValueField) Matches(min float64, max float64) Result {
 	result := Result{}
-
+	if f.values == nil {
+		return result
+	}
 	for v, ids := range f.values {
 		if v >= min && v <= max {
 			result.Add(ids...)

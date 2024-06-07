@@ -7,10 +7,12 @@ import (
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
+	"tornberg.me/facet-search/pkg/persistance"
 )
 
 type WebServer struct {
 	Index *index.Index
+	Db    *persistance.Persistance
 }
 
 type SearchRequest struct {
@@ -45,9 +47,10 @@ type SearchResponse struct {
 	TotalHits int           `json:"totalHits"`
 }
 
-func NewWebServer() WebServer {
+func NewWebServer(db *persistance.Persistance) WebServer {
 	return WebServer{
 		Index: index.NewIndex(),
+		Db:    db,
 	}
 }
 
@@ -137,12 +140,27 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
+	err := ws.Db.SaveIndex(ws.Index)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
+}
+
 func (ws *WebServer) StartServer() {
+	err := ws.Db.LoadIndex(ws.Index)
+	if err != nil {
+		log.Printf("Failed to load index %v", err)
+	}
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
 	http.HandleFunc("/search", ws.Search)
 	http.HandleFunc("/add", ws.AddItem)
+	http.HandleFunc("/save", ws.Save)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
