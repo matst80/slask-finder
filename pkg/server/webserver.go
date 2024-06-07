@@ -21,17 +21,15 @@ type SearchRequest struct {
 }
 
 type ValueResponse struct {
-	Id     int64       `json:"id"`
-	Field  facet.Field `json:"field"`
-	Values []string    `json:"values"`
+	facet.Field
+	Values []string `json:"values"`
 }
 
 type NumberValueResponse struct {
-	Id     int64       `json:"id"`
-	Field  facet.Field `json:"field"`
-	Values []float64   `json:"values"`
-	Min    float64     `json:"min"`
-	Max    float64     `json:"max"`
+	Field  facet.Field
+	Values []float64 `json:"values"`
+	Min    float64   `json:"min"`
+	Max    float64   `json:"max"`
 }
 
 type FacetResponse struct {
@@ -62,7 +60,6 @@ func toResponse(facets index.Facets) FacetResponse {
 		values := field.Values()
 		if len(values) > 0 {
 			fields = append(fields, ValueResponse{
-				Id:     field.Id,
 				Field:  field.Field,
 				Values: values,
 			})
@@ -73,7 +70,7 @@ func toResponse(facets index.Facets) FacetResponse {
 		v := field.Values()
 		if len(v.Values) > 0 {
 			nr := NumberValueResponse{
-				Id:    field.Id,
+
 				Field: field.Field,
 
 				Min: v.Min,
