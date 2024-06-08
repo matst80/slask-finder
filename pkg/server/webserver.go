@@ -16,20 +16,26 @@ type WebServer struct {
 }
 
 type ValueResponse struct {
-	facet.Field
-	Values []string `json:"values"`
+	facet.Field `json:"field"`
+	Values      []string `json:"values"`
 }
 
 type NumberValueResponse struct {
-	Field  facet.Field
-	Values []float64 `json:"values"`
-	Min    float64   `json:"min"`
-	Max    float64   `json:"max"`
+	Field  facet.Field `json:"field"`
+	Values []float64   `json:"values"`
+	Min    float64     `json:"min"`
+	Max    float64     `json:"max"`
+}
+
+type BoolValueResponse struct {
+	Field  facet.Field `json:"field"`
+	Values []bool      `json:"values"`
 }
 
 type FacetResponse struct {
 	Fields       []ValueResponse       `json:"fields"`
 	NumberFields []NumberValueResponse `json:"numberFields"`
+	BoolFields   []BoolValueResponse   `json:"boolFields"`
 }
 
 type SearchResponse struct {
@@ -53,7 +59,7 @@ func toResponse(facets index.Facets) FacetResponse {
 	fields := []ValueResponse{}
 	for _, field := range facets.Fields {
 		values := field.Values()
-		if len(values) > 0 {
+		if len(values) > 1 {
 			fields = append(fields, ValueResponse{
 				Field:  field.Field,
 				Values: values,
@@ -80,9 +86,20 @@ func toResponse(facets index.Facets) FacetResponse {
 
 		}
 	}
+	boolFields := []BoolValueResponse{}
+	for _, field := range facets.BoolFields {
+		values := field.Values()
+		if len(values) > 0 {
+			boolFields = append(boolFields, BoolValueResponse{
+				Field:  field.Field,
+				Values: values,
+			})
+		}
+	}
 	return FacetResponse{
 		Fields:       fields,
 		NumberFields: numberFields,
+		BoolFields:   boolFields,
 	}
 }
 
@@ -97,7 +114,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	itemsChan := make(chan []index.Item)
 	facetsChan := make(chan index.Facets)
 
-	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches)
+	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches, sr.BitSearches)
 	ids := matching.Ids()
 
 	if len(ids) == 0 {

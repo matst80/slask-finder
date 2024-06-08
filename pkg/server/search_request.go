@@ -10,6 +10,7 @@ import (
 type SearchRequest struct {
 	StringSearches []index.StringSearch `json:"string"`
 	NumberSearches []index.NumberSearch `json:"number"`
+	BitSearches    []index.BoolSearch   `json:"bool"`
 	Sort           []index.Sort         `json:"sort"`
 	Page           int                  `json:"page"`
 	PageSize       int                  `json:"pageSize"`

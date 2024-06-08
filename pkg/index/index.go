@@ -10,6 +10,7 @@ import (
 type Index struct {
 	Fields       map[int64]facet.ValueField
 	NumberFields map[int64]facet.NumberValueField
+	BoolFields   map[int64]facet.BoolValueField
 	Items        map[int64]Item
 	itemIds      []int64
 }
@@ -18,6 +19,7 @@ func NewIndex() *Index {
 	return &Index{
 		Fields:       make(map[int64]facet.ValueField),
 		NumberFields: make(map[int64]facet.NumberValueField),
+		BoolFields:   make(map[int64]facet.BoolValueField),
 		Items:        make(map[int64]Item),
 		itemIds:      []int64{},
 	}
@@ -27,11 +29,16 @@ func (i *Index) AddField(field facet.Field) {
 	i.Fields[field.Id] = facet.EmptyValueField(field)
 }
 
+func (i *Index) AddBoolField(field facet.Field) {
+	i.BoolFields[field.Id] = facet.EmptyBoolField(field)
+}
+
 func (i *Index) AddNumberField(field facet.Field) {
 	i.NumberFields[field.Id] = facet.EmptyNumberField(field)
 }
 
 func (i *Index) AddItemValues(item Item) {
+
 	for key, value := range item.Fields {
 		if f, ok := i.Fields[key]; ok {
 			f.AddValueLink(value, item.Id)
@@ -44,7 +51,14 @@ func (i *Index) AddItemValues(item Item) {
 			f.AddValueLink(value, item.Id)
 		} else {
 			log.Printf("NumberField not found %v", key)
-			//i.NumberFields[field.Id] = facet.NewNumberValueField(facet.Field{}, field.Value, item.Id)
+		}
+	}
+
+	for key, value := range item.BoolFields {
+		if f, ok := i.BoolFields[key]; ok {
+			f.AddValueLink(value, item.Id)
+		} else {
+			log.Printf("BoolField not found %v", key)
 		}
 	}
 }
@@ -80,6 +94,7 @@ func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
 type Facets struct {
 	Fields       map[int64]facet.ValueField       `json:"fields"`
 	NumberFields map[int64]facet.NumberValueField `json:"numberFields"`
+	BoolFields   map[int64]facet.BoolValueField   `json:"boolFields"`
 }
 
 func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
@@ -87,9 +102,10 @@ func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
 	r := Facets{
 		Fields:       map[int64]facet.ValueField{},
 		NumberFields: map[int64]facet.NumberValueField{},
+		BoolFields:   map[int64]facet.BoolValueField{},
 	}
 	for _, id := range result.Ids() {
-		item := i.Items[id]
+		item := i.Items[id] // todo optimize and maybe sort in this step
 		for key, value := range item.Fields {
 			if f, ok := r.Fields[key]; ok {
 				f.AddValueLink(value, id)
@@ -102,6 +118,13 @@ func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
 				f.AddValueLink(value)
 			} else {
 				r.NumberFields[key] = facet.NewNumberValueField(i.NumberFields[key].Field, value)
+			}
+		}
+		for key, value := range item.BoolFields {
+			if f, ok := r.BoolFields[key]; ok {
+				f.AddValueLink(value)
+			} else {
+				r.BoolFields[key] = facet.NewBoolValueField(i.BoolFields[key].Field, value)
 			}
 		}
 	}
@@ -120,12 +143,31 @@ type StringSearch struct {
 	Value string `json:"value"`
 }
 
-func (i *Index) Match(strings []StringSearch, numbers []NumberSearch) facet.Result {
+type BoolSearch struct {
+	Id    int64 `json:"id"`
+	Value bool  `json:"value"`
+}
 
-	log.Printf("Items: %v", len(i.itemIds))
+func (i *Index) Match(strings []StringSearch, numbers []NumberSearch, bits []BoolSearch) facet.Result {
+
+	// log.Printf("Items: %v", len(i.itemIds))
 
 	results := make(chan facet.Result)
 	len := 0
+	for _, fld := range bits {
+		if f, ok := i.BoolFields[fld.Id]; ok {
+			len++
+			go func(field BoolSearch) {
+
+				start := time.Now()
+				results <- f.Matches(field.Value)
+
+				log.Printf("Match took %v", time.Since(start))
+
+			}(fld)
+			//}
+		}
+	}
 	for _, fld := range numbers {
 		if f, ok := i.NumberFields[fld.Id]; ok {
 			len++

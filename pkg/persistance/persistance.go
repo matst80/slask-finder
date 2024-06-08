@@ -14,6 +14,7 @@ type Persistance struct {
 }
 
 func NewPersistance() Persistance {
+	gob.Register([]interface{}(nil))
 	return Persistance{
 		File: "index.db",
 	}
@@ -26,6 +27,7 @@ type IndexStorage struct {
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {
+
 	file, err := os.Open(p.File)
 	if err != nil {
 		return err
@@ -53,6 +55,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 }
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
+
 	file, err := os.Create(p.File)
 	if err != nil {
 		return err
