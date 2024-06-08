@@ -50,8 +50,8 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	for _, item := range v.Items {
 		idx.AddItem(item)
 	}
-	s := index.MakeSortFromNumberField(idx.Items, 4)
-	idx.Sort = &s
+	//s := index.MakeSortFromNumberField(idx.Items, 4)
+	//idx.Sort = &s
 	return nil
 }
 

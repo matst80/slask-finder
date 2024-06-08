@@ -1,4 +1,4 @@
-package index
+package facet
 
 import (
 	"reflect"
@@ -15,7 +15,7 @@ func TestPresortedSorting(t *testing.T) {
 	}
 	ids := []int64{4, 2, 1, 2}
 
-	sortedIds := sortIndex.SortIds(ids)
+	sortedIds := sortIndex.SortIds(ids, 10)
 	// if sortedIds[0] != 1 || sortedIds[1] != 2 || sortedIds[2] != 4 {
 	// 	t.Errorf("Expected [1, 2, 4] but got %v", sortedIds)
 	// }

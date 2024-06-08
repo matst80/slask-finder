@@ -13,7 +13,6 @@ type Index struct {
 	BoolFields   map[int64]facet.BoolValueField
 	Items        map[int64]Item
 	itemIds      []int64
-	Sort         *SortIndex
 }
 
 func NewIndex() *Index {
@@ -88,19 +87,13 @@ func (i *Index) GetItemIds(ids []int64, page int, pageSize int) []int64 {
 	return ids[start:end]
 }
 
-func (i *Index) GetItems(ids <-chan int64, pageSize int) <-chan Item {
-	out := make(chan Item)
-	idx := 0
-	go func() {
-		for id := range ids {
-			out <- i.Items[id]
-			idx++
-			if idx >= pageSize {
-				break
-			}
-		}
-	}()
-	return out
+func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
+	items := []Item{}
+
+	for _, id := range i.GetItemIds(ids, page, pageSize) {
+		items = append(items, i.Items[id])
+	}
+	return items
 }
 
 type StringResult struct {
@@ -128,22 +121,23 @@ type Facets struct {
 
 func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
 	start := time.Now()
+	all := result.Ids()
+	ids := all[0:min(1000, len(all))]
 
-	fields := map[int64]*StringResult{}
+	fields := map[int64]StringResult{}
 	numberFields := map[int64]*NumberResult{}
-	boolFields := map[int64]*BoolResult{}
+	boolFields := map[int64]BoolResult{}
 
-	for _, id := range result.Ids() {
+	for _, id := range ids {
 		item, ok := i.Items[id] // todo optimize and maybe sort in this step
 		if !ok {
-			log.Printf("Item not found %v", id)
 			continue
 		}
 		for key, value := range item.Fields {
 			if f, ok := fields[key]; ok {
 				f.Values[value]++
 			} else {
-				fields[key] = &StringResult{
+				fields[key] = StringResult{
 					Field:  i.Fields[key].Field,
 					Values: map[string]int{value: 1},
 				}
@@ -166,22 +160,22 @@ func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
 				}
 			}
 		}
-		for key, value := range item.BoolFields {
-			if f, ok := boolFields[key]; ok {
-				f.Values[stringValue(value)]++
-			} else {
-				boolFields[key] = &BoolResult{
-					Field:  i.BoolFields[key].Field,
-					Values: map[string]int{stringValue(value): 1},
-				}
-			}
-		}
+		// for key, value := range item.BoolFields {
+		// 	if f, ok := boolFields[key]; ok {
+		// 		f.Values[stringValue(value)]++
+		// 	} else {
+		// 		boolFields[key] = BoolResult{
+		// 			Field:  i.BoolFields[key].Field,
+		// 			Values: map[string]int{stringValue(value): 1},
+		// 		}
+		// 	}
+		// }
 	}
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 
 	return Facets{
 		Fields:       mapToSlice(fields),
-		NumberFields: mapToSlice(numberFields),
+		NumberFields: mapToSliceRef(numberFields),
 		BoolFields:   mapToSlice(boolFields),
 	}
 }
@@ -193,10 +187,22 @@ func stringValue(b bool) string {
 	return "false"
 }
 
-func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]*V) []V {
-	r := []V{}
+func mapToSliceRef[V BoolResult | StringResult | NumberResult](fields map[int64]*V) []V {
+	r := make([]V, len(fields))
+	idx := 0
 	for _, field := range fields {
-		r = append(r, *field)
+		r[idx] = *field
+		idx++
+	}
+	return r
+}
+
+func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]V) []V {
+	r := make([]V, len(fields))
+	idx := 0
+	for _, field := range fields {
+		r[idx] = field
+		idx++
 	}
 	return r
 }

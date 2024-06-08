@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"time"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -65,20 +64,8 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		start := time.Now()
-		sortedIds := ws.Index.Sort.SortIds(ids, sr.PageSize)
-		items := make([]index.Item, sr.PageSize)
-		idx := 0
-		for item := range ws.Index.GetItems(sortedIds, sr.PageSize) {
-			items[idx] = item
-			idx++
-			if idx >= sr.PageSize {
-				break
-			}
-		}
-		elapsed := time.Since(start)
-		log.Printf("Sort took %v", elapsed)
-		itemsChan <- items
+		//sortedIds := ws.Index.Sort.SortIds(ids, sr.PageSize*(sr.Page+1))
+		itemsChan <- ws.Index.GetItems(ids, sr.Page, sr.PageSize)
 	}()
 	go func() {
 		facetsChan <- ws.Index.GetFacetsFromResult(matching)
