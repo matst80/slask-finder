@@ -36,14 +36,14 @@ func (i *Index) AddItemValues(item Item) {
 		if f, ok := i.Fields[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Fatalf("Field not found %v", key)
+			log.Printf("Field not found %v", key)
 		}
 	}
 	for key, value := range item.NumberFields {
 		if f, ok := i.NumberFields[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Fatalf("NumberField not found %v", key)
+			log.Printf("NumberField not found %v", key)
 			//i.NumberFields[field.Id] = facet.NewNumberValueField(facet.Field{}, field.Value, item.Id)
 		}
 	}
@@ -65,7 +65,13 @@ func (i *Index) HasItem(id int64) bool {
 
 func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
 	items := []Item{}
-	for _, id := range ids[page*pageSize : min(len(ids), (page+1)*pageSize)] {
+	l := len(ids)
+	start := page * pageSize
+	end := min(l, (page+1)*pageSize)
+	if start > l {
+		return items
+	}
+	for _, id := range ids[start:end] {
 		items = append(items, i.Items[id])
 	}
 	return items
