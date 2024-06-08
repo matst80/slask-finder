@@ -8,3 +8,8 @@ type Item struct {
 	Fields       map[int64]string  `json:"values"`
 	NumberFields map[int64]float64 `json:"numberValues"`
 }
+
+type Sort struct {
+	FieldId int64 `json:"fieldId"`
+	Asc     bool  `json:"asc"`
+}

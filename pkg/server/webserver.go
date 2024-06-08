@@ -15,11 +15,6 @@ type WebServer struct {
 	Db    *persistance.Persistance
 }
 
-type SearchRequest struct {
-	StringSearches []index.StringSearch `json:"string"`
-	NumberSearches []index.NumberSearch `json:"number"`
-}
-
 type ValueResponse struct {
 	facet.Field
 	Values []string `json:"values"`
@@ -92,16 +87,16 @@ func toResponse(facets index.Facets) FacetResponse {
 }
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
-	page := 0
-	pageSize := 25
-	itemsChan := make(chan []index.Item)
-	facetsChan := make(chan index.Facets)
-	var sr SearchRequest
-	err := json.NewDecoder(r.Body).Decode(&sr)
+
+	sr, err := QueryFromRequest(r)
+
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	itemsChan := make(chan []index.Item)
+	facetsChan := make(chan index.Facets)
+
 	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches)
 	ids := matching.Ids()
 
@@ -110,7 +105,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
+		itemsChan <- ws.Index.GetItems(ids, sr.Page, sr.PageSize)
 	}()
 	go func() {
 		facetsChan <- ws.Index.GetFacetsFromResult(matching)
@@ -121,8 +116,8 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	data := SearchResponse{
 		Items:     <-itemsChan,
 		Facets:    toResponse(<-facetsChan),
-		Page:      page,
-		PageSize:  pageSize,
+		Page:      sr.Page,
+		PageSize:  sr.PageSize,
 		TotalHits: len(ids),
 	}
 
