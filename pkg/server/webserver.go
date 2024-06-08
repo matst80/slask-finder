@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -13,11 +14,7 @@ import (
 type WebServer struct {
 	Index *index.Index
 	Db    *persistance.Persistance
-}
-
-type ValueResponse struct {
-	facet.Field `json:"field"`
-	Values      []string `json:"values"`
+	Sort  *index.Sort
 }
 
 type NumberValueResponse struct {
@@ -32,18 +29,12 @@ type BoolValueResponse struct {
 	Values []bool      `json:"values"`
 }
 
-type FacetResponse struct {
-	Fields       []ValueResponse       `json:"fields"`
-	NumberFields []NumberValueResponse `json:"numberFields"`
-	BoolFields   []BoolValueResponse   `json:"boolFields"`
-}
-
 type SearchResponse struct {
-	Items     []index.Item  `json:"items"`
-	Facets    FacetResponse `json:"facets"`
-	Page      int           `json:"page"`
-	PageSize  int           `json:"pageSize"`
-	TotalHits int           `json:"totalHits"`
+	Items     []index.Item `json:"items"`
+	Facets    index.Facets `json:"facets"`
+	Page      int          `json:"page"`
+	PageSize  int          `json:"pageSize"`
+	TotalHits int          `json:"totalHits"`
 }
 
 func NewWebServer(db *persistance.Persistance) WebServer {
@@ -54,54 +45,6 @@ func NewWebServer(db *persistance.Persistance) WebServer {
 }
 
 type AddItemRequest []index.Item
-
-func toResponse(facets index.Facets) FacetResponse {
-	fields := []ValueResponse{}
-	for _, field := range facets.Fields {
-		values := field.Values()
-		if len(values) > 1 {
-			fields = append(fields, ValueResponse{
-				Field:  field.Field,
-				Values: values,
-			})
-		}
-	}
-	numberFields := []NumberValueResponse{}
-	for _, field := range facets.NumberFields {
-		v := field.Values()
-		if len(v.Values) > 0 {
-			nr := NumberValueResponse{
-
-				Field: field.Field,
-
-				Min: v.Min,
-				Max: v.Max,
-			}
-			if len(v.Values) > 10 {
-				// TODO Get median or something
-			} else {
-				nr.Values = v.Values
-			}
-			numberFields = append(numberFields, nr)
-
-		}
-	}
-	boolFields := []BoolValueResponse{}
-	for _, field := range facets.BoolFields {
-		values := field.Values()
-		if len(values) > 0 {
-			boolFields = append(boolFields, BoolValueResponse{
-				Field:  field.Field,
-				Values: values,
-			})
-		}
-	}
-	return FacetResponse{
-		Fields:       fields,
-		NumberFields: numberFields,
-		BoolFields:   boolFields,
-	}
-}
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
@@ -122,7 +65,20 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	go func() {
-		itemsChan <- ws.Index.GetItems(ids, sr.Page, sr.PageSize)
+		start := time.Now()
+		sortedIds := ws.Index.Sort.SortIds(ids, sr.PageSize)
+		items := make([]index.Item, sr.PageSize)
+		idx := 0
+		for item := range ws.Index.GetItems(sortedIds, sr.PageSize) {
+			items[idx] = item
+			idx++
+			if idx >= sr.PageSize {
+				break
+			}
+		}
+		elapsed := time.Since(start)
+		log.Printf("Sort took %v", elapsed)
+		itemsChan <- items
 	}()
 	go func() {
 		facetsChan <- ws.Index.GetFacetsFromResult(matching)
@@ -132,7 +88,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
 	data := SearchResponse{
 		Items:     <-itemsChan,
-		Facets:    toResponse(<-facetsChan),
+		Facets:    <-facetsChan,
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		TotalHits: len(ids),
@@ -169,6 +125,7 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) StartServer() {
 	err := ws.Db.LoadIndex(ws.Index)
+
 	if err != nil {
 		log.Printf("Failed to load index %v", err)
 	}

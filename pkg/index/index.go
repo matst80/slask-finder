@@ -13,6 +13,7 @@ type Index struct {
 	BoolFields   map[int64]facet.BoolValueField
 	Items        map[int64]Item
 	itemIds      []int64
+	Sort         *SortIndex
 }
 
 func NewIndex() *Index {
@@ -77,58 +78,126 @@ func (i *Index) HasItem(id int64) bool {
 	return i.Items[id].Id == id
 }
 
-func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
-	items := []Item{}
+func (i *Index) GetItemIds(ids []int64, page int, pageSize int) []int64 {
 	l := len(ids)
 	start := page * pageSize
 	end := min(l, (page+1)*pageSize)
 	if start > l {
-		return items
+		return []int64{}
 	}
-	for _, id := range ids[start:end] {
-		items = append(items, i.Items[id])
-	}
-	return items
+	return ids[start:end]
+}
+
+func (i *Index) GetItems(ids <-chan int64, pageSize int) <-chan Item {
+	out := make(chan Item)
+	idx := 0
+	go func() {
+		for id := range ids {
+			out <- i.Items[id]
+			idx++
+			if idx >= pageSize {
+				break
+			}
+		}
+	}()
+	return out
+}
+
+type StringResult struct {
+	Field  facet.Field    `json:"field"`
+	Values map[string]int `json:"values"`
+}
+
+type NumberResult struct {
+	Field facet.Field `json:"field"`
+	Count int         `json:"count"`
+	Min   float64     `json:"min"`
+	Max   float64     `json:"max"`
+}
+
+type BoolResult struct {
+	Field  facet.Field    `json:"field"`
+	Values map[string]int `json:"values"`
 }
 
 type Facets struct {
-	Fields       map[int64]facet.ValueField       `json:"fields"`
-	NumberFields map[int64]facet.NumberValueField `json:"numberFields"`
-	BoolFields   map[int64]facet.BoolValueField   `json:"boolFields"`
+	Fields       []StringResult `json:"fields"`
+	NumberFields []NumberResult `json:"numberFields"`
+	BoolFields   []BoolResult   `json:"boolFields"`
 }
 
 func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
 	start := time.Now()
-	r := Facets{
-		Fields:       map[int64]facet.ValueField{},
-		NumberFields: map[int64]facet.NumberValueField{},
-		BoolFields:   map[int64]facet.BoolValueField{},
-	}
+
+	fields := map[int64]*StringResult{}
+	numberFields := map[int64]*NumberResult{}
+	boolFields := map[int64]*BoolResult{}
+
 	for _, id := range result.Ids() {
-		item := i.Items[id] // todo optimize and maybe sort in this step
+		item, ok := i.Items[id] // todo optimize and maybe sort in this step
+		if !ok {
+			log.Printf("Item not found %v", id)
+			continue
+		}
 		for key, value := range item.Fields {
-			if f, ok := r.Fields[key]; ok {
-				f.AddValueLink(value, id)
+			if f, ok := fields[key]; ok {
+				f.Values[value]++
 			} else {
-				r.Fields[key] = facet.NewValueField(i.Fields[key].Field, value, id)
+				fields[key] = &StringResult{
+					Field:  i.Fields[key].Field,
+					Values: map[string]int{value: 1},
+				}
 			}
 		}
 		for key, value := range item.NumberFields {
-			if f, ok := r.NumberFields[key]; ok {
-				f.AddValueLink(value)
+			if f, ok := numberFields[key]; ok {
+				if value < f.Min {
+					f.Min = value
+				} else if value > f.Max {
+					f.Max = value
+				}
+				f.Count++
 			} else {
-				r.NumberFields[key] = facet.NewNumberValueField(i.NumberFields[key].Field, value)
+				numberFields[key] = &NumberResult{
+					Field: i.NumberFields[key].Field,
+					Count: 1,
+					Min:   value,
+					Max:   value,
+				}
 			}
 		}
 		for key, value := range item.BoolFields {
-			if f, ok := r.BoolFields[key]; ok {
-				f.AddValueLink(value)
+			if f, ok := boolFields[key]; ok {
+				f.Values[stringValue(value)]++
 			} else {
-				r.BoolFields[key] = facet.NewBoolValueField(i.BoolFields[key].Field, value)
+				boolFields[key] = &BoolResult{
+					Field:  i.BoolFields[key].Field,
+					Values: map[string]int{stringValue(value): 1},
+				}
 			}
 		}
 	}
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
+
+	return Facets{
+		Fields:       mapToSlice(fields),
+		NumberFields: mapToSlice(numberFields),
+		BoolFields:   mapToSlice(boolFields),
+	}
+}
+
+func stringValue(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]*V) []V {
+	r := []V{}
+	for _, field := range fields {
+		r = append(r, *field)
+	}
 	return r
 }
 
