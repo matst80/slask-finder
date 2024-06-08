@@ -12,7 +12,6 @@ type Index struct {
 	NumberFields map[int64]facet.NumberValueField
 	BoolFields   map[int64]facet.BoolValueField
 	Items        map[int64]Item
-	itemIds      []int64
 }
 
 func NewIndex() *Index {
@@ -21,7 +20,6 @@ func NewIndex() *Index {
 		NumberFields: make(map[int64]facet.NumberValueField),
 		BoolFields:   make(map[int64]facet.BoolValueField),
 		Items:        make(map[int64]Item),
-		itemIds:      []int64{},
 	}
 }
 
@@ -43,14 +41,16 @@ func (i *Index) AddItemValues(item Item) {
 		if f, ok := i.Fields[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Printf("Field not found %v", key)
+			delete(item.Fields, key)
+			//log.Printf("Field not found %v", key)
 		}
 	}
 	for key, value := range item.NumberFields {
 		if f, ok := i.NumberFields[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Printf("NumberField not found %v", key)
+			//log.Printf("NumberField not found %v", key)
+			delete(item.NumberFields, key)
 		}
 	}
 
@@ -58,14 +58,14 @@ func (i *Index) AddItemValues(item Item) {
 		if f, ok := i.BoolFields[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Printf("BoolField not found %v", key)
+			//log.Printf("BoolField not found %v", key)
+			delete(item.BoolFields, key)
 		}
 	}
 }
 
 func (i *Index) AddItem(item Item) {
 	i.Items[item.Id] = item
-	i.itemIds = append(i.itemIds, item.Id)
 	i.AddItemValues(item)
 }
 
@@ -80,9 +80,9 @@ func (i *Index) HasItem(id int64) bool {
 func (i *Index) GetItemIds(ids []int64, page int, pageSize int) []int64 {
 	l := len(ids)
 	start := page * pageSize
-	end := min(l, (page+1)*pageSize)
+	end := min(l, start+pageSize)
 	if start > l {
-		return []int64{}
+		return ids[0:0]
 	}
 	return ids[start:end]
 }

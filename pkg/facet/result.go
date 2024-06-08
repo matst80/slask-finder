@@ -1,7 +1,8 @@
 package facet
 
 type Result struct {
-	ids map[int64]struct{}
+	ids      map[int64]struct{}
+	hasItems bool
 }
 
 func NewResult() Result {
@@ -9,9 +10,16 @@ func NewResult() Result {
 }
 
 func (r *Result) Add(ids ...int64) {
+	if len(ids) > 0 {
+		r.hasItems = true
+	}
 	for _, id := range ids {
 		r.ids[id] = struct{}{}
 	}
+}
+
+func (r *Result) HasItems() bool {
+	return r.hasItems
 }
 
 func (r *Result) Ids() []int64 {
@@ -24,10 +32,18 @@ func (r *Result) Ids() []int64 {
 	return ids
 }
 
+func (r *Result) SortedIds(srt SortIndex, maxItems int) []int64 {
+	return srt.SortMap(r.ids, maxItems)
+}
+
 func (a *Result) Merge(b Result) {
 	for id := range b.ids {
 		a.ids[id] = struct{}{}
 	}
+}
+
+func (a *Result) Length() int {
+	return len(a.ids)
 }
 
 func (a *Result) Intersect(b Result) {

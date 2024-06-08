@@ -13,7 +13,7 @@ import (
 type WebServer struct {
 	Index *index.Index
 	Db    *persistance.Persistance
-	Sort  *index.Sort
+	Sort  facet.SortIndex
 }
 
 type NumberValueResponse struct {
@@ -57,15 +57,14 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	facetsChan := make(chan index.Facets)
 
 	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches, sr.BitSearches)
-	ids := matching.Ids()
+	//ids := matching.Ids()
 
-	if len(ids) == 0 {
+	if !matching.HasItems() {
 		w.WriteHeader(204)
 		return
 	}
 	go func() {
-		//sortedIds := ws.Index.Sort.SortIds(ids, sr.PageSize*(sr.Page+1))
-		itemsChan <- ws.Index.GetItems(ids, sr.Page, sr.PageSize)
+		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
 		facetsChan <- ws.Index.GetFacetsFromResult(matching)
@@ -78,7 +77,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		Facets:    <-facetsChan,
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
-		TotalHits: len(ids),
+		TotalHits: matching.Length(),
 	}
 
 	encErr := json.NewEncoder(w).Encode(data)
@@ -112,7 +111,8 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) StartServer() {
 	err := ws.Db.LoadIndex(ws.Index)
-
+	priceSort := index.MakeSortFromNumberField(ws.Index.Items, 4)
+	ws.Sort = priceSort
 	if err != nil {
 		log.Printf("Failed to load index %v", err)
 	}
