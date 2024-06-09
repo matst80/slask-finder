@@ -18,8 +18,8 @@ type Persistance struct {
 func NewPersistance() Persistance {
 	gob.Register([]interface{}(nil))
 	return Persistance{
-		File:         "index.db",
-		FreeTextFile: "freetext.db",
+		File:         "data/index.db",
+		FreeTextFile: "data/freetext.db",
 	}
 }
 
