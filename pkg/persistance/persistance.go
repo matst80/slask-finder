@@ -7,16 +7,19 @@ import (
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
+	"tornberg.me/facet-search/pkg/search"
 )
 
 type Persistance struct {
-	File string
+	File         string
+	FreeTextFile string
 }
 
 func NewPersistance() Persistance {
 	gob.Register([]interface{}(nil))
 	return Persistance{
-		File: "index.db",
+		File:         "index.db",
+		FreeTextFile: "freetext.db",
 	}
 }
 
@@ -24,6 +27,46 @@ type IndexStorage struct {
 	Fields       map[int64]facet.Field
 	NumberFields map[int64]facet.Field
 	Items        map[int64]index.Item
+}
+
+type FreeTextStorage struct {
+	Documents map[int64]search.Document
+}
+
+func (p *Persistance) LoadFreeText(ft *search.FreeTextIndex) error {
+	file, err := os.Open(p.FreeTextFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	reader := io.Reader(file)
+	enc := gob.NewDecoder(reader)
+	var v FreeTextStorage
+	err = enc.Decode(&v)
+	if err != nil {
+		return err
+	}
+
+	ft.Documents = v.Documents
+
+	return nil
+}
+
+func (p *Persistance) SaveFreeText(ft *search.FreeTextIndex) error {
+	file, err := os.Create(p.FreeTextFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	writer := io.Writer(file)
+	enc := gob.NewEncoder(writer)
+	err = enc.Encode(FreeTextStorage{
+		Documents: ft.Documents,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {

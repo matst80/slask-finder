@@ -7,25 +7,23 @@ import (
 
 type SortIndex []int64
 
-func (s *SortIndex) SortIds(ids []int64, breakAt int) []int64 {
+func (s *SortIndex) SortMap(ids map[int64]struct{}, breakAt int) []int64 {
 	start := time.Now()
-	ss := make([]int64, len(*s))
-	copy(ss, *s)
+
 	l := min(len(ids), breakAt)
 	sortedIds := make([]int64, l)
 	idx := 0
 
-	for _, id := range ss {
+	for _, id := range *s {
 		if idx >= l {
 			break
 		}
-		for _, v := range ids[idx:] {
-			if id == v {
-				sortedIds[idx] = v
+		_, ok := ids[id]
+		if ok {
+			sortedIds[idx] = id
 
-				idx++
-				break
-			}
+			idx++
+
 		}
 	}
 	log.Printf("Sorting took %v", time.Since(start))
