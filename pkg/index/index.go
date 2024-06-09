@@ -181,58 +181,6 @@ func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortInd
 	}
 }
 
-func stringValue(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
-
-func mapToSliceRef[V BoolResult | StringResult | NumberResult](fields map[int64]*V, sortIndex facet.SortIndex) []*V {
-
-	l := min(len(fields), 256)
-	sorted := make([]*V, len(fields))
-
-	idx := 0
-
-	for _, id := range sortIndex {
-		if idx >= l {
-			break
-		}
-		f, ok := fields[id]
-		if ok {
-			sorted[idx] = f
-
-			idx++
-
-		}
-	}
-	return sorted
-
-}
-
-func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]V, sortIndex facet.SortIndex) []V {
-
-	l := min(len(fields), 256)
-	sorted := make([]V, len(fields))
-
-	idx := 0
-
-	for _, id := range sortIndex {
-		if idx >= l {
-			break
-		}
-		f, ok := fields[id]
-		if ok {
-			sorted[idx] = f
-
-			idx++
-
-		}
-	}
-	return sorted
-}
-
 type NumberSearch struct {
 	Id  int64   `json:"id"`
 	Min float64 `json:"min"`
@@ -267,7 +215,7 @@ func (i *Index) MakeSortForFields() facet.SortIndex {
 		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
 		idx++
 	}
-	sort.Sort(sortMap)
+	sort.Sort(sort.Reverse(sortMap))
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
