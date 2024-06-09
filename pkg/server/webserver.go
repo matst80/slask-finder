@@ -120,6 +120,7 @@ func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
 		})
 
 	}
+	ws.Db.SaveFreeText(ws.FreeText)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -166,12 +167,17 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) StartServer() {
 	err := ws.Db.LoadIndex(ws.Index)
-	priceSort := index.MakeSortFromNumberField(ws.Index.Items, 4)
-	ws.Sort = priceSort
-	ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
 	if err != nil {
 		log.Printf("Failed to load index %v", err)
 	}
+	priceSort := index.MakeSortFromNumberField(ws.Index.Items, 4)
+	ws.Sort = priceSort
+	ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
+	err = ws.Db.LoadFreeText(ws.FreeText)
+	if err != nil {
+		log.Printf("Failed to load freetext %v", err)
+	}
+
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))

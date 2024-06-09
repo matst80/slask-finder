@@ -16,6 +16,10 @@ func (i *FreeTextIndex) AddDocument(doc Document) {
 	i.Documents[doc.Id] = doc
 }
 
+func (i *FreeTextIndex) RemoveDocument(id int64) {
+	delete(i.Documents, id)
+}
+
 func NewFreeTextIndex(tokenizer Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
 		Tokenizer: tokenizer,
