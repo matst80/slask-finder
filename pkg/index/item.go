@@ -1,6 +1,7 @@
 package index
 
 import (
+	"math"
 	"sort"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -28,7 +29,7 @@ func MakeSortFromNumberField(items map[int64]Item, fieldId int64) facet.SortInde
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
 	for idx, item := range items {
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: item.NumberFields[fieldId]}
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.NumberFields[fieldId] - 3000)}
 	}
 	sort.Sort(sortMap)
 	for idx, item := range sortMap {
