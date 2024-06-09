@@ -161,16 +161,16 @@ func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortInd
 				}
 			}
 		}
-		// for key, value := range item.BoolFields {
-		// 	if f, ok := boolFields[key]; ok {
-		// 		f.Values[stringValue(value)]++
-		// 	} else {
-		// 		boolFields[key] = BoolResult{
-		// 			Field:  i.BoolFields[key].Field,
-		// 			Values: map[string]int{stringValue(value): 1},
-		// 		}
-		// 	}
-		// }
+		for key, value := range item.BoolFields {
+			if f, ok := boolFields[key]; ok {
+				f.Values[stringValue(value)]++
+			} else {
+				boolFields[key] = BoolResult{
+					Field:  i.BoolFields[key].Field,
+					Values: map[string]int{stringValue(value): 1},
+				}
+			}
+		}
 	}
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 
