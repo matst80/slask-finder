@@ -2,7 +2,10 @@ package search
 
 import (
 	"log"
+	"sort"
 	"time"
+
+	"tornberg.me/facet-search/pkg/facet"
 )
 
 type FreeTextIndex struct {
@@ -39,7 +42,46 @@ func (i *FreeTextIndex) Search(query []Token) DocumentResult {
 				}
 			}
 		}
+		if res[doc.Id] > 0 {
+			res[doc.Id] = (res[doc.Id] / len(query)) * 100
+		}
 	}
 	log.Printf("Search took %v", time.Since(start))
 	return res
+}
+
+func (d *DocumentResult) ToSortIndex() facet.SortIndex {
+	l := len(*d)
+	sortIndex := make(facet.SortIndex, l)
+	sortMap := make(facet.ByValue, l)
+	idx := 0
+	for id, score := range *d {
+		sortMap[idx] = facet.Lookup{Id: id, Value: float64(score / 100.0)}
+		idx++
+	}
+	sort.Sort(sort.Reverse(sortMap))
+	for idx, item := range sortMap {
+		sortIndex[idx] = item.Id
+	}
+	return sortIndex
+}
+
+type ResultWithSort struct {
+	Result    facet.Result
+	SortIndex facet.SortIndex
+}
+
+func (d *DocumentResult) ToResult() facet.Result {
+	res := facet.NewResult()
+	for id := range *d {
+		res.Add(id)
+	}
+	return res
+}
+
+func (d *DocumentResult) ToResultWithSort() ResultWithSort {
+	return ResultWithSort{
+		Result:    d.ToResult(),
+		SortIndex: d.ToSortIndex(),
+	}
 }

@@ -22,6 +22,10 @@ func (r *Result) HasItems() bool {
 	return r.hasItems
 }
 
+func (r *Result) GetMap() map[int64]struct{} {
+	return r.ids
+}
+
 func (r *Result) Ids() []int64 {
 	ids := make([]int64, len(r.ids))
 	idx := 0

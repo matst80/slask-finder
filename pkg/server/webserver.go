@@ -124,30 +124,33 @@ func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-type SearchHit struct {
-	Item  *index.Item `json:"item"`
-	Score int         `json:"score"`
-}
+// type SearchHit struct {
+// 	Item  *index.Item `json:"item"`
+// 	Score int         `json:"score"`
+// }
 
 type SearchResult struct {
-	Hits      []SearchHit `json:"items"`
-	TotalHits int         `json:"totalHits"`
+	Hits      []*index.Item `json:"items"`
+	TotalHits int           `json:"totalHits"`
 }
 
 func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
-	itemsChan := make(chan []SearchHit)
+	itemsChan := make(chan []*index.Item)
 	query := ws.FreeText.Tokenizer.Tokenize(r.URL.Query().Get("q"))
 	log.Printf("Query: %v", query)
 	searchResults := ws.FreeText.Search(query)
 
 	go func() {
-		hits := make([]SearchHit, len(searchResults))
+		hits := make([]*index.Item, len(searchResults))
 		idx := 0
-		for id, score := range searchResults {
+
+		res := searchResults.ToResultWithSort()
+		ids := res.SortIndex.SortMap(res.Result.GetMap(), 10000)
+		for _, id := range ids {
 			item, ok := ws.Index.Items[id]
 			if ok {
-				hits[idx] = SearchHit{Item: &item, Score: score}
+				hits[idx] = &item
 				idx++
 			}
 		}
