@@ -8,12 +8,11 @@ import (
 )
 
 type SearchRequest struct {
-	StringSearches []index.StringSearch `json:"string"`
-	NumberSearches []index.NumberSearch `json:"number"`
-	BitSearches    []index.BoolSearch   `json:"bool"`
-	Sort           []index.Sort         `json:"sort"`
-	Page           int                  `json:"page"`
-	PageSize       int                  `json:"pageSize"`
+	Search index.Filters `json:"filter"`
+
+	Sort     []index.Sort `json:"sort"`
+	Page     int          `json:"page"`
+	PageSize int          `json:"pageSize"`
 }
 
 func QueryFromRequest(r *http.Request) (SearchRequest, error) {

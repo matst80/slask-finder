@@ -24,8 +24,8 @@ func NewPersistance() Persistance {
 }
 
 type IndexStorage struct {
-	Fields       map[int64]facet.Field
-	NumberFields map[int64]facet.Field
+	Fields       map[int64]facet.Field[string]
+	NumberFields map[int64]facet.NumberField[float64]
 	Items        map[int64]index.Item
 }
 
@@ -104,18 +104,18 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
-	fields := make(map[int64]facet.Field)
-	numberFields := make(map[int64]facet.Field)
-	for _, fld := range idx.Fields {
-		fields[fld.Field.Id] = fld.Field
-	}
-	for _, fld := range idx.NumberFields {
-		numberFields[fld.Field.Id] = fld.Field
-	}
+	// fields := make(map[int64]facet.Field[string])
+	// numberFields := make(map[int64]facet.NumberField[float64])
+	// for _, fld := range idx.Fields {
+	// 	fields[fld.Id] = fld
+	// }
+	// for _, fld := range idx.NumberFields {
+	// 	numberFields[fld.Id] = fld
+	// }
 
 	toSave := IndexStorage{
-		Fields:       fields,
-		NumberFields: numberFields,
+		Fields:       idx.Fields,
+		NumberFields: idx.NumberFields,
 		Items:        idx.Items,
 	}
 	defer file.Close()

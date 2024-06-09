@@ -9,14 +9,14 @@ func stringValue(b bool) string {
 	return "false"
 }
 
-func mapToSliceRef[V BoolResult | StringResult | NumberResult](fields map[int64]*V, sortIndex facet.SortIndex) []*V {
+func mapToSliceRef[V NumberResult](fields map[int64]*V, sortIndex *facet.SortIndex) []*V {
 
 	l := min(len(fields), 64)
 	sorted := make([]*V, len(fields))
 
 	idx := 0
 
-	for _, id := range sortIndex {
+	for _, id := range *sortIndex {
 		if idx >= l {
 			break
 		}
@@ -32,14 +32,14 @@ func mapToSliceRef[V BoolResult | StringResult | NumberResult](fields map[int64]
 
 }
 
-func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]V, sortIndex facet.SortIndex) []V {
+func mapToSlice[K facet.FieldKeyValue, V StringResult[K] | NumberResult](fields map[int64]V, sortIndex *facet.SortIndex) []V {
 
 	l := min(len(fields), 64)
 	sorted := make([]V, len(fields))
 
 	idx := 0
 
-	for _, id := range sortIndex {
+	for _, id := range *sortIndex {
 		if idx >= l {
 			break
 		}

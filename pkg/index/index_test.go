@@ -9,9 +9,9 @@ import (
 
 func TestIndexMatch(t *testing.T) {
 	i := NewIndex()
-	i.AddField(facet.Field{Id: 1, Name: "first", Description: "first field"})
-	i.AddField(facet.Field{Id: 2, Name: "other", Description: "other field"})
-	i.AddNumberField(facet.Field{Id: 3, Name: "number", Description: "number field"})
+	i.AddField(facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
+	i.AddField(facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
+	i.AddNumberField(facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
 	item := Item{
 		Id: 1,
 		Fields: map[int64]string{
@@ -23,7 +23,12 @@ func TestIndexMatch(t *testing.T) {
 		},
 	}
 	i.AddItem(item)
-	matching := i.Match([]StringSearch{{Id: 1, Value: "test"}}, []NumberSearch{{Min: 1, Max: 2}}, []BoolSearch{})
+	query := Filters{
+		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
+		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		BoolFilter:   []BoolSearch{},
+	}
+	matching := i.Match(&query)
 	if !reflect.DeepEqual(matching, []int64{1}) {
 		t.Errorf("Expected [1] but got %v", matching)
 	}
@@ -31,9 +36,9 @@ func TestIndexMatch(t *testing.T) {
 
 func CreateIndex() *Index {
 	i := NewIndex()
-	i.AddField(facet.Field{Id: 1, Name: "first", Description: "first field"})
-	i.AddField(facet.Field{Id: 2, Name: "other", Description: "other field"})
-	i.AddNumberField(facet.Field{Id: 3, Name: "number", Description: "number field"})
+	i.AddField(facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
+	i.AddField(facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
+	i.AddNumberField(facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
 
 	i.AddItem(Item{
 		Id:    1,
@@ -98,7 +103,12 @@ func TestHasFields(t *testing.T) {
 
 func TestMultipleIndexMatch(t *testing.T) {
 	i := CreateIndex()
-	matching := i.Match([]StringSearch{{Id: 1, Value: "test"}}, []NumberSearch{{Id: 3, Min: 1, Max: 2}}, []BoolSearch{})
+	query := Filters{
+		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
+		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		BoolFilter:   []BoolSearch{},
+	}
+	matching := i.Match(&query)
 	if !reflect.DeepEqual(matching, []int64{1, 2}) {
 		t.Errorf("Expected [1,2] but got %v", matching)
 	}
@@ -106,7 +116,12 @@ func TestMultipleIndexMatch(t *testing.T) {
 
 func TestGetMatchItems(t *testing.T) {
 	i := CreateIndex()
-	matching := i.Match([]StringSearch{{Id: 1, Value: "test"}}, []NumberSearch{{Id: 3, Min: 1, Max: 2}}, []BoolSearch{})
+	query := Filters{
+		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
+		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		BoolFilter:   []BoolSearch{},
+	}
+	matching := i.Match(&query)
 	items := i.GetItems(matching.Ids(), 0, 10)
 	if items[0].Id != 1 || items[1].Id != 2 {
 		t.Errorf("Expected ids [1,2] but got %v", items)
@@ -121,8 +136,13 @@ func TestGetMatchItems(t *testing.T) {
 
 func TestGetFacetsFromResultIds(t *testing.T) {
 	i := CreateIndex()
-	matching := i.Match([]StringSearch{{Id: 1, Value: "test"}}, []NumberSearch{{Min: 1, Max: 2}}, []BoolSearch{})
-	facets := i.GetFacetsFromResult(matching, facet.SortIndex{1, 2})
+	query := Filters{
+		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
+		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		BoolFilter:   []BoolSearch{},
+	}
+	matching := i.Match(&query)
+	facets := i.GetFacetsFromResult(&matching, &query, &facet.SortIndex{1, 2})
 	if len(facets.Fields) != 2 {
 		t.Errorf("Expected 2 fields but got %v", facets.Fields)
 	}

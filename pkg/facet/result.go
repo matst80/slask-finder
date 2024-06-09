@@ -1,28 +1,33 @@
 package facet
 
 type Result struct {
-	ids      map[int64]struct{}
+	ids      IdList
 	hasItems bool
 }
 
 func NewResult() Result {
-	return Result{ids: make(map[int64]struct{})}
+	return Result{ids: make(IdList)}
 }
 
-func (r *Result) Add(ids ...int64) {
+func (r *Result) Add(ids IdList) {
 	if len(ids) > 0 {
 		r.hasItems = true
 	}
-	for _, id := range ids {
+	for id := range ids {
 		r.ids[id] = struct{}{}
 	}
+}
+
+func (r *Result) AddId(id int64) {
+	r.hasItems = true
+	r.ids[id] = struct{}{}
 }
 
 func (r *Result) HasItems() bool {
 	return r.hasItems
 }
 
-func (r *Result) GetMap() map[int64]struct{} {
+func (r *Result) GetMap() IdList {
 	return r.ids
 }
 
@@ -32,6 +37,20 @@ func (r *Result) Ids() []int64 {
 	for id := range r.ids {
 		ids[idx] = id
 		idx++
+	}
+	return ids
+}
+
+func (r *Result) TakeIds(max int) []int64 {
+	l := min(max, len(r.ids))
+	ids := make([]int64, l)
+	idx := 0
+	for id := range r.ids {
+		ids[idx] = id
+		idx++
+		if idx >= l {
+			break
+		}
 	}
 	return ids
 }

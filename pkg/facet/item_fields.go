@@ -1,11 +1,11 @@
 package facet
 
-type StringFieldReference struct {
-	Value string `json:"value"`
-	Id    int64  `json:"id"`
+type ValueFieldReference[V FieldKeyValue] struct {
+	Value V     `json:"value"`
+	Id    int64 `json:"id"`
 }
 
-type NumberFieldReference struct {
-	Value float64 `json:"value"`
-	Id    int64   `json:"id"`
+type NumberFieldReference[V FieldNumberValue] struct {
+	Value V     `json:"value"`
+	Id    int64 `json:"id"`
 }

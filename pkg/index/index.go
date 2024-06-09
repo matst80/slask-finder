@@ -9,31 +9,31 @@ import (
 )
 
 type Index struct {
-	Fields       map[int64]facet.ValueField
-	NumberFields map[int64]facet.NumberValueField
-	BoolFields   map[int64]facet.BoolValueField
+	Fields       map[int64]facet.Field[string]
+	NumberFields map[int64]facet.NumberField[float64]
+	BoolFields   map[int64]facet.Field[bool]
 	Items        map[int64]Item
 }
 
 func NewIndex() *Index {
 	return &Index{
-		Fields:       make(map[int64]facet.ValueField),
-		NumberFields: make(map[int64]facet.NumberValueField),
-		BoolFields:   make(map[int64]facet.BoolValueField),
+		Fields:       make(map[int64]facet.Field[string]),
+		NumberFields: make(map[int64]facet.NumberField[float64]),
+		BoolFields:   make(map[int64]facet.Field[bool]),
 		Items:        make(map[int64]Item),
 	}
 }
 
-func (i *Index) AddField(field facet.Field) {
-	i.Fields[field.Id] = facet.EmptyValueField(field)
+func (i *Index) AddField(field facet.Field[string]) {
+	i.Fields[field.Id] = field
 }
 
-func (i *Index) AddBoolField(field facet.Field) {
-	i.BoolFields[field.Id] = facet.EmptyBoolField(field)
+func (i *Index) AddBoolField(field facet.Field[bool]) {
+	i.BoolFields[field.Id] = field
 }
 
-func (i *Index) AddNumberField(field facet.Field) {
-	i.NumberFields[field.Id] = facet.EmptyNumberField(field)
+func (i *Index) AddNumberField(field facet.NumberField[float64]) {
+	i.NumberFields[field.Id] = field
 }
 
 func (i *Index) AddItemValues(item Item) {
@@ -97,37 +97,32 @@ func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
 	return items
 }
 
-type StringResult struct {
-	Field  facet.Field    `json:"field"`
-	Values map[string]int `json:"values"`
+type StringResult[V string | bool] struct {
+	Field  *facet.Field[V] `json:"field"`
+	Values map[string]int  `json:"values"`
 }
 
 type NumberResult struct {
-	Field facet.Field `json:"field"`
-	Count int         `json:"count"`
-	Min   float64     `json:"min"`
-	Max   float64     `json:"max"`
-}
-
-type BoolResult struct {
-	Field  facet.Field    `json:"field"`
-	Values map[string]int `json:"values"`
+	Field *facet.NumberField[float64] `json:"field"`
+	Count int                         `json:"count"`
+	Min   float64                     `json:"min"`
+	Max   float64                     `json:"max"`
 }
 
 type Facets struct {
-	Fields       []StringResult  `json:"fields"`
-	NumberFields []*NumberResult `json:"numberFields"`
-	BoolFields   []BoolResult    `json:"boolFields"`
+	Fields       []StringResult[string] `json:"fields"`
+	NumberFields []*NumberResult        `json:"numberFields"`
+	BoolFields   []StringResult[bool]   `json:"boolFields"`
 }
 
-func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortIndex) Facets {
+func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sortIndex *facet.SortIndex) Facets {
 	start := time.Now()
 	all := result.Ids()
 	ids := all[0:min(1000, len(all))]
 
-	fields := map[int64]StringResult{}
+	fields := map[int64]StringResult[string]{}
 	numberFields := map[int64]*NumberResult{}
-	boolFields := map[int64]BoolResult{}
+	boolFields := map[int64]StringResult[bool]{}
 
 	for _, id := range ids {
 		item, ok := i.Items[id] // todo optimize and maybe sort in this step
@@ -138,9 +133,11 @@ func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortInd
 			if f, ok := fields[key]; ok {
 				f.Values[value]++
 			} else {
-				fields[key] = StringResult{
-					Field:  i.Fields[key].Field,
-					Values: map[string]int{value: 1},
+				if baseField, ok := i.Fields[key]; ok {
+					fields[key] = StringResult[string]{
+						Field:  &baseField,
+						Values: map[string]int{value: 1},
+					}
 				}
 			}
 		}
@@ -153,11 +150,13 @@ func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortInd
 				}
 				f.Count++
 			} else {
-				numberFields[key] = &NumberResult{
-					Field: i.NumberFields[key].Field,
-					Count: 1,
-					Min:   value,
-					Max:   value,
+				if baseField, ok := i.NumberFields[key]; ok {
+					numberFields[key] = &NumberResult{
+						Field: &baseField,
+						Count: 1,
+						Min:   value,
+						Max:   value,
+					}
 				}
 			}
 		}
@@ -165,9 +164,11 @@ func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortInd
 			if f, ok := boolFields[key]; ok {
 				f.Values[stringValue(value)]++
 			} else {
-				boolFields[key] = BoolResult{
-					Field:  i.BoolFields[key].Field,
-					Values: map[string]int{stringValue(value): 1},
+				if baseField, ok := i.BoolFields[key]; ok {
+					boolFields[key] = StringResult[bool]{
+						Field:  &baseField,
+						Values: map[string]int{stringValue(value): 1},
+					}
 				}
 			}
 		}
@@ -175,9 +176,9 @@ func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortInd
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 
 	return Facets{
-		Fields:       mapToSlice(fields, sortIndex),
+		Fields:       mapToSlice[string, StringResult[string]](fields, sortIndex),
 		NumberFields: mapToSliceRef(numberFields, sortIndex),
-		BoolFields:   mapToSlice(boolFields, sortIndex),
+		BoolFields:   mapToSlice[bool, StringResult[bool]](boolFields, sortIndex),
 	}
 }
 
@@ -195,6 +196,12 @@ type StringSearch struct {
 type BoolSearch struct {
 	Id    int64 `json:"id"`
 	Value bool  `json:"value"`
+}
+
+type Filters struct {
+	StringFilter []StringSearch `json:"string"`
+	NumberFilter []NumberSearch `json:"number"`
+	BoolFilter   []BoolSearch   `json:"bool"`
 }
 
 func (i *Index) MakeSortForFields() facet.SortIndex {
@@ -222,13 +229,13 @@ func (i *Index) MakeSortForFields() facet.SortIndex {
 	return sortIndex
 }
 
-func (i *Index) Match(strings []StringSearch, numbers []NumberSearch, bits []BoolSearch) facet.Result {
+func (i *Index) Match(search *Filters) facet.Result {
 
 	// log.Printf("Items: %v", len(i.itemIds))
 
 	results := make(chan facet.Result)
 	len := 0
-	for _, fld := range bits {
+	for _, fld := range search.BoolFilter {
 		if f, ok := i.BoolFields[fld.Id]; ok {
 			len++
 			go func(field BoolSearch) {
@@ -242,13 +249,13 @@ func (i *Index) Match(strings []StringSearch, numbers []NumberSearch, bits []Boo
 			//}
 		}
 	}
-	for _, fld := range numbers {
+	for _, fld := range search.NumberFilter {
 		if f, ok := i.NumberFields[fld.Id]; ok {
 			len++
 			go func(field NumberSearch) {
 
 				start := time.Now()
-				results <- f.Matches(field.Min, field.Max)
+				results <- f.MatchesRange(field.Min, field.Max)
 
 				log.Printf("Match took %v", time.Since(start))
 
@@ -256,7 +263,7 @@ func (i *Index) Match(strings []StringSearch, numbers []NumberSearch, bits []Boo
 			//}
 		}
 	}
-	for _, fld := range strings {
+	for _, fld := range search.StringFilter {
 		if f, ok := i.Fields[fld.Id]; ok {
 			len++
 			go func(field StringSearch) {

@@ -73,8 +73,9 @@ type ResultWithSort struct {
 
 func (d *DocumentResult) ToResult() facet.Result {
 	res := facet.NewResult()
+
 	for id := range *d {
-		res.Add(id)
+		res.AddId(id)
 	}
 	return res
 }

@@ -19,17 +19,17 @@ type WebServer struct {
 	FreeText  *search.FreeTextIndex
 }
 
-type NumberValueResponse struct {
-	Field  facet.Field `json:"field"`
-	Values []float64   `json:"values"`
-	Min    float64     `json:"min"`
-	Max    float64     `json:"max"`
-}
+// type NumberValueResponse struct {
+// 	Field  facet.NumberField[float64] `json:"field"`
+// 	Values []float64   `json:"values"`
+// 	Min    float64     `json:"min"`
+// 	Max    float64     `json:"max"`
+// }
 
-type BoolValueResponse struct {
-	Field  facet.Field `json:"field"`
-	Values []bool      `json:"values"`
-}
+// type BoolValueResponse struct {
+// 	Field  facet.Field[bool] `json:"field"`
+// 	Values []bool      `json:"values"`
+// }
 
 type SearchResponse struct {
 	Items     []index.Item `json:"items"`
@@ -59,7 +59,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	itemsChan := make(chan []index.Item)
 	facetsChan := make(chan index.Facets)
 
-	matching := ws.Index.Match(sr.StringSearches, sr.NumberSearches, sr.BitSearches)
+	matching := ws.Index.Match(&sr.Search)
 	//ids := matching.Ids()
 
 	if !matching.HasItems() {
@@ -70,7 +70,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		facetsChan <- ws.Index.GetFacetsFromResult(matching, ws.FieldSort)
+		facetsChan <- ws.Index.GetFacetsFromResult(&matching, &sr.Search, &ws.FieldSort)
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
