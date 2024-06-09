@@ -38,6 +38,14 @@ func (f *ValueField) AddValueLink(value string, ids ...int64) {
 	f.values[value] = append(f.values[value], ids...)
 }
 
+func (f *ValueField) TotalCount() int {
+	total := 0
+	for _, ids := range f.values {
+		total += len(ids)
+	}
+	return total
+}
+
 func NewValueField(field Field, value string, ids ...int64) ValueField {
 	return ValueField{
 		Field:  field,

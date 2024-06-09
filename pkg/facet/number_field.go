@@ -40,8 +40,17 @@ func (f *NumberValueField) Values() NumberRange {
 	return NumberRange{Min: min, Max: max, Values: values}
 }
 
-func (f *NumberValueField) AddValueLink(value float64, ids ...int64) {
+func (f *NumberValueField) TotalCount() int {
+	total := 0
+	for _, ids := range f.values {
 
+		total += len(ids)
+
+	}
+	return total
+}
+
+func (f *NumberValueField) AddValueLink(value float64, ids ...int64) {
 	f.values[value] = append(f.values[value], ids...)
 }
 
