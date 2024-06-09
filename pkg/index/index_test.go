@@ -122,7 +122,7 @@ func TestGetMatchItems(t *testing.T) {
 func TestGetFacetsFromResultIds(t *testing.T) {
 	i := CreateIndex()
 	matching := i.Match([]StringSearch{{Id: 1, Value: "test"}}, []NumberSearch{{Min: 1, Max: 2}}, []BoolSearch{})
-	facets := i.GetFacetsFromResult(matching)
+	facets := i.GetFacetsFromResult(matching, facet.SortIndex{1, 2})
 	if len(facets.Fields) != 2 {
 		t.Errorf("Expected 2 fields but got %v", facets.Fields)
 	}

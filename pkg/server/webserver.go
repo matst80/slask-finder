@@ -12,10 +12,11 @@ import (
 )
 
 type WebServer struct {
-	Index    *index.Index
-	Db       *persistance.Persistance
-	Sort     facet.SortIndex
-	FreeText *search.FreeTextIndex
+	Index     *index.Index
+	Db        *persistance.Persistance
+	Sort      facet.SortIndex
+	FieldSort facet.SortIndex
+	FreeText  *search.FreeTextIndex
 }
 
 type NumberValueResponse struct {
@@ -69,7 +70,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		facetsChan <- ws.Index.GetFacetsFromResult(matching)
+		facetsChan <- ws.Index.GetFacetsFromResult(matching, ws.FieldSort)
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -173,7 +174,9 @@ func (ws *WebServer) StartServer() {
 	if err != nil {
 		log.Printf("Failed to load index %v", err)
 	}
+	fieldSort := ws.Index.MakeSortForFields()
 	priceSort := index.MakeSortFromNumberField(ws.Index.Items, 4)
+	ws.FieldSort = fieldSort
 	ws.Sort = priceSort
 	ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
 	err = ws.Db.LoadFreeText(ws.FreeText)

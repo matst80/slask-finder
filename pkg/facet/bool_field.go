@@ -32,6 +32,14 @@ func (f *BoolValueField) Values() []bool {
 	return values
 }
 
+func (f *BoolValueField) TotalCount() int {
+	total := 0
+	for _, ids := range f.values {
+		total += len(ids)
+	}
+	return total
+}
+
 func (f *BoolValueField) AddValueLink(value bool, ids ...int64) {
 	f.values[value] = append(f.values[value], ids...)
 }

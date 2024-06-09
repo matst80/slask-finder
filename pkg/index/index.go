@@ -2,6 +2,7 @@ package index
 
 import (
 	"log"
+	"sort"
 	"time"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -114,12 +115,12 @@ type BoolResult struct {
 }
 
 type Facets struct {
-	Fields       []StringResult `json:"fields"`
-	NumberFields []NumberResult `json:"numberFields"`
-	BoolFields   []BoolResult   `json:"boolFields"`
+	Fields       []StringResult  `json:"fields"`
+	NumberFields []*NumberResult `json:"numberFields"`
+	BoolFields   []BoolResult    `json:"boolFields"`
 }
 
-func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
+func (i *Index) GetFacetsFromResult(result facet.Result, sortIndex facet.SortIndex) Facets {
 	start := time.Now()
 	all := result.Ids()
 	ids := all[0:min(1000, len(all))]
@@ -174,37 +175,10 @@ func (i *Index) GetFacetsFromResult(result facet.Result) Facets {
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 
 	return Facets{
-		Fields:       mapToSlice(fields),
-		NumberFields: mapToSliceRef(numberFields),
-		BoolFields:   mapToSlice(boolFields),
+		Fields:       mapToSlice(fields, sortIndex),
+		NumberFields: mapToSliceRef(numberFields, sortIndex),
+		BoolFields:   mapToSlice(boolFields, sortIndex),
 	}
-}
-
-func stringValue(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
-
-func mapToSliceRef[V BoolResult | StringResult | NumberResult](fields map[int64]*V) []V {
-	r := make([]V, len(fields))
-	idx := 0
-	for _, field := range fields {
-		r[idx] = *field
-		idx++
-	}
-	return r
-}
-
-func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]V) []V {
-	r := make([]V, len(fields))
-	idx := 0
-	for _, field := range fields {
-		r[idx] = field
-		idx++
-	}
-	return r
 }
 
 type NumberSearch struct {
@@ -221,6 +195,31 @@ type StringSearch struct {
 type BoolSearch struct {
 	Id    int64 `json:"id"`
 	Value bool  `json:"value"`
+}
+
+func (i *Index) MakeSortForFields() facet.SortIndex {
+
+	l := len(i.BoolFields) + len(i.NumberFields) + len(i.Fields)
+	idx := 0
+	sortIndex := make(facet.SortIndex, l)
+	sortMap := make(facet.ByValue, l)
+	for _, item := range i.BoolFields {
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
+		idx++
+	}
+	for _, item := range i.NumberFields {
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
+		idx++
+	}
+	for _, item := range i.Fields {
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
+		idx++
+	}
+	sort.Sort(sort.Reverse(sortMap))
+	for idx, item := range sortMap {
+		sortIndex[idx] = item.Id
+	}
+	return sortIndex
 }
 
 func (i *Index) Match(strings []StringSearch, numbers []NumberSearch, bits []BoolSearch) facet.Result {
