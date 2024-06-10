@@ -18,9 +18,9 @@ func matchAll(list facet.IdList, ids ...int64) bool {
 
 func TestIndexMatch(t *testing.T) {
 	i := NewIndex()
-	i.AddKeyField(&facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
-	i.AddKeyField(&facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
-	i.AddDecimalField(&facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
+	i.AddKeyField(&facet.BaseField{Id: 1, Name: "first", Description: "first field"})
+	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
+	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
 	item := Item{
 		Id: 1,
 		Fields: map[int64]string{
@@ -45,9 +45,9 @@ func TestIndexMatch(t *testing.T) {
 
 func CreateIndex() *Index {
 	i := NewIndex()
-	i.AddKeyField(&facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
-	i.AddKeyField(&facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
-	i.AddDecimalField(&facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
+	i.AddKeyField(&facet.BaseField{Id: 1, Name: "first", Description: "first field"})
+	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
+	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
 
 	i.AddItem(Item{
 		Id:    1,

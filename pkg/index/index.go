@@ -9,37 +9,37 @@ import (
 )
 
 type Index struct {
-	KeyFacets     map[int64]*facet.Field[string]
+	KeyFacets     map[int64]*facet.KeyField[string]
 	DecimalFacets map[int64]*facet.NumberField[float64]
 	IntFacets     map[int64]*facet.NumberField[int]
-	BoolFacets    map[int64]*facet.Field[bool]
+	BoolFacets    map[int64]*facet.KeyField[bool]
 	Items         map[int64]Item
 }
 
 func NewIndex() *Index {
 	return &Index{
-		KeyFacets:     make(map[int64]*facet.Field[string]),
+		KeyFacets:     make(map[int64]*facet.KeyField[string]),
 		DecimalFacets: make(map[int64]*facet.NumberField[float64]),
 		IntFacets:     make(map[int64]*facet.NumberField[int]),
-		BoolFacets:    make(map[int64]*facet.Field[bool]),
+		BoolFacets:    make(map[int64]*facet.KeyField[bool]),
 		Items:         make(map[int64]Item),
 	}
 }
 
-func (i *Index) AddKeyField(field *facet.Field[string]) {
-	i.KeyFacets[field.Id] = field
+func (i *Index) AddKeyField(field *facet.BaseField) {
+	i.KeyFacets[field.Id] = facet.EmptyKeyValueField[string](field)
 }
 
-func (i *Index) AddBoolField(field *facet.Field[bool]) {
-	i.BoolFacets[field.Id] = field
+func (i *Index) AddBoolField(field *facet.BaseField) {
+	i.BoolFacets[field.Id] = facet.EmptyKeyValueField[bool](field)
 }
 
-func (i *Index) AddDecimalField(field *facet.NumberField[float64]) {
-	i.DecimalFacets[field.Id] = field
+func (i *Index) AddDecimalField(field *facet.BaseField) {
+	i.DecimalFacets[field.Id] = facet.EmptyNumberField[float64](field)
 }
 
-func (i *Index) AddIntegerField(field *facet.NumberField[int]) {
-	i.IntFacets[field.Id] = field
+func (i *Index) AddIntegerField(field *facet.BaseField) {
+	i.IntFacets[field.Id] = facet.EmptyNumberField[int](field)
 }
 
 func (i *Index) AddItemValues(item Item) {
@@ -116,22 +116,22 @@ func (i *Index) GetItems(ids []int64, page int, pageSize int) []*Item {
 	return items[0:idx]
 }
 
-type StringResult[V string | bool] struct {
-	Field  *facet.Field[V] `json:"field"`
-	Values map[string]int  `json:"values"`
+type KeyResult[V string | bool] struct {
+	*facet.BaseField
+	Values map[V]int `json:"values"`
 }
 
-type NumberResult struct {
-	Field *facet.NumberField[float64] `json:"field"`
-	Count int                         `json:"count"`
-	Min   float64                     `json:"min"`
-	Max   float64                     `json:"max"`
+type NumberResult[V float64 | int] struct {
+	*facet.BaseField
+	Count int `json:"count"`
+	Min   V   `json:"min"`
+	Max   V   `json:"max"`
 }
 
 type Facets struct {
-	Fields       []StringResult[string] `json:"fields"`
-	NumberFields []*NumberResult        `json:"numberFields"`
-	BoolFields   []StringResult[bool]   `json:"boolFields"`
+	Fields       []KeyResult[string]     `json:"fields"`
+	NumberFields []NumberResult[float64] `json:"numberFields"`
+	BoolFields   []KeyResult[string]     `json:"boolFields"`
 }
 
 func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sortIndex *facet.SortIndex) Facets {
@@ -139,9 +139,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 	all := result.Ids()
 	ids := all[0:min(1000, len(all))]
 
-	fields := map[int64]*StringResult[string]{}
-	numberFields := map[int64]*NumberResult{}
-	boolFields := map[int64]*StringResult[bool]{}
+	fields := map[int64]*KeyResult[string]{}
+	numberFields := map[int64]*NumberResult[float64]{}
+	boolFields := map[int64]*KeyResult[bool]{}
 
 	for _, id := range ids {
 		item, ok := i.Items[id] // todo optimize and maybe sort in this step
@@ -153,9 +153,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 				f.Values[value]++
 			} else {
 				if baseField, ok := i.KeyFacets[key]; ok {
-					fields[key] = &StringResult[string]{
-						Field:  baseField,
-						Values: map[string]int{value: 1},
+					fields[key] = &KeyResult[string]{
+						BaseField: baseField.BaseField,
+						Values:    map[string]int{value: 1},
 					}
 				}
 			}
@@ -170,23 +170,23 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 				f.Count++
 			} else {
 				if baseField, ok := i.DecimalFacets[key]; ok {
-					numberFields[key] = &NumberResult{
-						Field: baseField,
-						Count: 1,
-						Min:   value,
-						Max:   value,
+					numberFields[key] = &NumberResult[float64]{
+						BaseField: baseField.BaseField,
+						Count:     1,
+						Min:       value,
+						Max:       value,
 					}
 				}
 			}
 		}
 		for key, value := range item.BoolFields {
 			if f, ok := boolFields[key]; ok {
-				f.Values[stringValue(value)]++
+				f.Values[value]++
 			} else {
 				if baseField, ok := i.BoolFacets[key]; ok {
-					boolFields[key] = &StringResult[bool]{
-						Field:  baseField,
-						Values: map[string]int{stringValue(value): 1},
+					boolFields[key] = &KeyResult[bool]{
+						BaseField: baseField.BaseField,
+						Values:    map[bool]int{value: 1},
 					}
 				}
 			}
@@ -195,9 +195,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 
 	return Facets{
-		Fields:       mapToSlice[string](fields, sortIndex),
-		NumberFields: mapToSliceRef(numberFields, sortIndex),
-		BoolFields:   mapToSlice[bool](boolFields, sortIndex),
+		Fields:       mapToSlice(fields, sortIndex),
+		NumberFields: mapToSliceNumber(numberFields, sortIndex),
+		BoolFields:   mapToSlice(boolToStringResult(boolFields), sortIndex),
 	}
 }
 

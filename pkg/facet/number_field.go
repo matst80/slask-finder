@@ -1,58 +1,74 @@
 package facet
 
-type NumberField[V FieldNumberValue] Field[V]
+type NumberField[V FieldNumberValue] struct {
+	*BaseField
+	buckets map[int64]Bucket[V]
+	Count   int
+	Min     V
+	Max     V
+}
 
-func (f *NumberField[V]) MatchesRange(min V, max V) Result {
+func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) Result {
 	result := NewResult()
+	minBucket := GetBucket(minValue)
+	maxBucket := GetBucket(maxValue)
 
-	for v, ids := range f.values {
-		if v >= min && v <= max {
+	for v, ids := range f.buckets[minBucket].values {
+		if v >= minValue && v <= maxValue {
 			result.Add(ids)
 		}
 	}
-
+	if minBucket < maxBucket {
+		for bucketId := minBucket + 1; bucketId < maxBucket; bucketId++ {
+			bucket, ok := f.buckets[bucketId]
+			if ok {
+				result.Add(bucket.all)
+			}
+		}
+		for v, ids := range f.buckets[maxBucket].values {
+			if v >= minValue && v <= maxValue {
+				result.Add(ids)
+			}
+		}
+	}
 	return result
 }
 
 type NumberRange[V FieldNumberValue] struct {
-	Min    V   `json:"min"`
-	Max    V   `json:"max"`
-	Values []V `json:"values"`
+	Min V `json:"min"`
+	Max V `json:"max"`
 }
 
 func (f *NumberField[V]) Bounds() NumberRange[V] {
-	values := []V{}
-	min := V(99999999999999999)
-	max := V(-99999999999999999)
-	for value := range f.values {
-		if value < min {
-			min = value
-		}
-		if value > max {
-			max = value
-		}
-		values = append(values, value)
-	}
 
-	return NumberRange[V]{Min: min, Max: max, Values: values}
+	return NumberRange[V]{Min: f.Min, Max: f.Max}
 }
 
 func (f *NumberField[V]) AddValueLink(value V, id int64) {
-	idList, ok := f.values[value]
+	bucket := GetBucket(value)
+	bucketValues, ok := f.buckets[bucket]
+	f.Count++
 	if !ok {
-		if f.values == nil {
-			f.values = map[V]IdList{}
-		}
-		f.values[value] = IdList{id: struct{}{}}
+		f.buckets[bucket] = MakeBucket(value, id)
 	} else {
-		idList[id] = struct{}{}
+		bucketValues.AddValueLink(value, id)
 	}
 }
 
 func (f *NumberField[V]) TotalCount() int {
-	total := 0
-	for _, ids := range f.values {
-		total += len(ids)
+	return f.Count
+}
+
+func NewNumberField[V FieldNumberValue](field *BaseField, value V, ids IdList) *NumberField[V] {
+	return &NumberField[V]{
+		BaseField: field,
+		buckets:   map[int64]Bucket[V]{GetBucket(value): MakeBucketList(value, ids)},
 	}
-	return total
+}
+
+func EmptyNumberField[V FieldNumberValue](field *BaseField) *NumberField[V] {
+	return &NumberField[V]{
+		BaseField: field,
+		buckets:   map[int64]Bucket[V]{},
+	}
 }

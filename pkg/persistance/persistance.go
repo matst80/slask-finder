@@ -107,21 +107,21 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	return nil
 }
 
-func cloneField[T facet.FieldValue](f map[int64]*facet.Field[T]) map[int64]facet.Field[T] {
-	fields := make(map[int64]facet.Field[T])
-	for _, fld := range f {
-		fields[fld.Id] = *fld
-	}
-	return fields
-}
+// func cloneField[T facet.FieldValue](f map[int64]*facet.KeyField[T]) map[int64]facet.KeyField[T] {
+// 	fields := make(map[int64]facet.KeyField[T])
+// 	for _, fld := range f {
+// 		fields[fld.Id] = *fld
+// 	}
+// 	return fields
+// }
 
-func cloneNumberField[T facet.FieldNumberValue](f map[int64]*facet.NumberField[T]) map[int64]facet.NumberField[T] {
-	fields := make(map[int64]facet.NumberField[T])
-	for _, fld := range f {
-		fields[fld.Id] = *fld
-	}
-	return fields
-}
+// func cloneNumberField[T facet.FieldNumberValue](f map[int64]*facet.NumberField[T]) map[int64]facet.NumberField[T] {
+// 	fields := make(map[int64]facet.NumberField[T])
+// 	for _, fld := range f {
+// 		fields[fld.Id] = *fld
+// 	}
+// 	return fields
+// }
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
 
@@ -129,7 +129,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
-	fields := make(map[int64]facet.Field[string])
+	fields := make(map[int64]facet.KeyField[string])
 
 	for _, fld := range idx.KeyFacets {
 		fields[fld.Id] = *fld

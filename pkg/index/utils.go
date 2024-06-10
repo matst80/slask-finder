@@ -9,46 +9,50 @@ func stringValue(b bool) string {
 	return "false"
 }
 
-func mapToSliceRef[V NumberResult](fields map[int64]*V, sortIndex *facet.SortIndex) []*V {
-
-	l := min(len(fields), 64)
-	sorted := make([]*V, len(fields))
-
-	idx := 0
-
-	for _, id := range *sortIndex {
-		if idx >= l {
-			break
+func boolToStringResult(fields map[int64]*KeyResult[bool]) map[int64]*KeyResult[string] {
+	result := make(map[int64]*KeyResult[string])
+	for k, v := range fields {
+		values := make(map[string]int)
+		for key, value := range v.Values {
+			values[stringValue(key)] = value
 		}
-		f, ok := fields[id]
-		if ok {
-			sorted[idx] = f
-
-			idx++
-
+		result[k] = &KeyResult[string]{
+			BaseField: v.BaseField,
+			Values:    values,
 		}
 	}
-	return sorted[:idx]
-
+	return result
 }
 
-func mapToSlice[K facet.FieldKeyValue, V StringResult[K] | NumberResult](fields map[int64]*V, sortIndex *facet.SortIndex) []V {
-
+func mapToSlice(fields map[int64]*KeyResult[string], sortIndex *facet.SortIndex) []KeyResult[string] {
 	l := min(len(fields), 64)
-	sorted := make([]V, len(fields))
-
+	sorted := make([]KeyResult[string], len(fields))
 	idx := 0
-
 	for _, id := range *sortIndex {
-		if idx >= l {
-			break
-		}
 		f, ok := fields[id]
 		if ok {
 			sorted[idx] = *f
-
 			idx++
+			if idx >= l {
+				break
+			}
+		}
+	}
+	return sorted[:idx]
+}
 
+func mapToSliceNumber[K float64 | int](fields map[int64]*NumberResult[K], sortIndex *facet.SortIndex) []NumberResult[K] {
+	l := min(len(fields), 64)
+	sorted := make([]NumberResult[K], len(fields))
+	idx := 0
+	for _, id := range *sortIndex {
+		f, ok := fields[id]
+		if ok {
+			sorted[idx] = *f
+			idx++
+			if idx >= l {
+				break
+			}
 		}
 	}
 	return sorted[:idx]

@@ -8,10 +8,6 @@ type FieldKeyValue interface {
 	string | bool
 }
 
-type FieldValue interface {
-	FieldNumberValue | FieldKeyValue
-}
-
 type IdList map[int64]struct{}
 
 func (i IdList) Merge(other IdList) {
@@ -20,14 +16,18 @@ func (i IdList) Merge(other IdList) {
 	}
 }
 
-type Field[V FieldValue] struct {
+type BaseField struct {
 	Id          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	values      map[V]IdList
 }
 
-func (f *Field[V]) Matches(value V) Result {
+type KeyField[V FieldKeyValue] struct {
+	*BaseField
+	values map[V]IdList
+}
+
+func (f *KeyField[V]) Matches(value V) Result {
 
 	result := NewResult()
 
@@ -40,7 +40,7 @@ func (f *Field[V]) Matches(value V) Result {
 	return result
 }
 
-func (f *Field[V]) Values() []V {
+func (f *KeyField[V]) Values() []V {
 	values := make([]V, len(f.values))
 
 	i := 0
@@ -51,7 +51,7 @@ func (f *Field[V]) Values() []V {
 	return values
 }
 
-func (f *Field[V]) AddValueLink(value V, id int64) {
+func (f *KeyField[V]) AddValueLink(value V, id int64) {
 
 	idList, ok := f.values[value]
 	if !ok {
@@ -64,7 +64,7 @@ func (f *Field[V]) AddValueLink(value V, id int64) {
 	}
 }
 
-func (f *Field[V]) TotalCount() int {
+func (f *KeyField[V]) TotalCount() int {
 	total := 0
 	for _, ids := range f.values {
 		total += len(ids)
@@ -72,12 +72,16 @@ func (f *Field[V]) TotalCount() int {
 	return total
 }
 
-func NewField[V int | float64 | string | bool](field *Field[V], value V, ids IdList) *Field[V] {
-	field.values = map[V]IdList{value: ids}
-	return field
+func NewKeyField[V FieldKeyValue](field *BaseField, value V, ids IdList) *KeyField[V] {
+	return &KeyField[V]{
+		BaseField: field,
+		values:    map[V]IdList{value: ids},
+	}
 }
 
-func EmptyValueField[V int | float64 | string | bool](field *Field[V]) *Field[V] {
-	field.values = map[V]IdList{}
-	return field
+func EmptyKeyValueField[V FieldKeyValue](field *BaseField) *KeyField[V] {
+	return &KeyField[V]{
+		BaseField: field,
+		values:    map[V]IdList{},
+	}
 }
