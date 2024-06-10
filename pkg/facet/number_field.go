@@ -26,7 +26,7 @@ func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) Result {
 			}
 		}
 		for v, ids := range f.buckets[maxBucket].values {
-			if v >= minValue && v <= maxValue {
+			if v <= maxValue {
 				result.Add(ids)
 			}
 		}

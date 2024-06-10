@@ -15,11 +15,14 @@ func (b *Bucket[V]) All() IdList {
 
 func (b *Bucket[V]) AddValueLink(value V, id int64) {
 	idList, ok := b.values[value]
+	lst := IdList{id: struct{}{}}
 	if !ok {
-		b.values[value] = IdList{id: struct{}{}}
+		b.values[value] = lst
+
 	} else {
 		idList[id] = struct{}{}
 	}
+	b.all.Merge(lst)
 }
 
 func MakeBucket[V FieldNumberValue](value V, id int64) Bucket[V] {
