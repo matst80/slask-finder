@@ -268,6 +268,18 @@ func (i *Index) Match(search *Filters) facet.Result {
 			//}
 		}
 	}
+	for _, fld := range search.StringFilter {
+		if f, ok := i.KeyFacets[fld.Id]; ok {
+			len++
+			go func(field StringSearch) {
+				start := time.Now()
+				results <- f.Matches(field.Value)
+
+				log.Printf("String match took %v", time.Since(start))
+
+			}(fld)
+		}
+	}
 	for _, fld := range search.NumberFilter {
 		if f, ok := i.DecimalFacets[fld.Id]; ok {
 			len++
@@ -282,18 +294,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 			//}
 		}
 	}
-	for _, fld := range search.StringFilter {
-		if f, ok := i.KeyFacets[fld.Id]; ok {
-			len++
-			go func(field StringSearch) {
-				start := time.Now()
-				results <- f.Matches(field.Value)
 
-				log.Printf("String match took %v", time.Since(start))
-
-			}(fld)
-		}
-	}
 	return facet.MakeIntersectResult(results, len)
 
 }
