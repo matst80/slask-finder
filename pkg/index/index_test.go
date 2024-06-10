@@ -38,7 +38,7 @@ func TestIndexMatch(t *testing.T) {
 		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
-	if !matchAll(matching.GetMap(), 1) {
+	if !matchAll(*matching.GetMap(), 1) {
 		t.Errorf("Expected [1] but got %v", matching)
 	}
 }

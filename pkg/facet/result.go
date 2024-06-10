@@ -1,5 +1,10 @@
 package facet
 
+import (
+	"log"
+	"time"
+)
+
 type Result struct {
 	ids      IdList
 	hasItems bool
@@ -27,8 +32,8 @@ func (r *Result) HasItems() bool {
 	return r.hasItems
 }
 
-func (r *Result) GetMap() IdList {
-	return r.ids
+func (r *Result) GetMap() *IdList {
+	return &r.ids
 }
 
 func (r *Result) Ids() []int64 {
@@ -70,6 +75,7 @@ func (a *Result) Length() int {
 }
 
 func (a *Result) Intersect(b Result) {
+	start := time.Now()
 	l_a := len(a.ids)
 	l_b := len(b.ids)
 	if l_a == 0 {
@@ -85,6 +91,7 @@ func (a *Result) Intersect(b Result) {
 			delete(a.ids, id)
 		}
 	}
+	log.Printf("Intersect took %v", time.Since(start))
 }
 
 func (r *Result) Contains(id int64) bool {

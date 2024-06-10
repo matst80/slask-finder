@@ -32,11 +32,11 @@ type WebServer struct {
 // }
 
 type SearchResponse struct {
-	Items     []index.Item `json:"items"`
-	Facets    index.Facets `json:"facets"`
-	Page      int          `json:"page"`
-	PageSize  int          `json:"pageSize"`
-	TotalHits int          `json:"totalHits"`
+	Items     []*index.Item `json:"items"`
+	Facets    index.Facets  `json:"facets"`
+	Page      int           `json:"page"`
+	PageSize  int           `json:"pageSize"`
+	TotalHits int           `json:"totalHits"`
 }
 
 func NewWebServer(db *persistance.Persistance) WebServer {
@@ -56,7 +56,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	itemsChan := make(chan []index.Item)
+	itemsChan := make(chan []*index.Item)
 	facetsChan := make(chan index.Facets)
 
 	matching := ws.Index.Match(&sr.Search)
@@ -147,7 +147,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		idx := 0
 
 		res := searchResults.ToResultWithSort()
-		ids := res.SortIndex.SortMap(res.Result.GetMap(), 10000)
+		ids := res.SortIndex.SortMap(*res.Result.GetMap(), 10000)
 		for _, id := range ids {
 			item, ok := ws.Index.Items[id]
 			if ok {

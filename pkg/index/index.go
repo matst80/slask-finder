@@ -103,13 +103,17 @@ func (i *Index) GetItemIds(ids []int64, page int, pageSize int) []int64 {
 	return ids[start:end]
 }
 
-func (i *Index) GetItems(ids []int64, page int, pageSize int) []Item {
-	items := []Item{}
-
+func (i *Index) GetItems(ids []int64, page int, pageSize int) []*Item {
+	items := make([]*Item, min(len(ids), pageSize))
+	idx := 0
 	for _, id := range i.GetItemIds(ids, page, pageSize) {
-		items = append(items, i.Items[id])
+		item, ok := i.Items[id]
+		if ok {
+			items[idx] = &item
+			idx++
+		}
 	}
-	return items
+	return items[0:idx]
 }
 
 type StringResult[V string | bool] struct {
@@ -258,7 +262,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 				start := time.Now()
 				results <- f.Matches(field.Value)
 
-				log.Printf("Match took %v", time.Since(start))
+				log.Printf("Bool match took %v", time.Since(start))
 
 			}(fld)
 			//}
@@ -272,7 +276,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 				start := time.Now()
 				results <- f.MatchesRange(field.Min, field.Max)
 
-				log.Printf("Match took %v", time.Since(start))
+				log.Printf("Decimal match took %v", time.Since(start))
 
 			}(fld)
 			//}
@@ -285,7 +289,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 				start := time.Now()
 				results <- f.Matches(field.Value)
 
-				log.Printf("Match took %v", time.Since(start))
+				log.Printf("String match took %v", time.Since(start))
 
 			}(fld)
 		}
