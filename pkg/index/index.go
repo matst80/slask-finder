@@ -9,58 +9,73 @@ import (
 )
 
 type Index struct {
-	Fields       map[int64]facet.Field[string]
-	NumberFields map[int64]facet.NumberField[float64]
-	BoolFields   map[int64]facet.Field[bool]
-	Items        map[int64]Item
+	KeyFacets     map[int64]*facet.Field[string]
+	DecimalFacets map[int64]*facet.NumberField[float64]
+	IntFacets     map[int64]*facet.NumberField[int]
+	BoolFacets    map[int64]*facet.Field[bool]
+	Items         map[int64]Item
 }
 
 func NewIndex() *Index {
 	return &Index{
-		Fields:       make(map[int64]facet.Field[string]),
-		NumberFields: make(map[int64]facet.NumberField[float64]),
-		BoolFields:   make(map[int64]facet.Field[bool]),
-		Items:        make(map[int64]Item),
+		KeyFacets:     make(map[int64]*facet.Field[string]),
+		DecimalFacets: make(map[int64]*facet.NumberField[float64]),
+		IntFacets:     make(map[int64]*facet.NumberField[int]),
+		BoolFacets:    make(map[int64]*facet.Field[bool]),
+		Items:         make(map[int64]Item),
 	}
 }
 
-func (i *Index) AddField(field facet.Field[string]) {
-	i.Fields[field.Id] = field
+func (i *Index) AddKeyField(field *facet.Field[string]) {
+	i.KeyFacets[field.Id] = field
 }
 
-func (i *Index) AddBoolField(field facet.Field[bool]) {
-	i.BoolFields[field.Id] = field
+func (i *Index) AddBoolField(field *facet.Field[bool]) {
+	i.BoolFacets[field.Id] = field
 }
 
-func (i *Index) AddNumberField(field facet.NumberField[float64]) {
-	i.NumberFields[field.Id] = field
+func (i *Index) AddDecimalField(field *facet.NumberField[float64]) {
+	i.DecimalFacets[field.Id] = field
+}
+
+func (i *Index) AddIntegerField(field *facet.NumberField[int]) {
+	i.IntFacets[field.Id] = field
 }
 
 func (i *Index) AddItemValues(item Item) {
 
 	for key, value := range item.Fields {
-		if f, ok := i.Fields[key]; ok {
+		if f, ok := i.KeyFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			delete(item.Fields, key)
-			//log.Printf("Field not found %v", key)
+			//delete(item.Fields, key)
+			log.Printf("Field not found %v: %v", key, value)
 		}
 	}
-	for key, value := range item.NumberFields {
-		if f, ok := i.NumberFields[key]; ok {
+	for key, value := range item.DecimalFields {
+		if f, ok := i.DecimalFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			//log.Printf("NumberField not found %v", key)
-			delete(item.NumberFields, key)
+			log.Printf("DecimalField not found %v: %v", key, value)
+			//delete(item.NumberFields, key)
+		}
+	}
+
+	for key, value := range item.IntegerFields {
+		if f, ok := i.IntFacets[key]; ok {
+			f.AddValueLink(value, item.Id)
+		} else {
+			log.Printf("IntField not found %v: %v", key, value)
+			//delete(item.NumberFields, key)
 		}
 	}
 
 	for key, value := range item.BoolFields {
-		if f, ok := i.BoolFields[key]; ok {
+		if f, ok := i.BoolFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			//log.Printf("BoolField not found %v", key)
-			delete(item.BoolFields, key)
+			log.Printf("BoolField not found %v: %v", key, value)
+			//delete(item.BoolFields, key)
 		}
 	}
 }
@@ -133,15 +148,15 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 			if f, ok := fields[key]; ok {
 				f.Values[value]++
 			} else {
-				if baseField, ok := i.Fields[key]; ok {
+				if baseField, ok := i.KeyFacets[key]; ok {
 					fields[key] = StringResult[string]{
-						Field:  &baseField,
+						Field:  baseField,
 						Values: map[string]int{value: 1},
 					}
 				}
 			}
 		}
-		for key, value := range item.NumberFields {
+		for key, value := range item.DecimalFields {
 			if f, ok := numberFields[key]; ok {
 				if value < f.Min {
 					f.Min = value
@@ -150,9 +165,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 				}
 				f.Count++
 			} else {
-				if baseField, ok := i.NumberFields[key]; ok {
+				if baseField, ok := i.DecimalFacets[key]; ok {
 					numberFields[key] = &NumberResult{
-						Field: &baseField,
+						Field: baseField,
 						Count: 1,
 						Min:   value,
 						Max:   value,
@@ -164,9 +179,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 			if f, ok := boolFields[key]; ok {
 				f.Values[stringValue(value)]++
 			} else {
-				if baseField, ok := i.BoolFields[key]; ok {
+				if baseField, ok := i.BoolFacets[key]; ok {
 					boolFields[key] = StringResult[bool]{
-						Field:  &baseField,
+						Field:  baseField,
 						Values: map[string]int{stringValue(value): 1},
 					}
 				}
@@ -206,19 +221,19 @@ type Filters struct {
 
 func (i *Index) MakeSortForFields() facet.SortIndex {
 
-	l := len(i.BoolFields) + len(i.NumberFields) + len(i.Fields)
+	l := len(i.BoolFacets) + len(i.DecimalFacets) + len(i.KeyFacets)
 	idx := 0
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
-	for _, item := range i.BoolFields {
+	for _, item := range i.BoolFacets {
 		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
 		idx++
 	}
-	for _, item := range i.NumberFields {
+	for _, item := range i.DecimalFacets {
 		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
 		idx++
 	}
-	for _, item := range i.Fields {
+	for _, item := range i.KeyFacets {
 		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
 		idx++
 	}
@@ -236,7 +251,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 	results := make(chan facet.Result)
 	len := 0
 	for _, fld := range search.BoolFilter {
-		if f, ok := i.BoolFields[fld.Id]; ok {
+		if f, ok := i.BoolFacets[fld.Id]; ok {
 			len++
 			go func(field BoolSearch) {
 
@@ -250,7 +265,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 		}
 	}
 	for _, fld := range search.NumberFilter {
-		if f, ok := i.NumberFields[fld.Id]; ok {
+		if f, ok := i.DecimalFacets[fld.Id]; ok {
 			len++
 			go func(field NumberSearch) {
 
@@ -264,7 +279,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 		}
 	}
 	for _, fld := range search.StringFilter {
-		if f, ok := i.Fields[fld.Id]; ok {
+		if f, ok := i.KeyFacets[fld.Id]; ok {
 			len++
 			go func(field StringSearch) {
 				start := time.Now()

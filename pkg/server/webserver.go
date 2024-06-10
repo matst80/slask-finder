@@ -175,7 +175,7 @@ func (ws *WebServer) StartServer() {
 		log.Printf("Failed to load index %v", err)
 	}
 	fieldSort := ws.Index.MakeSortForFields()
-	priceSort := index.MakeSortFromNumberField(ws.Index.Items, 4)
+	priceSort := index.MakeSortFromDecimalField(ws.Index.Items, 4)
 	ws.FieldSort = fieldSort
 	ws.Sort = priceSort
 	ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})

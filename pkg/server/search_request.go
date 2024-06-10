@@ -10,9 +10,9 @@ import (
 type SearchRequest struct {
 	Search index.Filters `json:"filter"`
 
-	Sort     []index.Sort `json:"sort"`
-	Page     int          `json:"page"`
-	PageSize int          `json:"pageSize"`
+	// Sort     []index.Sort `json:"sort"`
+	Page     int `json:"page"`
+	PageSize int `json:"pageSize"`
 }
 
 func QueryFromRequest(r *http.Request) (SearchRequest, error) {

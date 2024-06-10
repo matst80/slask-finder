@@ -1,3 +1,2 @@
-index.db
-freetext.db
+data/*.db
 facet-search

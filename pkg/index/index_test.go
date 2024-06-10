@@ -7,18 +7,27 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
+func matchAll(list facet.IdList, ids ...int64) bool {
+	for _, id := range ids {
+		if _, ok := list[id]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
 func TestIndexMatch(t *testing.T) {
 	i := NewIndex()
-	i.AddField(facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
-	i.AddField(facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
-	i.AddNumberField(facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
+	i.AddKeyField(&facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
+	i.AddKeyField(&facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
+	i.AddDecimalField(&facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
 	item := Item{
 		Id: 1,
 		Fields: map[int64]string{
 			1: "test",
 			2: "hej",
 		},
-		NumberFields: map[int64]float64{
+		DecimalFields: map[int64]float64{
 			3: 1,
 		},
 	}
@@ -29,16 +38,16 @@ func TestIndexMatch(t *testing.T) {
 		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
-	if !reflect.DeepEqual(matching, []int64{1}) {
+	if !matchAll(matching.GetMap(), 1) {
 		t.Errorf("Expected [1] but got %v", matching)
 	}
 }
 
 func CreateIndex() *Index {
 	i := NewIndex()
-	i.AddField(facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
-	i.AddField(facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
-	i.AddNumberField(facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
+	i.AddKeyField(&facet.Field[string]{Id: 1, Name: "first", Description: "first field"})
+	i.AddKeyField(&facet.Field[string]{Id: 2, Name: "other", Description: "other field"})
+	i.AddDecimalField(&facet.NumberField[float64]{Id: 3, Name: "number", Description: "number field"})
 
 	i.AddItem(Item{
 		Id:    1,
@@ -47,7 +56,7 @@ func CreateIndex() *Index {
 			1: "test",
 			2: "hej",
 		},
-		NumberFields: map[int64]float64{
+		DecimalFields: map[int64]float64{
 			3: 1,
 		},
 		Props: map[string]ItemProp{
@@ -62,7 +71,7 @@ func CreateIndex() *Index {
 			1: "test",
 			2: "slask",
 		},
-		NumberFields: map[int64]float64{
+		DecimalFields: map[int64]float64{
 			3: 1,
 		},
 		Props: map[string]ItemProp{
@@ -86,15 +95,15 @@ func TestHasItem(t *testing.T) {
 
 func TestHasFields(t *testing.T) {
 	i := CreateIndex()
-	if len(i.Fields) != 2 {
+	if len(i.KeyFacets) != 2 {
 		t.Errorf("Expected to have 2 fields")
 	}
-	if len(i.NumberFields) != 1 {
+	if len(i.DecimalFacets) != 1 {
 		t.Errorf("Expected to 1 number field")
 	}
-	field, ok := i.Fields[int64(1)]
+	field, ok := i.KeyFacets[int64(1)]
 	if !ok {
-		t.Errorf("Expected to have field with id 1, got %v", i.Fields)
+		t.Errorf("Expected to have field with id 1, got %v", i.KeyFacets)
 	}
 	if len(field.Values()) != 2 {
 		t.Errorf("Expected to have 2 values in field 1, got %v", field.Values())
