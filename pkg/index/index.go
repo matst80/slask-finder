@@ -139,9 +139,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 	all := result.Ids()
 	ids := all[0:min(1000, len(all))]
 
-	fields := map[int64]StringResult[string]{}
+	fields := map[int64]*StringResult[string]{}
 	numberFields := map[int64]*NumberResult{}
-	boolFields := map[int64]StringResult[bool]{}
+	boolFields := map[int64]*StringResult[bool]{}
 
 	for _, id := range ids {
 		item, ok := i.Items[id] // todo optimize and maybe sort in this step
@@ -153,7 +153,7 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 				f.Values[value]++
 			} else {
 				if baseField, ok := i.KeyFacets[key]; ok {
-					fields[key] = StringResult[string]{
+					fields[key] = &StringResult[string]{
 						Field:  baseField,
 						Values: map[string]int{value: 1},
 					}
@@ -184,7 +184,7 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 				f.Values[stringValue(value)]++
 			} else {
 				if baseField, ok := i.BoolFacets[key]; ok {
-					boolFields[key] = StringResult[bool]{
+					boolFields[key] = &StringResult[bool]{
 						Field:  baseField,
 						Values: map[string]int{stringValue(value): 1},
 					}
@@ -195,9 +195,9 @@ func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sort
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
 
 	return Facets{
-		Fields:       mapToSlice[string, StringResult[string]](fields, sortIndex),
+		Fields:       mapToSlice[string](fields, sortIndex),
 		NumberFields: mapToSliceRef(numberFields, sortIndex),
-		BoolFields:   mapToSlice[bool, StringResult[bool]](boolFields, sortIndex),
+		BoolFields:   mapToSlice[bool](boolFields, sortIndex),
 	}
 }
 
@@ -250,8 +250,6 @@ func (i *Index) MakeSortForFields() facet.SortIndex {
 
 func (i *Index) Match(search *Filters) facet.Result {
 
-	// log.Printf("Items: %v", len(i.itemIds))
-
 	results := make(chan facet.Result)
 	len := 0
 	for _, fld := range search.BoolFilter {
@@ -265,7 +263,7 @@ func (i *Index) Match(search *Filters) facet.Result {
 				log.Printf("Bool match took %v", time.Since(start))
 
 			}(fld)
-			//}
+
 		}
 	}
 	for _, fld := range search.StringFilter {
@@ -291,7 +289,6 @@ func (i *Index) Match(search *Filters) facet.Result {
 				log.Printf("Decimal match took %v", time.Since(start))
 
 			}(fld)
-			//}
 		}
 	}
 

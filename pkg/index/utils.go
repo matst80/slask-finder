@@ -32,7 +32,7 @@ func mapToSliceRef[V NumberResult](fields map[int64]*V, sortIndex *facet.SortInd
 
 }
 
-func mapToSlice[K facet.FieldKeyValue, V StringResult[K] | NumberResult](fields map[int64]V, sortIndex *facet.SortIndex) []V {
+func mapToSlice[K facet.FieldKeyValue, V StringResult[K] | NumberResult](fields map[int64]*V, sortIndex *facet.SortIndex) []V {
 
 	l := min(len(fields), 64)
 	sorted := make([]V, len(fields))
@@ -45,7 +45,7 @@ func mapToSlice[K facet.FieldKeyValue, V StringResult[K] | NumberResult](fields 
 		}
 		f, ok := fields[id]
 		if ok {
-			sorted[idx] = f
+			sorted[idx] = *f
 
 			idx++
 
