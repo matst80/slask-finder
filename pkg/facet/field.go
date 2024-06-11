@@ -4,29 +4,27 @@ import (
 	"maps"
 )
 
-type FieldKeyValue interface {
-	string | bool
-}
-
 type BaseField struct {
-	Id          int64  `json:"id"`
+	Id          int    `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
 }
 
-type KeyField[V FieldKeyValue] struct {
+type KeyField struct {
 	*BaseField
-	values map[V]IdList
+	values map[string]IdList
 }
 
-type KeyMatchData[V FieldKeyValue] struct {
+type KeyMatchDat struct {
 	IdList
-	FieldId int64
-	Value   V
+	FieldId int
+	Value   string
 }
 
-func (f *KeyField[V]) Matches(value V) IdList {
-
+func (f *KeyField) Matches(value string) IdList {
+	if value == "" {
+		return IdList{}
+	}
 	ret := IdList{}
 
 	for key, ids := range f.values {
@@ -39,8 +37,8 @@ func (f *KeyField[V]) Matches(value V) IdList {
 
 }
 
-func (f *KeyField[V]) Values() []V {
-	values := make([]V, len(f.values))
+func (f *KeyField) Values() []string {
+	values := make([]string, len(f.values))
 
 	i := 0
 	for k := range f.values {
@@ -50,12 +48,12 @@ func (f *KeyField[V]) Values() []V {
 	return values
 }
 
-func (f *KeyField[V]) AddValueLink(value V, id int64) {
+func (f *KeyField) AddValueLink(value string, id int) {
 
 	idList, ok := f.values[value]
 	if !ok {
 		if f.values == nil {
-			f.values = map[V]IdList{}
+			f.values = map[string]IdList{}
 		}
 		f.values[value] = IdList{id: struct{}{}}
 	} else {
@@ -63,7 +61,7 @@ func (f *KeyField[V]) AddValueLink(value V, id int64) {
 	}
 }
 
-func (f *KeyField[V]) TotalCount() int {
+func (f *KeyField) TotalCount() int {
 	total := 0
 	for _, ids := range f.values {
 		total += len(ids)
@@ -81,8 +79,8 @@ func count(ids IdList, other IdList) int {
 	return count
 }
 
-func (f *KeyField[V]) GetValuesForIds(ids IdList) map[V]int {
-	res := map[V]int{}
+func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
+	res := map[string]int{}
 	for value, valueIds := range f.values {
 		idCount := count(valueIds, ids)
 		if idCount > 0 {
@@ -92,16 +90,16 @@ func (f *KeyField[V]) GetValuesForIds(ids IdList) map[V]int {
 	return res
 }
 
-func NewKeyField[V FieldKeyValue](field *BaseField, value V, ids IdList) *KeyField[V] {
-	return &KeyField[V]{
+func NewKeyField(field *BaseField, value string, ids IdList) *KeyField {
+	return &KeyField{
 		BaseField: field,
-		values:    map[V]IdList{value: ids},
+		values:    map[string]IdList{value: ids},
 	}
 }
 
-func EmptyKeyValueField[V FieldKeyValue](field *BaseField) *KeyField[V] {
-	return &KeyField[V]{
+func EmptyKeyValueField(field *BaseField) *KeyField {
+	return &KeyField{
 		BaseField: field,
-		values:    map[V]IdList{},
+		values:    map[string]IdList{},
 	}
 }

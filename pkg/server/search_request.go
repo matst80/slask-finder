@@ -8,7 +8,7 @@ import (
 )
 
 type SearchRequest struct {
-	Search index.Filters `json:"filter"`
+	index.Filters
 
 	// Sort     []index.Sort `json:"sort"`
 	Page     int `json:"page"`

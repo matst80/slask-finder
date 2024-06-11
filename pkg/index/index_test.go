@@ -7,7 +7,7 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-func matchAll(list facet.IdList, ids ...int64) bool {
+func matchAll(list facet.IdList, ids ...int) bool {
 	for _, id := range ids {
 		if _, ok := list[id]; !ok {
 			return false
@@ -25,18 +25,18 @@ func TestIndexMatch(t *testing.T) {
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		Fields: map[int64]string{
+		Fields: map[int]string{
 			1: "test",
 			2: "hej",
 		},
-		DecimalFields: map[int64]float64{
+		DecimalFields: map[int]float64{
 			3: 1,
 		},
 	}
 	i.AddItem(item)
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
-		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
@@ -60,11 +60,11 @@ func CreateIndex() *Index {
 				"slask": 1,
 			},
 		},
-		Fields: map[int64]string{
+		Fields: map[int]string{
 			1: "test",
 			2: "hej",
 		},
-		DecimalFields: map[int64]float64{
+		DecimalFields: map[int]float64{
 			3: 1,
 		},
 	})
@@ -77,11 +77,11 @@ func CreateIndex() *Index {
 				"ja":  true,
 			},
 		},
-		Fields: map[int64]string{
+		Fields: map[int]string{
 			1: "test",
 			2: "slask",
 		},
-		DecimalFields: map[int64]float64{
+		DecimalFields: map[int]float64{
 			3: 1,
 		},
 	})
@@ -107,7 +107,7 @@ func TestHasFields(t *testing.T) {
 	if len(i.DecimalFacets) != 1 {
 		t.Errorf("Expected to 1 number field")
 	}
-	field, ok := i.KeyFacets[int64(1)]
+	field, ok := i.KeyFacets[int(1)]
 	if !ok {
 		t.Errorf("Expected to have field with id 1, got %v", i.KeyFacets)
 	}
@@ -120,11 +120,11 @@ func TestMultipleIndexMatch(t *testing.T) {
 	i := CreateIndex()
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
-		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
-	if !reflect.DeepEqual(matching, []int64{1, 2}) {
+	if !reflect.DeepEqual(matching, []int{1, 2}) {
 		t.Errorf("Expected [1,2] but got %v", matching)
 	}
 }
@@ -133,7 +133,7 @@ func TestGetMatchItems(t *testing.T) {
 	i := CreateIndex()
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
-		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
@@ -153,7 +153,7 @@ func TestGetFacetsFromResultIds(t *testing.T) {
 	i := CreateIndex()
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
-		NumberFilter: []NumberSearch{{Id: 3, Min: 1, Max: 2}},
+		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)

@@ -10,7 +10,7 @@ import (
 type ItemProp interface{}
 
 type BaseItem struct {
-	Id    int64               `json:"id"`
+	Id    int                 `json:"id"`
 	Sku   string              `json:"sku"`
 	Title string              `json:"title"`
 	Props map[string]ItemProp `json:"props"`
@@ -18,41 +18,46 @@ type BaseItem struct {
 
 type DataItem struct {
 	BaseItem
-	Fields        map[int64]string  `json:"values"`
-	DecimalFields map[int64]float64 `json:"numberValues"`
-	IntegerFields map[int64]int     `json:"integerValues"`
-	BoolFields    map[int64]bool    `json:"boolValues"`
+	Fields        map[int]string  `json:"values"`
+	DecimalFields map[int]float64 `json:"numberValues"`
+	IntegerFields map[int]int     `json:"integerValues"`
+	BoolFields    map[int]bool    `json:"boolValues"`
 }
 
-type ItemKeyField[K facet.FieldKeyValue] struct {
-	*facet.KeyField[K]
-	Value K `json:"value"`
+type ItemKeyField struct {
+	field     *facet.KeyField
+	Value     string `json:"value"`
+	ValueHash uint32 `json:"valueHash"`
 }
 
 type ItemNumberField[K facet.FieldNumberValue] struct {
-	*facet.NumberField[K]
+	field *facet.NumberField[K]
 	Value K `json:"value"`
 }
 
 type Item struct {
 	BaseItem
-	Fields        map[int64]ItemKeyField[string]
-	DecimalFields map[int64]ItemNumberField[float64]
-	IntegerFields map[int64]ItemNumberField[int]
-	BoolFields    map[int64]ItemKeyField[bool]
+	Fields        map[int]ItemKeyField
+	DecimalFields map[int]ItemNumberField[float64]
+	IntegerFields map[int]ItemNumberField[int]
+}
+
+type ResultItem struct {
+	BaseItem
+	Fields map[int]interface{} `json:"values"`
 }
 
 // type Sort struct {
-// 	FieldId int64 `json:"fieldId"`
+// 	FieldId int `json:"fieldId"`
 // 	Asc     bool  `json:"asc"`
 // }
 
-func MakeSortFromDecimalField(items map[int64]Item, fieldId int64) facet.SortIndex {
+func MakeSortFromDecimalField(items map[int]Item, fieldId int) facet.SortIndex {
 	l := len(items)
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
 	for idx, item := range items {
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.DecimalFields[fieldId].Value - 3000)}
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.DecimalFields[fieldId].Value - float64(3000))}
 	}
 	sort.Sort(sortMap)
 	for idx, item := range sortMap {

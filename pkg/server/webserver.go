@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/http/pprof"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -32,11 +33,11 @@ type WebServer struct {
 // }
 
 type SearchResponse struct {
-	Items     []*index.Item `json:"items"`
-	Facets    index.Facets  `json:"facets"`
-	Page      int           `json:"page"`
-	PageSize  int           `json:"pageSize"`
-	TotalHits int           `json:"totalHits"`
+	Items     []index.ResultItem `json:"items"`
+	Facets    index.Facets       `json:"facets"`
+	Page      int                `json:"page"`
+	PageSize  int                `json:"pageSize"`
+	TotalHits int                `json:"totalHits"`
 }
 
 func NewWebServer(db *persistance.Persistance) WebServer {
@@ -56,10 +57,10 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	itemsChan := make(chan []*index.Item)
-	facetsChan := make(chan index.Facets)
+	itemsChan := make(chan []index.ResultItem)
+	//facetsChan := make(chan index.Facets)
 
-	matching := ws.Index.Match(&sr.Search)
+	matching := ws.Index.Match(&sr.Filters)
 	//ids := matching.Ids()
 
 	// if !matching.HasItems() {
@@ -69,15 +70,13 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
-	go func() {
-		facetsChan <- ws.Index.GetFacetsFromResult(&matching, &sr.Search, &ws.FieldSort)
-	}()
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	data := SearchResponse{
 		Items:     <-itemsChan,
-		Facets:    <-facetsChan,
+		Facets:    ws.Index.GetFacetsFromResult(&matching, &sr.Filters, &ws.FieldSort),
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		TotalHits: len(matching),
@@ -169,10 +168,11 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) StartServer() {
+func (ws *WebServer) LoadDatabase() error {
 	err := ws.Db.LoadIndex(ws.Index)
 	if err != nil {
-		log.Printf("Failed to load index %v", err)
+		//log.Printf("Failed to load index %v", err)
+		return err
 	}
 	fieldSort := ws.Index.MakeSortForFields()
 	priceSort := index.MakeSortFromDecimalField(ws.Index.Items, 4)
@@ -181,17 +181,32 @@ func (ws *WebServer) StartServer() {
 	ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
 	err = ws.Db.LoadFreeText(ws.FreeText)
 	if err != nil {
-		log.Printf("Failed to load freetext %v", err)
+		//log.Printf("Failed to load freetext %v", err)
+		return err
 	}
+	return nil
+}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) StartServer() error {
+
+	srv := http.NewServeMux()
+
+	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	http.HandleFunc("/search", ws.Search)
-	http.HandleFunc("/index", ws.IndexDocuments)
-	http.HandleFunc("/query", ws.QueryIndex)
-	http.HandleFunc("/add", ws.AddItem)
-	http.HandleFunc("/save", ws.Save)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	srv.HandleFunc("/search", ws.Search)
+	srv.HandleFunc("/index", ws.IndexDocuments)
+	srv.HandleFunc("/query", ws.QueryIndex)
+	srv.HandleFunc("/add", ws.AddItem)
+	srv.HandleFunc("/save", ws.Save)
+
+	srv.HandleFunc("/debug/pprof/", pprof.Index)
+	srv.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	srv.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	srv.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	srv.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+	return http.ListenAndServe(":8080", srv)
 }

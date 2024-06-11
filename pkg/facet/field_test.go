@@ -5,7 +5,7 @@ import (
 )
 
 func TestValueField_SingleMatch(t *testing.T) {
-	f := &KeyField[string]{
+	f := &KeyField{
 		BaseField: &BaseField{
 			Name: "test",
 		},
@@ -34,7 +34,7 @@ func TestValueField_SingleMatch(t *testing.T) {
 // 	matching := f.Matches(func(v string) bool {
 // 		return v == "test" || v == "hej"
 // 	})
-// 	if !reflect.DeepEqual(matching.Ids, []int64{1, 2, 3, 4}) {
+// 	if !reflect.DeepEqual(matching.Ids, []int{1, 2, 3, 4}) {
 // 		t.Errorf("Expected [1, 2, 3, 4] but got %v", matching)
 // 	}
 // }

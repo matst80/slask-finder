@@ -30,7 +30,7 @@ func TestGetBucket(t *testing.T) {
 	}
 
 	largeFloatValues := []float64{10000, 10005, 10010, 10015, 10000, 10002}
-	expected := int64(10000 >> 8)
+	expected := int(10000 >> 8)
 	for _, v := range largeFloatValues {
 		bucket := GetBucket(v)
 		if bucket != expected {

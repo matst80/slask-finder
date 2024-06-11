@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-type IdList map[int64]struct{}
+type IdList map[int]struct{}
 
-func (r *IdList) SortedIds(srt SortIndex, maxItems int) []int64 {
+func (r *IdList) SortedIds(srt SortIndex, maxItems int) []int {
 	return srt.SortMap(*r, maxItems)
 }
 

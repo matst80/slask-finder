@@ -10,23 +10,23 @@ import (
 
 type FreeTextIndex struct {
 	Tokenizer Tokenizer
-	Documents map[int64]Document
+	Documents map[int]Document
 }
 
-type DocumentResult map[int64]int
+type DocumentResult map[int]int
 
 func (i *FreeTextIndex) AddDocument(doc Document) {
 	i.Documents[doc.Id] = doc
 }
 
-func (i *FreeTextIndex) RemoveDocument(id int64) {
+func (i *FreeTextIndex) RemoveDocument(id int) {
 	delete(i.Documents, id)
 }
 
 func NewFreeTextIndex(tokenizer Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
 		Tokenizer: tokenizer,
-		Documents: make(map[int64]Document),
+		Documents: make(map[int]Document),
 	}
 }
 
