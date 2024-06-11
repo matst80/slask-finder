@@ -6,11 +6,7 @@ type NumberBucket struct {
 
 type Bucket[V FieldNumberValue] struct {
 	values map[V]IdList
-	all    IdList
-}
-
-func (b *Bucket[V]) All() IdList {
-	return b.all
+	all    *IdList
 }
 
 func (b *Bucket[V]) AddValueLink(value V, id int64) {
@@ -22,19 +18,19 @@ func (b *Bucket[V]) AddValueLink(value V, id int64) {
 	} else {
 		idList[id] = struct{}{}
 	}
-	b.all.Merge(lst)
+	b.all.Merge(&lst)
 }
 
 func MakeBucket[V FieldNumberValue](value V, id int64) Bucket[V] {
 	return Bucket[V]{
 		values: map[V]IdList{value: {id: struct{}{}}},
-		all:    IdList{id: struct{}{}},
+		all:    &IdList{id: struct{}{}},
 	}
 }
 
-func MakeBucketList[V FieldNumberValue](value V, ids IdList) Bucket[V] {
+func MakeBucketList[V FieldNumberValue](value V, ids *IdList) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]IdList{value: ids},
+		values: map[V]IdList{value: *ids},
 		all:    ids,
 	}
 }

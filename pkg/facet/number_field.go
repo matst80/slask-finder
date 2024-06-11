@@ -1,5 +1,13 @@
 package facet
 
+import (
+	"maps"
+)
+
+type FieldNumberValue interface {
+	int | float64
+}
+
 type NumberField[V FieldNumberValue] struct {
 	*BaseField
 	buckets map[int64]Bucket[V]
@@ -8,30 +16,35 @@ type NumberField[V FieldNumberValue] struct {
 	Max     V
 }
 
-func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) Result {
-	result := NewResult()
+func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
+
 	minBucket := GetBucket(minValue)
 	maxBucket := GetBucket(maxValue)
+	found := IdList{}
 
 	for v, ids := range f.buckets[minBucket].values {
 		if v >= minValue && v <= maxValue {
-			result.Add(ids)
+			maps.Copy(found, ids)
 		}
 	}
+
 	if minBucket < maxBucket {
-		for bucketId := minBucket + 1; bucketId < maxBucket; bucketId++ {
-			bucket, ok := f.buckets[bucketId]
+
+		for id := minBucket + 1; id < maxBucket; id++ {
+			bucket, ok := f.buckets[id]
 			if ok {
-				result.Add(bucket.all)
+				maps.Copy(found, *bucket.all)
 			}
 		}
+
 		for v, ids := range f.buckets[maxBucket].values {
 			if v <= maxValue {
-				result.Add(ids)
+				maps.Copy(found, ids)
 			}
 		}
+
 	}
-	return result
+	return found
 }
 
 type NumberRange[V FieldNumberValue] struct {
@@ -59,10 +72,14 @@ func (f *NumberField[V]) TotalCount() int {
 	return f.Count
 }
 
+func (f *NumberField[V]) GetRangeForIds(ids *IdList) NumberRange[V] {
+	return NumberRange[V]{Min: f.Min, Max: f.Max}
+}
+
 func NewNumberField[V FieldNumberValue](field *BaseField, value V, ids IdList) *NumberField[V] {
 	return &NumberField[V]{
 		BaseField: field,
-		buckets:   map[int64]Bucket[V]{GetBucket(value): MakeBucketList(value, ids)},
+		buckets:   map[int64]Bucket[V]{GetBucket(value): MakeBucketList(value, &ids)},
 	}
 }
 

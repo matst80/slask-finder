@@ -9,16 +9,21 @@ func stringValue(b bool) string {
 	return "false"
 }
 
+func boolToString(input map[bool]int) map[string]int {
+	result := make(map[string]int)
+	for k, v := range input {
+		result[stringValue(k)] = v
+	}
+	return result
+}
+
 func boolToStringResult(fields map[int64]*KeyResult[bool]) map[int64]*KeyResult[string] {
 	result := make(map[int64]*KeyResult[string])
 	for k, v := range fields {
-		values := make(map[string]int)
-		for key, value := range v.Values {
-			values[stringValue(key)] = value
-		}
+
 		result[k] = &KeyResult[string]{
 			BaseField: v.BaseField,
-			Values:    values,
+			Values:    boolToString(v.Values),
 		}
 	}
 	return result

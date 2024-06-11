@@ -1,19 +1,11 @@
 package facet
 
-type FieldNumberValue interface {
-	int | float64
-}
+import (
+	"maps"
+)
 
 type FieldKeyValue interface {
 	string | bool
-}
-
-type IdList map[int64]struct{}
-
-func (i IdList) Merge(other IdList) {
-	for id := range other {
-		i[id] = struct{}{}
-	}
 }
 
 type BaseField struct {
@@ -27,17 +19,24 @@ type KeyField[V FieldKeyValue] struct {
 	values map[V]IdList
 }
 
-func (f *KeyField[V]) Matches(value V) Result {
+type KeyMatchData[V FieldKeyValue] struct {
+	IdList
+	FieldId int64
+	Value   V
+}
 
-	result := NewResult()
+func (f *KeyField[V]) Matches(value V) IdList {
+
+	ret := IdList{}
 
 	for key, ids := range f.values {
 		if key == value {
-			result.Add(ids)
+			maps.Copy(ret, ids)
 		}
 	}
 
-	return result
+	return ret
+
 }
 
 func (f *KeyField[V]) Values() []V {
@@ -70,6 +69,27 @@ func (f *KeyField[V]) TotalCount() int {
 		total += len(ids)
 	}
 	return total
+}
+
+func count(ids IdList, other IdList) int {
+	count := 0
+	for id := range ids {
+		if _, ok := other[id]; ok {
+			count++
+		}
+	}
+	return count
+}
+
+func (f *KeyField[V]) GetValuesForIds(ids IdList) map[V]int {
+	res := map[V]int{}
+	for value, valueIds := range f.values {
+		idCount := count(valueIds, ids)
+		if idCount > 0 {
+			res[value] = idCount
+		}
+	}
+	return res
 }
 
 func NewKeyField[V FieldKeyValue](field *BaseField, value V, ids IdList) *KeyField[V] {

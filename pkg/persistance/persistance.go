@@ -29,7 +29,7 @@ type IndexStorage struct {
 	// DecimalFacets map[int64]facet.NumberField[float64]
 	// IntFacets     map[int64]facet.NumberField[int]
 	// BoolFacets    map[int64]facet.Field[bool]
-	Items map[int64]index.Item
+	Items map[int64]index.DataItem
 }
 
 type FreeTextStorage struct {
@@ -107,6 +107,22 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	return nil
 }
 
+func cloneFields[K facet.FieldKeyValue](f map[int64]index.ItemKeyField[K]) map[int64]K {
+	fields := make(map[int64]K)
+	for k, v := range f {
+		fields[k] = v.Value
+	}
+	return fields
+}
+
+func cloneNumberFields[K facet.FieldNumberValue](f map[int64]index.ItemNumberField[K]) map[int64]K {
+	fields := make(map[int64]K)
+	for k, v := range f {
+		fields[k] = v.Value
+	}
+	return fields
+}
+
 // func cloneField[T facet.FieldValue](f map[int64]*facet.KeyField[T]) map[int64]facet.KeyField[T] {
 // 	fields := make(map[int64]facet.KeyField[T])
 // 	for _, fld := range f {
@@ -135,12 +151,23 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		fields[fld.Id] = *fld
 	}
 
+	items := make(map[int64]index.DataItem)
+	for _, item := range idx.Items {
+		items[item.Id] = index.DataItem{
+			BaseItem:      item.BaseItem,
+			Fields:        cloneFields(item.Fields),
+			DecimalFields: cloneNumberFields(item.DecimalFields),
+			IntegerFields: cloneNumberFields(item.IntegerFields),
+			BoolFields:    cloneFields(item.BoolFields),
+		}
+	}
+
 	toSave := IndexStorage{
 		// KeyFacets:     cloneField(idx.KeyFacets),
 		// DecimalFacets: cloneNumberField(idx.DecimalFacets),
 		// IntFacets:     cloneNumberField(idx.IntFacets),
 		// BoolFacets:    cloneField(idx.BoolFacets),
-		Items: idx.Items,
+		Items: items,
 	}
 	defer file.Close()
 	writer := io.Writer(file)

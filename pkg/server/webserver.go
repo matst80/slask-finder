@@ -46,7 +46,7 @@ func NewWebServer(db *persistance.Persistance) WebServer {
 	}
 }
 
-type AddItemRequest []index.Item
+type AddItemRequest []index.DataItem
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
@@ -62,10 +62,10 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	matching := ws.Index.Match(&sr.Search)
 	//ids := matching.Ids()
 
-	if !matching.HasItems() {
-		w.WriteHeader(204)
-		return
-	}
+	// if !matching.HasItems() {
+	// 	w.WriteHeader(204)
+	// 	return
+	// }
 	go func() {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
@@ -80,7 +80,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		Facets:    <-facetsChan,
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
-		TotalHits: matching.Length(),
+		TotalHits: len(matching),
 	}
 
 	encErr := json.NewEncoder(w).Encode(data)
@@ -147,7 +147,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		idx := 0
 
 		res := searchResults.ToResultWithSort()
-		ids := res.SortIndex.SortMap(*res.Result.GetMap(), 10000)
+		ids := res.SortIndex.SortMap(res.IdList, 10000)
 		for _, id := range ids {
 			item, ok := ws.Index.Items[id]
 			if ok {

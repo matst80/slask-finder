@@ -7,7 +7,7 @@ import (
 
 type SortIndex []int64
 
-func (s *SortIndex) SortMap(ids map[int64]struct{}, breakAt int) []int64 {
+func (s *SortIndex) SortMap(ids IdList, breakAt int) []int64 {
 	start := time.Now()
 
 	l := min(len(ids), breakAt)

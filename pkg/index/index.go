@@ -42,21 +42,21 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 	i.IntFacets[field.Id] = facet.EmptyNumberField[int](field)
 }
 
-func (i *Index) AddItemValues(item Item) {
+func (i *Index) AddItemValues(item DataItem) {
 
 	for key, value := range item.Fields {
 		if f, ok := i.KeyFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
 			//delete(item.Fields, key)
-			log.Printf("Field not found %v: %v", key, value)
+			//log.Printf("Field not found %v: %v", key, value)
 		}
 	}
 	for key, value := range item.DecimalFields {
 		if f, ok := i.DecimalFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Printf("DecimalField not found %v: %v", key, value)
+			//log.Printf("DecimalField not found %v: %v", key, value)
 			//delete(item.NumberFields, key)
 		}
 	}
@@ -65,7 +65,7 @@ func (i *Index) AddItemValues(item Item) {
 		if f, ok := i.IntFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Printf("IntField not found %v: %v", key, value)
+			//log.Printf("IntField not found %v: %v", key, value)
 			//delete(item.NumberFields, key)
 		}
 	}
@@ -74,15 +74,42 @@ func (i *Index) AddItemValues(item Item) {
 		if f, ok := i.BoolFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
 		} else {
-			log.Printf("BoolField not found %v: %v", key, value)
+			//log.Printf("BoolField not found %v: %v", key, value)
 			//delete(item.BoolFields, key)
 		}
 	}
 }
 
-func (i *Index) AddItem(item Item) {
-	i.Items[item.Id] = item
+func getFields[K facet.FieldKeyValue](fields map[int64]*facet.KeyField[K], itemFields map[int64]K) map[int64]ItemKeyField[K] {
+	newFields := make(map[int64]ItemKeyField[K])
+	for key, value := range itemFields {
+		if f, ok := fields[key]; ok {
+			newFields[key] = ItemKeyField[K]{KeyField: f, Value: value}
+		}
+	}
+	return newFields
+}
+
+func getNumberFields[K facet.FieldNumberValue](fields map[int64]*facet.NumberField[K], itemFields map[int64]K) map[int64]ItemNumberField[K] {
+	newFields := make(map[int64]ItemNumberField[K])
+	for key, value := range itemFields {
+		if f, ok := fields[key]; ok {
+			newFields[key] = ItemNumberField[K]{NumberField: f, Value: value}
+		}
+	}
+	return newFields
+}
+
+func (i *Index) AddItem(item DataItem) {
+
 	i.AddItemValues(item)
+	i.Items[item.Id] = Item{
+		BaseItem:      item.BaseItem,
+		Fields:        getFields(i.KeyFacets, item.Fields),
+		DecimalFields: getNumberFields(i.DecimalFacets, item.DecimalFields),
+		IntegerFields: getNumberFields(i.IntFacets, item.IntegerFields),
+		BoolFields:    getFields(i.BoolFacets, item.BoolFields),
+	}
 }
 
 func (i *Index) GetItem(id int64) Item {
@@ -116,9 +143,9 @@ func (i *Index) GetItems(ids []int64, page int, pageSize int) []*Item {
 	return items[0:idx]
 }
 
-type KeyResult[V string | bool] struct {
+type KeyResult[K string | bool] struct {
 	*facet.BaseField
-	Values map[V]int `json:"values"`
+	Values map[K]int `json:"values"`
 }
 
 type NumberResult[V float64 | int] struct {
@@ -134,70 +161,67 @@ type Facets struct {
 	BoolFields   []KeyResult[string]     `json:"boolFields"`
 }
 
-func (i *Index) GetFacetsFromResult(result *facet.Result, filters *Filters, sortIndex *facet.SortIndex) Facets {
+func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
 	start := time.Now()
-	all := result.Ids()
-	ids := all[0:min(1000, len(all))]
-
+	count := 0
 	fields := map[int64]*KeyResult[string]{}
 	numberFields := map[int64]*NumberResult[float64]{}
 	boolFields := map[int64]*KeyResult[bool]{}
 
-	for _, id := range ids {
+	for id := range *ids {
 		item, ok := i.Items[id] // todo optimize and maybe sort in this step
 		if !ok {
 			continue
 		}
-		for key, value := range item.Fields {
-			if f, ok := fields[key]; ok {
-				f.Values[value]++
+		count++
+		if count > 1024 {
+			break
+		}
+		for fieldId, field := range item.Fields {
+			if f, ok := fields[fieldId]; ok {
+				f.Values[field.Value]++
 			} else {
-				if baseField, ok := i.KeyFacets[key]; ok {
-					fields[key] = &KeyResult[string]{
-						BaseField: baseField.BaseField,
-						Values:    map[string]int{value: 1},
-					}
+				fields[fieldId] = &KeyResult[string]{
+					BaseField: field.BaseField,
+					Values:    map[string]int{field.Value: 1},
 				}
 			}
 		}
-		for key, value := range item.DecimalFields {
+
+		for key, field := range item.DecimalFields {
 			if f, ok := numberFields[key]; ok {
-				if value < f.Min {
-					f.Min = value
-				} else if value > f.Max {
-					f.Max = value
+				if field.Value < f.Min {
+					f.Min = field.Value
+				} else if field.Value > f.Max {
+					f.Max = field.Value
 				}
 				f.Count++
 			} else {
-				if baseField, ok := i.DecimalFacets[key]; ok {
-					numberFields[key] = &NumberResult[float64]{
-						BaseField: baseField.BaseField,
-						Count:     1,
-						Min:       value,
-						Max:       value,
-					}
+				numberFields[key] = &NumberResult[float64]{
+					BaseField: field.BaseField,
+					Count:     1,
+					Min:       field.Value,
+					Max:       field.Value,
 				}
 			}
 		}
-		for key, value := range item.BoolFields {
-			if f, ok := boolFields[key]; ok {
-				f.Values[value]++
+		for fieldId, field := range item.Fields {
+			if f, ok := fields[fieldId]; ok {
+				f.Values[field.Value]++
 			} else {
-				if baseField, ok := i.BoolFacets[key]; ok {
-					boolFields[key] = &KeyResult[bool]{
-						BaseField: baseField.BaseField,
-						Values:    map[bool]int{value: 1},
-					}
+				fields[fieldId] = &KeyResult[string]{
+					BaseField: field.BaseField,
+					Values:    map[string]int{field.Value: 1},
 				}
 			}
 		}
 	}
 	log.Printf("GetFacetsFromResultIds took %v", time.Since(start))
-
+	b := boolToStringResult(boolFields)
 	return Facets{
 		Fields:       mapToSlice(fields, sortIndex),
 		NumberFields: mapToSliceNumber(numberFields, sortIndex),
-		BoolFields:   mapToSlice(boolToStringResult(boolFields), sortIndex),
+		BoolFields:   mapToSlice(b, sortIndex),
 	}
 }
 
@@ -248,9 +272,15 @@ func (i *Index) MakeSortForFields() facet.SortIndex {
 	return sortIndex
 }
 
-func (i *Index) Match(search *Filters) facet.Result {
+type IndexMatch struct {
+	Ids    facet.IdList
+	Fields facet.IdList
+}
 
-	results := make(chan facet.Result)
+func (i *Index) Match(search *Filters) facet.IdList {
+
+	results := make(chan facet.IdList)
+
 	len := 0
 	for _, fld := range search.BoolFilter {
 		if f, ok := i.BoolFacets[fld.Id]; ok {

@@ -10,13 +10,13 @@ func TestValueField_SingleMatch(t *testing.T) {
 			Name: "test",
 		},
 		values: map[string]IdList{
-			"test": makeIdList(1, 2, 3),
-			"hej":  makeIdList(2, 3, 4),
+			"test": *makeIdList(1, 2, 3),
+			"hej":  *makeIdList(2, 3, 4),
 		},
 	}
 
 	matching := f.Matches("test")
-	if !matchAll(matching.ids, 1, 2, 3) {
+	if !matchAll(matching, 1, 2, 3) {
 		t.Errorf("Expected [1, 2, 3] but got %v", matching)
 	}
 }
