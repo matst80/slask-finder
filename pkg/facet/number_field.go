@@ -34,7 +34,10 @@ func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
 			bucket, ok := f.buckets[id]
 			if ok {
 				maps.Copy(found, *bucket.all)
+			} else {
+				// log.Println("Bucket not found")
 			}
+
 		}
 
 		for v, ids := range f.buckets[maxBucket].values {

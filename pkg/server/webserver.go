@@ -58,7 +58,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	itemsChan := make(chan []index.ResultItem)
-	//facetsChan := make(chan index.Facets)
+	facetsChan := make(chan index.Facets)
 
 	matching := ws.Index.Match(&sr.Filters)
 	//ids := matching.Ids()
@@ -70,13 +70,16 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
+	go func() {
+		facetsChan <- ws.Index.GetFacetsFromResult(&matching, &sr.Filters, &ws.FieldSort)
+	}()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	data := SearchResponse{
 		Items:     <-itemsChan,
-		Facets:    ws.Index.GetFacetsFromResult(&matching, &sr.Filters, &ws.FieldSort),
+		Facets:    <-facetsChan,
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		TotalHits: len(matching),

@@ -57,7 +57,7 @@ func MakeSortFromDecimalField(items map[uint]Item, fieldId uint) facet.SortIndex
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
 	for idx, item := range items {
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.DecimalFields[fieldId].Value - float64(3000))}
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.DecimalFields[fieldId].Value - float64(300000))}
 	}
 	sort.Sort(sortMap)
 	for idx, item := range sortMap {
