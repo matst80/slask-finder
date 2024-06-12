@@ -58,7 +58,7 @@ func (f *NumberField[V]) Bounds() NumberRange[V] {
 	return NumberRange[V]{Min: f.Min, Max: f.Max}
 }
 
-func (f *NumberField[V]) AddValueLink(value V, id int) {
+func (f *NumberField[V]) AddValueLink(value V, id uint) {
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
 	f.Count++

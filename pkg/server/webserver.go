@@ -112,7 +112,9 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
-
+	if ws.FreeText == nil {
+		ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
+	}
 	for _, item := range ws.Index.Items {
 		ws.FreeText.AddDocument(search.Document{
 			Id:     item.Id,

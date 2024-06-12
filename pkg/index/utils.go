@@ -1,8 +1,12 @@
 package index
 
-import "tornberg.me/facet-search/pkg/facet"
+import (
+	"hash/fnv"
 
-func mapToSlice(fields map[int]KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
+	"tornberg.me/facet-search/pkg/facet"
+)
+
+func mapToSlice(fields map[uint]KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
 	l := min(len(fields), 64)
 	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
@@ -22,7 +26,7 @@ func mapToSlice(fields map[int]KeyResult, sortIndex *facet.SortIndex) []JsonKeyR
 	return sorted[:idx]
 }
 
-func mapToSliceNumber[K float64 | int](fields map[int]NumberResult[K], sortIndex *facet.SortIndex) []NumberResult[K] {
+func mapToSliceNumber[K float64 | int](fields map[uint]NumberResult[K], sortIndex *facet.SortIndex) []NumberResult[K] {
 	l := min(len(fields), 64)
 	sorted := make([]NumberResult[K], len(fields))
 	idx := 0
@@ -37,4 +41,10 @@ func mapToSliceNumber[K float64 | int](fields map[int]NumberResult[K], sortIndex
 		}
 	}
 	return sorted[:idx]
+}
+
+func HashString(s string) uint {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return uint(h.Sum32())
 }

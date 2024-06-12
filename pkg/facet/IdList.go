@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-type IdList map[int]struct{}
+type IdList map[uint]struct{}
 
-func (r *IdList) SortedIds(srt SortIndex, maxItems int) []int {
+func (r *IdList) SortedIds(srt SortIndex, maxItems int) []uint {
 	return srt.SortMap(*r, maxItems)
 }
 
@@ -36,5 +36,6 @@ func MakeIntersectResult(r chan IdList, len int) IdList {
 	for i := 1; i < len; i++ {
 		first.Intersect(<-r)
 	}
+	close(r)
 	return first
 }

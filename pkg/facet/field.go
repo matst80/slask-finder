@@ -5,20 +5,15 @@ import (
 )
 
 type BaseField struct {
-	Id          int    `json:"id"`
+	Id          uint   `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	HideFacet   bool   `json:"-"`
 }
 
 type KeyField struct {
 	*BaseField
 	values map[string]IdList
-}
-
-type KeyMatchDat struct {
-	IdList
-	FieldId int
-	Value   string
 }
 
 func (f *KeyField) Matches(value string) IdList {
@@ -48,7 +43,7 @@ func (f *KeyField) Values() []string {
 	return values
 }
 
-func (f *KeyField) AddValueLink(value string, id int) {
+func (f *KeyField) AddValueLink(value string, id uint) {
 
 	idList, ok := f.values[value]
 	if !ok {

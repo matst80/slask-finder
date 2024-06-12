@@ -4,7 +4,7 @@ package facet
 // 	"testing"
 // )
 
-func makeIdList(ids ...int) *IdList {
+func makeIdList(ids ...uint) *IdList {
 	idList := make(IdList)
 	for _, id := range ids {
 		idList[id] = struct{}{}
@@ -12,7 +12,7 @@ func makeIdList(ids ...int) *IdList {
 	return &idList
 }
 
-func matchAll(list IdList, ids ...int) bool {
+func matchAll(list IdList, ids ...uint) bool {
 	for _, id := range ids {
 		if _, ok := list[id]; !ok {
 			return false

@@ -10,7 +10,7 @@ import (
 type ItemProp interface{}
 
 type BaseItem struct {
-	Id    int                 `json:"id"`
+	Id    uint                `json:"id"`
 	Sku   string              `json:"sku"`
 	Title string              `json:"title"`
 	Props map[string]ItemProp `json:"props"`
@@ -18,16 +18,16 @@ type BaseItem struct {
 
 type DataItem struct {
 	BaseItem
-	Fields        map[int]string  `json:"values"`
-	DecimalFields map[int]float64 `json:"numberValues"`
-	IntegerFields map[int]int     `json:"integerValues"`
-	BoolFields    map[int]bool    `json:"boolValues"`
+	Fields        map[uint]string  `json:"values"`
+	DecimalFields map[uint]float64 `json:"numberValues"`
+	IntegerFields map[uint]int     `json:"integerValues"`
+	BoolFields    map[uint]bool    `json:"boolValues"`
 }
 
 type ItemKeyField struct {
 	field     *facet.KeyField
 	Value     string `json:"value"`
-	ValueHash uint32 `json:"valueHash"`
+	ValueHash uint   `json:"valueHash"`
 }
 
 type ItemNumberField[K facet.FieldNumberValue] struct {
@@ -37,14 +37,14 @@ type ItemNumberField[K facet.FieldNumberValue] struct {
 
 type Item struct {
 	BaseItem
-	Fields        map[int]ItemKeyField
-	DecimalFields map[int]ItemNumberField[float64]
-	IntegerFields map[int]ItemNumberField[int]
+	Fields        map[uint]ItemKeyField
+	DecimalFields map[uint]ItemNumberField[float64]
+	IntegerFields map[uint]ItemNumberField[int]
 }
 
 type ResultItem struct {
 	BaseItem
-	Fields map[int]interface{} `json:"values"`
+	Fields map[uint]interface{} `json:"values"`
 }
 
 // type Sort struct {
@@ -52,7 +52,7 @@ type ResultItem struct {
 // 	Asc     bool  `json:"asc"`
 // }
 
-func MakeSortFromDecimalField(items map[int]Item, fieldId int) facet.SortIndex {
+func MakeSortFromDecimalField(items map[uint]Item, fieldId uint) facet.SortIndex {
 	l := len(items)
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)

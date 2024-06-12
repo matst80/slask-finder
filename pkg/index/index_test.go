@@ -7,7 +7,7 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-func matchAll(list facet.IdList, ids ...int) bool {
+func matchAll(list facet.IdList, ids ...uint) bool {
 	for _, id := range ids {
 		if _, ok := list[id]; !ok {
 			return false
@@ -25,11 +25,11 @@ func TestIndexMatch(t *testing.T) {
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		Fields: map[int]string{
+		Fields: map[uint]string{
 			1: "test",
 			2: "hej",
 		},
-		DecimalFields: map[int]float64{
+		DecimalFields: map[uint]float64{
 			3: 1,
 		},
 	}
@@ -60,11 +60,11 @@ func CreateIndex() *Index {
 				"slask": 1,
 			},
 		},
-		Fields: map[int]string{
+		Fields: map[uint]string{
 			1: "test",
 			2: "hej",
 		},
-		DecimalFields: map[int]float64{
+		DecimalFields: map[uint]float64{
 			3: 1,
 		},
 	})
@@ -77,11 +77,11 @@ func CreateIndex() *Index {
 				"ja":  true,
 			},
 		},
-		Fields: map[int]string{
+		Fields: map[uint]string{
 			1: "test",
 			2: "slask",
 		},
-		DecimalFields: map[int]float64{
+		DecimalFields: map[uint]float64{
 			3: 1,
 		},
 	})
@@ -107,7 +107,7 @@ func TestHasFields(t *testing.T) {
 	if len(i.DecimalFacets) != 1 {
 		t.Errorf("Expected to 1 number field")
 	}
-	field, ok := i.KeyFacets[int(1)]
+	field, ok := i.KeyFacets[uint(1)]
 	if !ok {
 		t.Errorf("Expected to have field with id 1, got %v", i.KeyFacets)
 	}

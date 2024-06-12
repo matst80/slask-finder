@@ -25,11 +25,11 @@ func NewPersistance() Persistance {
 }
 
 type IndexStorage struct {
-	Items map[int]index.DataItem
+	Items map[uint]index.DataItem
 }
 
 type FreeTextStorage struct {
-	Documents map[int]search.Document
+	Documents map[uint]search.Document
 }
 
 func (p *Persistance) LoadFreeText(ft *search.FreeTextIndex) error {
@@ -65,6 +65,7 @@ func (p *Persistance) SaveFreeText(ft *search.FreeTextIndex) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -87,20 +88,20 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	for _, item := range v.Items {
 		idx.AddItem(item)
 	}
-
+	v = IndexStorage{}
 	return nil
 }
 
-func cloneFields(f map[int]index.ItemKeyField) map[int]string {
-	fields := make(map[int]string)
+func cloneFields(f map[uint]index.ItemKeyField) map[uint]string {
+	fields := make(map[uint]string)
 	for k, v := range f {
 		fields[k] = v.Value
 	}
 	return fields
 }
 
-func cloneNumberFields[K facet.FieldNumberValue](f map[int]index.ItemNumberField[K]) map[int]K {
-	fields := make(map[int]K)
+func cloneNumberFields[K facet.FieldNumberValue](f map[uint]index.ItemNumberField[K]) map[uint]K {
+	fields := make(map[uint]K)
 	for k, v := range f {
 		fields[k] = v.Value
 	}
@@ -113,13 +114,13 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
-	fields := make(map[int]facet.KeyField)
+	fields := make(map[uint]facet.KeyField)
 
 	for _, fld := range idx.KeyFacets {
 		fields[fld.Id] = *fld
 	}
 
-	items := make(map[int]index.DataItem)
+	items := make(map[uint]index.DataItem)
 	for _, item := range idx.Items {
 		items[item.Id] = index.DataItem{
 			BaseItem:      item.BaseItem,
@@ -138,5 +139,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
+	enc = nil
+	items = nil
 	return nil
 }

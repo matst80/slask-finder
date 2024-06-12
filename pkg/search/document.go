@@ -1,6 +1,6 @@
 package search
 
 type Document struct {
-	Id     int
+	Id     uint
 	Tokens []Token
 }

@@ -9,7 +9,7 @@ type Bucket[V FieldNumberValue] struct {
 	all    *IdList
 }
 
-func (b *Bucket[V]) AddValueLink(value V, id int) {
+func (b *Bucket[V]) AddValueLink(value V, id uint) {
 	idList, ok := b.values[value]
 	lst := IdList{id: struct{}{}}
 	if !ok {
@@ -21,7 +21,7 @@ func (b *Bucket[V]) AddValueLink(value V, id int) {
 	b.all.Merge(&lst)
 }
 
-func MakeBucket[V FieldNumberValue](value V, id int) Bucket[V] {
+func MakeBucket[V FieldNumberValue](value V, id uint) Bucket[V] {
 	return Bucket[V]{
 		values: map[V]IdList{value: {id: struct{}{}}},
 		all:    &IdList{id: struct{}{}},
@@ -35,7 +35,7 @@ func MakeBucketList[V FieldNumberValue](value V, ids *IdList) Bucket[V] {
 	}
 }
 
-const Bits_To_Shift = 8
+const Bits_To_Shift = 12
 
 func GetBucket[V float64 | int | float32](value V) int {
 	r := int(value) >> Bits_To_Shift
