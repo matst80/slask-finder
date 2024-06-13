@@ -10,8 +10,9 @@ type Index struct {
 	KeyFacets     map[uint]*facet.KeyField
 	DecimalFacets map[uint]*facet.NumberField[float64]
 	IntFacets     map[uint]*facet.NumberField[int]
-
-	Items map[uint]Item
+	DefaultFacets Facets
+	AllItems      facet.IdList
+	Items         map[uint]Item
 }
 
 func NewIndex() *Index {
@@ -19,9 +20,13 @@ func NewIndex() *Index {
 		KeyFacets:     make(map[uint]*facet.KeyField),
 		DecimalFacets: make(map[uint]*facet.NumberField[float64]),
 		IntFacets:     make(map[uint]*facet.NumberField[int]),
-
-		Items: make(map[uint]Item),
+		Items:         make(map[uint]Item),
+		AllItems:      facet.IdList{},
 	}
+}
+
+func (i *Index) CreateDefaultFacets(sort *facet.SortIndex) {
+	i.DefaultFacets = i.GetFacetsFromResult(&i.AllItems, &Filters{}, sort)
 }
 
 func (i *Index) AddKeyField(field *facet.BaseField) {
@@ -72,37 +77,37 @@ func (i *Index) AddItemValues(item DataItem) {
 
 }
 
-func getFields(fields map[uint]*facet.KeyField, itemFields map[uint]string) map[uint]ItemKeyField {
+func getFields(itemFields map[uint]string) map[uint]ItemKeyField {
 	newFields := make(map[uint]ItemKeyField)
 	for key, value := range itemFields {
 		if value == "" {
 			continue
 		}
-		if f, ok := fields[key]; ok {
-			newFields[key] = ItemKeyField{field: f, Value: value}
-		}
+		//if f, ok := fields[key]; ok {
+		newFields[key] = ItemKeyField{Value: &value}
+		//}
 	}
 	return newFields
 }
 
-func getNumberFields[K facet.FieldNumberValue](fields map[uint]*facet.NumberField[K], itemFields map[uint]K) map[uint]ItemNumberField[K] {
+func getNumberFields[K facet.FieldNumberValue](itemFields map[uint]K) map[uint]ItemNumberField[K] {
 	newFields := make(map[uint]ItemNumberField[K])
 	for key, value := range itemFields {
-		if f, ok := fields[key]; ok {
-			newFields[key] = ItemNumberField[K]{field: f, Value: value}
-		}
+		//if f, ok := fields[key]; ok {
+		newFields[key] = ItemNumberField[K]{Value: value, Bucket: facet.GetBucket(value)}
+		//}
 	}
 	return newFields
 }
 
 func (i *Index) AddItem(item DataItem) {
-
+	i.AllItems[item.Id] = struct{}{}
 	i.AddItemValues(item)
 	i.Items[item.Id] = Item{
 		BaseItem:      item.BaseItem,
-		Fields:        getFields(i.KeyFacets, item.Fields),
-		DecimalFields: getNumberFields(i.DecimalFacets, item.DecimalFields),
-		IntegerFields: getNumberFields(i.IntFacets, item.IntegerFields),
+		Fields:        getFields(item.Fields),
+		DecimalFields: getNumberFields(item.DecimalFields),
+		IntegerFields: getNumberFields(item.IntegerFields),
 	}
 }
 

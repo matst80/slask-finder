@@ -47,7 +47,7 @@ func (p *Persistance) LoadFreeText(ft *search.FreeTextIndex) error {
 	}
 
 	ft.Documents = v.Documents
-
+	enc = nil
 	return nil
 }
 
@@ -89,13 +89,14 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		idx.AddItem(item)
 	}
 	v = IndexStorage{}
+	enc = nil
 	return nil
 }
 
 func cloneFields(f map[uint]index.ItemKeyField) map[uint]string {
 	fields := make(map[uint]string)
 	for k, v := range f {
-		fields[k] = v.Value
+		fields[k] = *v.Value
 	}
 	return fields
 }

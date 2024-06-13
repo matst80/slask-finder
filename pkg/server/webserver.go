@@ -71,7 +71,11 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.Sort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		facetsChan <- ws.Index.GetFacetsFromResult(&matching, &sr.Filters, &ws.FieldSort)
+		if len(matching) > 5000 {
+			facetsChan <- ws.Index.DefaultFacets
+		} else {
+			facetsChan <- ws.Index.GetFacetsFromResult(&matching, &sr.Filters, &ws.FieldSort)
+		}
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -184,6 +188,7 @@ func (ws *WebServer) LoadDatabase() error {
 	ws.FieldSort = fieldSort
 	ws.Sort = priceSort
 	ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
+	ws.Index.CreateDefaultFacets(&ws.FieldSort)
 	err = ws.Db.LoadFreeText(ws.FreeText)
 	if err != nil {
 		//log.Printf("Failed to load freetext %v", err)

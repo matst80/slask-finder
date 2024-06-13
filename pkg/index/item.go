@@ -25,14 +25,13 @@ type DataItem struct {
 }
 
 type ItemKeyField struct {
-	field     *facet.KeyField
-	Value     string `json:"value"`
-	ValueHash uint   `json:"valueHash"`
+	Value     *string `json:"value"`
+	ValueHash uint    `json:"-"`
 }
 
 type ItemNumberField[K facet.FieldNumberValue] struct {
-	field *facet.NumberField[K]
-	Value K `json:"value"`
+	Value  K   `json:"value"`
+	Bucket int `json:"-"`
 }
 
 type Item struct {

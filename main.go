@@ -32,6 +32,7 @@ func Init() *server.WebServer {
 	srv.Index.AddIntegerField(&facet.BaseField{Id: 8, Name: "Discount", Description: "Discount value"})
 	addDbFields(srv.Index)
 	srv.LoadDatabase()
+
 	return &srv
 }
 
