@@ -15,8 +15,9 @@ var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")
 
 var idx = index.NewIndex()
 var db = persistance.NewPersistance()
-var srv = server.MakeWebServer(db, idx)
-var freetext_search = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
+var token = search.Tokenizer{MaxTokens: 128}
+var freetext_search = search.NewFreeTextIndex(&token)
+var srv = server.MakeWebServer(db, idx, freetext_search)
 
 func Init() {
 
@@ -39,13 +40,14 @@ func Init() {
 		err := db.LoadIndex(idx)
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
-		}
-		fieldSort := MakeSortForFields()
-		priceSort := MakeSortFromNumberField(idx.Items, 4)
-		srv.DefaultSort = &priceSort
-		srv.FieldSort = &fieldSort
+		} else {
+			fieldSort := MakeSortForFields()
+			priceSort := MakeSortFromNumberField(idx.Items, 4)
+			srv.DefaultSort = &priceSort
+			srv.FieldSort = &fieldSort
 
-		idx.CreateDefaultFacets(&fieldSort)
+			idx.CreateDefaultFacets(&fieldSort)
+		}
 	}()
 
 	go func() {
@@ -54,6 +56,7 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load freetext index %v", err)
 		}
+		srv.FreeText = freetext_search
 	}()
 
 }

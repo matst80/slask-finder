@@ -37,7 +37,7 @@ func TestIndexMatch(t *testing.T) {
 	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
 	item := DataItem{
-		BaseItem: BaseItem{
+		BaseItem: &BaseItem{
 			Id: 1,
 		},
 		Fields: map[uint]string{
@@ -67,7 +67,7 @@ func CreateIndex() *Index {
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
 
 	i.UpsertItem(DataItem{
-		BaseItem: BaseItem{
+		BaseItem: &BaseItem{
 			Id:    1,
 			Title: "item1",
 			Props: map[string]ItemProp{
@@ -84,7 +84,7 @@ func CreateIndex() *Index {
 		},
 	})
 	i.UpsertItem(DataItem{
-		BaseItem: BaseItem{
+		BaseItem: &BaseItem{
 			Id:    2,
 			Title: "item2",
 			Props: map[string]ItemProp{
@@ -185,7 +185,7 @@ func TestUpdateItem(t *testing.T) {
 		Printf: t.Logf,
 	}
 	item := DataItem{
-		BaseItem: BaseItem{
+		BaseItem: &BaseItem{
 			Id: 1,
 		},
 		Fields: map[uint]string{

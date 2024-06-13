@@ -1,5 +1,7 @@
 package facet
 
+import "maps"
+
 type NumberBucket struct {
 	IdList
 }
@@ -18,7 +20,8 @@ func (b *Bucket[V]) AddValueLink(value V, id uint) {
 	} else {
 		idList[id] = struct{}{}
 	}
-	b.all.Merge(&lst)
+	maps.Copy(*b.all, lst)
+	//b.all.Merge(&lst)
 }
 
 func (b *Bucket[V]) RemoveValueLink(value V, id uint) {

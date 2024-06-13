@@ -1,8 +1,8 @@
 package persistance
 
 import (
+	"compress/gzip"
 	"encoding/gob"
-	"io"
 	"os"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -13,8 +13,8 @@ func NewPersistance() *Persistance {
 	gob.Register(map[string]interface{}{})
 	gob.Register([]interface{}(nil))
 	return &Persistance{
-		File:         "data/index-v2.db",
-		FreeTextFile: "data/freetext.db",
+		File:         "data/index-v2.dbz",
+		FreeTextFile: "data/freetext.dbz",
 	}
 }
 
@@ -25,20 +25,22 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		return err
 	}
 	defer file.Close()
-	reader := io.Reader(file)
-	enc := gob.NewDecoder(reader)
 
-	// read items from reader and store them in the index
+	zipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+
+	enc := gob.NewDecoder(zipReader)
 
 	for err == nil {
 		var v index.DataItem
-		err = enc.Decode(&v)
-		if err == nil {
+		if err = enc.Decode(&v); err == nil {
 			idx.UpsertItem(v)
 		}
 	}
 	if err.Error() == "EOF" {
-		err = nil
+		return nil
 	}
 	return err
 }
@@ -56,11 +58,9 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		fields[fld.Id] = *fld
 	}
 
-	//items := make(map[uint]index.DataItem)
-
 	defer file.Close()
-	writer := io.Writer(file)
-	enc := gob.NewEncoder(writer)
+	zipWriter := gzip.NewWriter(file)
+	enc := gob.NewEncoder(zipWriter)
 
 	for _, item := range idx.Items {
 		err = enc.Encode(index.DataItem{
@@ -74,7 +74,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		}
 
 	}
-
+	zipWriter.Close()
 	enc = nil
 
 	return nil

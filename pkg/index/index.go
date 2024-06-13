@@ -58,17 +58,14 @@ func (i *Index) addItemValues(item DataItem) {
 		}
 		if f, ok := i.KeyFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
-		} else {
-			//delete(item.Fields, key)
-			//log.Printf("Field not found %v: %v", key, value)
 		}
 	}
 	for key, value := range item.DecimalFields {
+		if value == 0.0 {
+			continue
+		}
 		if f, ok := i.DecimalFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
-		} else {
-			//log.Printf("DecimalField not found %v: %v", key, value)
-			//delete(item.NumberFields, key)
 		}
 	}
 
@@ -78,9 +75,6 @@ func (i *Index) addItemValues(item DataItem) {
 		}
 		if f, ok := i.IntFacets[key]; ok {
 			f.AddValueLink(value, item.Id)
-		} else {
-			//log.Printf("IntField not found %v: %v", key, value)
-			//delete(item.NumberFields, key)
 		}
 	}
 
@@ -135,12 +129,47 @@ func (i *Index) UpsertItem(item DataItem) {
 	}
 	i.AllItems[item.Id] = struct{}{}
 	i.addItemValues(item)
+	keyFields := getFields(item.Fields)
+	decimalFields := getNumberFields(item.DecimalFields)
+	intFields := getNumberFields(item.IntegerFields)
 	i.Items[item.Id] = Item{
 		BaseItem:      item.BaseItem,
-		Fields:        getFields(item.Fields),
-		DecimalFields: getNumberFields(item.DecimalFields),
-		IntegerFields: getNumberFields(item.IntegerFields),
+		Fields:        keyFields,
+		DecimalFields: decimalFields,
+		IntegerFields: intFields,
+		fieldValues:   getFieldValues(&item),
 	}
+	// for fieldId, field := range keyFields {
+	// 	f, ok := i.itemKeyFacets[fieldId]
+	// 	if !ok {
+	// 		i.itemKeyFacets[fieldId] = map[uint]*ItemKeyField{
+	// 			item.Id: &field,
+	// 		}
+	// 	} else {
+	// 		f[item.Id] = &field
+	// 	}
+	// }
+	// for fieldId, field := range decimalFields {
+	// 	f, ok := i.itemNumberFacets[fieldId]
+	// 	if !ok {
+	// 		i.itemNumberFacets[fieldId] = map[uint]*ItemNumberField[float64]{
+	// 			item.Id: &field,
+	// 		}
+	// 	} else {
+	// 		f[item.Id] = &field
+	// 	}
+	// }
+	// for fieldId, field := range intFields {
+	// 	f, ok := i.itemIntFacets[fieldId]
+	// 	if !ok {
+	// 		i.itemIntFacets[fieldId] = map[uint]*ItemNumberField[int]{
+	// 			item.Id: &field,
+	// 		}
+	// 	} else {
+	// 		f[item.Id] = &field
+	// 	}
+	// }
+
 	if i.ChangeHandler != nil {
 		if isUpdate {
 			i.ChangeHandler.ItemChanged(item)
@@ -181,19 +210,19 @@ func (i *Index) GetItemIds(ids []uint, page int, pageSize int) []uint {
 	return ids[start:end]
 }
 
-func getFieldValues(item *Item) map[uint]interface{} {
-	fields := map[uint]interface{}{}
+func getFieldValues(item *DataItem) *FieldValues {
+	fields := FieldValues{}
 	for key, value := range item.Fields {
-		fields[key] = value.Value
+		fields[key] = value
 	}
 	for key, value := range item.DecimalFields {
-		fields[key] = value.Value
+		fields[key] = value
 	}
 	for key, value := range item.IntegerFields {
-		fields[key] = value.Value
+		fields[key] = value
 	}
 
-	return fields
+	return &fields
 }
 
 func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
@@ -204,7 +233,7 @@ func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
 		if ok {
 			items[idx] = ResultItem{
 				BaseItem: item.BaseItem,
-				Fields:   getFieldValues(&item),
+				Fields:   item.fieldValues,
 			}
 			idx++
 		}

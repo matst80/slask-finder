@@ -14,7 +14,7 @@ type BaseItem struct {
 }
 
 type DataItem struct {
-	BaseItem
+	*BaseItem
 	Fields        map[uint]string  `json:"values"`
 	DecimalFields map[uint]float64 `json:"numberValues"`
 	IntegerFields map[uint]int     `json:"integerValues"`
@@ -30,13 +30,16 @@ type ItemNumberField[K facet.FieldNumberValue] struct {
 }
 
 type Item struct {
-	BaseItem
+	*BaseItem
 	Fields        map[uint]ItemKeyField
 	DecimalFields map[uint]ItemNumberField[float64]
 	IntegerFields map[uint]ItemNumberField[int]
+	fieldValues   *FieldValues
 }
 
+type FieldValues map[uint]interface{}
+
 type ResultItem struct {
-	BaseItem
-	Fields map[uint]interface{} `json:"values"`
+	*BaseItem
+	Fields *FieldValues `json:"values"`
 }

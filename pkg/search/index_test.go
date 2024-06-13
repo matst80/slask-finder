@@ -6,12 +6,12 @@ func TestDocumentIndex(t *testing.T) {
 	token := Tokenizer{
 		MaxTokens: 100,
 	}
-	idx := NewFreeTextIndex(token)
+	idx := NewFreeTextIndex(&token)
 	idx.AddDocument(token.MakeDocument(1, "Hello world, how are you?", "Other property"))
 	idx.AddDocument(token.MakeDocument(2, "Hello slask, how are world?", "Some other text"))
 	idx.AddDocument(token.MakeDocument(2, "Hello slask, how are you?", "Some other text"))
 
-	res := idx.Search(token.Tokenize("Hello world"))
+	res := idx.Search("Hello world")
 	if len(res) != 2 {
 		t.Errorf("Expected 2 results but got %d", len(res))
 	}

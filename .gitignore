@@ -1,2 +1,4 @@
 data/*.db
+data/*.dbz
+.DS_Store
 facet-search

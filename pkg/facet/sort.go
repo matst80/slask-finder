@@ -10,6 +10,11 @@ type SortIndex []uint
 func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
 	start := time.Now()
 
+	if s == nil {
+		log.Printf("SortIndex is nil")
+		return []uint{}
+	}
+
 	l := min(len(ids), breakAt)
 	sortedIds := make([]uint, l)
 	idx := 0

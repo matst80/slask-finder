@@ -1,9 +1,6 @@
 package index
 
 import (
-	"log"
-	"time"
-
 	"tornberg.me/facet-search/pkg/facet"
 )
 
@@ -58,13 +55,19 @@ type Facets struct {
 }
 
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
-	start := time.Now()
+
+	if sortIndex == nil {
+		return Facets{
+			Fields:       []JsonKeyResult{},
+			NumberFields: []JsonNumberResult{},
+			IntFields:    []JsonNumberResult{},
+		}
+	}
 	count := 0
 	fields := map[uint]*KeyResult{}
 	numberFields := map[uint]*NumberResult[float64]{}
 	intFields := map[uint]*NumberResult[int]{}
-	//fieldTime := map[uint]time.Duration{}
-	//s := time.Now()
+
 	for id := range *ids {
 
 		item, ok := i.Items[id]
@@ -73,21 +76,17 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 
 		for fieldId, field := range item.Fields {
-			//s = time.Now()
-
 			if f, ok := fields[fieldId]; ok {
 				f.AddValue(field.Value) // TODO optimize
 			} else {
 				count++
 
 				fields[fieldId] = &KeyResult{
-					//BaseField: field.field.BaseField,
 					values: map[string]int{
 						*field.Value: 1,
 					},
 				}
 			}
-			//fieldTime[fieldId] += time.Since(s)
 		}
 
 		for key, field := range item.DecimalFields {
@@ -96,7 +95,6 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			} else {
 				count++
 				numberFields[key] = &NumberResult[float64]{
-					//BaseField: field.field.BaseField,
 					Count: 1,
 					Min:   field.Value,
 					Max:   field.Value,
@@ -109,19 +107,14 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			} else {
 				count++
 				intFields[key] = &NumberResult[int]{
-					//BaseField: field.field.BaseField,
 					Count: 1,
 					Min:   field.Value,
 					Max:   field.Value,
 				}
 			}
 		}
-
 	}
-	go func() {
-		//log.Println("Field time %v", fieldTime)
-		log.Printf("GetFacetsFromResultIds took %v %v * %v ", time.Since(start), count, len(*ids))
-	}()
+
 	return Facets{
 		Fields:       i.mapToSlice(fields, sortIndex),
 		NumberFields: mapToSliceNumber(i.DecimalFacets, numberFields, sortIndex),

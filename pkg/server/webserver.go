@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/http/pprof"
+	"strconv"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -20,34 +21,13 @@ type WebServer struct {
 	FreeText    *search.FreeTextIndex
 }
 
-// type NumberValueResponse struct {
-// 	Field  facet.NumberField[float64] `json:"field"`
-// 	Values []float64   `json:"values"`
-// 	Min    float64     `json:"min"`
-// 	Max    float64     `json:"max"`
-// }
-
-// type BoolValueResponse struct {
-// 	Field  facet.Field[bool] `json:"field"`
-// 	Values []bool      `json:"values"`
-// }
-
-type SearchResponse struct {
-	Items     []index.ResultItem `json:"items"`
-	Facets    index.Facets       `json:"facets"`
-	Page      int                `json:"page"`
-	PageSize  int                `json:"pageSize"`
-	TotalHits int                `json:"totalHits"`
-}
-
-func MakeWebServer(db *persistance.Persistance, index *index.Index) *WebServer {
+func MakeWebServer(db *persistance.Persistance, index *index.Index, freeText *search.FreeTextIndex) *WebServer {
 	return &WebServer{
-		Index: index,
-		Db:    db,
+		Index:    index,
+		Db:       db,
+		FreeText: freeText,
 	}
 }
-
-type AddItemRequest []index.DataItem
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
@@ -61,12 +41,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	facetsChan := make(chan index.Facets)
 
 	matching := ws.Index.Match(&sr.Filters)
-	//ids := matching.Ids()
 
-	// if !matching.HasItems() {
-	// 	w.WriteHeader(204)
-	// 	return
-	// }
 	totalHits := len(*matching)
 	go func() {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.DefaultSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
@@ -121,56 +96,63 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
 	if ws.FreeText == nil {
-		ws.FreeText = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
+		http.Error(w, "No freetext index loaded", http.StatusInternalServerError)
 	}
 	for _, item := range ws.Index.Items {
-		ws.FreeText.AddDocument(&search.Document{
-			Id:     item.Id,
-			Tokens: ws.FreeText.Tokenizer.Tokenize(item.Title),
-		})
-
+		ws.FreeText.CreateDocument(item.Id, item.Title)
 	}
-	ws.Db.SaveFreeText(ws.FreeText)
-	w.WriteHeader(http.StatusOK)
-}
-
-// type SearchHit struct {
-// 	Item  *index.Item `json:"item"`
-// 	Score int         `json:"score"`
-// }
-
-type SearchResult struct {
-	Hits      []*index.Item `json:"items"`
-	TotalHits int           `json:"totalHits"`
+	err := ws.Db.SaveFreeText(ws.FreeText)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	} else {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	}
 }
 
 func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
-	itemsChan := make(chan []*index.Item)
-	query := ws.FreeText.Tokenizer.Tokenize(r.URL.Query().Get("q"))
+	itemsChan := make(chan []index.ResultItem)
+	facetsChan := make(chan index.Facets)
+	query := r.URL.Query().Get("q")
+	ps := r.URL.Query().Get("size")
+	pg := r.URL.Query().Get("p")
+
+	pageSize, sizeErr := strconv.Atoi(ps)
+	if sizeErr != nil {
+		pageSize = 50
+	}
+	page, pageError := strconv.Atoi(pg)
+	if pageError != nil {
+		page = 0
+	}
+
 	log.Printf("Query: %v", query)
 	searchResults := ws.FreeText.Search(query)
 
+	res := searchResults.ToResultWithSort()
 	go func() {
-		hits := make([]*index.Item, len(searchResults))
-		idx := 0
-
-		res := searchResults.ToResultWithSort()
-		ids := res.SortIndex.SortMap(res.IdList, 10000)
-		for _, id := range ids {
-			item, ok := ws.Index.Items[id]
-			if ok {
-				hits[idx] = &item
-				idx++
-			}
-		}
-		itemsChan <- hits[:idx]
+		ids := res.SortIndex.SortMap(res.IdList, (page+1)*pageSize)
+		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
-
+	go func() {
+		if len(searchResults) > 1500 {
+			facetsChan <- ws.Index.DefaultFacets
+		} else {
+			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
+		}
+	}()
 	w.Header().Set("Content-Type", "application/json")
+
 	w.WriteHeader(http.StatusOK)
 
-	result := SearchResult{Hits: <-itemsChan, TotalHits: len(searchResults)}
+	result := SearchResponse{
+		Items:     <-itemsChan,
+		Facets:    <-facetsChan,
+		Page:      page,
+		PageSize:  pageSize,
+		TotalHits: len(searchResults),
+	}
 	err := json.NewEncoder(w).Encode(result)
 
 	if err != nil {
@@ -187,9 +169,9 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 		w.Write([]byte("ok"))
 	})
 
-	srv.HandleFunc("/search", ws.Search)
+	srv.HandleFunc("/filter", ws.Search)
 	srv.HandleFunc("/index", ws.IndexDocuments)
-	srv.HandleFunc("/query", ws.QueryIndex)
+	srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/save", ws.Save)
 	if enableProfiling {
