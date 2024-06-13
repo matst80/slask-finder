@@ -60,3 +60,8 @@ func HashString(s string) uint {
 	h.Write([]byte(s))
 	return uint(h.Sum32())
 }
+
+// type Sort struct {
+// 	FieldId int `json:"fieldId"`
+// 	Asc     bool  `json:"asc"`
+// }

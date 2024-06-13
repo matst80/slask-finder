@@ -1,7 +1,6 @@
 package index
 
 import (
-	"reflect"
 	"testing"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -14,6 +13,22 @@ func matchAll(list facet.IdList, ids ...uint) bool {
 		}
 	}
 	return true
+}
+
+type LoggingChangeHandler struct {
+	Printf func(format string, v ...interface{})
+}
+
+func (l *LoggingChangeHandler) ItemAdded(item DataItem) {
+	l.Printf("Item added %v", item)
+}
+
+func (l *LoggingChangeHandler) ItemChanged(item DataItem) {
+	l.Printf("Item changed %v", item)
+}
+
+func (l *LoggingChangeHandler) ItemDeleted(id uint) {
+	l.Printf("Item deleted %v", id)
 }
 
 func TestIndexMatch(t *testing.T) {
@@ -33,14 +48,14 @@ func TestIndexMatch(t *testing.T) {
 			3: 1,
 		},
 	}
-	i.AddItem(item)
+	i.UpsertItem(item)
 	query := Filters{
-		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
-		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
-		BoolFilter:   []BoolSearch{},
+		StringFilter:  []StringSearch{{Id: 1, Value: "test"}},
+		NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
+		IntegerFilter: []NumberSearch[int]{},
 	}
 	matching := i.Match(&query)
-	if !matchAll(matching, 1) {
+	if !matchAll(*matching, 1) {
 		t.Errorf("Expected [1] but got %v", matching)
 	}
 }
@@ -51,7 +66,7 @@ func CreateIndex() *Index {
 	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
 
-	i.AddItem(DataItem{
+	i.UpsertItem(DataItem{
 		BaseItem: BaseItem{
 			Id:    1,
 			Title: "item1",
@@ -68,7 +83,7 @@ func CreateIndex() *Index {
 			3: 1,
 		},
 	})
-	i.AddItem(DataItem{
+	i.UpsertItem(DataItem{
 		BaseItem: BaseItem{
 			Id:    2,
 			Title: "item2",
@@ -107,7 +122,7 @@ func TestHasFields(t *testing.T) {
 	if len(i.DecimalFacets) != 1 {
 		t.Errorf("Expected to 1 number field")
 	}
-	field, ok := i.KeyFacets[uint(1)]
+	field, ok := i.KeyFacets[uint(2)]
 	if !ok {
 		t.Errorf("Expected to have field with id 1, got %v", i.KeyFacets)
 	}
@@ -121,10 +136,9 @@ func TestMultipleIndexMatch(t *testing.T) {
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
-		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
-	if !reflect.DeepEqual(matching, []int{1, 2}) {
+	if !matchAll(*matching, 1, 2) {
 		t.Errorf("Expected [1,2] but got %v", matching)
 	}
 }
@@ -134,11 +148,10 @@ func TestGetMatchItems(t *testing.T) {
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
-		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
 	//items := i.GetItems(matching, 0, 10)
-	if matchAll(matching, 1, 2) {
+	if !matchAll(*matching, 1, 2) {
 		t.Errorf("Expected ids [1,2] but got %v", matching)
 	}
 	// if items[0].Title != "item1" || items[1].Title != "item2" {
@@ -154,20 +167,67 @@ func TestGetFacetsFromResultIds(t *testing.T) {
 	query := Filters{
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
-		BoolFilter:   []BoolSearch{},
 	}
 	matching := i.Match(&query)
-	facets := i.GetFacetsFromResult(&matching, &query, &facet.SortIndex{1, 2})
+	facets := i.GetFacetsFromResult(matching, &query, &facet.SortIndex{1, 2, 3})
 	if len(facets.Fields) != 2 {
 		t.Errorf("Expected 2 fields but got %v", facets.Fields)
 	}
 	if len(facets.NumberFields) != 1 {
 		t.Errorf("Expected 1 number fields but got %v", facets.NumberFields)
 	}
-	// if len(facets.Fields[0].Values()) != 4 {
-	// 	t.Errorf("Expected 4 value in field 1 but got %v", facets.Fields[1].Values())
-	// }
-	// if len(facets.NumberFields[0].Values()) != 1 {
-	// 	t.Errorf("Expected 1 value in field 1 but got %v", facets.NumberFields[1].Values())
-	// }
+}
+
+func TestUpdateItem(t *testing.T) {
+	i := CreateIndex()
+
+	i.ChangeHandler = &LoggingChangeHandler{
+		Printf: t.Logf,
+	}
+	item := DataItem{
+		BaseItem: BaseItem{
+			Id: 1,
+		},
+		Fields: map[uint]string{
+			1: "test",
+			2: "hej",
+		},
+		DecimalFields: map[uint]float64{
+			3: 999.0,
+		},
+	}
+	i.UpsertItem(item)
+	if *i.Items[1].Fields[1].Value != "test" {
+		t.Errorf("Expected field 1 to be test but got %v", i.Items[1].Fields[1])
+	}
+	if i.Items[1].DecimalFields[3].Value != 999 {
+		t.Errorf("Expected field 3 to be 999 but got %v", i.Items[1].DecimalFields[3])
+	}
+
+	search := Filters{
+		StringFilter:  []StringSearch{},
+		NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 1000}},
+		IntegerFilter: []NumberSearch[int]{},
+	}
+	ids := *i.Match(&search)
+	if !matchAll(ids, 1, 2) {
+		t.Errorf("Expected 1 ids but got %v", ids)
+	}
+}
+
+func TestDeleteItem(t *testing.T) {
+	i := CreateIndex()
+	i.DeleteItem(1)
+	if i.HasItem(1) {
+		t.Errorf("Expected to not have item with id 1")
+	}
+	search := Filters{
+		StringFilter:  []StringSearch{},
+		NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 1000}},
+		IntegerFilter: []NumberSearch[int]{},
+	}
+	ids := *i.Match(&search)
+	if matchAll(ids, 1) {
+		t.Errorf("Expected 1 ids but got %v", ids)
+	}
 }

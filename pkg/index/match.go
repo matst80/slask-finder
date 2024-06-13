@@ -27,10 +27,9 @@ type Filters struct {
 	StringFilter  []StringSearch          `json:"string"`
 	NumberFilter  []NumberSearch[float64] `json:"number"`
 	IntegerFilter []NumberSearch[int]     `json:"integer"`
-	BoolFilter    []BoolSearch            `json:"bool"`
 }
 
-func (i *Index) Match(search *Filters) facet.IdList {
+func (i *Index) Match(search *Filters) *facet.IdList {
 	len := 0
 	results := make(chan facet.IdList)
 

@@ -70,6 +70,16 @@ func (f *NumberField[V]) AddValueLink(value V, id uint) {
 	}
 }
 
+func (f *NumberField[V]) RemoveValueLink(value V, id uint) {
+	bucket := GetBucket(value)
+	bucketValues, ok := f.buckets[bucket]
+
+	if ok {
+		f.Count--
+		bucketValues.RemoveValueLink(value, id)
+	}
+}
+
 func (f *NumberField[V]) TotalCount() int {
 	return f.Count
 }

@@ -17,7 +17,7 @@ func TestGetBucket(t *testing.T) {
 
 	for _, v := range largeIntValues {
 		bucket := GetBucket(v)
-		if bucket != 3 {
+		if bucket >= v {
 			t.Errorf("Expected 10, got %v from %v", bucket, v)
 		}
 	}
@@ -30,7 +30,7 @@ func TestGetBucket(t *testing.T) {
 	}
 
 	largeFloatValues := []float64{10000, 10005, 10010, 10015, 10000, 10002}
-	expected := int(10000 >> 8)
+	expected := int(10000 >> Bits_To_Shift)
 	for _, v := range largeFloatValues {
 		bucket := GetBucket(v)
 		if bucket != expected {

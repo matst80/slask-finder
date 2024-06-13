@@ -56,6 +56,13 @@ func (f *KeyField) AddValueLink(value string, id uint) {
 	}
 }
 
+func (f *KeyField) RemoveValueLink(value string, id uint) {
+	idList, ok := f.values[value]
+	if ok {
+		delete(idList, id)
+	}
+}
+
 func (f *KeyField) TotalCount() int {
 	total := 0
 	for _, ids := range f.values {
