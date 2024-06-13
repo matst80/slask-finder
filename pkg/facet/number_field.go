@@ -18,8 +18,8 @@ type NumberField[V FieldNumberValue] struct {
 
 func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
 
-	minBucket := GetBucket(minValue)
-	maxBucket := GetBucket(maxValue)
+	minBucket := GetBucket(max(minValue, f.Min))
+	maxBucket := GetBucket(min(maxValue, f.Max))
 	found := make(IdList)
 
 	for v, ids := range f.buckets[minBucket].values {
@@ -31,11 +31,8 @@ func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
 	if minBucket < maxBucket {
 
 		for id := minBucket + 1; id < maxBucket; id++ {
-			bucket, ok := f.buckets[id]
-			if ok {
+			if bucket, ok := f.buckets[id]; ok {
 				maps.Copy(found, *bucket.all)
-			} else {
-				// log.Println("Bucket not found")
 			}
 
 		}
@@ -51,9 +48,8 @@ func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
 }
 
 type NumberRange[V FieldNumberValue] struct {
-	Min             V   `json:"min"`
-	Max             V   `json:"max"`
-	BucketsSearched int `json:"bucketsSearched"`
+	Min V `json:"min"`
+	Max V `json:"max"`
 }
 
 func (f *NumberField[V]) Bounds() NumberRange[V] {
@@ -64,11 +60,23 @@ func (f *NumberField[V]) Bounds() NumberRange[V] {
 func (f *NumberField[V]) AddValueLink(value V, id uint) {
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
+	f.Min = min(f.Min, value)
+	f.Max = max(f.Max, value)
 	f.Count++
 	if !ok {
 		f.buckets[bucket] = MakeBucket(value, id)
 	} else {
 		bucketValues.AddValueLink(value, id)
+	}
+}
+
+func (f *NumberField[V]) RemoveValueLink(value V, id uint) {
+	bucket := GetBucket(value)
+	bucketValues, ok := f.buckets[bucket]
+
+	if ok {
+		f.Count--
+		bucketValues.RemoveValueLink(value, id)
 	}
 }
 

@@ -10,12 +10,12 @@ import (
 
 type FreeTextIndex struct {
 	Tokenizer Tokenizer
-	Documents map[uint]Document
+	Documents map[uint]*Document
 }
 
 type DocumentResult map[uint]int
 
-func (i *FreeTextIndex) AddDocument(doc Document) {
+func (i *FreeTextIndex) AddDocument(doc *Document) {
 	i.Documents[doc.Id] = doc
 }
 
@@ -26,19 +26,24 @@ func (i *FreeTextIndex) RemoveDocument(id uint) {
 func NewFreeTextIndex(tokenizer Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
 		Tokenizer: tokenizer,
-		Documents: make(map[uint]Document),
+		Documents: make(map[uint]*Document),
 	}
 }
 
 func (i *FreeTextIndex) Search(query []Token) DocumentResult {
 	start := time.Now()
 	res := make(DocumentResult)
+
 	for _, doc := range i.Documents {
+		lastCorrect := 0
 		for _, token := range query {
 			for _, t := range doc.Tokens {
 				if t == token {
 					// Add to result
-					res[doc.Id]++
+					res[doc.Id] += lastCorrect
+					lastCorrect++
+				} else {
+					lastCorrect = 0
 				}
 			}
 		}

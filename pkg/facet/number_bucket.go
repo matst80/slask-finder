@@ -21,6 +21,15 @@ func (b *Bucket[V]) AddValueLink(value V, id uint) {
 	b.all.Merge(&lst)
 }
 
+func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
+	idList, ok := b.values[value]
+	if !ok {
+		return
+	}
+	delete(idList, id)
+	delete(*b.all, id)
+}
+
 func MakeBucket[V FieldNumberValue](value V, id uint) Bucket[V] {
 	return Bucket[V]{
 		values: map[V]IdList{value: {id: struct{}{}}},

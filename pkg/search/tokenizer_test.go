@@ -29,3 +29,42 @@ func TestTokenizer(t *testing.T) {
 	}
 	t.Logf("Result: %v", res)
 }
+
+func TestTokenizerDeDuplication(t *testing.T) {
+	token := Tokenizer{
+		MaxTokens: 100,
+	}
+	res := token.Tokenize("Hello world, hello world hej hej world")
+	if len(res) != 3 {
+		t.Errorf("Expected 3 tokens but got %d", len(res))
+	}
+	if res[0] != "hello" {
+		t.Errorf("Expected 'hello' but got %s", res[0])
+	}
+	if res[1] != "world" {
+		t.Errorf("Expected 'world' but got %s", res[1])
+	}
+	t.Logf("Result: %v", res)
+}
+
+func TestCommonCharIssues(t *testing.T) {
+	text := "öôüûÿçñßæø"
+	res := replaceCommonIssues(text)
+	if res != "oouuycnsao" {
+		t.Errorf("Expected 'oouuycnsao' but got %s", res)
+	}
+}
+
+func TestCommonTokenDeDuplication(t *testing.T) {
+	token := Tokenizer{
+		MaxTokens: 100,
+	}
+	res := token.Tokenize("öôüûÿçñßæø Öôüûyçñßæø")
+	if len(res) != 1 {
+		t.Errorf("Expected 1 tokens but got %d", len(res))
+	}
+	if res[0] != "oouuycnsao" {
+		t.Errorf("Expected 'oouuycnsao' but got %s", res[0])
+	}
+	t.Logf("Result: %v", res)
+}

@@ -7,23 +7,8 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-type hashKeyResult struct {
-	value string
-	count int
-}
-
-const BufferSize = 256
-
 type KeyResult struct {
-	//*facet.BaseField
-	id     uint
-	buffer []string
-	idx    int
 	values map[string]int
-}
-
-func (k *KeyResult) GetValues() map[string]int {
-	return k.values
 }
 
 type JsonKeyResult struct {
@@ -31,22 +16,30 @@ type JsonKeyResult struct {
 	Values map[string]int `json:"values"`
 }
 
-func (k *KeyResult) AddValue(hash uint, value string) {
-	k.buffer[k.idx] = value
-	k.idx++
-	if k.idx >= BufferSize {
-		for _, v := range k.buffer {
-			k.values[v]++
-		}
-		k.idx = 0
+func (k *KeyResult) AddValue(value *string) {
+	if count, ok := k.values[*value]; ok {
+		k.values[*value] = count + 1
+	} else {
+		k.values[*value] = 1
 	}
 }
 
+func (k *KeyResult) GetValues() map[string]int {
+	return k.values
+}
+
 type NumberResult[V float64 | int] struct {
+	//*facet.BaseField
+	Count int
+	Min   V
+	Max   V
+}
+
+type JsonNumberResult struct {
 	*facet.BaseField
-	Count int `json:"count"`
-	Min   V   `json:"min"`
-	Max   V   `json:"max"`
+	Count int         `json:"count"`
+	Min   interface{} `json:"min"`
+	Max   interface{} `json:"max"`
 }
 
 func (k *NumberResult[V]) AddValue(value V) {
@@ -59,17 +52,17 @@ func (k *NumberResult[V]) AddValue(value V) {
 }
 
 type Facets struct {
-	Fields       []JsonKeyResult         `json:"fields"`
-	NumberFields []NumberResult[float64] `json:"numberFields"`
-	IntFields    []NumberResult[int]     `json:"integerFields"`
+	Fields       []JsonKeyResult    `json:"fields"`
+	NumberFields []JsonNumberResult `json:"numberFields"`
+	IntFields    []JsonNumberResult `json:"integerFields"`
 }
 
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
 	start := time.Now()
 	count := 0
 	fields := map[uint]*KeyResult{}
-	numberFields := map[uint]NumberResult[float64]{}
-	intFields := map[uint]NumberResult[int]{}
+	numberFields := map[uint]*NumberResult[float64]{}
+	intFields := map[uint]*NumberResult[int]{}
 	//fieldTime := map[uint]time.Duration{}
 	//s := time.Now()
 	for id := range *ids {
@@ -81,18 +74,17 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 
 		for fieldId, field := range item.Fields {
 			//s = time.Now()
-			if field.field.BaseField.HideFacet || field.Value == "" {
-				continue
-			}
+
 			if f, ok := fields[fieldId]; ok {
-				f.AddValue(field.ValueHash, field.Value) // TODO optimize
+				f.AddValue(field.Value) // TODO optimize
 			} else {
 				count++
 
 				fields[fieldId] = &KeyResult{
 					//BaseField: field.field.BaseField,
-					values: map[string]int{field.Value: 1},
-					buffer: make([]string, BufferSize),
+					values: map[string]int{
+						*field.Value: 1,
+					},
 				}
 			}
 			//fieldTime[fieldId] += time.Since(s)
@@ -103,11 +95,11 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				f.AddValue(field.Value)
 			} else {
 				count++
-				numberFields[key] = NumberResult[float64]{
-					BaseField: field.field.BaseField,
-					Count:     1,
-					Min:       field.Value,
-					Max:       field.Value,
+				numberFields[key] = &NumberResult[float64]{
+					//BaseField: field.field.BaseField,
+					Count: 1,
+					Min:   field.Value,
+					Max:   field.Value,
 				}
 			}
 		}
@@ -116,11 +108,11 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				f.AddValue(field.Value)
 			} else {
 				count++
-				intFields[key] = NumberResult[int]{
-					BaseField: field.field.BaseField,
-					Count:     1,
-					Min:       field.Value,
-					Max:       field.Value,
+				intFields[key] = &NumberResult[int]{
+					//BaseField: field.field.BaseField,
+					Count: 1,
+					Min:   field.Value,
+					Max:   field.Value,
 				}
 			}
 		}
@@ -132,7 +124,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	}()
 	return Facets{
 		Fields:       i.mapToSlice(fields, sortIndex),
-		NumberFields: mapToSliceNumber(numberFields, sortIndex),
-		IntFields:    mapToSliceNumber(intFields, sortIndex),
+		NumberFields: mapToSliceNumber(i.DecimalFacets, numberFields, sortIndex),
+		IntFields:    mapToSliceNumber(i.IntFacets, intFields, sortIndex),
 	}
 }

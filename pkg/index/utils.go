@@ -14,7 +14,7 @@ func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortInde
 		f, ok := fields[id]
 		if ok {
 			indexField, baseOk := i.KeyFacets[id]
-			if baseOk {
+			if baseOk && !indexField.HideFacet {
 				sorted[idx] = JsonKeyResult{
 					BaseField: indexField.BaseField,
 					Values:    f.GetValues(),
@@ -29,17 +29,26 @@ func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortInde
 	return sorted[:idx]
 }
 
-func mapToSliceNumber[K float64 | int](fields map[uint]NumberResult[K], sortIndex *facet.SortIndex) []NumberResult[K] {
+func mapToSliceNumber[K float64 | int](numberFields map[uint]*facet.NumberField[K], fields map[uint]*NumberResult[K], sortIndex *facet.SortIndex) []JsonNumberResult {
 	l := min(len(fields), 64)
-	sorted := make([]NumberResult[K], len(fields))
+	sorted := make([]JsonNumberResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {
 		f, ok := fields[id]
 		if ok {
-			sorted[idx] = f
-			idx++
-			if idx >= l {
-				break
+			indexField, baseOk := numberFields[id]
+			if baseOk {
+
+				sorted[idx] = JsonNumberResult{
+					BaseField: indexField.BaseField,
+					Count:     f.Count,
+					Min:       f.Min,
+					Max:       f.Max,
+				}
+				idx++
+				if idx >= l {
+					break
+				}
 			}
 		}
 	}
@@ -51,3 +60,8 @@ func HashString(s string) uint {
 	h.Write([]byte(s))
 	return uint(h.Sum32())
 }
+
+// type Sort struct {
+// 	FieldId int `json:"fieldId"`
+// 	Asc     bool  `json:"asc"`
+// }
