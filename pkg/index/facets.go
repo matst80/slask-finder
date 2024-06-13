@@ -11,17 +11,19 @@ type hashKeyResult struct {
 	value string
 	count int
 }
+
+const BufferSize = 256
+
 type KeyResult struct {
-	*facet.BaseField
-	values map[uint]*hashKeyResult
+	//*facet.BaseField
+	id     uint
+	buffer []string
+	idx    int
+	values map[string]int
 }
 
 func (k *KeyResult) GetValues() map[string]int {
-	values := make(map[string]int)
-	for _, v := range k.values {
-		values[v.value] = v.count
-	}
-	return values
+	return k.values
 }
 
 type JsonKeyResult struct {
@@ -30,12 +32,14 @@ type JsonKeyResult struct {
 }
 
 func (k *KeyResult) AddValue(hash uint, value string) {
-	if v, ok := k.values[hash]; ok {
-		v.count++
-	} else {
-		k.values[hash] = &hashKeyResult{value: value, count: 1}
+	k.buffer[k.idx] = value
+	k.idx++
+	if k.idx >= BufferSize {
+		for _, v := range k.buffer {
+			k.values[v]++
+		}
+		k.idx = 0
 	}
-	//k.Values[value]++
 }
 
 type NumberResult[V float64 | int] struct {
@@ -63,10 +67,11 @@ type Facets struct {
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
 	start := time.Now()
 	count := 0
-	fields := map[uint]KeyResult{}
+	fields := map[uint]*KeyResult{}
 	numberFields := map[uint]NumberResult[float64]{}
 	intFields := map[uint]NumberResult[int]{}
-
+	//fieldTime := map[uint]time.Duration{}
+	//s := time.Now()
 	for id := range *ids {
 
 		item, ok := i.Items[id]
@@ -75,6 +80,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 
 		for fieldId, field := range item.Fields {
+			//s = time.Now()
 			if field.field.BaseField.HideFacet || field.Value == "" {
 				continue
 			}
@@ -83,11 +89,13 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			} else {
 				count++
 
-				fields[fieldId] = KeyResult{
-					BaseField: field.field.BaseField,
-					values:    map[uint]*hashKeyResult{field.ValueHash: {value: field.Value, count: 1}},
+				fields[fieldId] = &KeyResult{
+					//BaseField: field.field.BaseField,
+					values: map[string]int{field.Value: 1},
+					buffer: make([]string, BufferSize),
 				}
 			}
+			//fieldTime[fieldId] += time.Since(s)
 		}
 
 		for key, field := range item.DecimalFields {
@@ -118,10 +126,12 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 
 	}
-	log.Printf("GetFacetsFromResultIds took %v, found %d facets", time.Since(start), len(fields)+len(numberFields)+len(intFields))
-
+	go func() {
+		//log.Println("Field time %v", fieldTime)
+		log.Printf("GetFacetsFromResultIds took %v %v * %v ", time.Since(start), count, len(*ids))
+	}()
 	return Facets{
-		Fields:       mapToSlice(fields, sortIndex),
+		Fields:       i.mapToSlice(fields, sortIndex),
 		NumberFields: mapToSliceNumber(numberFields, sortIndex),
 		IntFields:    mapToSliceNumber(intFields, sortIndex),
 	}

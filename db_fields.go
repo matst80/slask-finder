@@ -924,7 +924,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&facet.BaseField{Id: 31155, Name: "Varunummer - inomhusenhet"})
 	idx.AddKeyField(&facet.BaseField{Id: 31156, Name: "Varunummer - utomhusenhet"})
 	idx.AddKeyField(&facet.BaseField{Id: 31157, Name: "Serie"})
-	idx.AddKeyField(&facet.BaseField{Id: 31158, Name: "Produkttyp"})
+	idx.AddKeyField(&facet.BaseField{Id: 31158, Name: "Produkttyp", HideFacet: true})
 	idx.AddKeyField(&facet.BaseField{Id: 31159, Name: "Produktionsår"})
 	idx.AddDecimalField(&facet.BaseField{Id: 31160, Name: "Avstånd till vägg/tak max (mm)"})
 	idx.AddDecimalField(&facet.BaseField{Id: 31161, Name: "Avstånd till vägg/tak min (mm)"})

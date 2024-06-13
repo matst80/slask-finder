@@ -79,7 +79,7 @@ func getFields(fields map[uint]*facet.KeyField, itemFields map[uint]string) map[
 			continue
 		}
 		if f, ok := fields[key]; ok {
-			newFields[key] = ItemKeyField{field: f, Value: value, ValueHash: HashString(value)}
+			newFields[key] = ItemKeyField{field: f, Value: value}
 		}
 	}
 	return newFields
