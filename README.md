@@ -1,7 +1,8 @@
 # slask-finder
-
+brew install graphviz
 go tool pprof "http://localhost:8080/debug/pprof/profile?seconds=5"
 go tool pprof "http://localhost:8080/debug/pprof/heap"
+
 
 ## Table of Contents
 
