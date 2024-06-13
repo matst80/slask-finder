@@ -1,29 +1,72 @@
 package main
 
 import (
+	"flag"
+	"log"
+
 	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
+	"tornberg.me/facet-search/pkg/search"
 	"tornberg.me/facet-search/pkg/server"
 )
 
+var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")
+
+var idx = index.NewIndex()
+var db = persistance.NewPersistance()
+var token = search.Tokenizer{MaxTokens: 128}
+var freetext_search = search.NewFreeTextIndex(&token)
+var srv = server.MakeWebServer(db, idx, freetext_search)
+
+func Init() {
+
+	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true})
+	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Brand", Description: "Brand name"})
+	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Stock level", Description: "Central stock level"})
+	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Category", Description: "Category"})
+	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Category parent", HideFacet: true})
+	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Master category", HideFacet: true})
+	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "B grade", Description: "Outlet rating"})
+	//idx.AddBoolField(&facet.BaseField{Id: 21, Name: "Discounted", Description: ""})
+	idx.AddIntegerField(&facet.BaseField{Id: 4, Name: "Price", Description: "Current price"})
+	idx.AddIntegerField(&facet.BaseField{Id: 5, Name: "Regular price", Description: "Regular price"})
+	idx.AddIntegerField(&facet.BaseField{Id: 6, Name: "Average rating", Description: "Average rating"})
+	idx.AddIntegerField(&facet.BaseField{Id: 7, Name: "Review count", Description: "Total number of reviews"})
+	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Discount", Description: "Discount value"})
+	addDbFields(idx)
+
+	go func() {
+		err := db.LoadIndex(idx)
+		if err != nil {
+			log.Printf("Failed to load index %v", err)
+		} else {
+			fieldSort := MakeSortForFields()
+			priceSort := MakeSortFromNumberField(idx.Items, 4)
+			srv.DefaultSort = &priceSort
+			srv.FieldSort = &fieldSort
+
+			idx.CreateDefaultFacets(&fieldSort)
+		}
+	}()
+
+	go func() {
+
+		err := db.LoadFreeText(freetext_search)
+		if err != nil {
+			log.Printf("Failed to load freetext index %v", err)
+		}
+		srv.FreeText = freetext_search
+	}()
+
+}
+
 func main() {
-	db := persistance.NewPersistance()
-	srv := server.NewWebServer(&db)
+	flag.Parse()
+	Init()
 
-	srv.Index.AddField(facet.Field{Id: 1, Name: "Article Type"})
-	srv.Index.AddField(facet.Field{Id: 2, Name: "Brand", Description: "Brand name"})
-	srv.Index.AddField(facet.Field{Id: 3, Name: "Stock level", Description: "Central stock level"})
-	srv.Index.AddField(facet.Field{Id: 10, Name: "Category", Description: "Category"})
-	srv.Index.AddField(facet.Field{Id: 11, Name: "Category parent", Description: ""})
-	srv.Index.AddField(facet.Field{Id: 12, Name: "Master category", Description: ""})
-	srv.Index.AddField(facet.Field{Id: 20, Name: "B grade", Description: "Outlet rating"})
-	srv.Index.AddBoolField(facet.Field{Id: 21, Name: "Discounted", Description: ""})
-	srv.Index.AddNumberField(facet.Field{Id: 4, Name: "Price", Description: "Current price"})
-	srv.Index.AddNumberField(facet.Field{Id: 5, Name: "Regular price", Description: "Regular price"})
-	srv.Index.AddNumberField(facet.Field{Id: 6, Name: "Average rating", Description: "Average rating"})
-	srv.Index.AddNumberField(facet.Field{Id: 7, Name: "Review count", Description: "Total number of reviews"})
+	log.Printf("Starting server")
 
-	addDbFields(srv.Index)
-	srv.StartServer()
+	srv.StartServer(*enableProfiling)
 
 }

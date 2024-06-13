@@ -1,3 +1,4 @@
-index.db
-freetext.db
+data/*.db
+data/*.dbz
+.DS_Store
 facet-search

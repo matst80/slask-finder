@@ -9,41 +9,53 @@ import (
 )
 
 type FreeTextIndex struct {
-	Tokenizer Tokenizer
-	Documents map[int64]Document
+	Tokenizer *Tokenizer
+	Documents map[uint]*Document
 }
 
-type DocumentResult map[int64]int
+type DocumentResult map[uint]float64
 
-func (i *FreeTextIndex) AddDocument(doc Document) {
+func (i *FreeTextIndex) AddDocument(doc *Document) {
 	i.Documents[doc.Id] = doc
 }
 
-func (i *FreeTextIndex) RemoveDocument(id int64) {
+func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
+	i.Documents[id] = i.Tokenizer.MakeDocument(id, text...)
+}
+
+func (i *FreeTextIndex) RemoveDocument(id uint) {
 	delete(i.Documents, id)
 }
 
-func NewFreeTextIndex(tokenizer Tokenizer) *FreeTextIndex {
+func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
 		Tokenizer: tokenizer,
-		Documents: make(map[int64]Document),
+		Documents: make(map[uint]*Document),
 	}
 }
 
-func (i *FreeTextIndex) Search(query []Token) DocumentResult {
+func (i *FreeTextIndex) Search(query string) DocumentResult {
+	tokens := i.Tokenizer.Tokenize(query)
 	start := time.Now()
 	res := make(DocumentResult)
+
 	for _, doc := range i.Documents {
-		for _, token := range query {
+		lastCorrect := 1.0
+		for _, token := range tokens {
 			for _, t := range doc.Tokens {
 				if t == token {
 					// Add to result
-					res[doc.Id]++
+					res[doc.Id] += lastCorrect
+					lastCorrect *= 2
+				} else {
+					lastCorrect = 1
 				}
 			}
 		}
 		if res[doc.Id] > 0 {
-			res[doc.Id] = (res[doc.Id] / len(query)) * 100
+			l := float64(len(tokens))
+			dl := float64(len(doc.Tokens))
+			res[doc.Id] = ((res[doc.Id] / l) * 1000.0) - (l - dl)
 		}
 	}
 	log.Printf("Search took %v", time.Since(start))
@@ -67,21 +79,23 @@ func (d *DocumentResult) ToSortIndex() facet.SortIndex {
 }
 
 type ResultWithSort struct {
-	Result    facet.Result
+	facet.IdList
 	SortIndex facet.SortIndex
 }
 
-func (d *DocumentResult) ToResult() facet.Result {
-	res := facet.NewResult()
+func (d *DocumentResult) ToResult() facet.IdList {
+	res := facet.IdList{}
+
 	for id := range *d {
-		res.Add(id)
+		res[id] = struct{}{}
+		//res.AddId(id)
 	}
 	return res
 }
 
 func (d *DocumentResult) ToResultWithSort() ResultWithSort {
 	return ResultWithSort{
-		Result:    d.ToResult(),
+		IdList:    d.ToResult(),
 		SortIndex: d.ToSortIndex(),
 	}
 }

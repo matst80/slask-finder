@@ -1,55 +1,67 @@
 package index
 
-import "tornberg.me/facet-search/pkg/facet"
+import (
+	"hash/fnv"
 
-func stringValue(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
-}
+	"tornberg.me/facet-search/pkg/facet"
+)
 
-func mapToSliceRef[V BoolResult | StringResult | NumberResult](fields map[int64]*V, sortIndex facet.SortIndex) []*V {
-
+func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
 	l := min(len(fields), 64)
-	sorted := make([]*V, len(fields))
-
+	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
-
-	for _, id := range sortIndex {
-		if idx >= l {
-			break
-		}
+	for _, id := range *sortIndex {
 		f, ok := fields[id]
 		if ok {
-			sorted[idx] = f
-
-			idx++
-
-		}
-	}
-	return sorted[:idx]
-
-}
-
-func mapToSlice[V BoolResult | StringResult | NumberResult](fields map[int64]V, sortIndex facet.SortIndex) []V {
-
-	l := min(len(fields), 64)
-	sorted := make([]V, len(fields))
-
-	idx := 0
-
-	for _, id := range sortIndex {
-		if idx >= l {
-			break
-		}
-		f, ok := fields[id]
-		if ok {
-			sorted[idx] = f
-
-			idx++
-
+			indexField, baseOk := i.KeyFacets[id]
+			if baseOk && !indexField.HideFacet {
+				sorted[idx] = JsonKeyResult{
+					BaseField: indexField.BaseField,
+					Values:    f.GetValues(),
+				}
+				idx++
+				if idx >= l {
+					break
+				}
+			}
 		}
 	}
 	return sorted[:idx]
 }
+
+func mapToSliceNumber[K float64 | int](numberFields map[uint]*facet.NumberField[K], fields map[uint]*NumberResult[K], sortIndex *facet.SortIndex) []JsonNumberResult {
+	l := min(len(fields), 64)
+	sorted := make([]JsonNumberResult, len(fields))
+	idx := 0
+	for _, id := range *sortIndex {
+		f, ok := fields[id]
+		if ok {
+			indexField, baseOk := numberFields[id]
+			if baseOk {
+
+				sorted[idx] = JsonNumberResult{
+					BaseField: indexField.BaseField,
+					Count:     f.Count,
+					Min:       f.Min,
+					Max:       f.Max,
+				}
+				idx++
+				if idx >= l {
+					break
+				}
+			}
+		}
+	}
+	return sorted[:idx]
+}
+
+func HashString(s string) uint {
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return uint(h.Sum32())
+}
+
+// type Sort struct {
+// 	FieldId int `json:"fieldId"`
+// 	Asc     bool  `json:"asc"`
+// }

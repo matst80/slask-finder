@@ -13,11 +13,11 @@ func TestPresortedSorting(t *testing.T) {
 		4,
 		5,
 	}
-	ids := map[int64]struct{}{4: {}, 2: {}, 1: {}, 3: {}}
+	ids := map[uint]struct{}{4: {}, 2: {}, 1: {}, 3: {}}
 
 	sortedIds := sortIndex.SortMap(ids, 10)
 
-	expected := []int64{1, 3, 2, 4}
+	expected := []uint{1, 3, 2, 4}
 	if !reflect.DeepEqual(sortedIds, expected) {
 		t.Errorf("Expected %v but got %v", expected, sortedIds)
 	}
