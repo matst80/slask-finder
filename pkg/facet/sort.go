@@ -5,13 +5,18 @@ import (
 	"time"
 )
 
-type SortIndex []int64
+type SortIndex []uint
 
-func (s *SortIndex) SortMap(ids map[int64]struct{}, breakAt int) []int64 {
+func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
 	start := time.Now()
 
+	if s == nil {
+		log.Printf("SortIndex is nil")
+		return []uint{}
+	}
+
 	l := min(len(ids), breakAt)
-	sortedIds := make([]int64, l)
+	sortedIds := make([]uint, l)
 	idx := 0
 
 	for _, id := range *s {
@@ -33,7 +38,7 @@ func (s *SortIndex) SortMap(ids map[int64]struct{}, breakAt int) []int64 {
 }
 
 type Lookup struct {
-	Id    int64
+	Id    uint
 	Value float64
 }
 

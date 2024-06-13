@@ -1,69 +1,103 @@
 package facet
 
-type NumberValueField struct {
-	Field  `json:"field"`
-	values map[float64][]int64
+import (
+	"maps"
+)
+
+type FieldNumberValue interface {
+	int | float64
 }
 
-func (f *NumberValueField) Matches(min float64, max float64) Result {
-	result := NewResult()
+type NumberField[V FieldNumberValue] struct {
+	*BaseField
+	buckets map[int]Bucket[V]
+	Count   int
+	Min     V
+	Max     V
+}
 
-	for v, ids := range f.values {
-		if v >= min && v <= max {
-			result.Add(ids...)
+func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
+
+	minBucket := GetBucket(max(minValue, f.Min))
+	maxBucket := GetBucket(min(maxValue, f.Max))
+	found := make(IdList)
+
+	for v, ids := range f.buckets[minBucket].values {
+		if v >= minValue && v <= maxValue {
+			maps.Copy(found, ids)
 		}
 	}
 
-	return result
-}
+	if minBucket < maxBucket {
 
-type NumberRange struct {
-	Min    float64   `json:"min"`
-	Max    float64   `json:"max"`
-	Values []float64 `json:"values"`
-}
+		for id := minBucket + 1; id < maxBucket; id++ {
+			if bucket, ok := f.buckets[id]; ok {
+				maps.Copy(found, *bucket.all)
+			}
 
-func (f *NumberValueField) Values() NumberRange {
-	values := []float64{}
-	min := 99999999999999999.0
-	max := -99999999999999999.0
-	for value := range f.values {
-		if value < min {
-			min = value
 		}
-		if value > max {
-			max = value
+
+		for v, ids := range f.buckets[maxBucket].values {
+			if v <= maxValue {
+				maps.Copy(found, ids)
+			}
 		}
-		values = append(values, value)
-	}
-
-	return NumberRange{Min: min, Max: max, Values: values}
-}
-
-func (f *NumberValueField) TotalCount() int {
-	total := 0
-	for _, ids := range f.values {
-
-		total += len(ids)
 
 	}
-	return total
+	return found
 }
 
-func (f *NumberValueField) AddValueLink(value float64, ids ...int64) {
-	f.values[value] = append(f.values[value], ids...)
+type NumberRange[V FieldNumberValue] struct {
+	Min V `json:"min"`
+	Max V `json:"max"`
 }
 
-func NewNumberValueField(field Field, value float64, ids ...int64) NumberValueField {
-	return NumberValueField{
-		Field:  field,
-		values: map[float64][]int64{value: ids},
+func (f *NumberField[V]) Bounds() NumberRange[V] {
+
+	return NumberRange[V]{Min: f.Min, Max: f.Max}
+}
+
+func (f *NumberField[V]) AddValueLink(value V, id uint) {
+	bucket := GetBucket(value)
+	bucketValues, ok := f.buckets[bucket]
+	f.Min = min(f.Min, value)
+	f.Max = max(f.Max, value)
+	f.Count++
+	if !ok {
+		f.buckets[bucket] = MakeBucket(value, id)
+	} else {
+		bucketValues.AddValueLink(value, id)
 	}
 }
 
-func EmptyNumberField(field Field) NumberValueField {
-	return NumberValueField{
-		Field:  field,
-		values: map[float64][]int64{},
+func (f *NumberField[V]) RemoveValueLink(value V, id uint) {
+	bucket := GetBucket(value)
+	bucketValues, ok := f.buckets[bucket]
+
+	if ok {
+		f.Count--
+		bucketValues.RemoveValueLink(value, id)
+	}
+}
+
+func (f *NumberField[V]) TotalCount() int {
+	return f.Count
+}
+
+func (f *NumberField[V]) GetRangeForIds(ids *IdList) NumberRange[V] {
+	return NumberRange[V]{Min: f.Min, Max: f.Max}
+}
+
+func NewNumberField[V FieldNumberValue](field *BaseField, value V, ids *IdList) *NumberField[V] {
+	return &NumberField[V]{
+		BaseField: field,
+		buckets:   map[int]Bucket[V]{GetBucket(value): MakeBucketList(value, ids)},
+	}
+}
+
+func EmptyNumberField[V FieldNumberValue](field *BaseField) *NumberField[V] {
+	return &NumberField[V]{
+		BaseField: field,
+		buckets:   map[int]Bucket[V]{},
 	}
 }

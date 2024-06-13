@@ -1,29 +1,38 @@
 package facet
 
-type Field struct {
-	Id          int64  `json:"id"`
+import (
+	"maps"
+)
+
+type BaseField struct {
+	Id          uint   `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	HideFacet   bool   `json:"-"`
 }
 
-type ValueField struct {
-	Field  `json:"field"`
-	values map[string][]int64
+type KeyField struct {
+	*BaseField
+	values map[string]IdList
 }
 
-func (f *ValueField) Matches(search_strings ...string) Result {
-	result := NewResult()
-	for _, v := range search_strings {
-		for key, ids := range f.values {
-			if key == v {
-				result.Add(ids...)
-			}
+func (f *KeyField) Matches(value string) IdList {
+	if value == "" {
+		return IdList{}
+	}
+	ret := IdList{}
+
+	for key, ids := range f.values {
+		if key == value {
+			maps.Copy(ret, ids)
 		}
 	}
-	return result
+
+	return ret
+
 }
 
-func (f *ValueField) Values() []string {
+func (f *KeyField) Values() []string {
 	values := make([]string, len(f.values))
 
 	i := 0
@@ -34,11 +43,27 @@ func (f *ValueField) Values() []string {
 	return values
 }
 
-func (f *ValueField) AddValueLink(value string, ids ...int64) {
-	f.values[value] = append(f.values[value], ids...)
+func (f *KeyField) AddValueLink(value string, id uint) {
+
+	idList, ok := f.values[value]
+	if !ok {
+		if f.values == nil {
+			f.values = map[string]IdList{}
+		}
+		f.values[value] = IdList{id: struct{}{}}
+	} else {
+		idList[id] = struct{}{}
+	}
 }
 
-func (f *ValueField) TotalCount() int {
+func (f *KeyField) RemoveValueLink(value string, id uint) {
+	idList, ok := f.values[value]
+	if ok {
+		delete(idList, id)
+	}
+}
+
+func (f *KeyField) TotalCount() int {
 	total := 0
 	for _, ids := range f.values {
 		total += len(ids)
@@ -46,16 +71,37 @@ func (f *ValueField) TotalCount() int {
 	return total
 }
 
-func NewValueField(field Field, value string, ids ...int64) ValueField {
-	return ValueField{
-		Field:  field,
-		values: map[string][]int64{value: ids},
+func count(ids IdList, other IdList) int {
+	count := 0
+	for id := range ids {
+		if _, ok := other[id]; ok {
+			count++
+		}
+	}
+	return count
+}
+
+func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
+	res := map[string]int{}
+	for value, valueIds := range f.values {
+		idCount := count(valueIds, ids)
+		if idCount > 0 {
+			res[value] = idCount
+		}
+	}
+	return res
+}
+
+func NewKeyField(field *BaseField, value string, ids IdList) *KeyField {
+	return &KeyField{
+		BaseField: field,
+		values:    map[string]IdList{value: ids},
 	}
 }
 
-func EmptyValueField(field Field) ValueField {
-	return ValueField{
-		Field:  field,
-		values: map[string][]int64{},
+func EmptyKeyValueField(field *BaseField) *KeyField {
+	return &KeyField{
+		BaseField: field,
+		values:    map[string]IdList{},
 	}
 }

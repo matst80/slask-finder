@@ -1,39 +1,45 @@
 package index
 
 import (
-	"math"
-	"sort"
-
 	"tornberg.me/facet-search/pkg/facet"
 )
 
 type ItemProp interface{}
 
+type BaseItem struct {
+	Id    uint                `json:"id"`
+	Sku   string              `json:"sku"`
+	Title string              `json:"title"`
+	Props map[string]ItemProp `json:"props"`
+}
+
+type DataItem struct {
+	*BaseItem
+	Fields        map[uint]string  `json:"values"`
+	DecimalFields map[uint]float64 `json:"numberValues"`
+	IntegerFields map[uint]int     `json:"integerValues"`
+	BoolFields    map[uint]bool    `json:"boolValues"`
+}
+
+type ItemKeyField struct {
+	Value *string `json:"value"`
+}
+
+type ItemNumberField[K facet.FieldNumberValue] struct {
+	Value K `json:"value"`
+}
+
 type Item struct {
-	Id           int64               `json:"id"`
-	Sku          string              `json:"sku"`
-	Title        string              `json:"title"`
-	Props        map[string]ItemProp `json:"props"`
-	Fields       map[int64]string    `json:"values"`
-	NumberFields map[int64]float64   `json:"numberValues"`
-	BoolFields   map[int64]bool      `json:"boolValues"`
+	*BaseItem
+	Fields        map[uint]ItemKeyField
+	DecimalFields map[uint]ItemNumberField[float64]
+	IntegerFields map[uint]ItemNumberField[int]
+	fieldValues   *FieldValues
 }
 
-type Sort struct {
-	FieldId int64 `json:"fieldId"`
-	Asc     bool  `json:"asc"`
-}
+type FieldValues map[uint]interface{}
 
-func MakeSortFromNumberField(items map[int64]Item, fieldId int64) facet.SortIndex {
-	l := len(items)
-	sortIndex := make(facet.SortIndex, l)
-	sortMap := make(facet.ByValue, l)
-	for idx, item := range items {
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.NumberFields[fieldId] - 3000)}
-	}
-	sort.Sort(sortMap)
-	for idx, item := range sortMap {
-		sortIndex[idx] = item.Id
-	}
-	return sortIndex
+type ResultItem struct {
+	*BaseItem
+	Fields *FieldValues `json:"values"`
 }
