@@ -16,13 +16,16 @@ func (p *Persistance) LoadFreeText(ft *search.FreeTextIndex) error {
 	defer file.Close()
 	reader := io.Reader(file)
 	enc := gob.NewDecoder(reader)
-
-	err = enc.Decode(ft)
-	if err != nil {
-		return err
+	for err == nil {
+		var doc search.Document
+		err = enc.Decode(ft)
+		if err == nil {
+			ft.AddDocument(&doc)
+		}
 	}
-
-	enc = nil
+	if err.Error() == "EOF" {
+		err = nil
+	}
 	return nil
 }
 
@@ -34,9 +37,11 @@ func (p *Persistance) SaveFreeText(ft *search.FreeTextIndex) error {
 	defer file.Close()
 	writer := io.Writer(file)
 	enc := gob.NewEncoder(writer)
-	err = enc.Encode(ft)
-	if err != nil {
-		return err
+	for _, doc := range ft.Documents {
+		err = enc.Encode(doc)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

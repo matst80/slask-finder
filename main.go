@@ -18,7 +18,7 @@ var db = persistance.NewPersistance()
 var srv = server.MakeWebServer(db, idx)
 var freetext_search = search.NewFreeTextIndex(search.Tokenizer{MaxTokens: 128})
 
-func Init() error {
+func Init() {
 
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true})
 	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Brand", Description: "Brand name"})
@@ -35,36 +35,34 @@ func Init() error {
 	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Discount", Description: "Discount value"})
 	addDbFields(idx)
 
-	err := db.LoadIndex(idx)
-	if err != nil {
-		log.Printf("Failed to load index %v", err)
-		return err
-	}
-	fieldSort := MakeSortForFields()
-	priceSort := MakeSortFromNumberField(idx.Items, 4)
-	srv.DefaultSort = &priceSort
-	srv.FieldSort = &fieldSort
+	go func() {
+		err := db.LoadIndex(idx)
+		if err != nil {
+			log.Printf("Failed to load index %v", err)
+		}
+		fieldSort := MakeSortForFields()
+		priceSort := MakeSortFromNumberField(idx.Items, 4)
+		srv.DefaultSort = &priceSort
+		srv.FieldSort = &fieldSort
 
-	idx.CreateDefaultFacets(&fieldSort)
+		idx.CreateDefaultFacets(&fieldSort)
+	}()
 
-	err = db.LoadFreeText(freetext_search)
+	go func() {
 
-	if err != nil {
-
-		return err
-	}
-	return nil
+		err := db.LoadFreeText(freetext_search)
+		if err != nil {
+			log.Printf("Failed to load freetext index %v", err)
+		}
+	}()
 
 }
 
 func main() {
 	flag.Parse()
-	err := Init()
-	if err == nil {
-		log.Printf("Db loaded, Starting server")
-	} else {
-		log.Printf("Failed to load db: %v", err)
-	}
+	Init()
+
+	log.Printf("Starting server")
 
 	srv.StartServer(*enableProfiling)
 

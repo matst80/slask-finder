@@ -13,7 +13,7 @@ func NewPersistance() *Persistance {
 	gob.Register(map[string]interface{}{})
 	gob.Register([]interface{}(nil))
 	return &Persistance{
-		File:         "data/index.db",
+		File:         "data/index-v2.db",
 		FreeTextFile: "data/freetext.db",
 	}
 }
@@ -27,19 +27,20 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	defer file.Close()
 	reader := io.Reader(file)
 	enc := gob.NewDecoder(reader)
-	var v IndexStorage
-	err = enc.Decode(&v)
 
-	if err != nil {
-		return err
-	}
+	// read items from reader and store them in the index
 
-	for _, item := range v.Items {
-		idx.UpsertItem(item)
+	for err == nil {
+		var v index.DataItem
+		err = enc.Decode(&v)
+		if err == nil {
+			idx.UpsertItem(v)
+		}
 	}
-	v = IndexStorage{}
-	enc = nil
-	return nil
+	if err.Error() == "EOF" {
+		err = nil
+	}
+	return err
 }
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
@@ -48,32 +49,33 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
+
 	fields := make(map[uint]facet.KeyField)
 
 	for _, fld := range idx.KeyFacets {
 		fields[fld.Id] = *fld
 	}
 
-	items := make(map[uint]index.DataItem)
-	for _, item := range idx.Items {
-		items[item.Id] = index.DataItem{
-			BaseItem:      item.BaseItem,
-			Fields:        cloneFields(item.Fields),
-			DecimalFields: cloneNumberFields(item.DecimalFields),
-			IntegerFields: cloneNumberFields(item.IntegerFields),
-		}
-	}
+	//items := make(map[uint]index.DataItem)
 
 	defer file.Close()
 	writer := io.Writer(file)
 	enc := gob.NewEncoder(writer)
-	err = enc.Encode(IndexStorage{
-		Items: items,
-	})
-	if err != nil {
-		return err
+
+	for _, item := range idx.Items {
+		err = enc.Encode(index.DataItem{
+			BaseItem:      item.BaseItem,
+			Fields:        cloneFields(item.Fields),
+			DecimalFields: cloneNumberFields(item.DecimalFields),
+			IntegerFields: cloneNumberFields(item.IntegerFields),
+		})
+		if err != nil {
+			return err
+		}
+
 	}
+
 	enc = nil
-	items = nil
+
 	return nil
 }
