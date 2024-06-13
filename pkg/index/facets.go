@@ -7,38 +7,8 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-type hashKeyResult struct {
-	value string
-	count int
-}
-
-const BufferSize = 256
-
-type ValueContainer struct {
-	values map[string]int
-}
-
-func (v *ValueContainer) GetValues() map[string]int {
-	return v.values
-}
-
 type KeyResult struct {
-	//*facet.BaseField
-	//id     uint
-	buffer []*string
-	idx    int
-	*ValueContainer
-}
-
-func (v *ValueContainer) AddValues(values []*string) {
-	for _, value := range values {
-		v.values[*value]++
-		// if val, ok := v.values[*value]; !ok {
-		// 	v.values[*value] = 1
-		// } else {
-		// 	val++
-		// }
-	}
+	values map[string]int
 }
 
 type JsonKeyResult struct {
@@ -47,15 +17,15 @@ type JsonKeyResult struct {
 }
 
 func (k *KeyResult) AddValue(value *string) {
-	k.buffer[k.idx] = value
-	k.idx++
-
-	if k.idx >= BufferSize {
-		k.AddValues(k.buffer)
-
-		k.idx = 0
+	if count, ok := k.values[*value]; ok {
+		k.values[*value] = count + 1
+	} else {
+		k.values[*value] = 1
 	}
+}
 
+func (k *KeyResult) GetValues() map[string]int {
+	return k.values
 }
 
 type NumberResult[V float64 | int] struct {
@@ -112,12 +82,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 
 				fields[fieldId] = &KeyResult{
 					//BaseField: field.field.BaseField,
-					ValueContainer: &ValueContainer{
-						values: map[string]int{
-							*field.Value: 1,
-						},
+					values: map[string]int{
+						*field.Value: 1,
 					},
-					buffer: make([]*string, BufferSize),
 				}
 			}
 			//fieldTime[fieldId] += time.Since(s)
