@@ -176,7 +176,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) LoadDatabase() error {
 	err := ws.Db.LoadIndex(ws.Index)
 	if err != nil {
-		//log.Printf("Failed to load index %v", err)
+		log.Printf("Failed to load index %v", err)
 		return err
 	}
 	fieldSort := ws.Index.MakeSortForFields()

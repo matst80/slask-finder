@@ -14,16 +14,30 @@ type hashKeyResult struct {
 
 const BufferSize = 256
 
-type KeyResult struct {
-	//*facet.BaseField
-	id     uint
-	buffer []string
-	idx    int
-	values map[string]int
+type ValueContainer struct {
+	values map[string]int `json:"values"`
 }
 
-func (k *KeyResult) GetValues() map[string]int {
-	return k.values
+func (v *ValueContainer) GetValues() map[string]int {
+	return v.values
+}
+
+type KeyResult struct {
+	//*facet.BaseField
+	//id     uint
+	buffer []string
+	idx    int
+	*ValueContainer
+}
+
+func (v *ValueContainer) AddValues(values []string) {
+	for _, value := range values {
+		if val, ok := v.values[value]; !ok {
+			v.values[value] = 1
+		} else {
+			val++
+		}
+	}
 }
 
 type JsonKeyResult struct {
@@ -31,15 +45,16 @@ type JsonKeyResult struct {
 	Values map[string]int `json:"values"`
 }
 
-func (k *KeyResult) AddValue(hash uint, value string) {
+func (k *KeyResult) AddValue(value string) {
 	k.buffer[k.idx] = value
 	k.idx++
+
 	if k.idx >= BufferSize {
-		for _, v := range k.buffer {
-			k.values[v]++
-		}
+		k.AddValues(k.buffer)
+
 		k.idx = 0
 	}
+
 }
 
 type NumberResult[V float64 | int] struct {
@@ -67,7 +82,7 @@ type Facets struct {
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
 	start := time.Now()
 	count := 0
-	fields := map[uint]*KeyResult{}
+	fields := map[uint]KeyResult{}
 	numberFields := map[uint]NumberResult[float64]{}
 	intFields := map[uint]NumberResult[int]{}
 	//fieldTime := map[uint]time.Duration{}
@@ -81,17 +96,19 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 
 		for fieldId, field := range item.Fields {
 			//s = time.Now()
-			if field.field.BaseField.HideFacet || field.Value == "" {
-				continue
-			}
+
 			if f, ok := fields[fieldId]; ok {
-				f.AddValue(field.ValueHash, field.Value) // TODO optimize
+				f.AddValue(field.Value) // TODO optimize
 			} else {
 				count++
 
-				fields[fieldId] = &KeyResult{
+				fields[fieldId] = KeyResult{
 					//BaseField: field.field.BaseField,
-					values: map[string]int{field.Value: 1},
+					ValueContainer: &ValueContainer{
+						values: map[string]int{
+							field.Value: 1,
+						},
+					},
 					buffer: make([]string, BufferSize),
 				}
 			}

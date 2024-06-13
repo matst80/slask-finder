@@ -6,7 +6,7 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
+func (i *Index) mapToSlice(fields map[uint]KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
 	l := min(len(fields), 64)
 	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
