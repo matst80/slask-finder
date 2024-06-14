@@ -53,6 +53,8 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
 
 	data := SearchResponse{
@@ -121,13 +123,14 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	}()
 	go func() {
 		if len(searchResults) > 1500 {
-			facetsChan <- ws.Index.DefaultFacets
+			facetsChan <- index.Facets{}
 		} else {
 			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
 		}
 	}()
 	w.Header().Set("Content-Type", "application/json")
-
+	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
 
 	result := SearchResponse{
