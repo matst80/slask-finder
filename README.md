@@ -1,8 +1,18 @@
 # slask-finder
-brew install graphviz
-go tool pprof "http://localhost:8080/debug/pprof/profile?seconds=5"
-go tool pprof "http://localhost:8080/debug/pprof/heap"
+`brew install graphviz`
 
+`go tool pprof "http://localhost:8080/debug/pprof/profile?seconds=5"`
+
+`go tool pprof "http://localhost:8080/debug/pprof/heap"`
+
+`go tool pprof "http://localhost:8080/debug/pprof/allocs"`
+
+
+`go tool pprof "https://slask-finder.tornberg.me/debug/pprof/profile?seconds=5"`
+
+`go tool pprof "https://slask-finder.tornberg.me/debug/pprof/heap"`
+
+`go tool pprof "https://slask-finder.tornberg.me/debug/pprof/allocs"`
 
 ## Table of Contents
 
