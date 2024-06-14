@@ -1,142 +1,37 @@
 package sync
 
 import (
-	"fmt"
-	"log"
-	"net"
 	"testing"
 
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 )
 
-type BaseClient struct {
-	Server *BaseServer
-	Index  *index.Index
-}
-
-type BaseServer struct {
-	Clients []*BaseClient
-}
-
-type UdpServer struct {
-	Url  string
-	conn *net.UDPConn
-	addr *net.UDPAddr
-}
-
-func (s *UdpServer) Stop() error {
-	return nil
-}
-
-func (s *UdpServer) Send(data []byte) error {
-	if s.conn == nil {
-		return fmt.Errorf("Connection not established")
-	}
-	_, err := s.conn.WriteToUDP([]byte("Hello UDP Client\n"), s.addr)
-	return err
-}
-
-func (s *UdpServer) Start() error {
-	udpAddr, err := net.ResolveUDPAddr("udp", s.Url)
-	if err != nil {
-		return err
-	}
-	conn, err := net.ListenUDP("udp", udpAddr)
-	if err != nil {
-		return err
-	}
-	for {
-		var buf [512]byte
-		_, addr, err := conn.ReadFromUDP(buf[0:])
-		s.addr = addr
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
-
-		fmt.Print("> ", string(buf[0:]))
-
-		// Write back the message over UPD
-
+func NewBaseServer(transport TransportMaster) *BaseMaster {
+	return &BaseMaster{
+		Clients:   []*BaseClient{},
+		Transport: &transport,
 	}
 }
 
-type UdpClientToServerConnection struct {
-	Url             string
-	conn            *net.UDPConn
-	DeleteChan      chan uint
-	ItemChangedChan chan *index.DataItem
-}
-
-func (c *UdpClientToServerConnection) Connect() error {
-
-	addr, err := net.ResolveUDPAddr("udp", c.Url)
-	if err != nil {
-		return err
-	}
-
-	conn, err := net.DialUDP("udp", nil, addr)
-	if err != nil {
-		return err
-	}
-	written, err := conn.Write([]byte("HELLO"[0:]))
-	if err != nil {
-		return err
-	}
-	log.Printf("Written %v bytes", written)
-	c.conn = conn
-	go func() {
-		bytes := make([]byte, 1024)
-		for {
-			len, err := c.conn.Read(bytes)
-			if err != nil {
-				log.Printf("Error reading from connection %v", err)
-			}
-			log.Printf("Received %v", string(bytes[:len]))
-		}
-	}()
-	return nil
-}
-
-func (c *UdpClientToServerConnection) Send(data []byte) error {
-	_, err := c.conn.Write(data)
-	return err
-}
-
-func (c *UdpClientToServerConnection) Close() error {
-	return c.conn.Close()
-}
-
-func NewUdpConnection(url string) *UdpClientToServerConnection {
-	return &UdpClientToServerConnection{
-		Url: url,
-	}
-}
-
-func NewBaseServer() *BaseServer {
-	return &BaseServer{
-		Clients: []*BaseClient{},
-	}
-}
-
-func (s *BaseServer) RegisterClient(client *BaseClient) {
+func (s *BaseMaster) RegisterClient(client *BaseClient) {
 	s.Clients = append(s.Clients, client)
 }
 
-func (s *BaseServer) ItemChanged(item *index.DataItem) {
+func (s *BaseMaster) ItemChanged(item *index.DataItem) {
+
 	for _, client := range s.Clients {
 		client.UpsertItem(item)
 	}
 }
 
-func (s *BaseServer) ItemDeleted(item *index.DataItem) {
+func (s *BaseMaster) ItemDeleted(item *index.DataItem) {
 	for _, client := range s.Clients {
 		client.DeleteItem(item.Id)
 	}
 }
 
-func (s *BaseServer) ItemAdded(item *index.DataItem) {
+func (s *BaseMaster) ItemAdded(item *index.DataItem) {
 	for _, client := range s.Clients {
 		client.UpsertItem(item)
 	}
@@ -151,11 +46,36 @@ func (c *BaseClient) DeleteItem(id uint) {
 }
 
 func TestSync(t *testing.T) {
-	server := NewBaseServer()
+	masterTransport := RabbitTransportMaster{
+		RabbitTopics: RabbitTopics{
+			ItemChangedTopic: "item_changed",
+			ItemAddedTopic:   "item_added",
+			ItemDeletedTopic: "item_deleted",
+		},
+		Url: "amqp://admin:12bananer@localhost:5672/",
+	}
+	clientTransport1 := RabbitTransportClient{
+		RabbitTopics: RabbitTopics{
+			ItemChangedTopic: "item_changed",
+			ItemAddedTopic:   "item_added",
+			ItemDeletedTopic: "item_deleted",
+		},
+		Url: "amqp://admin:12bananer@localhost:5672/",
+	}
+	clientTransport2 := RabbitTransportClient{
+		RabbitTopics: RabbitTopics{
+			ItemChangedTopic: "item_changed",
+			ItemAddedTopic:   "item_added",
+			ItemDeletedTopic: "item_deleted",
+		},
+		Url: "amqp://admin:12bananer@localhost:5672/",
+	}
+
+	server := NewBaseServer(&masterTransport)
 	index1 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
 	index2 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
-	client1 := &BaseClient{Server: server, Index: index1}
-	client2 := &BaseClient{Server: server, Index: index2}
+	client1 := MakeBaseClient(index1, &clientTransport1)
+	client2 := MakeBaseClient(index2, &clientTransport2)
 
 	server.RegisterClient(client1)
 	server.RegisterClient(client2)
