@@ -1,9 +1,9 @@
 package sync
 
 import (
+	"fmt"
 	"log"
 	"net"
-	"sync"
 	"testing"
 
 	"tornberg.me/facet-search/pkg/index"
@@ -20,9 +20,9 @@ type BaseServer struct {
 }
 
 type UdpServer struct {
-	Url         string
-	remoteConns *sync.Map
-	conn        *net.UDPConn
+	Url  string
+	conn *net.UDPConn
+	addr *net.UDPAddr
 }
 
 func (s *UdpServer) Stop() error {
@@ -30,14 +30,11 @@ func (s *UdpServer) Stop() error {
 }
 
 func (s *UdpServer) Send(data []byte) error {
-	s.remoteConns.Range(func(key, value interface{}) bool {
-		if _, err := s.conn.WriteTo(data, *value.(*net.Addr)); err != nil {
-			s.remoteConns.Delete(key)
-		}
-
-		return true
-	})
-	return nil
+	if s.conn == nil {
+		return fmt.Errorf("Connection not established")
+	}
+	_, err := s.conn.WriteToUDP([]byte("Hello UDP Client\n"), s.addr)
+	return err
 }
 
 func (s *UdpServer) Start() error {
@@ -49,31 +46,19 @@ func (s *UdpServer) Start() error {
 	if err != nil {
 		return err
 	}
-	s.remoteConns = new(sync.Map)
-
 	for {
-		buf := make([]byte, 1024)
-		_, remoteAddr, err := conn.ReadFrom(buf)
+		var buf [512]byte
+		_, addr, err := conn.ReadFromUDP(buf[0:])
+		s.addr = addr
 		if err != nil {
-			continue
+			fmt.Println(err)
+			return err
 		}
 
-		if _, ok := s.remoteConns.Load(remoteAddr.String()); !ok {
-			s.remoteConns.Store(remoteAddr.String(), &remoteAddr)
-		}
+		fmt.Print("> ", string(buf[0:]))
 
-		// Broadcast message to all connected clients
-		go func() {
-			s.remoteConns.Range(func(key, value interface{}) bool {
-				if _, err := conn.WriteTo(buf, *value.(*net.Addr)); err != nil {
-					s.remoteConns.Delete(key)
+		// Write back the message over UPD
 
-					return true
-				}
-
-				return true
-			})
-		}()
 	}
 }
 
@@ -95,6 +80,11 @@ func (c *UdpClientToServerConnection) Connect() error {
 	if err != nil {
 		return err
 	}
+	written, err := conn.Write([]byte("HELLO"[0:]))
+	if err != nil {
+		return err
+	}
+	log.Printf("Written %v bytes", written)
 	c.conn = conn
 	go func() {
 		bytes := make([]byte, 1024)
