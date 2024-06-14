@@ -15,6 +15,10 @@ type ChangeHandler interface {
 	ItemAdded(item *DataItem)
 }
 
+type UpdateHandler interface {
+	UpsertItem(item *DataItem)
+}
+
 type Index struct {
 	KeyFacets     map[uint]*KeyFacet
 	DecimalFacets map[uint]*DecimalFacet
