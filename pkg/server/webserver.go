@@ -92,22 +92,6 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-// func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
-// 	if ws.FreeText == nil {
-// 		http.Error(w, "No freetext index loaded", http.StatusInternalServerError)
-// 	}
-// 	for _, item := range ws.Index.Items {
-// 		ws.FreeText.CreateDocument(item.Id, item.Title)
-// 	}
-// 	err := ws.Db.SaveFreeText(ws.FreeText)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	} else {
-// 		w.WriteHeader(http.StatusOK)
-// 		w.Write([]byte("ok"))
-// 	}
-// }
-
 func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
 	itemsChan := make(chan []index.ResultItem)
@@ -171,7 +155,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	})
 
 	srv.HandleFunc("/filter", ws.Search)
-	//srv.HandleFunc("/index", ws.IndexDocuments)
+
 	srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/save", ws.Save)

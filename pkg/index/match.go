@@ -1,9 +1,6 @@
 package index
 
 import (
-	"log"
-	"time"
-
 	"tornberg.me/facet-search/pkg/facet"
 )
 
@@ -34,19 +31,13 @@ func (i *Index) Match(search *Filters) *facet.IdList {
 	results := make(chan facet.IdList)
 
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
-		start := time.Now()
 		results <- fld.Matches(field.Value)
-		log.Printf("String match took %v", time.Since(start))
 	}
 	parseInts := func(field NumberSearch[int], fld *facet.NumberField[int]) {
-		start := time.Now()
 		results <- fld.MatchesRange(field.Min, field.Max)
-		log.Printf("Integer match took %v", time.Since(start))
 	}
 	parseNumber := func(field NumberSearch[float64], fld *facet.NumberField[float64]) {
-		start := time.Now()
 		results <- fld.MatchesRange(field.Min, field.Max)
-		log.Printf("Decimal match took %v", time.Since(start))
 	}
 	for _, fld := range search.StringFilter {
 		if f, ok := i.KeyFacets[fld.Id]; ok {

@@ -1,9 +1,7 @@
 package search
 
 import (
-	"log"
 	"sort"
-	"time"
 
 	"tornberg.me/facet-search/pkg/facet"
 )
@@ -36,7 +34,6 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 
 func (i *FreeTextIndex) Search(query string) DocumentResult {
 	tokens := i.Tokenizer.Tokenize(query)
-	start := time.Now()
 	res := make(DocumentResult)
 
 	for _, doc := range i.Documents {
@@ -58,7 +55,7 @@ func (i *FreeTextIndex) Search(query string) DocumentResult {
 			res[doc.Id] = ((res[doc.Id] / l) * 1000.0) - (l - dl)
 		}
 	}
-	log.Printf("Search took %v", time.Since(start))
+
 	return res
 }
 

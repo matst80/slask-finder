@@ -2,13 +2,11 @@ package facet
 
 import (
 	"log"
-	"time"
 )
 
 type SortIndex []uint
 
 func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
-	start := time.Now()
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
@@ -31,7 +29,6 @@ func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
 
 		}
 	}
-	log.Printf("Sorting took %v", time.Since(start))
 
 	return sortedIds
 

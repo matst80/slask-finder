@@ -45,9 +45,11 @@ func Init() {
 			priceSort := MakeSortFromNumberField(idx.Items, 4)
 			srv.DefaultSort = &priceSort
 			srv.FieldSort = &fieldSort
-
+			log.Println("Index loaded")
 			idx.CreateDefaultFacets(&fieldSort)
+			log.Println("Default facets created")
 		}
+
 	}()
 
 }
