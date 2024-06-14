@@ -32,17 +32,6 @@ func (f *KeyField) Matches(value string) IdList {
 
 }
 
-func (f *KeyField) Values() []string {
-	values := make([]string, len(f.values))
-
-	i := 0
-	for k := range f.values {
-		values[i] = k
-		i++
-	}
-	return values
-}
-
 func (f *KeyField) AddValueLink(value string, id uint) {
 
 	idList, ok := f.values[value]

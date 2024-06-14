@@ -11,13 +11,13 @@ import (
 	"tornberg.me/facet-search/pkg/server"
 )
 
-var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")
-
-var idx = index.NewIndex()
-var db = persistance.NewPersistance()
+var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
 var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
-var srv = server.MakeWebServer(db, idx, freetext_search)
+var idx = index.NewIndex(freetext_search)
+var db = persistance.NewPersistance()
+
+var srv = server.MakeWebServer(db, idx)
 
 func Init() {
 
@@ -48,15 +48,6 @@ func Init() {
 
 			idx.CreateDefaultFacets(&fieldSort)
 		}
-	}()
-
-	go func() {
-
-		err := db.LoadFreeText(freetext_search)
-		if err != nil {
-			log.Printf("Failed to load freetext index %v", err)
-		}
-		srv.FreeText = freetext_search
 	}()
 
 }

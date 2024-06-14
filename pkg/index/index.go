@@ -2,6 +2,7 @@ package index
 
 import (
 	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/search"
 )
 
 type KeyFacet = facet.KeyField
@@ -9,9 +10,9 @@ type DecimalFacet = facet.NumberField[float64]
 type IntFacet = facet.NumberField[int]
 
 type ChangeHandler interface {
-	ItemChanged(item DataItem)
+	ItemChanged(item *DataItem)
 	ItemDeleted(id uint)
-	ItemAdded(item DataItem)
+	ItemAdded(item *DataItem)
 }
 
 type Index struct {
@@ -22,15 +23,17 @@ type Index struct {
 	Items         map[uint]Item
 	AllItems      facet.IdList
 	ChangeHandler ChangeHandler
+	Search        *search.FreeTextIndex
 }
 
-func NewIndex() *Index {
+func NewIndex(search *search.FreeTextIndex) *Index {
 	return &Index{
 		KeyFacets:     make(map[uint]*KeyFacet),
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
 		Items:         make(map[uint]Item),
 		AllItems:      facet.IdList{},
+		Search:        search,
 	}
 }
 
@@ -56,8 +59,9 @@ func (i *Index) addItemValues(item DataItem) {
 		if value == "" {
 			continue
 		}
+		v := value
 		if f, ok := i.KeyFacets[key]; ok {
-			f.AddValueLink(value, item.Id)
+			f.AddValueLink(v, item.Id)
 		}
 	}
 	for key, value := range item.DecimalFields {
@@ -104,7 +108,6 @@ func getFields(itemFields map[uint]string) map[uint]ItemKeyField {
 		if value == "" {
 			continue
 		}
-
 		newFields[key] = ItemKeyField{Value: &value}
 
 	}
@@ -122,22 +125,30 @@ func getNumberFields[K facet.FieldNumberValue](itemFields map[uint]K) map[uint]I
 	return newFields
 }
 
-func (i *Index) UpsertItem(item DataItem) {
+func (i *Index) UpsertItem(item *DataItem) {
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
 	}
 	i.AllItems[item.Id] = struct{}{}
-	i.addItemValues(item)
+	i.addItemValues(*item)
 	keyFields := getFields(item.Fields)
 	decimalFields := getNumberFields(item.DecimalFields)
 	intFields := getNumberFields(item.IntegerFields)
 	i.Items[item.Id] = Item{
-		BaseItem:      item.BaseItem,
+		BaseItem: &BaseItem{
+			Id:    item.Id,
+			Title: item.Title,
+			Sku:   item.Sku,
+			Props: item.Props,
+		},
 		Fields:        keyFields,
 		DecimalFields: decimalFields,
 		IntegerFields: intFields,
-		fieldValues:   getFieldValues(&item),
+		//fieldValues:   getFieldValues(item),
+	}
+	if i.Search != nil {
+		i.Search.CreateDocument(item.Id, item.Title)
 	}
 	// for fieldId, field := range keyFields {
 	// 	f, ok := i.itemKeyFacets[fieldId]
@@ -177,6 +188,7 @@ func (i *Index) UpsertItem(item DataItem) {
 			i.ChangeHandler.ItemAdded(item)
 		}
 	}
+	item = nil
 }
 
 func (i *Index) DeleteItem(id uint) {
@@ -189,10 +201,6 @@ func (i *Index) DeleteItem(id uint) {
 			i.ChangeHandler.ItemDeleted(id)
 		}
 	}
-}
-
-func (i *Index) GetItem(id uint) Item {
-	return i.Items[id]
 }
 
 func (i *Index) HasItem(id uint) bool {
@@ -210,21 +218,6 @@ func (i *Index) GetItemIds(ids []uint, page int, pageSize int) []uint {
 	return ids[start:end]
 }
 
-func getFieldValues(item *DataItem) *FieldValues {
-	fields := FieldValues{}
-	for key, value := range item.Fields {
-		fields[key] = value
-	}
-	for key, value := range item.DecimalFields {
-		fields[key] = value
-	}
-	for key, value := range item.IntegerFields {
-		fields[key] = value
-	}
-
-	return &fields
-}
-
 func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
 	items := make([]ResultItem, min(len(ids), pageSize))
 	idx := 0
@@ -233,7 +226,7 @@ func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
 		if ok {
 			items[idx] = ResultItem{
 				BaseItem: item.BaseItem,
-				Fields:   item.fieldValues,
+				Fields:   item.getFieldValues(),
 			}
 			idx++
 		}

@@ -10,7 +10,6 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
-	"tornberg.me/facet-search/pkg/search"
 )
 
 type WebServer struct {
@@ -18,14 +17,12 @@ type WebServer struct {
 	Db          *persistance.Persistance
 	DefaultSort *facet.SortIndex
 	FieldSort   *facet.SortIndex
-	FreeText    *search.FreeTextIndex
 }
 
-func MakeWebServer(db *persistance.Persistance, index *index.Index, freeText *search.FreeTextIndex) *WebServer {
+func MakeWebServer(db *persistance.Persistance, index *index.Index) *WebServer {
 	return &WebServer{
-		Index:    index,
-		Db:       db,
-		FreeText: freeText,
+		Index: index,
+		Db:    db,
 	}
 }
 
@@ -39,7 +36,8 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 	itemsChan := make(chan []index.ResultItem)
 	facetsChan := make(chan index.Facets)
-
+	defer close(itemsChan)
+	defer close(facetsChan)
 	matching := ws.Index.Match(&sr.Filters)
 
 	totalHits := len(*matching)
@@ -79,7 +77,7 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, item := range items {
-		ws.Index.UpsertItem(item)
+		ws.Index.UpsertItem(&item)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -94,26 +92,28 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
-	if ws.FreeText == nil {
-		http.Error(w, "No freetext index loaded", http.StatusInternalServerError)
-	}
-	for _, item := range ws.Index.Items {
-		ws.FreeText.CreateDocument(item.Id, item.Title)
-	}
-	err := ws.Db.SaveFreeText(ws.FreeText)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	} else {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	}
-}
+// func (ws *WebServer) IndexDocuments(w http.ResponseWriter, r *http.Request) {
+// 	if ws.FreeText == nil {
+// 		http.Error(w, "No freetext index loaded", http.StatusInternalServerError)
+// 	}
+// 	for _, item := range ws.Index.Items {
+// 		ws.FreeText.CreateDocument(item.Id, item.Title)
+// 	}
+// 	err := ws.Db.SaveFreeText(ws.FreeText)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	} else {
+// 		w.WriteHeader(http.StatusOK)
+// 		w.Write([]byte("ok"))
+// 	}
+// }
 
 func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
 	itemsChan := make(chan []index.ResultItem)
 	facetsChan := make(chan index.Facets)
+	defer close(itemsChan)
+	defer close(facetsChan)
 	query := r.URL.Query().Get("q")
 	ps := r.URL.Query().Get("size")
 	pg := r.URL.Query().Get("p")
@@ -128,7 +128,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	log.Printf("Query: %v", query)
-	searchResults := ws.FreeText.Search(query)
+	searchResults := ws.Index.Search.Search(query)
 
 	res := searchResults.ToResultWithSort()
 	go func() {
@@ -153,6 +153,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		PageSize:  pageSize,
 		TotalHits: len(searchResults),
 	}
+
 	err := json.NewEncoder(w).Encode(result)
 
 	if err != nil {
@@ -170,7 +171,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	})
 
 	srv.HandleFunc("/filter", ws.Search)
-	srv.HandleFunc("/index", ws.IndexDocuments)
+	//srv.HandleFunc("/index", ws.IndexDocuments)
 	srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/save", ws.Save)

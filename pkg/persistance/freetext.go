@@ -13,6 +13,7 @@ func (p *Persistance) LoadFreeText(ft *search.FreeTextIndex) error {
 	if err != nil {
 		return err
 	}
+
 	defer file.Close()
 	reader, err := gzip.NewReader(file)
 	if err != nil {

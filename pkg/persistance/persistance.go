@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"os"
+	"runtime"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -24,6 +25,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
+
 	defer file.Close()
 
 	zipReader, err := gzip.NewReader(file)
@@ -32,16 +34,18 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	}
 
 	enc := gob.NewDecoder(zipReader)
-
+	defer zipReader.Close()
 	for err == nil {
-		var v index.DataItem
-		if err = enc.Decode(&v); err == nil {
+		v := &index.DataItem{}
+		if err = enc.Decode(v); err == nil {
 			idx.UpsertItem(v)
 		}
 	}
 	if err.Error() == "EOF" {
 		return nil
 	}
+	enc = nil
+
 	return err
 }
 
@@ -57,14 +61,15 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	for _, fld := range idx.KeyFacets {
 		fields[fld.Id] = *fld
 	}
-
+	defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
+	defer zipWriter.Close()
 
 	for _, item := range idx.Items {
 		err = enc.Encode(index.DataItem{
-			BaseItem:      item.BaseItem,
+			BaseItem:      *item.BaseItem,
 			Fields:        cloneFields(item.Fields),
 			DecimalFields: cloneNumberFields(item.DecimalFields),
 			IntegerFields: cloneNumberFields(item.IntegerFields),
@@ -72,9 +77,8 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		if err != nil {
 			return err
 		}
-
 	}
-	zipWriter.Close()
+
 	enc = nil
 
 	return nil

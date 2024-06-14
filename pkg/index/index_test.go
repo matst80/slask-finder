@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/search"
 )
 
 func matchAll(list facet.IdList, ids ...uint) bool {
@@ -19,12 +20,12 @@ type LoggingChangeHandler struct {
 	Printf func(format string, v ...interface{})
 }
 
-func (l *LoggingChangeHandler) ItemAdded(item DataItem) {
-	l.Printf("Item added %v", item)
+func (l *LoggingChangeHandler) ItemAdded(item *DataItem) {
+	l.Printf("Item added %v", *item)
 }
 
-func (l *LoggingChangeHandler) ItemChanged(item DataItem) {
-	l.Printf("Item changed %v", item)
+func (l *LoggingChangeHandler) ItemChanged(item *DataItem) {
+	l.Printf("Item changed %v", *item)
 }
 
 func (l *LoggingChangeHandler) ItemDeleted(id uint) {
@@ -32,12 +33,12 @@ func (l *LoggingChangeHandler) ItemDeleted(id uint) {
 }
 
 func TestIndexMatch(t *testing.T) {
-	i := NewIndex()
+	i := NewIndex(freetext_search)
 	i.AddKeyField(&facet.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
-	item := DataItem{
-		BaseItem: &BaseItem{
+	item := &DataItem{
+		BaseItem: BaseItem{
 			Id: 1,
 		},
 		Fields: map[uint]string{
@@ -60,14 +61,18 @@ func TestIndexMatch(t *testing.T) {
 	}
 }
 
+var token = search.Tokenizer{MaxTokens: 128}
+var freetext_search = search.NewFreeTextIndex(&token)
+
 func CreateIndex() *Index {
-	i := NewIndex()
+
+	i := NewIndex(freetext_search)
 	i.AddKeyField(&facet.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
 
-	i.UpsertItem(DataItem{
-		BaseItem: &BaseItem{
+	i.UpsertItem(&DataItem{
+		BaseItem: BaseItem{
 			Id:    1,
 			Title: "item1",
 			Props: map[string]ItemProp{
@@ -83,8 +88,8 @@ func CreateIndex() *Index {
 			3: 1,
 		},
 	})
-	i.UpsertItem(DataItem{
-		BaseItem: &BaseItem{
+	i.UpsertItem(&DataItem{
+		BaseItem: BaseItem{
 			Id:    2,
 			Title: "item2",
 			Props: map[string]ItemProp{
@@ -126,8 +131,8 @@ func TestHasFields(t *testing.T) {
 	if !ok {
 		t.Errorf("Expected to have field with id 1, got %v", i.KeyFacets)
 	}
-	if len(field.Values()) != 2 {
-		t.Errorf("Expected to have 2 values in field 1, got %v", field.Values())
+	if field.TotalCount() != 2 {
+		t.Errorf("Expected to have 2 values in field 1, got %v", field.TotalCount())
 	}
 }
 
@@ -184,8 +189,8 @@ func TestUpdateItem(t *testing.T) {
 	i.ChangeHandler = &LoggingChangeHandler{
 		Printf: t.Logf,
 	}
-	item := DataItem{
-		BaseItem: &BaseItem{
+	item := &DataItem{
+		BaseItem: BaseItem{
 			Id: 1,
 		},
 		Fields: map[uint]string{

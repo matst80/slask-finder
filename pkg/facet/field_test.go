@@ -5,13 +5,15 @@ import (
 )
 
 func TestValueField_SingleMatch(t *testing.T) {
+	v1 := "test"
+	v2 := "hej"
 	f := &KeyField{
 		BaseField: &BaseField{
 			Name: "test",
 		},
 		values: map[string]IdList{
-			"test": *makeIdList(1, 2, 3),
-			"hej":  *makeIdList(2, 3, 4),
+			v1: *makeIdList(1, 2, 3),
+			v2: *makeIdList(2, 3, 4),
 		},
 	}
 
