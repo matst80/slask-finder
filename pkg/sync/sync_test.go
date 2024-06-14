@@ -2,6 +2,7 @@ package sync
 
 import (
 	"testing"
+	"time"
 
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
@@ -46,6 +47,8 @@ func (c *BaseClient) DeleteItem(id uint) {
 }
 
 func TestSync(t *testing.T) {
+	index1 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
+	index2 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
 	masterTransport := RabbitTransportMaster{
 		RabbitTopics: RabbitTopics{
 			ItemChangedTopic: "item_changed",
@@ -60,7 +63,8 @@ func TestSync(t *testing.T) {
 			ItemAddedTopic:   "item_added",
 			ItemDeletedTopic: "item_deleted",
 		},
-		Url: "amqp://admin:12bananer@localhost:5672/",
+		Index: index1,
+		Url:   "amqp://admin:12bananer@localhost:5672/",
 	}
 	clientTransport2 := RabbitTransportClient{
 		RabbitTopics: RabbitTopics{
@@ -68,17 +72,21 @@ func TestSync(t *testing.T) {
 			ItemAddedTopic:   "item_added",
 			ItemDeletedTopic: "item_deleted",
 		},
-		Url: "amqp://admin:12bananer@localhost:5672/",
+		Index: index2,
+		Url:   "amqp://admin:12bananer@localhost:5672/",
 	}
-
-	server := NewBaseServer(&masterTransport)
-	index1 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
-	index2 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
-	client1 := MakeBaseClient(index1, &clientTransport1)
-	client2 := MakeBaseClient(index2, &clientTransport2)
-
-	server.RegisterClient(client1)
-	server.RegisterClient(client2)
+	err := masterTransport.Connect()
+	if err != nil {
+		t.Error(err)
+	}
+	err = clientTransport1.Connect()
+	if err != nil {
+		t.Error(err)
+	}
+	err = clientTransport2.Connect()
+	if err != nil {
+		t.Error(err)
+	}
 
 	item := &index.DataItem{
 		BaseItem: index.BaseItem{
@@ -90,35 +98,44 @@ func TestSync(t *testing.T) {
 		},
 	}
 
-	server.ItemAdded(item)
+	err = masterTransport.SendItemAdded(item)
+	time.Sleep(time.Second)
+	if err != nil {
+		t.Error(err)
+	}
 
-	if _, ok := client1.Index.Items[1]; !ok {
+	if _, ok := index1.Items[1]; !ok {
 		t.Error("Item not added to client 1")
 	}
 
-	if _, ok := client2.Index.Items[1]; !ok {
+	if _, ok := index1.Items[1]; !ok {
 		t.Error("Item not added to client 2")
 	}
 
 	item.Fields[1] = "Test2"
 
-	server.ItemChanged(item)
+	err = masterTransport.SendItemChanged(item)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
 
-	if *client1.Index.Items[1].Fields[1].Value != "Test2" {
+	if *index1.Items[1].Fields[1].Value != "Test2" {
 		t.Error("Item not updated on client 1")
 	}
 
-	if *client2.Index.Items[1].Fields[1].Value != "Test2" {
+	if *index2.Items[1].Fields[1].Value != "Test2" {
 		t.Error("Item not updated on client 2")
 	}
 
-	server.ItemDeleted(item)
+	masterTransport.SendItemChanged(item)
+	time.Sleep(time.Second)
 
-	if _, ok := client1.Index.Items[1]; ok {
+	if _, ok := index1.Items[1]; ok {
 		t.Error("Item not deleted from client 1")
 	}
 
-	if _, ok := client2.Index.Items[1]; ok {
+	if _, ok := index2.Items[1]; ok {
 		t.Error("Item not deleted from client 2")
 	}
 }
