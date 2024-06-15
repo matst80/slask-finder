@@ -9,15 +9,49 @@ import (
 	"tornberg.me/facet-search/pkg/persistance"
 	"tornberg.me/facet-search/pkg/search"
 	"tornberg.me/facet-search/pkg/server"
+	"tornberg.me/facet-search/pkg/sync"
 )
 
 var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
+
+var rabbitConfig = sync.RabbitConfig{
+	ItemChangedTopic: "item_changed",
+	ItemAddedTopic:   "item_added",
+	ItemDeletedTopic: "item_deleted",
+	Url:              "amqp://admin:12bananer@localhost:5672/",
+}
+var config = Config{
+	IsMaster: true,
+}
 var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
 var idx = index.NewIndex(freetext_search)
 var db = persistance.NewPersistance()
+var masterTransport = sync.RabbitTransportMaster{
+	RabbitConfig: rabbitConfig,
+}
 
-var srv = server.MakeWebServer(db, idx)
+type RabbitMasterChangeHandler struct{}
+
+func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
+	masterTransport.SendItemAdded(item)
+}
+
+func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
+	masterTransport.SendItemChanged(item)
+}
+
+func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
+	masterTransport.SendItemDeleted(id)
+}
+
+var srv = server.WebServer{
+	Index:            idx,
+	Db:               db,
+	FacetLimit:       5000,
+	SearchFacetLimit: 1500,
+	ListenAddress:    ":8080",
+}
 
 func Init() {
 
@@ -38,6 +72,10 @@ func Init() {
 
 	go func() {
 		err := db.LoadIndex(idx)
+		if config.IsMaster {
+			masterTransport.Connect()
+			idx.ChangeHandler = &RabbitMasterChangeHandler{}
+		}
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {

@@ -1,59 +1,69 @@
 package sync
 
 import (
+	"log"
 	"testing"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 )
 
-func NewBaseServer(transport TransportMaster) *BaseMaster {
-	return &BaseMaster{
-		Clients:   []*BaseClient{},
-		Transport: &transport,
+var rabbitConfig = RabbitConfig{
+	ItemChangedTopic: "item_changed",
+	ItemAddedTopic:   "item_added",
+	ItemDeletedTopic: "item_deleted",
+	Url:              "amqp://admin:12bananer@localhost:5672/",
+}
+
+func createTopic(ch *amqp.Channel, topic string) error {
+	err := ch.ExchangeDeclare(
+		topic,
+		"topic", // type
+		true,    // durable
+		false,   // auto-deleted
+		false,   // internal
+		false,   // no-wait
+		nil,     // arguments
+	)
+	if err != nil {
+		return err
 	}
+	log.Printf("Declared queue %s", topic)
+	return nil
 }
 
-func (s *BaseMaster) RegisterClient(client *BaseClient) {
-	s.Clients = append(s.Clients, client)
-}
-
-func (s *BaseMaster) ItemChanged(item *index.DataItem) {
-
-	for _, client := range s.Clients {
-		client.UpsertItem(item)
+func TestDeclareTopicsAndExchange(t *testing.T) {
+	conn, err := amqp.Dial(rabbitConfig.Url)
+	if err != nil {
+		t.Error(err)
 	}
-}
 
-func (s *BaseMaster) ItemDeleted(item *index.DataItem) {
-	for _, client := range s.Clients {
-		client.DeleteItem(item.Id)
+	ch, err := conn.Channel()
+	if err != nil {
+		t.Error(err)
 	}
-}
 
-func (s *BaseMaster) ItemAdded(item *index.DataItem) {
-	for _, client := range s.Clients {
-		client.UpsertItem(item)
+	// err = ch.ExchangeDeclare(rabbitConfig.ExchangeName, "topic", true, false, false, false, nil)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
+
+	if err = createTopic(ch, rabbitConfig.ItemAddedTopic); err != nil {
+		t.Error(err)
 	}
-}
-
-func (c *BaseClient) UpsertItem(item *index.DataItem) {
-	c.Index.UpsertItem(item)
-}
-
-func (c *BaseClient) DeleteItem(id uint) {
-	c.Index.DeleteItem(id)
+	if err = createTopic(ch, rabbitConfig.ItemChangedTopic); err != nil {
+		t.Error(err)
+	}
+	if err = createTopic(ch, rabbitConfig.ItemDeletedTopic); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSendChanges(t *testing.T) {
 	masterTransport := RabbitTransportMaster{
-		RabbitTopics: RabbitTopics{
-			ItemChangedTopic: "item_changed",
-			ItemAddedTopic:   "item_added",
-			ItemDeletedTopic: "item_deleted",
-		},
-		Url: "amqp://admin:12bananer@localhost:5672/",
+		RabbitConfig: rabbitConfig,
 	}
 	err := masterTransport.Connect()
 	if err != nil {
@@ -76,23 +86,12 @@ func TestSendChanges(t *testing.T) {
 
 func TestSync(t *testing.T) {
 	masterTransport := RabbitTransportMaster{
-		RabbitTopics: RabbitTopics{
-			ItemChangedTopic: "item_changed",
-			ItemAddedTopic:   "item_added",
-			ItemDeletedTopic: "item_deleted",
-		},
-		Url: "amqp://admin:12bananer@localhost:5672/",
+		RabbitConfig: rabbitConfig,
 	}
 	index1 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
 
 	clientTransport1 := RabbitTransportClient{
-		RabbitTopics: RabbitTopics{
-			ItemChangedTopic: "item_changed",
-			ItemAddedTopic:   "item_added",
-			ItemDeletedTopic: "item_deleted",
-		},
-
-		Url: "amqp://admin:12bananer@localhost:5672/",
+		RabbitConfig: rabbitConfig,
 	}
 
 	err := masterTransport.Connect()
@@ -103,6 +102,7 @@ func TestSync(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
+	time.Sleep(time.Second)
 
 	defer masterTransport.Close()
 	defer clientTransport1.Close()
