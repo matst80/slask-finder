@@ -17,6 +17,7 @@ type ChangeHandler interface {
 
 type UpdateHandler interface {
 	UpsertItem(item *DataItem)
+	DeleteItem(id uint)
 }
 
 type Index struct {

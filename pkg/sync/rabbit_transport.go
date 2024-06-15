@@ -1,9 +1,7 @@
 package sync
 
 import (
-	"encoding/gob"
 	"encoding/json"
-	"fmt"
 	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -18,17 +16,34 @@ type RabbitTopics struct {
 
 type RabbitTransportMaster struct {
 	RabbitTopics
-	Url     string
-	channel *amqp.Channel
-	enc     gob.Encoder
+	Url        string
+	connection *amqp.Connection
+	channel    *amqp.Channel
 }
 
 type RabbitTransportClient struct {
 	RabbitTopics
-	Index   *index.Index
-	Url     string
-	channel *amqp.Channel
-	decoder gob.Decoder
+	Url        string
+	handler    index.UpdateHandler
+	connection *amqp.Connection
+	channel    *amqp.Channel
+	quit       chan bool
+}
+
+func createQueue(ch *amqp.Channel, topic string) error {
+	q, err := ch.QueueDeclare(
+		topic,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	log.Printf("Declared queue %s: %v", topic, q)
+	return nil
 }
 
 func (t *RabbitTransportMaster) Connect() error {
@@ -37,38 +52,28 @@ func (t *RabbitTransportMaster) Connect() error {
 	if err != nil {
 		return err
 	}
-	//defer conn.Close()
+	t.connection = conn
 	ch, err := conn.Channel()
 	if err != nil {
 		return err
 	}
 	t.channel = ch
-	q, err := ch.QueueDeclare(
-		t.ItemAddedTopic,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	q, err = ch.QueueDeclare(
-		t.ItemChangedTopic,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	q, err = ch.QueueDeclare(
-		t.ItemDeletedTopic,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	log.Printf("Declared queues: %v", q)
+	if err = createQueue(ch, t.ItemAddedTopic); err != nil {
+		return err
+	}
+	if err = createQueue(ch, t.ItemChangedTopic); err != nil {
+		return err
+	}
+	if err = createQueue(ch, t.ItemDeletedTopic); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (t *RabbitTransportMaster) Close() error {
+	defer t.connection.Close()
+	return t.channel.Close()
 }
 
 func (t *RabbitTransportMaster) send(topic string, data any) error {
@@ -100,101 +105,153 @@ func (t *RabbitTransportMaster) SendItemDeleted(id uint) error {
 	return t.send(t.ItemDeletedTopic, id)
 }
 
-func (t *RabbitTransportClient) OnItemAdded(item *index.DataItem) {
-	t.Index.UpsertItem(item)
-}
-
-func (t *RabbitTransportClient) OnItemChanged(item *index.DataItem) {
-	t.Index.UpsertItem(item)
-}
-
-func (t *RabbitTransportClient) OnItemDeleted(id uint) {
-	t.Index.DeleteItem(id)
-}
-
-func (t *RabbitTransportClient) Connect() error {
+func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	conn, err := amqp.Dial(t.Url)
+	t.quit = make(chan bool)
 	if err != nil {
 		return err
 	}
-	//defer conn.Close()
+	t.connection = conn
 	ch, err := conn.Channel()
 	if err != nil {
 		return err
 	}
+	t.handler = handler
 	t.channel = ch
-	go func(c *amqp.Channel) {
-		for {
-			msgs, err := c.Consume(
-				t.ItemAddedTopic,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
+	toAdd, err := ch.Consume(
+		t.ItemAddedTopic,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+	go func(msgs <-chan amqp.Delivery) {
+
+		for d := range msgs {
+			var item index.DataItem
+			err := json.Unmarshal(d.Body, &item)
 			if err != nil {
-				fmt.Println(err)
-			} else {
-				for d := range msgs {
-					var item index.DataItem
-					err := json.Unmarshal(d.Body, &item)
-					if err != nil {
-						return
-					}
-					t.OnItemAdded(&item)
-				}
+				return
 			}
+			t.handler.UpsertItem(&item)
 		}
-	}(t.channel)
-	go func(c *amqp.Channel) {
-		for {
-			msgs, err := c.Consume(
-				t.ItemChangedTopic,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
+
+	}(toAdd)
+	toChange, err := ch.Consume(
+		t.ItemChangedTopic,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	go func(msgs <-chan amqp.Delivery) {
+
+		for d := range msgs {
+			var item index.DataItem
+			err := json.Unmarshal(d.Body, &item)
 			if err != nil {
-				fmt.Println(err)
+				return
 			}
-			for d := range msgs {
-				var item index.DataItem
-				err := json.Unmarshal(d.Body, &item)
-				if err != nil {
-					return
-				}
-				t.OnItemChanged(&item)
-			}
+			t.handler.UpsertItem(&item)
 		}
-	}(t.channel)
-	go func(c *amqp.Channel) {
-		for {
-			msgs, err := c.Consume(
-				t.ItemDeletedTopic,
-				"",
-				true,
-				false,
-				false,
-				false,
-				nil,
-			)
+
+	}(toChange)
+
+	toDelete, err := ch.Consume(
+		t.ItemDeletedTopic,
+		"",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		return err
+	}
+
+	go func(msgs <-chan amqp.Delivery) {
+
+		for d := range msgs {
+			var itemId uint
+			err := json.Unmarshal(d.Body, &itemId)
 			if err != nil {
-				fmt.Println(err)
+				return
 			}
-			for d := range msgs {
-				var id uint
-				err := json.Unmarshal(d.Body, &id)
-				if err != nil {
-					return
-				}
-				t.OnItemDeleted(id)
-			}
+			t.handler.DeleteItem(itemId)
 		}
-	}(t.channel)
+
+	}(toDelete)
+	// go func(c *amqp.Channel) {
+	// 	for {
+	// 		if c.IsClosed() {
+	// 			return
+	// 		}
+	// 		msgs, err := c.Consume(
+	// 			t.ItemDeletedTopic,
+	// 			"",
+	// 			true,
+	// 			false,
+	// 			false,
+	// 			false,
+	// 			nil,
+	// 		)
+	// 		if err != nil {
+	// 			fmt.Println(err)
+	// 		}
+	// 		for d := range msgs {
+	// 			var id uint
+	// 			err := json.Unmarshal(d.Body, &id)
+	// 			if err != nil {
+	// 				return
+	// 			}
+	// 			t.handler.DeleteItem(id)
+	// 		}
+	// 		time.Sleep(time.Millisecond * 150)
+	// 	}
+	// }(t.channel)
+
+	// go func(q chan bool, ch *amqp.Channel, c *amqp.Connection) {
+	// 	for {
+	// 		if ch.IsClosed() {
+	// 			q <- true
+	// 			return
+	// 		}
+	// 		select {
+	// 		case <-q:
+	// 			ch.Close()
+	// 			c.Close()
+	// 			return
+	// 		default:
+	// 			{
+
+	// 				time.Sleep(time.Millisecond * 150)
+	// 			}
+	// 		}
+	// 	}
+	// }(t.quit, ch, conn)
+
 	return nil
+}
+
+func (t *RabbitTransportClient) Close() {
+	if (t.channel != nil) && (!t.channel.IsClosed()) {
+		t.channel.Close()
+	}
+	if (t.connection != nil) && (!t.connection.IsClosed()) {
+		t.connection.Close()
+	}
+	//t.quit <- true
+
 }
