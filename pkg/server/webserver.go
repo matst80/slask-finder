@@ -13,17 +13,13 @@ import (
 )
 
 type WebServer struct {
-	Index       *index.Index
-	Db          *persistance.Persistance
-	DefaultSort *facet.SortIndex
-	FieldSort   *facet.SortIndex
-}
-
-func MakeWebServer(db *persistance.Persistance, index *index.Index) *WebServer {
-	return &WebServer{
-		Index: index,
-		Db:    db,
-	}
+	Index            *index.Index
+	Db               *persistance.Persistance
+	DefaultSort      *facet.SortIndex
+	FieldSort        *facet.SortIndex
+	FacetLimit       int
+	SearchFacetLimit int
+	ListenAddress    string
 }
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +41,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.DefaultSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		if totalHits > 5000 {
+		if totalHits > ws.FacetLimit {
 			facetsChan <- ws.Index.DefaultFacets
 		} else {
 			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
@@ -122,7 +118,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
 	go func() {
-		if len(searchResults) > 1500 {
+		if len(searchResults) > ws.SearchFacetLimit {
 			facetsChan <- index.Facets{}
 		} else {
 			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
@@ -169,5 +165,5 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 		srv.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 		srv.HandleFunc("/debug/pprof/trace", pprof.Trace)
 	}
-	return http.ListenAndServe(":8080", srv)
+	return http.ListenAndServe(ws.ListenAddress, srv)
 }

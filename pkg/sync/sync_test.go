@@ -1,164 +1,111 @@
 package sync
 
 import (
-	"fmt"
 	"log"
-	"net"
 	"testing"
+	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 )
 
-type BaseClient struct {
-	Server *BaseServer
-	Index  *index.Index
+var rabbitConfig = RabbitConfig{
+	ItemChangedTopic: "item_changed",
+	ItemAddedTopic:   "item_added",
+	ItemDeletedTopic: "item_deleted",
+	Url:              "amqp://admin:12bananer@localhost:5672/",
 }
 
-type BaseServer struct {
-	Clients []*BaseClient
-}
-
-type UdpServer struct {
-	Url  string
-	conn *net.UDPConn
-	addr *net.UDPAddr
-}
-
-func (s *UdpServer) Stop() error {
+func createTopic(ch *amqp.Channel, topic string) error {
+	err := ch.ExchangeDeclare(
+		topic,
+		"topic", // type
+		true,    // durable
+		false,   // auto-deleted
+		false,   // internal
+		false,   // no-wait
+		nil,     // arguments
+	)
+	if err != nil {
+		return err
+	}
+	log.Printf("Declared queue %s", topic)
 	return nil
 }
 
-func (s *UdpServer) Send(data []byte) error {
-	if s.conn == nil {
-		return fmt.Errorf("Connection not established")
-	}
-	_, err := s.conn.WriteToUDP([]byte("Hello UDP Client\n"), s.addr)
-	return err
-}
-
-func (s *UdpServer) Start() error {
-	udpAddr, err := net.ResolveUDPAddr("udp", s.Url)
+func TestDeclareTopicsAndExchange(t *testing.T) {
+	conn, err := amqp.Dial(rabbitConfig.Url)
 	if err != nil {
-		return err
+		t.Error(err)
 	}
-	conn, err := net.ListenUDP("udp", udpAddr)
+
+	ch, err := conn.Channel()
 	if err != nil {
-		return err
+		t.Error(err)
 	}
-	for {
-		var buf [512]byte
-		_, addr, err := conn.ReadFromUDP(buf[0:])
-		s.addr = addr
-		if err != nil {
-			fmt.Println(err)
-			return err
-		}
 
-		fmt.Print("> ", string(buf[0:]))
+	// err = ch.ExchangeDeclare(rabbitConfig.ExchangeName, "topic", true, false, false, false, nil)
+	// if err != nil {
+	// 	t.Error(err)
+	// }
 
-		// Write back the message over UPD
-
+	if err = createTopic(ch, rabbitConfig.ItemAddedTopic); err != nil {
+		t.Error(err)
+	}
+	if err = createTopic(ch, rabbitConfig.ItemChangedTopic); err != nil {
+		t.Error(err)
+	}
+	if err = createTopic(ch, rabbitConfig.ItemDeletedTopic); err != nil {
+		t.Error(err)
 	}
 }
 
-type UdpClientToServerConnection struct {
-	Url             string
-	conn            *net.UDPConn
-	DeleteChan      chan uint
-	ItemChangedChan chan *index.DataItem
-}
-
-func (c *UdpClientToServerConnection) Connect() error {
-
-	addr, err := net.ResolveUDPAddr("udp", c.Url)
+func TestSendChanges(t *testing.T) {
+	masterTransport := RabbitTransportMaster{
+		RabbitConfig: rabbitConfig,
+	}
+	err := masterTransport.Connect()
 	if err != nil {
-		return err
+		t.Error(err)
 	}
+	err = masterTransport.SendItemAdded(&index.DataItem{
+		BaseItem: index.BaseItem{
+			Id:    3,
+			Title: "Test",
+		},
+		Fields: map[uint]string{
+			1: "Test",
+		},
+	})
 
-	conn, err := net.DialUDP("udp", nil, addr)
 	if err != nil {
-		return err
+		t.Error(err)
 	}
-	written, err := conn.Write([]byte("HELLO"[0:]))
-	if err != nil {
-		return err
-	}
-	log.Printf("Written %v bytes", written)
-	c.conn = conn
-	go func() {
-		bytes := make([]byte, 1024)
-		for {
-			len, err := c.conn.Read(bytes)
-			if err != nil {
-				log.Printf("Error reading from connection %v", err)
-			}
-			log.Printf("Received %v", string(bytes[:len]))
-		}
-	}()
-	return nil
-}
-
-func (c *UdpClientToServerConnection) Send(data []byte) error {
-	_, err := c.conn.Write(data)
-	return err
-}
-
-func (c *UdpClientToServerConnection) Close() error {
-	return c.conn.Close()
-}
-
-func NewUdpConnection(url string) *UdpClientToServerConnection {
-	return &UdpClientToServerConnection{
-		Url: url,
-	}
-}
-
-func NewBaseServer() *BaseServer {
-	return &BaseServer{
-		Clients: []*BaseClient{},
-	}
-}
-
-func (s *BaseServer) RegisterClient(client *BaseClient) {
-	s.Clients = append(s.Clients, client)
-}
-
-func (s *BaseServer) ItemChanged(item *index.DataItem) {
-	for _, client := range s.Clients {
-		client.UpsertItem(item)
-	}
-}
-
-func (s *BaseServer) ItemDeleted(item *index.DataItem) {
-	for _, client := range s.Clients {
-		client.DeleteItem(item.Id)
-	}
-}
-
-func (s *BaseServer) ItemAdded(item *index.DataItem) {
-	for _, client := range s.Clients {
-		client.UpsertItem(item)
-	}
-}
-
-func (c *BaseClient) UpsertItem(item *index.DataItem) {
-	c.Index.UpsertItem(item)
-}
-
-func (c *BaseClient) DeleteItem(id uint) {
-	c.Index.DeleteItem(id)
 }
 
 func TestSync(t *testing.T) {
-	server := NewBaseServer()
+	masterTransport := RabbitTransportMaster{
+		RabbitConfig: rabbitConfig,
+	}
 	index1 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
-	index2 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
-	client1 := &BaseClient{Server: server, Index: index1}
-	client2 := &BaseClient{Server: server, Index: index2}
 
-	server.RegisterClient(client1)
-	server.RegisterClient(client2)
+	clientTransport1 := RabbitTransportClient{
+		RabbitConfig: rabbitConfig,
+	}
+
+	err := masterTransport.Connect()
+	if err != nil {
+		t.Error(err)
+	}
+	err = clientTransport1.Connect(index1)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
+
+	defer masterTransport.Close()
+	defer clientTransport1.Close()
 
 	item := &index.DataItem{
 		BaseItem: index.BaseItem{
@@ -170,35 +117,41 @@ func TestSync(t *testing.T) {
 		},
 	}
 
-	server.ItemAdded(item)
+	err = masterTransport.SendItemAdded(item)
 
-	if _, ok := client1.Index.Items[1]; !ok {
-		t.Error("Item not added to client 1")
+	if err != nil {
+		t.Error(err)
 	}
+	time.Sleep(time.Second)
 
-	if _, ok := client2.Index.Items[1]; !ok {
-		t.Error("Item not added to client 2")
+	if _, ok := index1.Items[1]; !ok {
+		t.Error("Item not added to client 1")
 	}
 
 	item.Fields[1] = "Test2"
 
-	server.ItemChanged(item)
+	err = masterTransport.SendItemChanged(item)
+	if err != nil {
+		t.Error(err)
+	}
+	time.Sleep(time.Second)
 
-	if *client1.Index.Items[1].Fields[1].Value != "Test2" {
+	firstItem1, ok1 := index1.Items[1]
+
+	if !ok1 {
+		t.Error("Item not updated on client")
+		return
+	}
+
+	if *firstItem1.Fields[1].Value != "Test2" {
 		t.Error("Item not updated on client 1")
 	}
 
-	if *client2.Index.Items[1].Fields[1].Value != "Test2" {
-		t.Error("Item not updated on client 2")
-	}
+	masterTransport.SendItemDeleted(item.Id)
+	time.Sleep(time.Second)
 
-	server.ItemDeleted(item)
-
-	if _, ok := client1.Index.Items[1]; ok {
+	if _, ok := index1.Items[1]; ok {
 		t.Error("Item not deleted from client 1")
 	}
 
-	if _, ok := client2.Index.Items[1]; ok {
-		t.Error("Item not deleted from client 2")
-	}
 }
