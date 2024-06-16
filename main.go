@@ -23,9 +23,7 @@ var rabbitConfig = sync.RabbitConfig{
 	ItemDeletedTopic: "item_deleted",
 	Url:              rabbitUrl,
 }
-var config = Config{
-	IsMaster: false,
-}
+
 var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
 var idx = index.NewIndex(freetext_search)
@@ -81,7 +79,7 @@ func Init() {
 				masterTransport.Connect()
 				idx.ChangeHandler = &RabbitMasterChangeHandler{}
 			} else {
-				log.Println("Starting as client")
+				log.Printf("Starting as client: %s", clientName)
 				clientTransport := sync.RabbitTransportClient{
 					ClientName:   clientName,
 					RabbitConfig: rabbitConfig,
