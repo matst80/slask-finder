@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"os"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -13,15 +14,17 @@ import (
 )
 
 var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
+var rabbitUrl = os.Getenv("RABBIT_URL")
+var clientName = os.Getenv("NODE_NAME")
 
 var rabbitConfig = sync.RabbitConfig{
 	ItemChangedTopic: "item_changed",
 	ItemAddedTopic:   "item_added",
 	ItemDeletedTopic: "item_deleted",
-	Url:              "amqp://admin:12bananer@localhost:5672/",
+	Url:              rabbitUrl,
 }
 var config = Config{
-	IsMaster: true,
+	IsMaster: false,
 }
 var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
@@ -72,9 +75,21 @@ func Init() {
 
 	go func() {
 		err := db.LoadIndex(idx)
-		if config.IsMaster {
-			masterTransport.Connect()
-			idx.ChangeHandler = &RabbitMasterChangeHandler{}
+		if rabbitUrl != "" {
+			if clientName == "" {
+				log.Println("Starting as master")
+				masterTransport.Connect()
+				idx.ChangeHandler = &RabbitMasterChangeHandler{}
+			} else {
+				log.Println("Starting as client")
+				clientTransport := sync.RabbitTransportClient{
+					ClientName:   clientName,
+					RabbitConfig: rabbitConfig,
+				}
+				clientTransport.Connect(idx)
+			}
+		} else {
+			log.Println("Starting as standalone")
 		}
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
