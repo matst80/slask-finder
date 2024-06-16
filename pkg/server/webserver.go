@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
@@ -125,9 +124,10 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	facetsChan := make(chan index.Facets)
 	defer close(itemsChan)
 	defer close(facetsChan)
-	query := r.URL.Query().Get("q")
-	ps := r.URL.Query().Get("size")
-	pg := r.URL.Query().Get("p")
+	qs := r.URL.Query()
+	query := qs.Get("q")
+	ps := qs.Get("size")
+	pg := qs.Get("p")
 
 	pageSize, sizeErr := strconv.Atoi(ps)
 	if sizeErr != nil {
@@ -138,7 +138,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		page = 0
 	}
 
-	log.Printf("Query: %v", query)
+	//	log.Printf("Query: %v", query)
 	searchResults := ws.Index.Search.Search(query)
 
 	res := searchResults.ToResultWithSort()

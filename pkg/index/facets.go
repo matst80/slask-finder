@@ -68,6 +68,22 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	numberFields := map[uint]*NumberResult[float64]{}
 	intFields := map[uint]*NumberResult[int]{}
 
+	ignoredKeyFields := map[uint]struct{}{}
+	ignoredDecimalFields := map[uint]struct{}{}
+	ignoredIntFields := map[uint]struct{}{}
+
+	for _, filter := range filters.StringFilter {
+		ignoredKeyFields[filter.Id] = struct{}{}
+	}
+
+	for _, filter := range filters.NumberFilter {
+		ignoredDecimalFields[filter.Id] = struct{}{}
+	}
+
+	for _, filter := range filters.IntegerFilter {
+		ignoredIntFields[filter.Id] = struct{}{}
+	}
+
 	for id := range *ids {
 
 		item, ok := i.Items[id]
@@ -76,6 +92,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 
 		for fieldId, field := range item.Fields {
+			if _, ok := ignoredKeyFields[fieldId]; ok {
+				continue
+			}
 			if f, ok := fields[fieldId]; ok {
 				f.AddValue(field.Value) // TODO optimize
 			} else {
@@ -90,6 +109,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 
 		for key, field := range item.DecimalFields {
+			if _, ok := ignoredDecimalFields[key]; ok {
+				continue
+			}
 			if f, ok := numberFields[key]; ok {
 				f.AddValue(field.Value)
 			} else {
@@ -102,6 +124,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			}
 		}
 		for key, field := range item.IntegerFields {
+			if _, ok := ignoredIntFields[key]; ok {
+				continue
+			}
 			if f, ok := intFields[key]; ok {
 				f.AddValue(field.Value)
 			} else {

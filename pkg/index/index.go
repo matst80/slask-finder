@@ -66,9 +66,9 @@ func (i *Index) addItemValues(item DataItem) {
 		if value == "" {
 			continue
 		}
-		v := value
+
 		if f, ok := i.KeyFacets[key]; ok {
-			f.AddValueLink(v, item.Id)
+			f.AddValueLink(value, item.Id)
 		}
 	}
 	for key, value := range item.DecimalFields {
