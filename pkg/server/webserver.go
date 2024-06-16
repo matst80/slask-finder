@@ -50,6 +50,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
 
@@ -90,6 +91,34 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+const Origin = "*"
+
+type SuggestResult struct {
+	Word string `json:"match"`
+	Hits int    `json:"hits"`
+}
+
+func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	suggestions := ws.Index.AutoSuggest.FindMatches(query)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusOK)
+	result := make([]SuggestResult, len(suggestions))
+	for i, s := range suggestions {
+		result[i] = SuggestResult{
+			Word: s.Word,
+			Hits: len(*s.Ids),
+		}
+	}
+	err := json.NewEncoder(w).Encode(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
 	itemsChan := make(chan []index.ResultItem)
@@ -126,6 +155,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
 
@@ -154,7 +184,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	})
 
 	srv.HandleFunc("/filter", ws.Search)
-
+	srv.HandleFunc("/suggest", ws.Suggest)
 	srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/save", ws.Save)

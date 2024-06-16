@@ -27,18 +27,20 @@ type Index struct {
 	DefaultFacets Facets
 	Items         map[uint]Item
 	AllItems      facet.IdList
+	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
 	Search        *search.FreeTextIndex
 }
 
-func NewIndex(search *search.FreeTextIndex) *Index {
+func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
 		KeyFacets:     make(map[uint]*KeyFacet),
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
 		Items:         make(map[uint]Item),
 		AllItems:      facet.IdList{},
-		Search:        search,
+		AutoSuggest:   AutoSuggest{Trie: search.NewTrie()},
+		Search:        freeText,
 	}
 }
 
@@ -134,6 +136,8 @@ func (i *Index) UpsertItem(item *DataItem) {
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
+	} else {
+		i.AutoSuggest.InsertItem(item)
 	}
 	i.AllItems[item.Id] = struct{}{}
 	i.addItemValues(*item)

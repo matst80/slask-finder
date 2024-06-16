@@ -4,16 +4,16 @@ import "testing"
 
 func TestTrie(t *testing.T) {
 	trie := NewTrie()
-	trie.Insert("hello")
-	trie.Insert("world")
-	trie.Insert("hell")
-	trie.Insert("cat")
-	trie.Insert("dog")
-	trie.Insert("doggo")
-	trie.Insert("doggy")
-	trie.Insert("dogger")
-	trie.Insert("dogging")
-	trie.Insert("dogged")
+	trie.Insert("hello", 1)
+	trie.Insert("world", 1)
+	trie.Insert("hell", 2)
+	trie.Insert("cat", 2)
+	trie.Insert("dog", 3)
+	trie.Insert("doggo", 4)
+	trie.Insert("doggy", 1)
+	trie.Insert("dogger", 2)
+	trie.Insert("dogging", 4)
+	trie.Insert("dogged", 2)
 
 	if !trie.Search("hello") {
 		t.Error("Expected to find hello")
