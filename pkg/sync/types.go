@@ -8,6 +8,13 @@ type BaseClient struct {
 	Transport *TransportClient
 }
 
+type RabbitConfig struct {
+	ItemChangedTopic string
+	ItemAddedTopic   string
+	ItemDeletedTopic string
+	Url              string
+}
+
 func MakeBaseClient(index *index.Index, transport TransportClient) *BaseClient {
 	return &BaseClient{
 		Index:     index,

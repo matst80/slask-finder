@@ -7,27 +7,10 @@ import (
 	"tornberg.me/facet-search/pkg/index"
 )
 
-type RabbitConfig struct {
-	ItemChangedTopic string
-	ItemAddedTopic   string
-	ItemDeletedTopic string
-	Url              string
-}
-
 type RabbitTransportMaster struct {
 	RabbitConfig
 	connection *amqp.Connection
 	channel    *amqp.Channel
-}
-
-type RabbitTransportClient struct {
-	RabbitConfig
-
-	ClientName string
-	handler    index.UpdateHandler
-	connection *amqp.Connection
-	channel    *amqp.Channel
-	quit       chan bool
 }
 
 func (t *RabbitTransportMaster) Connect() error {

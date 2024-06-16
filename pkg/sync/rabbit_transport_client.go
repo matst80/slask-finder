@@ -7,6 +7,16 @@ import (
 	"tornberg.me/facet-search/pkg/index"
 )
 
+type RabbitTransportClient struct {
+	RabbitConfig
+
+	ClientName string
+	handler    index.UpdateHandler
+	connection *amqp.Connection
+	channel    *amqp.Channel
+	quit       chan bool
+}
+
 func (t *RabbitTransportClient) declareBindAndConsume(topic string) (<-chan amqp.Delivery, error) {
 	q, err := t.channel.QueueDeclare(
 		"",    // name
