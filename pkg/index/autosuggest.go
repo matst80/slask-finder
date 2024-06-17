@@ -16,7 +16,9 @@ func (a *AutoSuggest) Insert(word string, id uint) {
 
 func (a *AutoSuggest) InsertItem(item *DataItem) {
 	for _, word := range strings.Split(strings.ToLower(item.Title), " ") {
-		a.Trie.Insert(word, item.Id)
+		if len(word) > 2 {
+			a.Trie.Insert(word, item.Id)
+		}
 	}
 }
 

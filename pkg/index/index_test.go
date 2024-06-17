@@ -41,12 +41,12 @@ func TestIndexMatch(t *testing.T) {
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		Fields: map[uint]string{
-			1: "test",
-			2: "hej",
+		Fields: &[]KeyFieldValue{
+			{Value: "test", Id: 1},
+			{Value: "hej", Id: 2},
 		},
-		DecimalFields: map[uint]float64{
-			3: 1,
+		DecimalFields: &[]NumberFieldValue[float64]{
+			{Value: 1, Id: 3},
 		},
 	}
 	i.UpsertItem(item)
@@ -75,34 +75,26 @@ func CreateIndex() *Index {
 		BaseItem: BaseItem{
 			Id:    1,
 			Title: "item1",
-			Props: map[string]ItemProp{
-				"test":  "test",
-				"slask": 1,
-			},
 		},
-		Fields: map[uint]string{
-			1: "test",
-			2: "hej",
+		Fields: &[]KeyFieldValue{
+			{Value: "test", Id: 1},
+			{Value: "hej", Id: 2},
 		},
-		DecimalFields: map[uint]float64{
-			3: 1,
+		DecimalFields: &[]NumberFieldValue[float64]{
+			{Value: 1, Id: 3},
 		},
 	})
 	i.UpsertItem(&DataItem{
 		BaseItem: BaseItem{
 			Id:    2,
 			Title: "item2",
-			Props: map[string]ItemProp{
-				"hej": "hej",
-				"ja":  true,
-			},
 		},
-		Fields: map[uint]string{
-			1: "test",
-			2: "slask",
+		Fields: &[]KeyFieldValue{
+			{Value: "test", Id: 1},
+			{Value: "slask", Id: 2},
 		},
-		DecimalFields: map[uint]float64{
-			3: 1,
+		DecimalFields: &[]NumberFieldValue[float64]{
+			{Value: 2, Id: 3},
 		},
 	})
 	return i
@@ -193,20 +185,20 @@ func TestUpdateItem(t *testing.T) {
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		Fields: map[uint]string{
-			1: "test",
-			2: "hej",
+		Fields: &[]KeyFieldValue{
+			{Value: "test", Id: 1},
+			{Value: "hej", Id: 2},
 		},
-		DecimalFields: map[uint]float64{
-			3: 999.0,
+		DecimalFields: &[]NumberFieldValue[float64]{
+			{Value: 999.0, Id: 3},
 		},
 	}
 	i.UpsertItem(item)
-	if i.Items[1].Fields[1] != "test" {
-		t.Errorf("Expected field 1 to be test but got %v", i.Items[1].Fields[1])
+	if (*i.Items[1].Fields)[0].Value != "test" {
+		t.Errorf("Expected field 1 to be test")
 	}
-	if i.Items[1].DecimalFields[3] != 999 {
-		t.Errorf("Expected field 3 to be 999 but got %v", i.Items[1].DecimalFields[3])
+	if (*i.Items[1].DecimalFields)[0].Value != 999 {
+		t.Errorf("Expected field 3 to be 999")
 	}
 
 	search := Filters{

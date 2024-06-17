@@ -73,7 +73,7 @@ func Init() {
 
 	go func() {
 		err := db.LoadIndex(idx)
-		if rabbitUrl != "" {
+		if rabbitUrl != "" && err == nil {
 			if clientName == "" {
 				log.Println("Starting as master")
 				masterTransport.Connect()

@@ -4,21 +4,49 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-type ItemProp interface{}
+type EnergyRating struct {
+	Value string `json:"value"`
+	Min   string `json:"min"`
+	Max   string `json:"max"`
+}
+
+type ItemProp struct {
+	Url             string        `json:"url"`
+	Tree            []string      `json:"tree"`
+	ReleaseDate     string        `json:"releaseDate,omitempty"`
+	SaleStatus      string        `json:"saleStatus"`
+	PresaleDate     string        `json:"presaleDate,omitempty"`
+	Restock         string        `json:"restock,omitempty"`
+	AdvertisingText string        `json:"advertisingText,omitempty"`
+	Img             string        `json:"img,omitempty"`
+	BadgeUrl        string        `json:"badgeUrl,omitempty"`
+	EnergyRating    *EnergyRating `json:"energyRating,omitempty"`
+	BulletPoints    []string      `json:"bp,omitempty"`
+}
 
 type BaseItem struct {
-	Id    uint                `json:"id"`
-	Sku   string              `json:"sku"`
-	Title string              `json:"title"`
-	Props map[string]ItemProp `json:"props"`
+	Id    uint      `json:"id"`
+	Sku   string    `json:"sku"`
+	Title string    `json:"title"`
+	Props *ItemProp `json:"props"`
+}
+
+type KeyFieldValue struct {
+	Value string `json:"value"`
+	Id    uint   `json:"id"`
+}
+
+type NumberFieldValue[K float64 | int] struct {
+	Value K    `json:"value"`
+	Id    uint `json:"id"`
 }
 
 type DataItem struct {
 	BaseItem
-	Fields        map[uint]string  `json:"values"`
-	DecimalFields map[uint]float64 `json:"numberValues"`
-	IntegerFields map[uint]int     `json:"integerValues"`
-	fieldValues   *FieldValues
+	Fields        *[]KeyFieldValue             `json:"values"`
+	DecimalFields *[]NumberFieldValue[float64] `json:"numberValues"`
+	IntegerFields *[]NumberFieldValue[int]     `json:"integerValues"`
+	//fieldValues   *FieldValues
 }
 
 type ItemKeyField struct {
@@ -45,20 +73,26 @@ type ResultItem struct {
 }
 
 func (item *DataItem) getFieldValues() *FieldValues {
-	if item.fieldValues == nil {
+	//if item.fieldValues == nil {
 
-		fields := FieldValues{}
-		for key, value := range item.Fields {
-			fields[key] = value
+	fields := FieldValues{}
+	if item.Fields != nil {
+		for _, value := range *item.Fields {
+			fields[value.Id] = value.Value
 		}
-		for key, value := range item.DecimalFields {
-			fields[key] = value
-		}
-		for key, value := range item.IntegerFields {
-			fields[key] = value
-		}
-		item.fieldValues = &fields
 	}
-	return item.fieldValues
+	if item.DecimalFields != nil {
+		for _, value := range *item.DecimalFields {
+			fields[value.Id] = value.Value
+		}
+	}
+	if item.IntegerFields != nil {
+		for _, value := range *item.IntegerFields {
+			fields[value.Id] = value.Value
+		}
+	}
+	return &fields
+	//}
+	//return item.fieldValues
 
 }

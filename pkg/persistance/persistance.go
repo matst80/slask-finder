@@ -6,7 +6,6 @@ import (
 	"os"
 	"runtime"
 
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 )
 
@@ -25,7 +24,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	if err != nil {
 		return err
 	}
-
+	defer runtime.GC()
 	defer file.Close()
 
 	zipReader, err := gzip.NewReader(file)
@@ -41,10 +40,10 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 			idx.UpsertItem(v)
 		}
 	}
+	enc = nil
 	if err.Error() == "EOF" {
 		return nil
 	}
-	enc = nil
 
 	return err
 }
@@ -56,11 +55,11 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		return err
 	}
 
-	fields := make(map[uint]facet.KeyField)
+	// fields := make(map[uint]facet.KeyField)
 
-	for _, fld := range idx.KeyFacets {
-		fields[fld.Id] = *fld
-	}
+	// for _, fld := range idx.KeyFacets {
+	// 	fields[fld.Id] = *fld
+	// }
 	defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)

@@ -84,57 +84,64 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			ignoredIntFields[filter.Id] = struct{}{}
 		}
 	}
+	// if (len(ignoredKeyFields) + len(ignoredDecimalFields) + len(ignoredIntFields)) == 0 {
+	// 	return i.DefaultFacets
+	// }
 	for id := range *ids {
 
 		item, ok := i.Items[id]
 		if !ok {
 			continue
 		}
+		if item.Fields != nil {
+			for _, field := range *item.Fields {
+				if _, ok := ignoredKeyFields[field.Id]; ok {
+					continue
+				}
+				if f, ok := fields[field.Id]; ok {
+					f.AddValue(&field.Value) // TODO optimize
+				} else {
+					count++
 
-		for fieldId, value := range item.Fields {
-			if _, ok := ignoredKeyFields[fieldId]; ok {
-				continue
-			}
-			if f, ok := fields[fieldId]; ok {
-				f.AddValue(&value) // TODO optimize
-			} else {
-				count++
-
-				fields[fieldId] = &KeyResult{
-					values: map[string]int{
-						value: 1,
-					},
+					fields[field.Id] = &KeyResult{
+						values: map[string]int{
+							field.Value: 1,
+						},
+					}
 				}
 			}
 		}
-
-		for key, field := range item.DecimalFields {
-			if _, ok := ignoredDecimalFields[key]; ok {
-				continue
-			}
-			if f, ok := numberFields[key]; ok {
-				f.AddValue(field)
-			} else {
-				count++
-				numberFields[key] = &NumberResult[float64]{
-					Count: 1,
-					Min:   field,
-					Max:   field,
+		if item.DecimalFields != nil {
+			for _, field := range *item.DecimalFields {
+				if _, ok := ignoredDecimalFields[field.Id]; ok {
+					continue
+				}
+				if f, ok := numberFields[field.Id]; ok {
+					f.AddValue(field.Value)
+				} else {
+					count++
+					numberFields[field.Id] = &NumberResult[float64]{
+						Count: 1,
+						Min:   field.Value,
+						Max:   field.Value,
+					}
 				}
 			}
 		}
-		for key, field := range item.IntegerFields {
-			if _, ok := ignoredIntFields[key]; ok {
-				continue
-			}
-			if f, ok := intFields[key]; ok {
-				f.AddValue(field)
-			} else {
-				count++
-				intFields[key] = &NumberResult[int]{
-					Count: 1,
-					Min:   field,
-					Max:   field,
+		if item.IntegerFields != nil {
+			for _, field := range *item.IntegerFields {
+				if _, ok := ignoredIntFields[field.Id]; ok {
+					continue
+				}
+				if f, ok := intFields[field.Id]; ok {
+					f.AddValue(field.Value)
+				} else {
+					count++
+					intFields[field.Id] = &NumberResult[int]{
+						Count: 1,
+						Min:   field.Value,
+						Max:   field.Value,
+					}
 				}
 			}
 		}

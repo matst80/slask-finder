@@ -62,51 +62,55 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 
 func (i *Index) addItemValues(item *DataItem) {
 
-	for key, value := range item.Fields {
-		if value == "" || len(value) > 64 {
-			continue
-		}
+	if item.Fields != nil {
+		for _, field := range *item.Fields {
+			if field.Value == "" || len(field.Value) > 64 {
+				continue
+			}
 
-		if f, ok := i.KeyFacets[key]; ok {
-			if !f.BaseField.HideFacet {
-				f.AddValueLink(value, item.Id)
+			if f, ok := i.KeyFacets[field.Id]; ok {
+				if !f.BaseField.HideFacet {
+					f.AddValueLink(field.Value, item.Id)
+				}
 			}
 		}
 	}
-	for key, value := range item.DecimalFields {
-		if value == 0.0 {
-			continue
-		}
-		if f, ok := i.DecimalFacets[key]; ok {
-			f.AddValueLink(value, item.Id)
-		}
-	}
-
-	for key, value := range item.IntegerFields {
-		if value == 0 {
-			continue
-		}
-		if f, ok := i.IntFacets[key]; ok {
-			f.AddValueLink(value, item.Id)
+	if item.DecimalFields != nil {
+		for _, field := range *item.DecimalFields {
+			if field.Value == 0.0 {
+				continue
+			}
+			if f, ok := i.DecimalFacets[field.Id]; ok {
+				f.AddValueLink(field.Value, item.Id)
+			}
 		}
 	}
-
+	if item.IntegerFields != nil {
+		for _, field := range *item.IntegerFields {
+			if field.Value == 0 {
+				continue
+			}
+			if f, ok := i.IntFacets[field.Id]; ok {
+				f.AddValueLink(field.Value, item.Id)
+			}
+		}
+	}
 }
 
 func (i *Index) removeItemValues(item *DataItem) {
-	for key, value := range item.Fields {
-		if f, ok := i.KeyFacets[key]; ok {
-			f.RemoveValueLink(value, item.Id)
+	for _, field := range *item.Fields {
+		if f, ok := i.KeyFacets[field.Id]; ok {
+			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
-	for key, value := range item.DecimalFields {
-		if f, ok := i.DecimalFacets[key]; ok {
-			f.RemoveValueLink(value, item.Id)
+	for _, field := range *item.DecimalFields {
+		if f, ok := i.DecimalFacets[field.Id]; ok {
+			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
-	for key, value := range item.IntegerFields {
-		if f, ok := i.IntFacets[key]; ok {
-			f.RemoveValueLink(value, item.Id)
+	for _, field := range *item.IntegerFields {
+		if f, ok := i.IntFacets[field.Id]; ok {
+			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
 }

@@ -74,8 +74,8 @@ func TestSendChanges(t *testing.T) {
 			Id:    3,
 			Title: "Test",
 		},
-		Fields: map[uint]string{
-			1: "Test",
+		Fields: []index.KeyFieldValue{
+			{Value: "Test", Id: 1},
 		},
 	})
 
@@ -112,8 +112,8 @@ func TestSync(t *testing.T) {
 			Id:    1,
 			Title: "Test",
 		},
-		Fields: map[uint]string{
-			1: "Test",
+		Fields: []index.KeyFieldValue{
+			{Value: "Test", Id: 1},
 		},
 	}
 
@@ -128,7 +128,7 @@ func TestSync(t *testing.T) {
 		t.Error("Item not added to client 1")
 	}
 
-	item.Fields[1] = "Test2"
+	item.Fields[0].Value = "Test2"
 
 	err = masterTransport.SendItemChanged(item)
 	if err != nil {
@@ -143,7 +143,7 @@ func TestSync(t *testing.T) {
 		return
 	}
 
-	if firstItem1.Fields[1] != "Test2" {
+	if firstItem1.Fields[0].Value != "Test2" {
 		t.Error("Item not updated on client 1")
 	}
 
