@@ -63,7 +63,7 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 func (i *Index) addItemValues(item *DataItem) {
 
 	for key, value := range item.Fields {
-		if value == "" {
+		if value == "" || len(value) > 64 {
 			continue
 		}
 

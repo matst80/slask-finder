@@ -20,7 +20,7 @@ func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
 
 	minBucket := GetBucket(max(minValue, f.Min))
 	maxBucket := GetBucket(min(maxValue, f.Max))
-	found := make(IdList)
+	found := make(IdList, f.Count)
 
 	for v, ids := range f.buckets[minBucket].values {
 		if v >= minValue && v <= maxValue {
