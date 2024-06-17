@@ -1591,7 +1591,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&facet.BaseField{Id: 32022, Name: "Drill diameter (mm)"})
 	idx.AddDecimalField(&facet.BaseField{Id: 32023, Name: "Skärmstorlek (tum)", Description: "Skärmens storlek i tum, mäts diagonalt hörn till hörn på skärmen."})
 	idx.AddKeyField(&facet.BaseField{Id: 32024, Name: "Skärmstorlek (tum)", Description: "Skärmens storlek i tum, mäts diagonalt hörn till hörn på skärmen."})
-	idx.AddKeyField(&facet.BaseField{Id: 32025, Name: "Höjd (cm)"})
+	idx.AddKeyField(&facet.BaseField{Id: 32025, Name: "Höjd (cm)", HideFacet: true})
 	idx.AddKeyField(&facet.BaseField{Id: 32027, Name: "Kräver montering"})
 	idx.AddKeyField(&facet.BaseField{Id: 32029, Name: "Specific use"})
 	idx.AddKeyField(&facet.BaseField{Id: 32031, Name: "Drivs av"})
