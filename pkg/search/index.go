@@ -33,6 +33,7 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 }
 
 func (i *FreeTextIndex) Search(query string) DocumentResult {
+
 	tokens := i.Tokenizer.Tokenize(query)
 	res := make(DocumentResult)
 

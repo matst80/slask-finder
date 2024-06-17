@@ -54,7 +54,7 @@ type Facets struct {
 	IntFields    []JsonNumberResult `json:"integerFields"`
 }
 
-func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
+func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sortIndex *facet.SortIndex) Facets {
 
 	if sortIndex == nil {
 		return Facets{
@@ -68,36 +68,44 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	numberFields := map[uint]*NumberResult[float64]{}
 	intFields := map[uint]*NumberResult[int]{}
 
-	ignoredKeyFields := map[uint]struct{}{}
-	ignoredDecimalFields := map[uint]struct{}{}
-	ignoredIntFields := map[uint]struct{}{}
-	if filters != nil {
-		for _, filter := range filters.StringFilter {
-			ignoredKeyFields[filter.Id] = struct{}{}
-		}
+	//ignoredKeyFields := map[uint]struct{}{}
 
-		for _, filter := range filters.NumberFilter {
-			ignoredDecimalFields[filter.Id] = struct{}{}
-		}
+	// if filters != nil {
+	// 	for _, filter := range filters.StringFilter {
+	// 		ignoredKeyFields[filter.Id] = struct{}{}
+	// 	}
 
-		for _, filter := range filters.IntegerFilter {
-			ignoredIntFields[filter.Id] = struct{}{}
-		}
-	}
+	// }
+
+	// if len(i.DefaultFacets.Fields) > 0 && len(*ids) > 65535 {
+	// 	for id, _ := range i.KeyFacets {
+	// 		ignoredKeyFields[id] = struct{}{}
+
+	// 	}
+	// 	for _, defaultField := range i.DefaultFacets.Fields[0:min(len(i.DefaultFacets.Fields), 10)] {
+	// 		delete(ignoredKeyFields, defaultField.Id)
+	// 	}
+
+	// }
 	// if (len(ignoredKeyFields) + len(ignoredDecimalFields) + len(ignoredIntFields)) == 0 {
 	// 	return i.DefaultFacets
 	// }
-	for id := range *ids {
+	for _, itemFields := range *ids {
 
-		item, ok := i.Items[id]
-		if !ok {
-			continue
-		}
-		if item.Fields != nil {
-			for _, field := range *item.Fields {
-				if _, ok := ignoredKeyFields[field.Id]; ok {
+		//item, ok := i.Items[id]
+		// if !ok {
+		// 	continue
+		// }
+		if itemFields.Fields != nil {
+			for _, field := range itemFields.Fields {
+				l := len(field.Value)
+				if l == 0 || l > 64 {
 					continue
 				}
+				// if _, ok := ignoredKeyFields[field.Id]; ok {
+				// 	continue
+				// }
+
 				if f, ok := fields[field.Id]; ok {
 					f.AddValue(&field.Value) // TODO optimize
 				} else {
@@ -111,11 +119,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				}
 			}
 		}
-		if item.DecimalFields != nil {
-			for _, field := range *item.DecimalFields {
-				if _, ok := ignoredDecimalFields[field.Id]; ok {
-					continue
-				}
+		if itemFields.DecimalFields != nil {
+			for _, field := range itemFields.DecimalFields {
+
 				if f, ok := numberFields[field.Id]; ok {
 					f.AddValue(field.Value)
 				} else {
@@ -128,11 +134,12 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				}
 			}
 		}
-		if item.IntegerFields != nil {
-			for _, field := range *item.IntegerFields {
-				if _, ok := ignoredIntFields[field.Id]; ok {
+		if itemFields.IntegerFields != nil {
+			for _, field := range itemFields.IntegerFields {
+				if field.Value == 0 || field.Value == -1 {
 					continue
 				}
+
 				if f, ok := intFields[field.Id]; ok {
 					f.AddValue(field.Value)
 				} else {

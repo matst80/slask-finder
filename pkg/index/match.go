@@ -26,9 +26,9 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer"`
 }
 
-func (i *Index) Match(search *Filters) *facet.IdList {
+func (i *Index) Match(search *Filters) *facet.MatchList {
 	len := 0
-	results := make(chan facet.IdList)
+	results := make(chan facet.MatchList)
 
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
 		results <- fld.Matches(field.Value)

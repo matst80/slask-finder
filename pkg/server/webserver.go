@@ -40,11 +40,11 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.DefaultSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		if totalHits > ws.FacetLimit {
-			facetsChan <- ws.Index.DefaultFacets
-		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
-		}
+		// if totalHits > ws.FacetLimit {
+		// 	facetsChan <- ws.Index.DefaultFacets
+		// } else {
+		facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+		//}
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -147,11 +147,11 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
 	go func() {
-		if len(searchResults) > ws.SearchFacetLimit {
-			facetsChan <- index.Facets{}
-		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
-		}
+		//if len(searchResults) > ws.SearchFacetLimit {
+		facetsChan <- index.Facets{}
+		// } else {
+		// 	facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
+		// }
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")

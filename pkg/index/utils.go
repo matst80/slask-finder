@@ -7,7 +7,7 @@ import (
 )
 
 func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
-	l := min(len(fields), 64)
+	l := min(len(fields), 32)
 	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {

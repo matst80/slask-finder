@@ -23,15 +23,15 @@ func (i IdList) Merge(other *IdList) {
 	maps.Copy(i, *other)
 }
 
-func MakeIntersectResult(r chan IdList, len int) *IdList {
+// func MakeIntersectResult(r chan IdList, len int) *IdList {
 
-	if len == 0 {
-		return &IdList{}
-	}
-	first := <-r
-	for i := 1; i < len; i++ {
-		first.Intersect(<-r)
-	}
-	close(r)
-	return &first
-}
+// 	if len == 0 {
+// 		return &IdList{}
+// 	}
+// 	first := <-r
+// 	for i := 1; i < len; i++ {
+// 		first.Intersect(<-r)
+// 	}
+// 	close(r)
+// 	return &first
+// }

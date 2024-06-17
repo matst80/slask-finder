@@ -15,7 +15,7 @@ func MakeSortFromNumberField(items map[uint]*index.DataItem, fieldId uint) facet
 	idx := 0
 	for _, item := range items {
 		v := 0
-		for _, f := range *item.IntegerFields {
+		for _, f := range item.IntegerFields {
 			if f.Id == fieldId {
 				v = f.Value
 				break
@@ -43,7 +43,7 @@ func MakeSortForFields() facet.SortIndex {
 		i++
 	}
 	for _, item := range idx.KeyFacets {
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
+		sortMap[i] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount() / (item.UniqueCount() + 1))}
 		i++
 	}
 	for _, item := range idx.IntFacets {

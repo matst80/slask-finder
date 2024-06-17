@@ -7,7 +7,7 @@ import (
 	"tornberg.me/facet-search/pkg/search"
 )
 
-func matchAll(list facet.IdList, ids ...uint) bool {
+func matchAll(list facet.MatchList, ids ...uint) bool {
 	for _, id := range ids {
 		if _, ok := list[id]; !ok {
 			return false
@@ -41,12 +41,14 @@ func TestIndexMatch(t *testing.T) {
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		Fields: &[]KeyFieldValue{
-			{Value: "test", Id: 1},
-			{Value: "hej", Id: 2},
-		},
-		DecimalFields: &[]NumberFieldValue[float64]{
-			{Value: 1, Id: 3},
+		ItemFields: facet.ItemFields{
+			Fields: []facet.KeyFieldValue{
+				{Value: "test", Id: 1},
+				{Value: "hej", Id: 2},
+			},
+			DecimalFields: []facet.NumberFieldValue[float64]{
+				{Value: 1, Id: 3},
+			},
 		},
 	}
 	i.UpsertItem(item)
@@ -76,12 +78,14 @@ func CreateIndex() *Index {
 			Id:    1,
 			Title: "item1",
 		},
-		Fields: &[]KeyFieldValue{
-			{Value: "test", Id: 1},
-			{Value: "hej", Id: 2},
-		},
-		DecimalFields: &[]NumberFieldValue[float64]{
-			{Value: 1, Id: 3},
+		ItemFields: facet.ItemFields{
+			Fields: []facet.KeyFieldValue{
+				{Value: "test", Id: 1},
+				{Value: "hej", Id: 2},
+			},
+			DecimalFields: []facet.NumberFieldValue[float64]{
+				{Value: 1, Id: 3},
+			},
 		},
 	})
 	i.UpsertItem(&DataItem{
@@ -89,12 +93,14 @@ func CreateIndex() *Index {
 			Id:    2,
 			Title: "item2",
 		},
-		Fields: &[]KeyFieldValue{
-			{Value: "test", Id: 1},
-			{Value: "slask", Id: 2},
-		},
-		DecimalFields: &[]NumberFieldValue[float64]{
-			{Value: 2, Id: 3},
+		ItemFields: facet.ItemFields{
+			Fields: []facet.KeyFieldValue{
+				{Value: "test", Id: 1},
+				{Value: "slask", Id: 2},
+			},
+			DecimalFields: []facet.NumberFieldValue[float64]{
+				{Value: 2, Id: 3},
+			},
 		},
 	})
 	return i
@@ -185,19 +191,21 @@ func TestUpdateItem(t *testing.T) {
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		Fields: &[]KeyFieldValue{
-			{Value: "test", Id: 1},
-			{Value: "hej", Id: 2},
-		},
-		DecimalFields: &[]NumberFieldValue[float64]{
-			{Value: 999.0, Id: 3},
+		ItemFields: facet.ItemFields{
+			Fields: []facet.KeyFieldValue{
+				{Value: "test", Id: 1},
+				{Value: "hej", Id: 2},
+			},
+			DecimalFields: []facet.NumberFieldValue[float64]{
+				{Value: 999.0, Id: 3},
+			},
 		},
 	}
 	i.UpsertItem(item)
-	if (*i.Items[1].Fields)[0].Value != "test" {
+	if i.Items[1].Fields[0].Value != "test" {
 		t.Errorf("Expected field 1 to be test")
 	}
-	if (*i.Items[1].DecimalFields)[0].Value != 999 {
+	if i.Items[1].DecimalFields[0].Value != 999 {
 		t.Errorf("Expected field 3 to be 999")
 	}
 

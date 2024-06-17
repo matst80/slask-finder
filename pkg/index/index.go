@@ -26,7 +26,7 @@ type Index struct {
 	IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
 	Items         map[uint]*DataItem
-	AllItems      facet.IdList
+	AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
 	Search        *search.FreeTextIndex
@@ -38,7 +38,7 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
 		Items:         make(map[uint]*DataItem),
-		AllItems:      facet.IdList{},
+		AllItems:      facet.MatchList{},
 		AutoSuggest:   AutoSuggest{Trie: search.NewTrie()},
 		Search:        freeText,
 	}
@@ -63,52 +63,52 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 func (i *Index) addItemValues(item *DataItem) {
 
 	if item.Fields != nil {
-		for _, field := range *item.Fields {
+		for _, field := range item.Fields {
 			if field.Value == "" || len(field.Value) > 64 {
 				continue
 			}
 
 			if f, ok := i.KeyFacets[field.Id]; ok {
-				if !f.BaseField.HideFacet {
-					f.AddValueLink(field.Value, item.Id)
-				}
+				//if !f.BaseField.HideFacet {
+				f.AddValueLink(field.Value, item.Id, &item.ItemFields)
+				//}
 			}
 		}
 	}
 	if item.DecimalFields != nil {
-		for _, field := range *item.DecimalFields {
+		for _, field := range item.DecimalFields {
 			if field.Value == 0.0 {
 				continue
 			}
 			if f, ok := i.DecimalFacets[field.Id]; ok {
-				f.AddValueLink(field.Value, item.Id)
+				f.AddValueLink(field.Value, item.Id, &item.ItemFields)
 			}
 		}
 	}
 	if item.IntegerFields != nil {
-		for _, field := range *item.IntegerFields {
+		for _, field := range item.IntegerFields {
 			if field.Value == 0 {
 				continue
 			}
 			if f, ok := i.IntFacets[field.Id]; ok {
-				f.AddValueLink(field.Value, item.Id)
+				f.AddValueLink(field.Value, item.Id, &item.ItemFields)
 			}
 		}
 	}
 }
 
 func (i *Index) removeItemValues(item *DataItem) {
-	for _, field := range *item.Fields {
+	for _, field := range item.Fields {
 		if f, ok := i.KeyFacets[field.Id]; ok {
 			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
-	for _, field := range *item.DecimalFields {
+	for _, field := range item.DecimalFields {
 		if f, ok := i.DecimalFacets[field.Id]; ok {
 			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
-	for _, field := range *item.IntegerFields {
+	for _, field := range item.IntegerFields {
 		if f, ok := i.IntFacets[field.Id]; ok {
 			f.RemoveValueLink(field.Value, item.Id)
 		}
@@ -122,7 +122,7 @@ func (i *Index) UpsertItem(item *DataItem) {
 	} else {
 		i.AutoSuggest.InsertItem(item)
 	}
-	i.AllItems[item.Id] = struct{}{}
+	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
 	i.Items[item.Id] = item

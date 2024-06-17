@@ -7,18 +7,18 @@ type NumberBucket struct {
 }
 
 type Bucket[V FieldNumberValue] struct {
-	values map[V]IdList
-	all    *IdList
+	values map[V]MatchList
+	all    *MatchList
 }
 
-func (b *Bucket[V]) AddValueLink(value V, id uint) {
+func (b *Bucket[V]) AddValueLink(value V, id uint, fields *ItemFields) {
 	idList, ok := b.values[value]
-	lst := IdList{id: struct{}{}}
+	lst := MatchList{id: fields}
 	if !ok {
 		b.values[value] = lst
 
 	} else {
-		idList[id] = struct{}{}
+		idList[id] = fields
 	}
 	maps.Copy(*b.all, lst)
 	//b.all.Merge(&lst)
@@ -33,16 +33,16 @@ func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
 	delete(*b.all, id)
 }
 
-func MakeBucket[V FieldNumberValue](value V, id uint) Bucket[V] {
+func MakeBucket[V FieldNumberValue](value V, id uint, fields *ItemFields) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]IdList{value: {id: struct{}{}}},
-		all:    &IdList{id: struct{}{}},
+		values: map[V]MatchList{value: {id: fields}},
+		all:    &MatchList{id: fields},
 	}
 }
 
-func MakeBucketList[V FieldNumberValue](value V, ids *IdList) Bucket[V] {
+func MakeBucketList[V FieldNumberValue](value V, ids *MatchList) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]IdList{value: *ids},
+		values: map[V]MatchList{value: *ids},
 		all:    ids,
 	}
 }

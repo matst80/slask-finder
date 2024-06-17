@@ -6,6 +6,7 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 )
@@ -74,8 +75,11 @@ func TestSendChanges(t *testing.T) {
 			Id:    3,
 			Title: "Test",
 		},
-		Fields: []index.KeyFieldValue{
-			{Value: "Test", Id: 1},
+		ItemFields: facet.ItemFields{
+
+			Fields: []facet.KeyFieldValue{
+				{Value: "Test", Id: 1},
+			},
 		},
 	})
 
@@ -112,8 +116,11 @@ func TestSync(t *testing.T) {
 			Id:    1,
 			Title: "Test",
 		},
-		Fields: []index.KeyFieldValue{
-			{Value: "Test", Id: 1},
+		ItemFields: facet.ItemFields{
+
+			Fields: []facet.KeyFieldValue{
+				{Value: "Test", Id: 1},
+			},
 		},
 	}
 
