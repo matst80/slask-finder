@@ -99,6 +99,7 @@ func Init() {
 			log.Println("Index loaded")
 			idx.CreateDefaultFacets(&fieldSort)
 			log.Println("Default facets created")
+
 		}
 
 	}()

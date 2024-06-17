@@ -202,10 +202,10 @@ func TestUpdateItem(t *testing.T) {
 		},
 	}
 	i.UpsertItem(item)
-	if *i.Items[1].Fields[1].Value != "test" {
+	if i.Items[1].Fields[1] != "test" {
 		t.Errorf("Expected field 1 to be test but got %v", i.Items[1].Fields[1])
 	}
-	if i.Items[1].DecimalFields[3].Value != 999 {
+	if i.Items[1].DecimalFields[3] != 999 {
 		t.Errorf("Expected field 3 to be 999 but got %v", i.Items[1].DecimalFields[3])
 	}
 

@@ -91,18 +91,18 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			continue
 		}
 
-		for fieldId, field := range item.Fields {
+		for fieldId, value := range item.Fields {
 			if _, ok := ignoredKeyFields[fieldId]; ok {
 				continue
 			}
 			if f, ok := fields[fieldId]; ok {
-				f.AddValue(field.Value) // TODO optimize
+				f.AddValue(&value) // TODO optimize
 			} else {
 				count++
 
 				fields[fieldId] = &KeyResult{
 					values: map[string]int{
-						*field.Value: 1,
+						value: 1,
 					},
 				}
 			}
@@ -113,13 +113,13 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				continue
 			}
 			if f, ok := numberFields[key]; ok {
-				f.AddValue(field.Value)
+				f.AddValue(field)
 			} else {
 				count++
 				numberFields[key] = &NumberResult[float64]{
 					Count: 1,
-					Min:   field.Value,
-					Max:   field.Value,
+					Min:   field,
+					Max:   field,
 				}
 			}
 		}
@@ -128,13 +128,13 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				continue
 			}
 			if f, ok := intFields[key]; ok {
-				f.AddValue(field.Value)
+				f.AddValue(field)
 			} else {
 				count++
 				intFields[key] = &NumberResult[int]{
 					Count: 1,
-					Min:   field.Value,
-					Max:   field.Value,
+					Min:   field,
+					Max:   field,
 				}
 			}
 		}

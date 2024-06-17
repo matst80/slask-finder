@@ -8,14 +8,16 @@ import (
 	"tornberg.me/facet-search/pkg/index"
 )
 
-func MakeSortFromNumberField(items map[uint]index.Item, fieldId uint) facet.SortIndex {
+func MakeSortFromNumberField(items map[uint]*index.DataItem, fieldId uint) facet.SortIndex {
 	l := len(items)
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
-	for idx, item := range items {
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.DecimalFields[fieldId].Value - float64(300000))}
+	idx := 0
+	for _, item := range items {
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(item.DecimalFields[fieldId] - float64(300000))}
+		idx++
 	}
-	sort.Sort(sortMap)
+	sort.Sort(sortMap[:idx])
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}

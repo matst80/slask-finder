@@ -18,7 +18,7 @@ type DataItem struct {
 	Fields        map[uint]string  `json:"values"`
 	DecimalFields map[uint]float64 `json:"numberValues"`
 	IntegerFields map[uint]int     `json:"integerValues"`
-	BoolFields    map[uint]bool    `json:"boolValues"`
+	fieldValues   *FieldValues
 }
 
 type ItemKeyField struct {
@@ -29,13 +29,13 @@ type ItemNumberField[K facet.FieldNumberValue] struct {
 	Value K `json:"value"`
 }
 
-type Item struct {
-	*BaseItem
-	Fields        map[uint]ItemKeyField
-	DecimalFields map[uint]ItemNumberField[float64]
-	IntegerFields map[uint]ItemNumberField[int]
-	fieldValues   *FieldValues
-}
+// type Item struct {
+// 	*BaseItem
+// 	Fields        map[uint]ItemKeyField
+// 	DecimalFields map[uint]ItemNumberField[float64]
+// 	IntegerFields map[uint]ItemNumberField[int]
+// 	fieldValues   *FieldValues
+// }
 
 type FieldValues map[uint]interface{}
 
@@ -44,18 +44,18 @@ type ResultItem struct {
 	Fields *FieldValues `json:"values"`
 }
 
-func (item *Item) getFieldValues() *FieldValues {
+func (item *DataItem) getFieldValues() *FieldValues {
 	if item.fieldValues == nil {
 
 		fields := FieldValues{}
 		for key, value := range item.Fields {
-			fields[key] = value.Value
+			fields[key] = value
 		}
 		for key, value := range item.DecimalFields {
-			fields[key] = value.Value
+			fields[key] = value
 		}
 		for key, value := range item.IntegerFields {
-			fields[key] = value.Value
+			fields[key] = value
 		}
 		item.fieldValues = &fields
 	}

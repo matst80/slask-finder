@@ -60,6 +60,14 @@ func (f *KeyField) TotalCount() int {
 	return total
 }
 
+func (f *KeyField) UniqueCount() int {
+	return len(f.values)
+}
+
+func (f *KeyField) GetValues() map[string]IdList {
+	return f.values
+}
+
 func count(ids IdList, other IdList) int {
 	count := 0
 	for id := range ids {

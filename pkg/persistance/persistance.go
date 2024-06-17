@@ -68,12 +68,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer zipWriter.Close()
 
 	for _, item := range idx.Items {
-		err = enc.Encode(index.DataItem{
-			BaseItem:      *item.BaseItem,
-			Fields:        cloneFields(item.Fields),
-			DecimalFields: cloneNumberFields(item.DecimalFields),
-			IntegerFields: cloneNumberFields(item.IntegerFields),
-		})
+		err = enc.Encode(item)
 		if err != nil {
 			return err
 		}

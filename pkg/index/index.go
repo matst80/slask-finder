@@ -25,7 +25,7 @@ type Index struct {
 	DecimalFacets map[uint]*DecimalFacet
 	IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
-	Items         map[uint]Item
+	Items         map[uint]*DataItem
 	AllItems      facet.IdList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
@@ -37,7 +37,7 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 		KeyFacets:     make(map[uint]*KeyFacet),
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
-		Items:         make(map[uint]Item),
+		Items:         make(map[uint]*DataItem),
 		AllItems:      facet.IdList{},
 		AutoSuggest:   AutoSuggest{Trie: search.NewTrie()},
 		Search:        freeText,
@@ -60,7 +60,7 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 	i.IntFacets[field.Id] = facet.EmptyNumberField[int](field)
 }
 
-func (i *Index) addItemValues(item DataItem) {
+func (i *Index) addItemValues(item *DataItem) {
 
 	for key, value := range item.Fields {
 		if value == "" {
@@ -68,7 +68,9 @@ func (i *Index) addItemValues(item DataItem) {
 		}
 
 		if f, ok := i.KeyFacets[key]; ok {
-			f.AddValueLink(value, item.Id)
+			if !f.BaseField.HideFacet {
+				f.AddValueLink(value, item.Id)
+			}
 		}
 	}
 	for key, value := range item.DecimalFields {
@@ -91,45 +93,22 @@ func (i *Index) addItemValues(item DataItem) {
 
 }
 
-func (i *Index) removeItemValues(item Item) {
+func (i *Index) removeItemValues(item *DataItem) {
 	for key, value := range item.Fields {
 		if f, ok := i.KeyFacets[key]; ok {
-			f.RemoveValueLink(*value.Value, item.Id)
+			f.RemoveValueLink(value, item.Id)
 		}
 	}
 	for key, value := range item.DecimalFields {
 		if f, ok := i.DecimalFacets[key]; ok {
-			f.RemoveValueLink(value.Value, item.Id)
+			f.RemoveValueLink(value, item.Id)
 		}
 	}
 	for key, value := range item.IntegerFields {
 		if f, ok := i.IntFacets[key]; ok {
-			f.RemoveValueLink(value.Value, item.Id)
+			f.RemoveValueLink(value, item.Id)
 		}
 	}
-}
-
-func getFields(itemFields map[uint]string) map[uint]ItemKeyField {
-	newFields := make(map[uint]ItemKeyField)
-	for key, value := range itemFields {
-		if value == "" {
-			continue
-		}
-		newFields[key] = ItemKeyField{Value: &value}
-
-	}
-	return newFields
-}
-
-func getNumberFields[K facet.FieldNumberValue](itemFields map[uint]K) map[uint]ItemNumberField[K] {
-	newFields := make(map[uint]ItemNumberField[K])
-	for key, value := range itemFields {
-		if value == K(-1) {
-			continue
-		}
-		newFields[key] = ItemNumberField[K]{Value: value}
-	}
-	return newFields
 }
 
 func (i *Index) UpsertItem(item *DataItem) {
@@ -140,55 +119,12 @@ func (i *Index) UpsertItem(item *DataItem) {
 		i.AutoSuggest.InsertItem(item)
 	}
 	i.AllItems[item.Id] = struct{}{}
-	i.addItemValues(*item)
-	keyFields := getFields(item.Fields)
-	decimalFields := getNumberFields(item.DecimalFields)
-	intFields := getNumberFields(item.IntegerFields)
-	i.Items[item.Id] = Item{
-		BaseItem: &BaseItem{
-			Id:    item.Id,
-			Title: item.Title,
-			Sku:   item.Sku,
-			Props: item.Props,
-		},
-		Fields:        keyFields,
-		DecimalFields: decimalFields,
-		IntegerFields: intFields,
-		//fieldValues:   getFieldValues(item),
-	}
+	i.addItemValues(item)
+
+	i.Items[item.Id] = item
 	if i.Search != nil {
 		i.Search.CreateDocument(item.Id, item.Title)
 	}
-	// for fieldId, field := range keyFields {
-	// 	f, ok := i.itemKeyFacets[fieldId]
-	// 	if !ok {
-	// 		i.itemKeyFacets[fieldId] = map[uint]*ItemKeyField{
-	// 			item.Id: &field,
-	// 		}
-	// 	} else {
-	// 		f[item.Id] = &field
-	// 	}
-	// }
-	// for fieldId, field := range decimalFields {
-	// 	f, ok := i.itemNumberFacets[fieldId]
-	// 	if !ok {
-	// 		i.itemNumberFacets[fieldId] = map[uint]*ItemNumberField[float64]{
-	// 			item.Id: &field,
-	// 		}
-	// 	} else {
-	// 		f[item.Id] = &field
-	// 	}
-	// }
-	// for fieldId, field := range intFields {
-	// 	f, ok := i.itemIntFacets[fieldId]
-	// 	if !ok {
-	// 		i.itemIntFacets[fieldId] = map[uint]*ItemNumberField[int]{
-	// 			item.Id: &field,
-	// 		}
-	// 	} else {
-	// 		f[item.Id] = &field
-	// 	}
-	// }
 
 	if i.ChangeHandler != nil {
 		if isUpdate {
@@ -234,7 +170,7 @@ func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
 		item, ok := i.Items[id]
 		if ok {
 			items[idx] = ResultItem{
-				BaseItem: item.BaseItem,
+				BaseItem: &item.BaseItem,
 				Fields:   item.getFieldValues(),
 			}
 			idx++
