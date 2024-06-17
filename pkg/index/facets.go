@@ -71,19 +71,19 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	ignoredKeyFields := map[uint]struct{}{}
 	ignoredDecimalFields := map[uint]struct{}{}
 	ignoredIntFields := map[uint]struct{}{}
+	if filters != nil {
+		for _, filter := range filters.StringFilter {
+			ignoredKeyFields[filter.Id] = struct{}{}
+		}
 
-	for _, filter := range filters.StringFilter {
-		ignoredKeyFields[filter.Id] = struct{}{}
+		for _, filter := range filters.NumberFilter {
+			ignoredDecimalFields[filter.Id] = struct{}{}
+		}
+
+		for _, filter := range filters.IntegerFilter {
+			ignoredIntFields[filter.Id] = struct{}{}
+		}
 	}
-
-	for _, filter := range filters.NumberFilter {
-		ignoredDecimalFields[filter.Id] = struct{}{}
-	}
-
-	for _, filter := range filters.IntegerFilter {
-		ignoredIntFields[filter.Id] = struct{}{}
-	}
-
 	for id := range *ids {
 
 		item, ok := i.Items[id]
