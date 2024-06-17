@@ -99,6 +99,10 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 					continue
 				}
 				if f, ok := fields[field.Id]; ok {
+					l := len(field.Value)
+					if l == 0 || l > 64 {
+						continue
+					}
 					f.AddValue(&field.Value) // TODO optimize
 				} else {
 					count++

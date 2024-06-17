@@ -11,9 +11,9 @@ func TestValueField_SingleMatch(t *testing.T) {
 		BaseField: &BaseField{
 			Name: "test",
 		},
-		values: map[string]IdList{
-			v1: *makeIdList(1, 2, 3),
-			v2: *makeIdList(2, 3, 4),
+		values: map[*string]IdList{
+			&v1: *makeIdList(1, 2, 3),
+			&v2: *makeIdList(2, 3, 4),
 		},
 	}
 

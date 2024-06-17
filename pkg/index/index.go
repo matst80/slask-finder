@@ -64,13 +64,14 @@ func (i *Index) addItemValues(item *DataItem) {
 
 	if item.Fields != nil {
 		for _, field := range *item.Fields {
-			if field.Value == "" || len(field.Value) > 64 {
+			l := len(field.Value)
+			if l == 0 || l > 64 {
 				continue
 			}
 
 			if f, ok := i.KeyFacets[field.Id]; ok {
 				if !f.BaseField.HideFacet {
-					f.AddValueLink(field.Value, item.Id)
+					f.AddValueLink(&field.Value, item.Id)
 				}
 			}
 		}
@@ -87,7 +88,7 @@ func (i *Index) addItemValues(item *DataItem) {
 	}
 	if item.IntegerFields != nil {
 		for _, field := range *item.IntegerFields {
-			if field.Value == 0 {
+			if field.Value == 0 || field.Value == -1 {
 				continue
 			}
 			if f, ok := i.IntFacets[field.Id]; ok {
@@ -100,7 +101,7 @@ func (i *Index) addItemValues(item *DataItem) {
 func (i *Index) removeItemValues(item *DataItem) {
 	for _, field := range *item.Fields {
 		if f, ok := i.KeyFacets[field.Id]; ok {
-			f.RemoveValueLink(field.Value, item.Id)
+			f.RemoveValueLink(&field.Value, item.Id)
 		}
 	}
 	for _, field := range *item.DecimalFields {

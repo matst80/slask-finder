@@ -13,7 +13,7 @@ type BaseField struct {
 
 type KeyField struct {
 	*BaseField
-	values map[string]IdList
+	values map[*string]IdList
 }
 
 func (f *KeyField) Matches(value string) IdList {
@@ -23,7 +23,7 @@ func (f *KeyField) Matches(value string) IdList {
 	ret := IdList{}
 
 	for key, ids := range f.values {
-		if key == value {
+		if *key == value {
 			maps.Copy(ret, ids)
 		}
 	}
@@ -32,11 +32,11 @@ func (f *KeyField) Matches(value string) IdList {
 
 }
 
-func (f *KeyField) AddValueLink(value string, id uint) {
+func (f *KeyField) AddValueLink(value *string, id uint) {
 	idList, ok := f.values[value]
 	if !ok {
 		if f.values == nil {
-			f.values = map[string]IdList{}
+			f.values = map[*string]IdList{}
 		}
 		f.values[value] = IdList{id: struct{}{}}
 	} else {
@@ -44,7 +44,7 @@ func (f *KeyField) AddValueLink(value string, id uint) {
 	}
 }
 
-func (f *KeyField) RemoveValueLink(value string, id uint) {
+func (f *KeyField) RemoveValueLink(value *string, id uint) {
 	idList, ok := f.values[value]
 	if ok {
 		delete(idList, id)
@@ -63,7 +63,7 @@ func (f *KeyField) UniqueCount() int {
 	return len(f.values)
 }
 
-func (f *KeyField) GetValues() map[string]IdList {
+func (f *KeyField) GetValues() map[*string]IdList {
 	return f.values
 }
 
@@ -77,8 +77,8 @@ func count(ids IdList, other IdList) int {
 	return count
 }
 
-func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
-	res := map[string]int{}
+func (f *KeyField) GetValuesForIds(ids IdList) map[*string]int {
+	res := map[*string]int{}
 	for value, valueIds := range f.values {
 		idCount := count(valueIds, ids)
 		if idCount > 0 {
@@ -88,16 +88,16 @@ func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
 	return res
 }
 
-func NewKeyField(field *BaseField, value string, ids IdList) *KeyField {
+func NewKeyField(field *BaseField, value *string, ids IdList) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		values:    map[string]IdList{value: ids},
+		values:    map[*string]IdList{value: ids},
 	}
 }
 
 func EmptyKeyValueField(field *BaseField) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		values:    map[string]IdList{},
+		values:    map[*string]IdList{},
 	}
 }
