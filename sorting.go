@@ -15,10 +15,12 @@ func MakeSortFromNumberField(items map[uint]*index.DataItem, fieldId uint) facet
 	idx := 0
 	for _, item := range items {
 		v := 0
-		for _, f := range *item.IntegerFields {
-			if f.Id == fieldId {
-				v = f.Value
-				break
+		if item.IntegerFields != nil {
+			for _, f := range *item.IntegerFields {
+				if f.Id == fieldId {
+					v = f.Value
+					break
+				}
 			}
 		}
 		sortMap[idx] = facet.Lookup{Id: item.Id, Value: math.Abs(float64(v) - 300000.0)}

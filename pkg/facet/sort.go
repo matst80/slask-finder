@@ -6,6 +6,15 @@ import (
 
 type SortIndex []uint
 
+func (s *SortIndex) GetScore(id uint) float64 {
+	for i, v := range *s {
+		if v == id {
+			return float64(i)
+		}
+	}
+	return -1
+}
+
 func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
 
 	if s == nil {

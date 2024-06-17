@@ -32,7 +32,7 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 	}
 }
 
-func (i *FreeTextIndex) Search(query string) DocumentResult {
+func (i *FreeTextIndex) Search(query string) *DocumentResult {
 	tokens := i.Tokenizer.Tokenize(query)
 	res := make(DocumentResult)
 
@@ -56,19 +56,21 @@ func (i *FreeTextIndex) Search(query string) DocumentResult {
 		}
 	}
 
-	return res
+	return &res
 }
 
-func (d *DocumentResult) ToSortIndex() facet.SortIndex {
+func (d *DocumentResult) ToSortIndex(append *facet.SortIndex) facet.SortIndex {
 	l := len(*d)
-	sortIndex := make(facet.SortIndex, l)
+
 	sortMap := make(facet.ByValue, l)
 	idx := 0
 	for id, score := range *d {
-		sortMap[idx] = facet.Lookup{Id: id, Value: float64(score / 100.0)}
+		otherScore := append.GetScore(id)
+		sortMap[idx] = facet.Lookup{Id: id, Value: float64(otherScore) + float64(score/10.0)}
 		idx++
 	}
 	sort.Sort(sort.Reverse(sortMap))
+	sortIndex := make(facet.SortIndex, l)
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
@@ -90,9 +92,9 @@ func (d *DocumentResult) ToResult() facet.IdList {
 	return res
 }
 
-func (d *DocumentResult) ToResultWithSort() ResultWithSort {
+func (d *DocumentResult) ToResultWithSort(append *facet.SortIndex) ResultWithSort {
 	return ResultWithSort{
 		IdList:    d.ToResult(),
-		SortIndex: d.ToSortIndex(),
+		SortIndex: d.ToSortIndex(append),
 	}
 }

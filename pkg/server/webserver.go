@@ -40,11 +40,11 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.DefaultSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		if totalHits > ws.FacetLimit {
-			facetsChan <- ws.Index.DefaultFacets
-		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
-		}
+		// if totalHits > ws.FacetLimit {
+		// 	facetsChan <- ws.Index.DefaultFacets
+		// } else {
+		facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+		//}
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -141,17 +141,17 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	//	log.Printf("Query: %v", query)
 	searchResults := ws.Index.Search.Search(query)
 
-	res := searchResults.ToResultWithSort()
+	res := searchResults.ToResultWithSort(ws.DefaultSort)
 	go func() {
 		ids := res.SortIndex.SortMap(res.IdList, (page+1)*pageSize)
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
 	go func() {
-		if len(searchResults) > ws.SearchFacetLimit {
-			facetsChan <- index.Facets{}
-		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
-		}
+		// /if len(*searchResults) > ws.SearchFacetLimit {
+		facetsChan <- index.Facets{}
+		// } else {
+		//facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
+		//}
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
@@ -164,7 +164,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		Facets:    <-facetsChan,
 		Page:      page,
 		PageSize:  pageSize,
-		TotalHits: len(searchResults),
+		TotalHits: len(*searchResults),
 	}
 
 	err := json.NewEncoder(w).Encode(result)
