@@ -10,7 +10,7 @@ type KeyResult struct {
 
 type JsonKeyResult struct {
 	*facet.BaseField
-	Values map[string]int `json:"values"`
+	Values map[string]uint `json:"values"`
 }
 
 func (k *KeyResult) AddValue(value *string) {
@@ -27,14 +27,14 @@ func (k *KeyResult) GetValues() map[string]int {
 
 type NumberResult[V float64 | int] struct {
 	//*facet.BaseField
-	Count int
+	Count uint
 	Min   V
 	Max   V
 }
 
 type JsonNumberResult struct {
 	*facet.BaseField
-	Count int         `json:"count"`
+	Count uint        `json:"count"`
 	Min   interface{} `json:"min"`
 	Max   interface{} `json:"max"`
 }
@@ -64,7 +64,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 		}
 	}
 	count := 0
-	fields := map[uint]*KeyResult{}
+	fields := map[uint]map[string]uint{}
 	numberFields := map[uint]*NumberResult[float64]{}
 	intFields := map[uint]*NumberResult[int]{}
 
@@ -107,15 +107,15 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 				// }
 
 				if f, ok := fields[field.Id]; ok {
-					f.AddValue(&field.Value) // TODO optimize
+					f[field.Value] = f[field.Value] + 1
+					//f.AddValue(&field.Value) // TODO optimize
 				} else {
 					count++
 
-					fields[field.Id] = &KeyResult{
-						values: map[string]int{
-							field.Value: 1,
-						},
+					fields[field.Id] = map[string]uint{
+						field.Value: 1,
 					}
+
 				}
 			}
 		}

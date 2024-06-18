@@ -66,10 +66,12 @@ func getUniqueTokens(tokens []Token) []Token {
 	res := make([]Token, len(unique))
 	c := 0
 	for token := range unique {
-		res[c] = token
-		c++
+		if len(token) > 0 {
+			res[c] = token
+			c++
+		}
 	}
-	return res
+	return res[:c]
 }
 
 func (t *Tokenizer) Tokenize(text string) []Token {

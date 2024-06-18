@@ -49,7 +49,7 @@ func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
-	FacetLimit:       5000,
+	FacetLimit:       6400,
 	SearchFacetLimit: 1500,
 	ListenAddress:    ":8080",
 }

@@ -11,12 +11,14 @@ type AutoSuggest struct {
 }
 
 func (a *AutoSuggest) Insert(word string, id uint) {
-	a.Trie.Insert(word, id)
+	if len(word) > 1 {
+		a.Trie.Insert(word, id)
+	}
 }
 
 func (a *AutoSuggest) InsertItem(item *DataItem) {
 	for _, word := range strings.Split(strings.ToLower(item.Title), " ") {
-		if len(word) > 2 {
+		if len(word) > 1 {
 			a.Trie.Insert(word, item.Id)
 		}
 	}
