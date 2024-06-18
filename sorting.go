@@ -1,7 +1,6 @@
 package main
 
 import (
-	"math"
 	"sort"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -40,8 +39,10 @@ func ToMap(f *facet.ByValue) map[uint]float64 {
 }
 
 func MakeSortFromNumberField(items map[uint]*index.DataItem, fieldId uint) (facet.ByValue, facet.SortIndex) {
+	j := 0.0
 	sortMap := MakeSortMap(items, fieldId, func(value int) float64 {
-		return math.Abs(float64(value) - 300000.0)
+		j += 1.0
+		return (float64(value) / 1000.0) + j
 	})
 	l := len(sortMap)
 
