@@ -17,11 +17,11 @@ func (a *AutoSuggest) Insert(word string, id uint) {
 }
 
 func (a *AutoSuggest) InsertItem(item *DataItem) {
-	for _, word := range strings.Split(strings.ToLower(item.Title), " ") {
-		if len(word) > 1 {
-			a.Trie.Insert(word, item.Id)
-		}
+	addItem := func(word string, count int) bool {
+		a.Trie.Insert(word, item.Id)
+		return true
 	}
+	search.SplitWords(strings.ToLower(item.Title), addItem)
 }
 
 func (a *AutoSuggest) FindMatches(text string) []search.Match {

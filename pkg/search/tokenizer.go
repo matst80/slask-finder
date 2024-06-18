@@ -74,26 +74,37 @@ func getUniqueTokens(tokens []Token) []Token {
 	return res[:c]
 }
 
-func (t *Tokenizer) Tokenize(text string) []Token {
-	parts := make([]Token, t.MaxTokens)
-	c := 0
+func SplitWords(text string, onWord func(word string, count int) bool) {
+	count := 0
 	lastSplit := 0
 	for idx, chr := range text {
 		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' {
 			if idx > lastSplit+1 {
-				parts[c] = simplify(text[lastSplit:idx])
-				c++
-				if c >= t.MaxTokens {
-					break
+				if !onWord(text[lastSplit:idx], count) {
+					return
 				}
+				count++
+
 			}
 			lastSplit = idx + 1
 		}
 	}
 	if lastSplit < len(text) {
-		parts[c] = simplify(text[lastSplit:])
-		c++
+		onWord(text[lastSplit:], count)
 	}
+}
+
+func (t *Tokenizer) Tokenize(text string) []Token {
+	parts := make([]Token, t.MaxTokens)
+	c := 0
+	SplitWords(text, func(word string, count int) bool {
+		if c >= t.MaxTokens {
+			return false
+		}
+		parts[c] = simplify(word)
+		c++
+		return true
+	})
 
 	return getUniqueTokens(parts[:c])
 }
