@@ -7,8 +7,9 @@ import (
 )
 
 type FreeTextIndex struct {
-	Tokenizer *Tokenizer
-	Documents map[uint]*Document
+	Tokenizer   *Tokenizer
+	Documents   map[uint]*Document
+	BaseSortMap map[uint]float64
 }
 
 type DocumentResult map[uint]float64
@@ -53,7 +54,13 @@ func (i *FreeTextIndex) Search(query string) DocumentResult {
 		if res[doc.Id] > 0 {
 			l := float64(len(tokens))
 			dl := float64(len(doc.Tokens))
-			res[doc.Id] = ((res[doc.Id] / l) * 1000.0) - (l - dl)
+			base := 0.0
+			if i.BaseSortMap != nil {
+				if v, ok := i.BaseSortMap[doc.Id]; ok {
+					base = v
+				}
+			}
+			res[doc.Id] = base + ((res[doc.Id] / l) * 1000.0) - (l - dl)
 		}
 	}
 

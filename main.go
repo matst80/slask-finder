@@ -93,7 +93,8 @@ func Init() {
 			log.Printf("Failed to load index %v", err)
 		} else {
 			fieldSort := MakeSortForFields()
-			priceSort := MakeSortFromNumberField(idx.Items, 4)
+			sortMap, priceSort := MakeSortFromNumberField(idx.Items, 4)
+			idx.Search.BaseSortMap = ToMap(&sortMap)
 			srv.DefaultSort = &priceSort
 			srv.FieldSort = &fieldSort
 			log.Println("Index loaded")
