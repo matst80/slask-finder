@@ -45,7 +45,6 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 	}
 }
 
-
 func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
 	i.mu.Lock()
 	defer i.mu.Unlock()
@@ -91,7 +90,7 @@ func (i *FreeTextIndex) Search(query string) DocumentResult {
 		}
 	}
 
-	return &res
+	return res
 }
 
 func (d *DocumentResult) ToSortIndex(append *facet.SortIndex) facet.SortIndex {

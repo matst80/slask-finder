@@ -12,8 +12,8 @@ func TestDocumentIndex(t *testing.T) {
 	idx.AddDocument(token.MakeDocument(2, "Hello slask, how are you?", "Some other text"))
 
 	res := idx.Search("Hello world")
-	if len(*res) != 2 {
-		t.Errorf("Expected 2 results but got %d", len(*res))
+	if len(res) != 2 {
+		t.Errorf("Expected 2 results but got %d", len(res))
 	}
 	sort := res.ToSortIndex(nil)
 	if len(sort) != 2 {

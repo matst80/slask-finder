@@ -40,11 +40,11 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.DefaultSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
-		// if totalHits > ws.FacetLimit {
-		// 	facetsChan <- ws.Index.DefaultFacets
-		// } else {
-		facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
-		//}
+		if totalHits > ws.FacetLimit {
+			facetsChan <- ws.Index.DefaultFacets
+		} else {
+			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+		}
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
@@ -165,7 +165,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		Facets:    <-facetsChan,
 		Page:      page,
 		PageSize:  pageSize,
-		TotalHits: len(*searchResults),
+		TotalHits: len(searchResults),
 	}
 
 	err := json.NewEncoder(w).Encode(result)
