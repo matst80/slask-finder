@@ -2,11 +2,13 @@ package search
 
 import (
 	"sort"
+	"sync"
 
 	"tornberg.me/facet-search/pkg/facet"
 )
 
 type FreeTextIndex struct {
+	mu          sync.Mutex
 	Tokenizer   *Tokenizer
 	Documents   map[uint]*Document
 	TokenMap    map[Token][]*Document
@@ -16,6 +18,8 @@ type FreeTextIndex struct {
 type DocumentResult map[uint]float64
 
 func (i *FreeTextIndex) AddDocument(doc *Document) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	i.Documents[doc.Id] = doc
 	for _, token := range doc.Tokens {
 		if _, ok := i.TokenMap[token]; !ok {
@@ -42,6 +46,8 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 }
 
 func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	res := make(map[uint]*Document)
 	for _, token := range tokens {
 		if docs, ok := i.TokenMap[token]; ok {

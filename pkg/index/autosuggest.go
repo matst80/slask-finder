@@ -2,23 +2,34 @@ package index
 
 import (
 	"strings"
+	"sync"
 
 	"tornberg.me/facet-search/pkg/search"
 )
 
 type AutoSuggest struct {
+	mu   sync.Mutex
 	Trie *search.Trie
 }
 
 func (a *AutoSuggest) Insert(word string, id uint) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.insertUnsafe(word, id)
+}
+
+func (a *AutoSuggest) insertUnsafe(word string, id uint) {
 	if len(word) > 1 {
 		a.Trie.Insert(word, id)
 	}
 }
 
 func (a *AutoSuggest) InsertItem(item *DataItem) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
 	addItem := func(word string, count int) bool {
-		a.Trie.Insert(word, item.Id)
+		a.insertUnsafe(word, item.Id)
 		return true
 	}
 	search.SplitWords(strings.ToLower(item.Title), addItem)

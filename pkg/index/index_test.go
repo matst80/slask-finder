@@ -46,7 +46,7 @@ func TestIndexMatch(t *testing.T) {
 				{Value: "test", Id: 1},
 				{Value: "hej", Id: 2},
 			},
-			DecimalFields: []facet.NumberFieldValue[float64]{
+			DecimalFields: []facet.DecimalFieldValue{
 				{Value: 1, Id: 3},
 			},
 		},
@@ -83,7 +83,7 @@ func CreateIndex() *Index {
 				{Value: "test", Id: 1},
 				{Value: "hej", Id: 2},
 			},
-			DecimalFields: []facet.NumberFieldValue[float64]{
+			DecimalFields: []facet.DecimalFieldValue{
 				{Value: 1, Id: 3},
 			},
 		},
@@ -98,7 +98,7 @@ func CreateIndex() *Index {
 				{Value: "test", Id: 1},
 				{Value: "slask", Id: 2},
 			},
-			DecimalFields: []facet.NumberFieldValue[float64]{
+			DecimalFields: []facet.DecimalFieldValue{
 				{Value: 2, Id: 3},
 			},
 		},
@@ -196,7 +196,7 @@ func TestUpdateItem(t *testing.T) {
 				{Value: "test", Id: 1},
 				{Value: "hej", Id: 2},
 			},
-			DecimalFields: []facet.NumberFieldValue[float64]{
+			DecimalFields: []facet.DecimalFieldValue{
 				{Value: 999.0, Id: 3},
 			},
 		},

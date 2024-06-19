@@ -10,16 +10,16 @@ type KeyResult struct {
 
 type JsonKeyResult struct {
 	*facet.BaseField
-	Values map[string]uint `json:"values"`
+	Values *map[string]uint `json:"values"`
 }
 
-func (k *KeyResult) AddValue(value *string) {
-	if count, ok := k.values[*value]; ok {
-		k.values[*value] = count + 1
-	} else {
-		k.values[*value] = 1
-	}
-}
+// func (k *KeyResult) AddValue(value *string) {
+// 	if count, ok := k.values[*value]; ok {
+// 		k.values[*value] = count + 1
+// 	} else {
+// 		k.values[*value] = 1
+// 	}
+// }
 
 func (k *KeyResult) GetValues() map[string]int {
 	return k.values
@@ -63,7 +63,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 			IntFields:    []JsonNumberResult{},
 		}
 	}
-	count := 0
+
 	fields := map[uint]map[string]uint{}
 	numberFields := map[uint]*NumberResult[float64]{}
 	intFields := map[uint]*NumberResult[int]{}
@@ -98,6 +98,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 		// }
 		if itemFields.Fields != nil {
 			for _, field := range itemFields.Fields {
+
 				l := len(field.Value)
 				if l == 0 || l > 64 {
 					continue
@@ -107,10 +108,10 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 				// }
 
 				if f, ok := fields[field.Id]; ok {
-					f[field.Value] = f[field.Value] + 1
+					f[field.Value]++
 					//f.AddValue(&field.Value) // TODO optimize
 				} else {
-					count++
+					//count++
 
 					fields[field.Id] = map[string]uint{
 						field.Value: 1,
@@ -125,7 +126,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 				if f, ok := numberFields[field.Id]; ok {
 					f.AddValue(field.Value)
 				} else {
-					count++
+					//count++
 					numberFields[field.Id] = &NumberResult[float64]{
 						Count: 1,
 						Min:   field.Value,
@@ -143,7 +144,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 				if f, ok := intFields[field.Id]; ok {
 					f.AddValue(field.Value)
 				} else {
-					count++
+					//count++
 					intFields[field.Id] = &NumberResult[int]{
 						Count: 1,
 						Min:   field.Value,

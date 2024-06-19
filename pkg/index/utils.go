@@ -15,9 +15,10 @@ func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.Sor
 		if ok {
 			indexField, baseOk := i.KeyFacets[id]
 			if baseOk && !indexField.HideFacet {
+
 				sorted[idx] = JsonKeyResult{
 					BaseField: indexField.BaseField,
-					Values:    f,
+					Values:    &f,
 				}
 				idx++
 				if idx >= l {

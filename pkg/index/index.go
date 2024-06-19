@@ -1,6 +1,8 @@
 package index
 
 import (
+	"sync"
+
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/search"
 )
@@ -21,6 +23,7 @@ type UpdateHandler interface {
 }
 
 type Index struct {
+	mu            sync.Mutex
 	KeyFacets     map[uint]*KeyFacet
 	DecimalFacets map[uint]*DecimalFacet
 	IntFacets     map[uint]*IntFacet
@@ -116,18 +119,33 @@ func (i *Index) removeItemValues(item *DataItem) {
 }
 
 func (i *Index) UpsertItem(item *DataItem) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.UpsertItemUnsafe(item)
+}
+
+func (i *Index) Lock() {
+	i.mu.Lock()
+}
+
+func (i *Index) Unlock() {
+	i.mu.Unlock()
+}
+
+func (i *Index) UpsertItemUnsafe(item *DataItem) {
+
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
 	} else {
-		i.AutoSuggest.InsertItem(item)
+		go i.AutoSuggest.InsertItem(item)
 	}
 	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
 	i.Items[item.Id] = item
 	if i.Search != nil {
-		i.Search.CreateDocument(item.Id, item.Title)
+		go i.Search.CreateDocument(item.Id, item.Title)
 	}
 
 	if i.ChangeHandler != nil {
@@ -137,7 +155,6 @@ func (i *Index) UpsertItem(item *DataItem) {
 			i.ChangeHandler.ItemAdded(item)
 		}
 	}
-	item = nil
 }
 
 func (i *Index) DeleteItem(id uint) {

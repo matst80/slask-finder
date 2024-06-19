@@ -9,15 +9,20 @@ type KeyFieldValue struct {
 	Id    uint   `json:"id"`
 }
 
-type NumberFieldValue[K float64 | int] struct {
-	Value K    `json:"value"`
+type DecimalFieldValue struct {
+	Value float64 `json:"value"`
+	Id    uint    `json:"id"`
+}
+
+type IntegerFieldValue struct {
+	Value int  `json:"value"`
 	Id    uint `json:"id"`
 }
 
 type ItemFields struct {
-	Fields        []KeyFieldValue             `json:"values"`
-	DecimalFields []NumberFieldValue[float64] `json:"numberValues"`
-	IntegerFields []NumberFieldValue[int]     `json:"integerValues"`
+	Fields        []KeyFieldValue     `json:"values"`
+	DecimalFields []DecimalFieldValue `json:"numberValues"`
+	IntegerFields []IntegerFieldValue `json:"integerValues"`
 }
 
 type MatchList map[uint]*ItemFields

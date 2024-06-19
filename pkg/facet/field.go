@@ -13,43 +13,54 @@ type BaseField struct {
 
 type KeyField struct {
 	*BaseField
-	values map[string]MatchList
+	keys   map[string]int
+	values []MatchList
+	len    int
 }
 
-func (f *KeyField) Matches(value string) MatchList {
-	if value == "" {
+func (f *KeyField) Matches(value *string) MatchList {
+	if *value == "" {
 		return MatchList{}
 	}
 	ret := MatchList{}
-
-	for key, ids := range f.values {
-		if key == value {
-			maps.Copy(ret, ids)
-		}
+	idx, found := f.keys[*value]
+	if found {
+		maps.Copy(ret, f.values[idx])
 	}
-
 	return ret
 
 }
 
 func (f *KeyField) AddValueLink(value string, id uint, fields *ItemFields) {
-	idList, ok := f.values[value]
-	if !ok {
-		if f.values == nil {
-			f.values = map[string]MatchList{value: {id: fields}}
-		} else {
-			f.values[value] = MatchList{id: fields}
-		}
+	idx, found := f.keys[value]
+	if !found {
+		f.values = append(f.values, MatchList{id: fields})
+		f.keys[value] = f.len
+		f.len++
 	} else {
-		idList[id] = fields
+		f.values[idx][id] = fields
 	}
+	// idList, ok := f.values[value]
+	// if !ok {
+	// 	if f.values == nil {
+	// 		f.values = map[string]MatchList{value: {id: fields}}
+	// 	} else {
+	// 		f.values[value] = MatchList{id: fields}
+	// 	}
+	// } else {
+	// 	idList[id] = fields
+	// }
 }
 
 func (f *KeyField) RemoveValueLink(value string, id uint) {
-	idList, ok := f.values[value]
-	if ok {
-		delete(idList, id)
+	idx, found := f.keys[value]
+	if found {
+		delete(f.values[idx], id)
 	}
+	// idList, ok := f.values[value]
+	// if ok {
+	// 	delete(idList, id)
+	// }
 }
 
 func (f *KeyField) TotalCount() int {
@@ -64,9 +75,9 @@ func (f *KeyField) UniqueCount() int {
 	return len(f.values)
 }
 
-func (f *KeyField) GetValues() map[string]MatchList {
-	return f.values
-}
+// func (f *KeyField) GetValues() map[string]MatchList {
+// 	return f.values
+// }
 
 // func count(ids MatchList, other IdList) int {
 // 	count := 0
@@ -92,13 +103,16 @@ func (f *KeyField) GetValues() map[string]MatchList {
 func NewKeyField(field *BaseField, value string, ids MatchList) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		values:    map[string]MatchList{value: ids},
+		keys:      map[string]int{value: 0},
+		len:       1,
+		values:    []MatchList{ids},
 	}
 }
 
 func EmptyKeyValueField(field *BaseField) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		values:    map[string]MatchList{},
+		keys:      map[string]int{},
+		values:    []MatchList{},
 	}
 }

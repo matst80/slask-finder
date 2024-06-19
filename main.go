@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"runtime"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -100,7 +101,7 @@ func Init() {
 			log.Println("Index loaded")
 			idx.CreateDefaultFacets(&fieldSort)
 			log.Println("Default facets created")
-
+			runtime.GC()
 		}
 
 	}()

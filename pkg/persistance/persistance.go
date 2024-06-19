@@ -34,13 +34,17 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 	enc := gob.NewDecoder(zipReader)
 	defer zipReader.Close()
+	idx.Lock()
+	defer idx.Unlock()
 	for err == nil {
-		v := &index.DataItem{}
-		if err = enc.Decode(v); err == nil {
-			idx.UpsertItem(v)
+		var tmp = &index.DataItem{}
+		if err = enc.Decode(tmp); err == nil {
+
+			idx.UpsertItemUnsafe(tmp)
 		}
 	}
 	enc = nil
+	//v = nil
 	if err.Error() == "EOF" {
 		return nil
 	}
@@ -67,7 +71,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer zipWriter.Close()
 
 	for _, item := range idx.Items {
-		err = enc.Encode(item)
+		err = enc.Encode(*item)
 		if err != nil {
 			return err
 		}

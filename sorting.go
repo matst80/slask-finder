@@ -66,7 +66,7 @@ func MakeSortForFields() facet.SortIndex {
 		i++
 	}
 	for _, item := range idx.KeyFacets {
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount() / (item.UniqueCount() + 1))}
+		sortMap[i] = facet.Lookup{Id: item.Id, Value: float64(item.TotalCount())}
 		i++
 	}
 	for _, item := range idx.IntFacets {
