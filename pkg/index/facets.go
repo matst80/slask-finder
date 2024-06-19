@@ -54,7 +54,7 @@ type Facets struct {
 	IntFields    []JsonNumberResult `json:"integerFields"`
 }
 
-func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sortIndex *facet.SortIndex) Facets {
+func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
 
 	if sortIndex == nil {
 		return Facets{
@@ -90,14 +90,14 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 	// if (len(ignoredKeyFields) + len(ignoredDecimalFields) + len(ignoredIntFields)) == 0 {
 	// 	return i.DefaultFacets
 	// }
-	for _, itemFields := range *ids {
+	for id := range *ids {
 
-		//item, ok := i.Items[id]
-		// if !ok {
-		// 	continue
-		// }
-		if itemFields.Fields != nil {
-			for _, field := range itemFields.Fields {
+		item, ok := i.AllItems[id]
+		if !ok {
+			continue
+		}
+		if item.Fields != nil {
+			for _, field := range item.Fields {
 
 				l := len(field.Value)
 				if l == 0 || l > 64 {
@@ -120,8 +120,8 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 				}
 			}
 		}
-		if itemFields.DecimalFields != nil {
-			for _, field := range itemFields.DecimalFields {
+		if item.DecimalFields != nil {
+			for _, field := range item.DecimalFields {
 
 				if f, ok := numberFields[field.Id]; ok {
 					f.AddValue(field.Value)
@@ -135,8 +135,8 @@ func (i *Index) GetFacetsFromResult(ids *facet.MatchList, filters *Filters, sort
 				}
 			}
 		}
-		if itemFields.IntegerFields != nil {
-			for _, field := range itemFields.IntegerFields {
+		if item.IntegerFields != nil {
+			for _, field := range item.IntegerFields {
 				if field.Value == 0 || field.Value == -1 {
 					continue
 				}

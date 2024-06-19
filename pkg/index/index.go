@@ -48,7 +48,11 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 }
 
 func (i *Index) CreateDefaultFacets(sort *facet.SortIndex) {
-	i.DefaultFacets = i.GetFacetsFromResult(&i.AllItems, &Filters{}, sort)
+	ids := facet.IdList{}
+	for id := range i.AllItems {
+		ids[id] = struct{}{}
+	}
+	i.DefaultFacets = i.GetFacetsFromResult(&ids, &Filters{}, sort)
 }
 
 func (i *Index) AddKeyField(field *facet.BaseField) {
@@ -73,7 +77,7 @@ func (i *Index) addItemValues(item *DataItem) {
 
 			if f, ok := i.KeyFacets[field.Id]; ok {
 				//if !f.BaseField.HideFacet {
-				f.AddValueLink(field.Value, item.Id, &item.ItemFields)
+				f.AddValueLink(field.Value, item.Id)
 				//}
 			}
 		}
@@ -84,7 +88,7 @@ func (i *Index) addItemValues(item *DataItem) {
 				continue
 			}
 			if f, ok := i.DecimalFacets[field.Id]; ok {
-				f.AddValueLink(field.Value, item.Id, &item.ItemFields)
+				f.AddValueLink(field.Value, item.Id)
 			}
 		}
 	}
@@ -94,7 +98,7 @@ func (i *Index) addItemValues(item *DataItem) {
 				continue
 			}
 			if f, ok := i.IntFacets[field.Id]; ok {
-				f.AddValueLink(field.Value, item.Id, &item.ItemFields)
+				f.AddValueLink(field.Value, item.Id)
 			}
 		}
 	}

@@ -7,7 +7,7 @@ import (
 	"tornberg.me/facet-search/pkg/search"
 )
 
-func matchAll(list facet.MatchList, ids ...uint) bool {
+func matchAll(list facet.IdList, ids ...uint) bool {
 	for _, id := range ids {
 		if _, ok := list[id]; !ok {
 			return false

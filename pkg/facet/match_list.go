@@ -44,15 +44,15 @@ func (i MatchList) Merge(other *MatchList) {
 	maps.Copy(i, *other)
 }
 
-func MakeIntersectResult(r chan MatchList, len int) *MatchList {
+// func MakeIntersectResult(r chan MatchList, len int) *MatchList {
 
-	if len == 0 {
-		return &MatchList{}
-	}
-	first := <-r
-	for i := 1; i < len; i++ {
-		first.Intersect(<-r)
-	}
-	close(r)
-	return &first
-}
+// 	if len == 0 {
+// 		return &MatchList{}
+// 	}
+// 	first := <-r
+// 	for i := 1; i < len; i++ {
+// 		first.Intersect(<-r)
+// 	}
+// 	close(r)
+// 	return &first
+// }

@@ -26,14 +26,14 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer"`
 }
 
-func (i *Index) Match(search *Filters) *facet.MatchList {
+func (i *Index) Match(search *Filters) *facet.IdList {
 	len := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	results := make(chan facet.MatchList)
+	results := make(chan facet.IdList)
 
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
-		results <- fld.Matches(&field.Value)
+		results <- fld.Matches(field.Value)
 	}
 	parseInts := func(field NumberSearch[int], fld *facet.NumberField[int]) {
 		results <- fld.MatchesRange(field.Min, field.Max)
