@@ -18,6 +18,7 @@ func MakeSortMap(items map[uint]*index.DataItem, fieldId uint, fn func(value int
 			b = 5000000.0
 		}
 		v := 0
+
 		for _, f := range item.IntegerFields {
 			if f.Id == fieldId {
 				v = f.Value
