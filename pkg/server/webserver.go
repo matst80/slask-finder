@@ -141,8 +141,8 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	//	log.Printf("Query: %v", query)
 	searchResults := ws.Index.Search.Search(query)
 
-	res := searchResults.ToResultWithSort(ws.DefaultSort)
 	go func() {
+		res := searchResults.ToResultWithSort()
 		ids := res.SortIndex.SortMap(res.IdList, (page+1)*pageSize)
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
@@ -165,7 +165,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		Facets:    <-facetsChan,
 		Page:      page,
 		PageSize:  pageSize,
-		TotalHits: len(searchResults),
+		TotalHits: len(*searchResults),
 	}
 
 	err := json.NewEncoder(w).Encode(result)

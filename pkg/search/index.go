@@ -46,8 +46,7 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 }
 
 func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
-	i.mu.Lock()
-	defer i.mu.Unlock()
+
 	res := make(map[uint]*Document)
 	for _, token := range tokens {
 		if docs, ok := i.TokenMap[token]; ok {
@@ -59,22 +58,27 @@ func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
 	return res
 }
 
-func (i *FreeTextIndex) Search(query string) DocumentResult {
+func (i *FreeTextIndex) Search(query string) *DocumentResult {
+	//i.mu.Lock()
+	//defer i.mu.Unlock()
 	tokens := i.Tokenizer.Tokenize(query)
 	res := make(DocumentResult)
 
 	for _, doc := range i.getMatchDocs(tokens) {
-		lastCorrect := 1.0
-		for _, token := range tokens {
-			for _, t := range doc.Tokens {
+		lastCorrect := 100.0
+		for _, t := range doc.Tokens {
+			for _, token := range tokens {
+
 				if t == token {
 					// Add to result
 					res[doc.Id] += lastCorrect
-					lastCorrect *= 2
+					lastCorrect += 1000
+					break
 				} else {
-					lastCorrect = 1
+					lastCorrect -= 20
 				}
 			}
+
 		}
 		if res[doc.Id] > 0 {
 			l := float64(len(tokens))
@@ -85,22 +89,21 @@ func (i *FreeTextIndex) Search(query string) DocumentResult {
 					base = v
 				}
 			}
-			hits := float64(res[doc.Id])
-			res[doc.Id] = base + (((hits / l) * 1000000.0) - (l - dl))
+			hits := res[doc.Id]
+			res[doc.Id] = base + ((hits * 1000.0) - ((l - dl) * 100.0))
 		}
 	}
 
-	return res
+	return &res
 }
 
-func (d *DocumentResult) ToSortIndex(append *facet.SortIndex) facet.SortIndex {
+func (d *DocumentResult) ToSortIndex() facet.SortIndex {
 	l := len(*d)
 
 	sortMap := make(facet.ByValue, l)
 	idx := 0
 	for id, score := range *d {
-		otherScore := append.GetScore(id)
-		sortMap[idx] = facet.Lookup{Id: id, Value: float64(otherScore) + float64(score/10.0)}
+		sortMap[idx] = facet.Lookup{Id: id, Value: score}
 		idx++
 	}
 	sort.Sort(sort.Reverse(sortMap))
@@ -126,9 +129,9 @@ func (d *DocumentResult) ToResult() facet.IdList {
 	return res
 }
 
-func (d *DocumentResult) ToResultWithSort(append *facet.SortIndex) ResultWithSort {
+func (d *DocumentResult) ToResultWithSort() ResultWithSort {
 	return ResultWithSort{
 		IdList:    d.ToResult(),
-		SortIndex: d.ToSortIndex(append),
+		SortIndex: d.ToSortIndex(),
 	}
 }
