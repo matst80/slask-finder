@@ -13,7 +13,9 @@ type BaseField struct {
 
 type KeyField struct {
 	*BaseField
-	values map[string]IdList
+	keys   map[string]int
+	values []IdList
+	len    int
 }
 
 func (f *KeyField) Matches(value string) IdList {
@@ -21,34 +23,45 @@ func (f *KeyField) Matches(value string) IdList {
 		return IdList{}
 	}
 	ret := IdList{}
-
-	for key, ids := range f.values {
-		if key == value {
-			maps.Copy(ret, ids)
-		}
+	idx, found := f.keys[value]
+	if found {
+		maps.Copy(ret, f.values[idx])
 	}
-
 	return ret
 
 }
 
 func (f *KeyField) AddValueLink(value string, id uint) {
-	idList, ok := f.values[value]
-	if !ok {
-		if f.values == nil {
-			f.values = map[string]IdList{}
-		}
-		f.values[value] = IdList{id: struct{}{}}
+	idx, found := f.keys[value]
+	if !found {
+		f.values = append(f.values, IdList{id: struct{}{}})
+		f.keys[value] = f.len
+		f.len++
 	} else {
-		idList[id] = struct{}{}
+		f.values[idx][id] = struct{}{}
 	}
+
+	// idList, ok := f.values[value]
+	// if !ok {
+	// 	if f.values == nil {
+	// 		f.values = map[string]IdList{value: {id: fields}}
+	// 	} else {
+	// 		f.values[value] = IdList{id: fields}
+	// 	}
+	// } else {
+	// 	idList[id] = fields
+	// }
 }
 
 func (f *KeyField) RemoveValueLink(value string, id uint) {
-	idList, ok := f.values[value]
-	if ok {
-		delete(idList, id)
+	idx, found := f.keys[value]
+	if found {
+		delete(f.values[idx], id)
 	}
+	// idList, ok := f.values[value]
+	// if ok {
+	// 	delete(idList, id)
+	// }
 }
 
 func (f *KeyField) TotalCount() int {
@@ -63,41 +76,44 @@ func (f *KeyField) UniqueCount() int {
 	return len(f.values)
 }
 
-func (f *KeyField) GetValues() map[string]IdList {
-	return f.values
-}
+// func (f *KeyField) GetValues() map[string]IdList {
+// 	return f.values
+// }
 
-func count(ids IdList, other IdList) int {
-	count := 0
-	for id := range ids {
-		if _, ok := other[id]; ok {
-			count++
-		}
-	}
-	return count
-}
+// func count(ids IdList, other IdList) int {
+// 	count := 0
+// 	for id := range ids {
+// 		if _, ok := other[id]; ok {
+// 			count++
+// 		}
+// 	}
+// 	return count
+// }
 
-func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
-	res := map[string]int{}
-	for value, valueIds := range f.values {
-		idCount := count(valueIds, ids)
-		if idCount > 0 {
-			res[value] = idCount
-		}
-	}
-	return res
-}
+// func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
+// 	res := map[string]int{}
+// 	for value, valueIds := range f.values {
+// 		idCount := count(valueIds, ids)
+// 		if idCount > 0 {
+// 			res[value] = idCount
+// 		}
+// 	}
+// 	return res
+// }
 
 func NewKeyField(field *BaseField, value string, ids IdList) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		values:    map[string]IdList{value: ids},
+		keys:      map[string]int{value: 0},
+		len:       1,
+		values:    []IdList{ids},
 	}
 }
 
 func EmptyKeyValueField(field *BaseField) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		values:    map[string]IdList{},
+		keys:      map[string]int{},
+		values:    []IdList{},
 	}
 }

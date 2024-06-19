@@ -6,8 +6,8 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortIndex) []JsonKeyResult {
-	l := min(len(fields), 64)
+func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.SortIndex) []JsonKeyResult {
+	l := min(len(fields), 32)
 	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {
@@ -15,9 +15,10 @@ func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortInde
 		if ok {
 			indexField, baseOk := i.KeyFacets[id]
 			if baseOk && !indexField.HideFacet {
+
 				sorted[idx] = JsonKeyResult{
 					BaseField: indexField.BaseField,
-					Values:    f.GetValues(),
+					Values:    &f,
 				}
 				idx++
 				if idx >= l {
@@ -30,7 +31,7 @@ func (i *Index) mapToSlice(fields map[uint]*KeyResult, sortIndex *facet.SortInde
 }
 
 func mapToSliceNumber[K float64 | int](numberFields map[uint]*facet.NumberField[K], fields map[uint]*NumberResult[K], sortIndex *facet.SortIndex) []JsonNumberResult {
-	l := min(len(fields), 64)
+	l := min(len(fields), 20)
 	sorted := make([]JsonNumberResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {

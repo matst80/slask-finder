@@ -25,27 +25,15 @@ type ItemProp struct {
 }
 
 type BaseItem struct {
-	Id    uint      `json:"id"`
-	Sku   string    `json:"sku"`
-	Title string    `json:"title"`
-	Props *ItemProp `json:"props"`
-}
-
-type KeyFieldValue struct {
-	Value string `json:"value"`
-	Id    uint   `json:"id"`
-}
-
-type NumberFieldValue[K float64 | int] struct {
-	Value K    `json:"value"`
-	Id    uint `json:"id"`
+	Id    uint     `json:"id"`
+	Sku   string   `json:"sku"`
+	Title string   `json:"title"`
+	Props ItemProp `json:"props"`
 }
 
 type DataItem struct {
 	BaseItem
-	Fields        *[]KeyFieldValue             `json:"values"`
-	DecimalFields *[]NumberFieldValue[float64] `json:"numberValues"`
-	IntegerFields *[]NumberFieldValue[int]     `json:"integerValues"`
+	facet.ItemFields
 	//fieldValues   *FieldValues
 }
 
@@ -77,17 +65,17 @@ func (item *DataItem) getFieldValues() *FieldValues {
 
 	fields := FieldValues{}
 	if item.Fields != nil {
-		for _, value := range *item.Fields {
+		for _, value := range item.Fields {
 			fields[value.Id] = value.Value
 		}
 	}
 	if item.DecimalFields != nil {
-		for _, value := range *item.DecimalFields {
+		for _, value := range item.DecimalFields {
 			fields[value.Id] = value.Value
 		}
 	}
 	if item.IntegerFields != nil {
-		for _, value := range *item.IntegerFields {
+		for _, value := range item.IntegerFields {
 			fields[value.Id] = value.Value
 		}
 	}

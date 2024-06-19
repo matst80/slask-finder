@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"runtime"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -49,7 +50,7 @@ func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
-	FacetLimit:       5000,
+	FacetLimit:       6400,
 	SearchFacetLimit: 1500,
 	ListenAddress:    ":8080",
 }
@@ -60,8 +61,8 @@ func Init() {
 	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Brand", Description: "Brand name"})
 	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Stock level", Description: "Central stock level"})
 	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Category", Description: "Category"})
-	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Category parent", HideFacet: true})
-	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Master category", HideFacet: true})
+	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Category parent"})
+	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Master category"})
 	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "B grade", Description: "Outlet rating"})
 	//idx.AddBoolField(&facet.BaseField{Id: 21, Name: "Discounted", Description: ""})
 	idx.AddIntegerField(&facet.BaseField{Id: 4, Name: "Price", Description: "Current price"})
@@ -93,13 +94,14 @@ func Init() {
 			log.Printf("Failed to load index %v", err)
 		} else {
 			fieldSort := MakeSortForFields()
-			priceSort := MakeSortFromNumberField(idx.Items, 4)
+			sortMap, priceSort := MakeSortFromNumberField(idx.Items, 4)
+			idx.Search.BaseSortMap = ToMap(&sortMap)
 			srv.DefaultSort = &priceSort
 			srv.FieldSort = &fieldSort
 			log.Println("Index loaded")
 			idx.CreateDefaultFacets(&fieldSort)
 			log.Println("Default facets created")
-
+			runtime.GC()
 		}
 
 	}()

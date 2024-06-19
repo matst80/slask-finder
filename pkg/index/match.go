@@ -28,6 +28,8 @@ type Filters struct {
 
 func (i *Index) Match(search *Filters) *facet.IdList {
 	len := 0
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	results := make(chan facet.IdList)
 
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {

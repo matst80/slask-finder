@@ -1,6 +1,8 @@
 package index
 
 import (
+	"sync"
+
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/search"
 )
@@ -21,12 +23,13 @@ type UpdateHandler interface {
 }
 
 type Index struct {
+	mu            sync.Mutex
 	KeyFacets     map[uint]*KeyFacet
 	DecimalFacets map[uint]*DecimalFacet
 	IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
 	Items         map[uint]*DataItem
-	AllItems      facet.IdList
+	AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
 	Search        *search.FreeTextIndex
@@ -38,14 +41,18 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
 		Items:         make(map[uint]*DataItem),
-		AllItems:      facet.IdList{},
+		AllItems:      facet.MatchList{},
 		AutoSuggest:   AutoSuggest{Trie: search.NewTrie()},
 		Search:        freeText,
 	}
 }
 
 func (i *Index) CreateDefaultFacets(sort *facet.SortIndex) {
-	i.DefaultFacets = i.GetFacetsFromResult(&i.AllItems, &Filters{}, sort)
+	ids := facet.IdList{}
+	for id := range i.AllItems {
+		ids[id] = struct{}{}
+	}
+	i.DefaultFacets = i.GetFacetsFromResult(&ids, &Filters{}, sort)
 }
 
 func (i *Index) AddKeyField(field *facet.BaseField) {
@@ -63,20 +70,20 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 func (i *Index) addItemValues(item *DataItem) {
 
 	if item.Fields != nil {
-		for _, field := range *item.Fields {
+		for _, field := range item.Fields {
 			if field.Value == "" || len(field.Value) > 64 {
 				continue
 			}
 
 			if f, ok := i.KeyFacets[field.Id]; ok {
-				if !f.BaseField.HideFacet {
-					f.AddValueLink(field.Value, item.Id)
-				}
+				//if !f.BaseField.HideFacet {
+				f.AddValueLink(field.Value, item.Id)
+				//}
 			}
 		}
 	}
 	if item.DecimalFields != nil {
-		for _, field := range *item.DecimalFields {
+		for _, field := range item.DecimalFields {
 			if field.Value == 0.0 {
 				continue
 			}
@@ -86,7 +93,7 @@ func (i *Index) addItemValues(item *DataItem) {
 		}
 	}
 	if item.IntegerFields != nil {
-		for _, field := range *item.IntegerFields {
+		for _, field := range item.IntegerFields {
 			if field.Value == 0 {
 				continue
 			}
@@ -98,17 +105,17 @@ func (i *Index) addItemValues(item *DataItem) {
 }
 
 func (i *Index) removeItemValues(item *DataItem) {
-	for _, field := range *item.Fields {
+	for _, field := range item.Fields {
 		if f, ok := i.KeyFacets[field.Id]; ok {
 			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
-	for _, field := range *item.DecimalFields {
+	for _, field := range item.DecimalFields {
 		if f, ok := i.DecimalFacets[field.Id]; ok {
 			f.RemoveValueLink(field.Value, item.Id)
 		}
 	}
-	for _, field := range *item.IntegerFields {
+	for _, field := range item.IntegerFields {
 		if f, ok := i.IntFacets[field.Id]; ok {
 			f.RemoveValueLink(field.Value, item.Id)
 		}
@@ -116,18 +123,33 @@ func (i *Index) removeItemValues(item *DataItem) {
 }
 
 func (i *Index) UpsertItem(item *DataItem) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.UpsertItemUnsafe(item)
+}
+
+func (i *Index) Lock() {
+	i.mu.Lock()
+}
+
+func (i *Index) Unlock() {
+	i.mu.Unlock()
+}
+
+func (i *Index) UpsertItemUnsafe(item *DataItem) {
+
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
 	} else {
-		i.AutoSuggest.InsertItem(item)
+		go i.AutoSuggest.InsertItem(item)
 	}
-	i.AllItems[item.Id] = struct{}{}
+	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
 	i.Items[item.Id] = item
 	if i.Search != nil {
-		i.Search.CreateDocument(item.Id, item.Title)
+		go i.Search.CreateDocument(item.Id, item.Title)
 	}
 
 	if i.ChangeHandler != nil {
@@ -137,7 +159,6 @@ func (i *Index) UpsertItem(item *DataItem) {
 			i.ChangeHandler.ItemAdded(item)
 		}
 	}
-	item = nil
 }
 
 func (i *Index) DeleteItem(id uint) {

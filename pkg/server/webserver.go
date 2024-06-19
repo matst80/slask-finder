@@ -147,11 +147,12 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
 	go func() {
-		// /if len(*searchResults) > ws.SearchFacetLimit {
+
+		//if len(searchResults) > ws.SearchFacetLimit {
 		facetsChan <- index.Facets{}
 		// } else {
-		//facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
-		//}
+		// 	facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
+		// }
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
