@@ -33,7 +33,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	facetsChan := make(chan index.Facets)
 	defer close(itemsChan)
 	defer close(facetsChan)
-	matching := ws.Index.Match(&sr.Filters)
+	matching := ws.Index.Match(&sr.Filters, sr.Query)
 
 	totalHits := len(*matching)
 	go func() {
@@ -140,19 +140,19 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 
 	//	log.Printf("Query: %v", query)
 	searchResults := ws.Index.Search.Search(query)
-
+	res := searchResults.ToResultWithSort()
 	go func() {
-		res := searchResults.ToResultWithSort()
+
 		ids := res.SortIndex.SortMap(res.IdList, (page+1)*pageSize)
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
 	go func() {
 
-		//if len(searchResults) > ws.SearchFacetLimit {
-		facetsChan <- index.Facets{}
-		// } else {
-		// 	facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
-		// }
+		if len(*searchResults) > ws.SearchFacetLimit {
+			facetsChan <- index.Facets{}
+		} else {
+			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
+		}
 	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")

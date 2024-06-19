@@ -51,7 +51,7 @@ var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
 	FacetLimit:       6400,
-	SearchFacetLimit: 1500,
+	SearchFacetLimit: 3500,
 	ListenAddress:    ":8080",
 }
 

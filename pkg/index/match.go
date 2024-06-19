@@ -26,12 +26,18 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer"`
 }
 
-func (i *Index) Match(search *Filters) *facet.IdList {
+func (i *Index) Match(search *Filters, query string) *facet.IdList {
 	len := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan facet.IdList)
-
+	if query != "" {
+		len++
+		go func() {
+			res := i.Search.Search(query)
+			results <- res.ToResult()
+		}()
+	}
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
 		results <- fld.Matches(field.Value)
 	}
