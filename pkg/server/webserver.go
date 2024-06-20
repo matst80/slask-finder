@@ -2,9 +2,11 @@ package server
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
+	"strings"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -175,6 +177,26 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
+	categories := strings.Split(strings.TrimPrefix(r.URL.Path, "/values/"), "/")
+	log.Println(categories)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusOK)
+	if len(categories) == 0 {
+		encErr := json.NewEncoder(w).Encode(ws.Index.KeyFacets[10])
+		if encErr != nil {
+			http.Error(w, encErr.Error(), http.StatusInternalServerError)
+		}
+	}
+	encErr := json.NewEncoder(w).Encode(ws.Index.KeyFacets[11])
+	if encErr != nil {
+		http.Error(w, encErr.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) StartServer(enableProfiling bool) error {
 
 	srv := http.NewServeMux()
@@ -189,6 +211,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/save", ws.Save)
+	srv.HandleFunc("/values/", ws.GetValues)
 	if enableProfiling {
 		srv.HandleFunc("/debug/pprof/", pprof.Index)
 		srv.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
