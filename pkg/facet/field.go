@@ -18,6 +18,14 @@ type KeyField struct {
 	len    int
 }
 
+func (f *KeyField) GetValues() []string {
+	ret := make([]string, len(f.keys))
+	for value, idx := range f.keys {
+		ret[idx] = value
+	}
+	return ret
+}
+
 func (f *KeyField) Matches(value string) IdList {
 	if value == "" {
 		return IdList{}

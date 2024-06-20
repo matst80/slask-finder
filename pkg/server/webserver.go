@@ -2,7 +2,6 @@ package server
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
@@ -177,21 +176,70 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func removeEmptyStrings(s []string) []string {
+	var r []string
+	for _, str := range s {
+		if str != "" {
+			r = append(r, str)
+		}
+	}
+	return r
+}
+
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
-	categories := strings.Split(strings.TrimPrefix(r.URL.Path, "/values/"), "/")
-	log.Println(categories)
+	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/values/"), "/"))
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
 	w.Header().Set("Access-Control-Allow-Origin", Origin)
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
 	if len(categories) == 0 {
-		encErr := json.NewEncoder(w).Encode(ws.Index.KeyFacets[10])
+		encErr := json.NewEncoder(w).Encode(ws.Index.KeyFacets[10].GetValues())
 		if encErr != nil {
 			http.Error(w, encErr.Error(), http.StatusInternalServerError)
 		}
+		return
 	}
-	encErr := json.NewEncoder(w).Encode(ws.Index.KeyFacets[11])
+
+	sr := SearchRequest{
+		Filters: index.Filters{
+			StringFilter: []index.StringSearch{
+				{
+					Id:    10,
+					Value: categories[0],
+				},
+			},
+		},
+	}
+	for i := 1; i < len(categories); i++ {
+		sr.Filters.StringFilter = append(sr.Filters.StringFilter, index.StringSearch{
+			Id:    uint(10 + i),
+			Value: categories[i],
+		})
+	}
+	resultIds := ws.Index.Match(&sr.Filters, "")
+	values := map[string]bool{}
+	for id := range *resultIds {
+		item, ok := ws.Index.Items[id]
+		if ok {
+			if item.Fields != nil {
+				for _, field := range item.Fields {
+					if field.Id == uint(10+len(categories)) {
+						values[field.Value] = true
+					}
+				}
+			}
+		}
+	}
+	valuesList := make([]string, len(values))
+	i := 0
+	for value := range values {
+		valuesList[i] = value
+		i++
+	}
+
+	encErr := json.NewEncoder(w).Encode(valuesList)
 	if encErr != nil {
 		http.Error(w, encErr.Error(), http.StatusInternalServerError)
 	}
