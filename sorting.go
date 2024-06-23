@@ -17,14 +17,8 @@ func MakeSortMap(items map[uint]*index.DataItem, fieldId uint, fn func(value int
 		if item.Props.SaleStatus == "ACT" {
 			b = 5000000.0
 		}
-		v := 0
+		v := item.IntegerFields[fieldId]
 
-		for _, f := range item.IntegerFields {
-			if f.Id == fieldId {
-				v = f.Value
-				break
-			}
-		}
 		sortMap[idx] = facet.Lookup{Id: item.Id, Value: b + fn(v)}
 		idx++
 	}

@@ -37,6 +37,32 @@ type DataItem struct {
 	//fieldValues   *FieldValues
 }
 
+type StorageItem struct {
+	BaseItem
+	DataItemFields
+}
+
+type DataItemFields struct {
+	Fields        []KeyFieldValue     `json:"values"`
+	DecimalFields []DecimalFieldValue `json:"numberValues"`
+	IntegerFields []IntegerFieldValue `json:"integerValues"`
+}
+
+type KeyFieldValue struct {
+	Value string `json:"value"`
+	Id    uint   `json:"id"`
+}
+
+type DecimalFieldValue struct {
+	Value float64 `json:"value"`
+	Id    uint    `json:"id"`
+}
+
+type IntegerFieldValue struct {
+	Value int  `json:"value"`
+	Id    uint `json:"id"`
+}
+
 type ItemKeyField struct {
 	Value *string `json:"value"`
 }
@@ -65,18 +91,18 @@ func (item *DataItem) getFieldValues() *FieldValues {
 
 	fields := FieldValues{}
 	if item.Fields != nil {
-		for _, value := range item.Fields {
-			fields[value.Id] = value.Value
+		for id, value := range item.Fields {
+			fields[id] = value
 		}
 	}
 	if item.DecimalFields != nil {
-		for _, value := range item.DecimalFields {
-			fields[value.Id] = value.Value
+		for id, value := range item.DecimalFields {
+			fields[id] = value
 		}
 	}
 	if item.IntegerFields != nil {
-		for _, value := range item.IntegerFields {
-			fields[value.Id] = value.Value
+		for id, value := range item.IntegerFields {
+			fields[id] = value
 		}
 	}
 	return &fields

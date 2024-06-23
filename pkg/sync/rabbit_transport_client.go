@@ -63,7 +63,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
-			var item index.DataItem
+			var item index.StorageItem
 			if err := json.Unmarshal(d.Body, &item); err == nil {
 				t.handler.UpsertItem(&item)
 			}
@@ -76,7 +76,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
-			var item index.DataItem
+			var item index.StorageItem
 			if err := json.Unmarshal(d.Body, &item); err == nil {
 				t.handler.UpsertItem(&item)
 			}

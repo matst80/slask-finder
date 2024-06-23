@@ -6,7 +6,6 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 )
@@ -70,14 +69,13 @@ func TestSendChanges(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = masterTransport.SendItemAdded(&index.DataItem{
+	err = masterTransport.SendItemAdded(&index.StorageItem{
 		BaseItem: index.BaseItem{
 			Id:    3,
 			Title: "Test",
 		},
-		ItemFields: facet.ItemFields{
-
-			Fields: []facet.KeyFieldValue{
+		DataItemFields: index.DataItemFields{
+			Fields: []index.KeyFieldValue{
 				{Value: "Test", Id: 1},
 			},
 		},
@@ -111,14 +109,14 @@ func TestSync(t *testing.T) {
 	defer masterTransport.Close()
 	defer clientTransport1.Close()
 
-	item := &index.DataItem{
+	item := &index.StorageItem{
 		BaseItem: index.BaseItem{
 			Id:    1,
 			Title: "Test",
 		},
-		ItemFields: facet.ItemFields{
+		DataItemFields: index.DataItemFields{
 
-			Fields: []facet.KeyFieldValue{
+			Fields: []index.KeyFieldValue{
 				{Value: "Test", Id: 1},
 			},
 		},
@@ -150,7 +148,7 @@ func TestSync(t *testing.T) {
 		return
 	}
 
-	if firstItem1.Fields[0].Value != "Test2" {
+	if firstItem1.Fields[1] != "Test2" {
 		t.Error("Item not updated on client 1")
 	}
 

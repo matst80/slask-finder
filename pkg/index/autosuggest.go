@@ -24,7 +24,7 @@ func (a *AutoSuggest) insertUnsafe(word string, id uint) {
 	}
 }
 
-func (a *AutoSuggest) InsertItem(item *DataItem) {
+func (a *AutoSuggest) InsertItem(item *StorageItem) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

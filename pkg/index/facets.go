@@ -97,9 +97,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			continue
 		}
 		if item.Fields != nil {
-			for _, field := range item.Fields {
+			for id, value := range item.Fields {
 
-				l := len(field.Value)
+				l := len(value)
 				if l == 0 || l > 64 {
 					continue
 				}
@@ -107,48 +107,48 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				// 	continue
 				// }
 
-				if f, ok := fields[field.Id]; ok {
-					f[field.Value]++
+				if f, ok := fields[id]; ok {
+					f[value]++
 					//f.AddValue(&field.Value) // TODO optimize
 				} else {
 					//count++
 
-					fields[field.Id] = map[string]uint{
-						field.Value: 1,
+					fields[id] = map[string]uint{
+						value: 1,
 					}
 
 				}
 			}
 		}
 		if item.DecimalFields != nil {
-			for _, field := range item.DecimalFields {
+			for id, value := range item.DecimalFields {
 
-				if f, ok := numberFields[field.Id]; ok {
-					f.AddValue(field.Value)
+				if f, ok := numberFields[id]; ok {
+					f.AddValue(value)
 				} else {
 					//count++
-					numberFields[field.Id] = &NumberResult[float64]{
+					numberFields[id] = &NumberResult[float64]{
 						Count: 1,
-						Min:   field.Value,
-						Max:   field.Value,
+						Min:   value,
+						Max:   value,
 					}
 				}
 			}
 		}
 		if item.IntegerFields != nil {
-			for _, field := range item.IntegerFields {
-				if field.Value == 0 || field.Value == -1 {
+			for id, value := range item.IntegerFields {
+				if value == 0 || value == -1 {
 					continue
 				}
 
-				if f, ok := intFields[field.Id]; ok {
-					f.AddValue(field.Value)
+				if f, ok := intFields[id]; ok {
+					f.AddValue(value)
 				} else {
 					//count++
-					intFields[field.Id] = &NumberResult[int]{
+					intFields[id] = &NumberResult[int]{
 						Count: 1,
-						Min:   field.Value,
-						Max:   field.Value,
+						Min:   value,
+						Max:   value,
 					}
 				}
 			}

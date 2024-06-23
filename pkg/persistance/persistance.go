@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 
+	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 )
 
@@ -37,7 +38,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	idx.Lock()
 	defer idx.Unlock()
 	for err == nil {
-		var tmp = &index.DataItem{}
+		var tmp = &index.StorageItem{}
 		if err = enc.Decode(tmp); err == nil {
 
 			idx.UpsertItemUnsafe(tmp)
@@ -50,6 +51,45 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	}
 
 	return err
+}
+
+func getStorageFields(input facet.ItemFields) index.DataItemFields {
+
+	fields := make([]index.KeyFieldValue, len(input.Fields))
+	for id, value := range input.Fields {
+		fields = append(fields, index.KeyFieldValue{
+			Id:    id,
+			Value: value,
+		})
+
+	}
+	decimalFields := make([]index.DecimalFieldValue, 0)
+	for id, value := range input.DecimalFields {
+		decimalFields = append(decimalFields, index.DecimalFieldValue{
+			Id:    id,
+			Value: value,
+		})
+	}
+	integerFields := make([]index.IntegerFieldValue, 0)
+	for id, value := range input.IntegerFields {
+		integerFields = append(integerFields, index.IntegerFieldValue{
+			Id:    id,
+			Value: value,
+		})
+	}
+
+	return index.DataItemFields{
+		Fields:        fields,
+		DecimalFields: decimalFields,
+		IntegerFields: integerFields,
+	}
+}
+
+func getStorageItem(item *index.DataItem) *index.StorageItem {
+	return &index.StorageItem{
+		BaseItem:       item.BaseItem,
+		DataItemFields: getStorageFields(item.ItemFields),
+	}
 }
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
@@ -71,7 +111,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer zipWriter.Close()
 
 	for _, item := range idx.Items {
-		err = enc.Encode(*item)
+		err = enc.Encode(getStorageItem(item))
 		if err != nil {
 			return err
 		}

@@ -35,11 +35,11 @@ var masterTransport = sync.RabbitTransportMaster{
 
 type RabbitMasterChangeHandler struct{}
 
-func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
+func (r *RabbitMasterChangeHandler) ItemChanged(item *index.StorageItem) {
 	masterTransport.SendItemAdded(item)
 }
 
-func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
+func (r *RabbitMasterChangeHandler) ItemAdded(item *index.StorageItem) {
 	masterTransport.SendItemChanged(item)
 }
 

@@ -20,11 +20,11 @@ type LoggingChangeHandler struct {
 	Printf func(format string, v ...interface{})
 }
 
-func (l *LoggingChangeHandler) ItemAdded(item *DataItem) {
+func (l *LoggingChangeHandler) ItemAdded(item *StorageItem) {
 	l.Printf("Item added %v", *item)
 }
 
-func (l *LoggingChangeHandler) ItemChanged(item *DataItem) {
+func (l *LoggingChangeHandler) ItemChanged(item *StorageItem) {
 	l.Printf("Item changed %v", *item)
 }
 
@@ -37,20 +37,21 @@ func TestIndexMatch(t *testing.T) {
 	i.AddKeyField(&facet.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
-	item := &DataItem{
+	item := &StorageItem{
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		ItemFields: facet.ItemFields{
-			Fields: []facet.KeyFieldValue{
+		DataItemFields: DataItemFields{
+			Fields: []KeyFieldValue{
 				{Value: "test", Id: 1},
 				{Value: "hej", Id: 2},
 			},
-			DecimalFields: []facet.DecimalFieldValue{
+			DecimalFields: []DecimalFieldValue{
 				{Value: 1, Id: 3},
 			},
 		},
 	}
+
 	i.UpsertItem(item)
 	query := Filters{
 		StringFilter:  []StringSearch{{Id: 1, Value: "test"}},
@@ -72,37 +73,37 @@ func CreateIndex() *Index {
 	i.AddKeyField(&facet.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&facet.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&facet.BaseField{Id: 3, Name: "number", Description: "number field"})
-
-	i.UpsertItem(&DataItem{
+	i.UpsertItem(&StorageItem{
 		BaseItem: BaseItem{
 			Id:    1,
 			Title: "item1",
 		},
-		ItemFields: facet.ItemFields{
-			Fields: []facet.KeyFieldValue{
+		DataItemFields: DataItemFields{
+			Fields: []KeyFieldValue{
 				{Value: "test", Id: 1},
 				{Value: "hej", Id: 2},
 			},
-			DecimalFields: []facet.DecimalFieldValue{
+			DecimalFields: []DecimalFieldValue{
 				{Value: 1, Id: 3},
 			},
 		},
 	})
-	i.UpsertItem(&DataItem{
+	i.UpsertItem(&StorageItem{
 		BaseItem: BaseItem{
 			Id:    2,
 			Title: "item2",
 		},
-		ItemFields: facet.ItemFields{
-			Fields: []facet.KeyFieldValue{
+		DataItemFields: DataItemFields{
+			Fields: []KeyFieldValue{
 				{Value: "test", Id: 1},
 				{Value: "slask", Id: 2},
 			},
-			DecimalFields: []facet.DecimalFieldValue{
+			DecimalFields: []DecimalFieldValue{
 				{Value: 2, Id: 3},
 			},
 		},
 	})
+
 	return i
 }
 
@@ -187,25 +188,25 @@ func TestUpdateItem(t *testing.T) {
 	i.ChangeHandler = &LoggingChangeHandler{
 		Printf: t.Logf,
 	}
-	item := &DataItem{
+	item := &StorageItem{
 		BaseItem: BaseItem{
 			Id: 1,
 		},
-		ItemFields: facet.ItemFields{
-			Fields: []facet.KeyFieldValue{
+		DataItemFields: DataItemFields{
+			Fields: []KeyFieldValue{
 				{Value: "test", Id: 1},
 				{Value: "hej", Id: 2},
 			},
-			DecimalFields: []facet.DecimalFieldValue{
+			DecimalFields: []DecimalFieldValue{
 				{Value: 999.0, Id: 3},
 			},
 		},
 	}
 	i.UpsertItem(item)
-	if i.Items[1].Fields[0].Value != "test" {
+	if i.Items[1].Fields[1] != "test" {
 		t.Errorf("Expected field 1 to be test")
 	}
-	if i.Items[1].DecimalFields[0].Value != 999 {
+	if i.Items[1].DecimalFields[3] != 999 {
 		t.Errorf("Expected field 3 to be 999")
 	}
 

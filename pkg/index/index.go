@@ -12,13 +12,13 @@ type DecimalFacet = facet.NumberField[float64]
 type IntFacet = facet.NumberField[int]
 
 type ChangeHandler interface {
-	ItemChanged(item *DataItem)
+	ItemChanged(item *StorageItem)
 	ItemDeleted(id uint)
-	ItemAdded(item *DataItem)
+	ItemAdded(item *StorageItem)
 }
 
 type UpdateHandler interface {
-	UpsertItem(item *DataItem)
+	UpsertItem(item *StorageItem)
 	DeleteItem(id uint)
 }
 
@@ -67,7 +67,7 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 	i.IntFacets[field.Id] = facet.EmptyNumberField[int](field)
 }
 
-func (i *Index) addItemValues(item *DataItem) {
+func (i *Index) addItemValues(item *StorageItem) {
 
 	if item.Fields != nil {
 		for _, field := range item.Fields {
@@ -105,24 +105,24 @@ func (i *Index) addItemValues(item *DataItem) {
 }
 
 func (i *Index) removeItemValues(item *DataItem) {
-	for _, field := range item.Fields {
-		if f, ok := i.KeyFacets[field.Id]; ok {
-			f.RemoveValueLink(field.Value, item.Id)
+	for id, value := range item.Fields {
+		if f, ok := i.KeyFacets[id]; ok {
+			f.RemoveValueLink(value, item.Id)
 		}
 	}
-	for _, field := range item.DecimalFields {
-		if f, ok := i.DecimalFacets[field.Id]; ok {
-			f.RemoveValueLink(field.Value, item.Id)
+	for id, value := range item.DecimalFields {
+		if f, ok := i.DecimalFacets[id]; ok {
+			f.RemoveValueLink(value, item.Id)
 		}
 	}
-	for _, field := range item.IntegerFields {
-		if f, ok := i.IntFacets[field.Id]; ok {
-			f.RemoveValueLink(field.Value, item.Id)
+	for id, value := range item.IntegerFields {
+		if f, ok := i.IntFacets[id]; ok {
+			f.RemoveValueLink(value, item.Id)
 		}
 	}
 }
 
-func (i *Index) UpsertItem(item *DataItem) {
+func (i *Index) UpsertItem(item *StorageItem) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.UpsertItemUnsafe(item)
@@ -136,16 +136,40 @@ func (i *Index) Unlock() {
 	i.mu.Unlock()
 }
 
-func (i *Index) UpsertItemUnsafe(item *DataItem) {
+func getItemFields(storageFields DataItemFields) facet.ItemFields {
+	fields := map[uint]string{}
+	for _, field := range storageFields.Fields {
+		fields[field.Id] = field.Value
+	}
+	decimalFields := map[uint]float64{}
+	for _, field := range storageFields.DecimalFields {
+		decimalFields[field.Id] = field.Value
+	}
+	integerFields := map[uint]int{}
+	for _, field := range storageFields.IntegerFields {
+		integerFields[field.Id] = field.Value
+	}
 
+	return facet.ItemFields{
+		Fields:        fields,
+		DecimalFields: decimalFields,
+		IntegerFields: integerFields,
+	}
+}
+
+func (i *Index) UpsertItemUnsafe(storageItem *StorageItem) {
+	item := &DataItem{
+		BaseItem:   storageItem.BaseItem,
+		ItemFields: getItemFields(storageItem.DataItemFields),
+	}
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
 	} else {
-		go i.AutoSuggest.InsertItem(item)
+		go i.AutoSuggest.InsertItem(storageItem)
 	}
 	i.AllItems[item.Id] = &item.ItemFields
-	i.addItemValues(item)
+	i.addItemValues(storageItem)
 
 	i.Items[item.Id] = item
 	if i.Search != nil {
@@ -154,9 +178,9 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 
 	if i.ChangeHandler != nil {
 		if isUpdate {
-			i.ChangeHandler.ItemChanged(item)
+			i.ChangeHandler.ItemChanged(storageItem)
 		} else {
-			i.ChangeHandler.ItemAdded(item)
+			i.ChangeHandler.ItemAdded(storageItem)
 		}
 	}
 }
