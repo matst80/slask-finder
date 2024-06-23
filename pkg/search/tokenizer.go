@@ -95,13 +95,13 @@ func SplitWords(text string, onWord func(word string, count int) bool) {
 }
 
 func (t *Tokenizer) Tokenize(text string) []Token {
-	parts := make([]Token, t.MaxTokens)
+	parts := []Token{}
 	c := 0
 	SplitWords(text, func(word string, count int) bool {
 		if c >= t.MaxTokens {
 			return false
 		}
-		parts[c] = simplify(word)
+		parts = append(parts, simplify(word))
 		c++
 		return true
 	})

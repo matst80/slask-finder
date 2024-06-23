@@ -16,7 +16,7 @@ func (b *Bucket[V]) AddValueLink(value V, id uint) {
 		b.values[value] = IdList{id: struct{}{}}
 
 	} else {
-		idList[id] = struct{}{}
+		idList.Add(id)
 	}
 	//maps.Copy(*b.all, lst)
 	//b.all.Merge(&lst)

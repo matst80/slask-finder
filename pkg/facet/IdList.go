@@ -6,8 +6,10 @@ import (
 
 type IdList map[uint]struct{}
 
+var empty = struct{}{}
+
 func (r *IdList) Add(id uint) {
-	(*r)[id] = struct{}{}
+	(*r)[id] = empty
 }
 
 func (r *IdList) SortedIds(srt *SortIndex, maxItems int) []uint {
