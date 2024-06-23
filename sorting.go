@@ -14,7 +14,7 @@ func MakeSortMap(items map[uint]*index.DataItem, fieldId uint, fn func(value int
 	idx := 0
 	for _, item := range items {
 		b := 0.0
-		if item.Props.SaleStatus == "ACT" {
+		if item.SaleStatus == "ACT" {
 			b = 5000000.0
 		}
 		v := 0
