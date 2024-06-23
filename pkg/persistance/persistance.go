@@ -42,11 +42,12 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		if err = enc.Decode(tmp); err == nil {
 
 			idx.UpsertItemUnsafe(tmp)
+			tmp = &index.DataItem{}
 		}
 	}
 	enc = nil
 	//v = nil
-	tmp = nil
+	//tmp = nil
 	if err.Error() == "EOF" {
 		return nil
 	}

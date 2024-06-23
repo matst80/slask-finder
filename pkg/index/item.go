@@ -57,10 +57,10 @@ type FieldValues map[uint]interface{}
 
 type ResultItem struct {
 	*BaseItem
-	Fields *FieldValues `json:"values"`
+	Fields FieldValues `json:"values"`
 }
 
-func (item *DataItem) getFieldValues() *FieldValues {
+func (item *DataItem) getFieldValues() FieldValues {
 	//if item.fieldValues == nil {
 
 	fields := FieldValues{}
@@ -79,7 +79,7 @@ func (item *DataItem) getFieldValues() *FieldValues {
 			fields[value.Id] = value.Value
 		}
 	}
-	return &fields
+	return fields
 	//}
 	//return item.fieldValues
 
