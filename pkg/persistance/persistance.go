@@ -37,8 +37,9 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	defer zipReader.Close()
 	idx.Lock()
 	defer idx.Unlock()
+	var tmp = &index.StorageItem{}
 	for err == nil {
-		var tmp = &index.StorageItem{}
+
 		if err = enc.Decode(tmp); err == nil {
 
 			idx.UpsertItemUnsafe(tmp)
@@ -85,11 +86,9 @@ func getStorageFields(input facet.ItemFields) index.DataItemFields {
 	}
 }
 
-func getStorageItem(item *index.DataItem) *index.StorageItem {
-	return &index.StorageItem{
-		BaseItem:       item.BaseItem,
-		DataItemFields: getStorageFields(item.ItemFields),
-	}
+func convertStorageItem(item *index.DataItem, output *index.StorageItem) {
+	output.BaseItem = item.BaseItem
+	output.DataItemFields = getStorageFields(item.ItemFields)
 }
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
@@ -109,9 +108,10 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
 	defer zipWriter.Close()
-
+	var storageItem = &index.StorageItem{}
 	for _, item := range idx.Items {
-		err = enc.Encode(getStorageItem(item))
+		convertStorageItem(item, storageItem)
+		err = enc.Encode(storageItem)
 		if err != nil {
 			return err
 		}
