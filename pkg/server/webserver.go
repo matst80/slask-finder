@@ -144,7 +144,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	res := searchResults.ToResultWithSort()
 	go func() {
 
-		ids := res.SortIndex.SortMap(res.IdList, (page+1)*pageSize)
+		ids := res.SortIndex.SortMap(*res.IdList, (page+1)*pageSize)
 		itemsChan <- ws.Index.GetItems(ids, page, pageSize)
 	}()
 	go func() {
@@ -152,7 +152,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		if len(*searchResults) > ws.SearchFacetLimit {
 			facetsChan <- index.Facets{}
 		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(&res.IdList, nil, ws.FieldSort)
+			facetsChan <- ws.Index.GetFacetsFromResult(res.IdList, nil, ws.FieldSort)
 		}
 	}()
 	w.Header().Set("Content-Type", "application/json")

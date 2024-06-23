@@ -16,7 +16,7 @@ type NumberField[V FieldNumberValue] struct {
 	Max     V
 }
 
-func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
+func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) *IdList {
 
 	minBucket := GetBucket(max(minValue, f.Min))
 	maxBucket := GetBucket(min(maxValue, f.Max))
@@ -47,7 +47,7 @@ func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) IdList {
 		}
 
 	}
-	return found
+	return &found
 }
 
 type NumberRange[V FieldNumberValue] struct {

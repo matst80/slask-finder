@@ -30,7 +30,7 @@ func (i *Index) Match(search *Filters, query string) *facet.IdList {
 	len := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	results := make(chan facet.IdList)
+	results := make(chan *facet.IdList)
 	if query != "" {
 		len++
 		go func() {

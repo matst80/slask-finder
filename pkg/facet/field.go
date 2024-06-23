@@ -1,9 +1,5 @@
 package facet
 
-import (
-	"maps"
-)
-
 type BaseField struct {
 	Id          uint   `json:"id"`
 	Name        string `json:"name"`
@@ -13,40 +9,38 @@ type BaseField struct {
 
 type KeyField struct {
 	*BaseField
-	keys   map[string]int
-	values []IdList
-	len    int
+	keys map[string]*IdList
+	//values []IdList
+	//len    uint
 }
 
 func (f *KeyField) GetValues() []string {
 	ret := make([]string, len(f.keys))
-	for value, idx := range f.keys {
+	idx := 0
+	for value := range f.keys {
 		ret[idx] = value
+		idx++
 	}
 	return ret
 }
 
-func (f *KeyField) Matches(value string) IdList {
-	if value == "" {
-		return IdList{}
-	}
-	ret := IdList{}
-	idx, found := f.keys[value]
+func (f *KeyField) Matches(value string) *IdList {
+
+	list, found := f.keys[value]
 	if found {
-		maps.Copy(ret, f.values[idx])
+		return list
 	}
-	return ret
+	return &IdList{}
 
 }
 
 func (f *KeyField) AddValueLink(value string, id uint) {
-	idx, found := f.keys[value]
+	key, found := f.keys[value]
 	if !found {
-		f.values = append(f.values, IdList{id: struct{}{}})
-		f.keys[value] = f.len
-		f.len++
+		f.keys[value] = &IdList{id: struct{}{}}
 	} else {
-		f.values[idx][id] = struct{}{}
+		key.Add(id)
+		//(*key)[id] = struct{}{}
 	}
 
 	// idList, ok := f.values[value]
@@ -62,9 +56,9 @@ func (f *KeyField) AddValueLink(value string, id uint) {
 }
 
 func (f *KeyField) RemoveValueLink(value string, id uint) {
-	idx, found := f.keys[value]
+	key, found := f.keys[value]
 	if found {
-		delete(f.values[idx], id)
+		delete(*key, id)
 	}
 	// idList, ok := f.values[value]
 	// if ok {
@@ -74,14 +68,14 @@ func (f *KeyField) RemoveValueLink(value string, id uint) {
 
 func (f *KeyField) TotalCount() int {
 	total := 0
-	for _, ids := range f.values {
-		total += len(ids)
+	for _, ids := range f.keys {
+		total += len(*ids)
 	}
 	return total
 }
 
 func (f *KeyField) UniqueCount() int {
-	return len(f.values)
+	return len(f.keys)
 }
 
 // func (f *KeyField) GetValues() map[string]IdList {
@@ -109,19 +103,16 @@ func (f *KeyField) UniqueCount() int {
 // 	return res
 // }
 
-func NewKeyField(field *BaseField, value string, ids IdList) *KeyField {
+func NewKeyField(field *BaseField, value string, ids *IdList) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		keys:      map[string]int{value: 0},
-		len:       1,
-		values:    []IdList{ids},
+		keys:      map[string]*IdList{value: ids},
 	}
 }
 
 func EmptyKeyValueField(field *BaseField) *KeyField {
 	return &KeyField{
 		BaseField: field,
-		keys:      map[string]int{},
-		values:    []IdList{},
+		keys:      map[string]*IdList{},
 	}
 }

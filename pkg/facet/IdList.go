@@ -6,6 +6,10 @@ import (
 
 type IdList map[uint]struct{}
 
+func (r *IdList) Add(id uint) {
+	(*r)[id] = struct{}{}
+}
+
 func (r *IdList) SortedIds(srt *SortIndex, maxItems int) []uint {
 	return srt.SortMap(*r, maxItems)
 }
@@ -23,15 +27,15 @@ func (i IdList) Merge(other *IdList) {
 	maps.Copy(i, *other)
 }
 
-func MakeIntersectResult(r chan IdList, len int) *IdList {
+func MakeIntersectResult(r chan *IdList, len int) *IdList {
 
 	if len == 0 {
 		return &IdList{}
 	}
 	first := <-r
 	for i := 1; i < len; i++ {
-		first.Intersect(<-r)
+		first.Intersect(*<-r)
 	}
 	close(r)
-	return &first
+	return first
 }

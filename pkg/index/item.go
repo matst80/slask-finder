@@ -11,17 +11,17 @@ type EnergyRating struct {
 }
 
 type ItemProp struct {
-	Url             string        `json:"url"`
-	Tree            []string      `json:"tree"`
-	ReleaseDate     string        `json:"releaseDate,omitempty"`
-	SaleStatus      string        `json:"saleStatus"`
-	PresaleDate     string        `json:"presaleDate,omitempty"`
-	Restock         string        `json:"restock,omitempty"`
-	AdvertisingText string        `json:"advertisingText,omitempty"`
-	Img             string        `json:"img,omitempty"`
-	BadgeUrl        string        `json:"badgeUrl,omitempty"`
-	EnergyRating    *EnergyRating `json:"energyRating,omitempty"`
-	BulletPoints    []string      `json:"bp,omitempty"`
+	Url string `json:"url"`
+	//Tree            []string      `json:"tree"`
+	ReleaseDate     string       `json:"releaseDate,omitempty"`
+	SaleStatus      string       `json:"saleStatus"`
+	PresaleDate     string       `json:"presaleDate,omitempty"`
+	Restock         string       `json:"restock,omitempty"`
+	AdvertisingText string       `json:"advertisingText,omitempty"`
+	Img             string       `json:"img,omitempty"`
+	BadgeUrl        string       `json:"badgeUrl,omitempty"`
+	EnergyRating    EnergyRating `json:"energyRating,omitempty"`
+	BulletPoints    string       `json:"bp,omitempty"`
 }
 
 type BaseItem struct {

@@ -115,18 +115,18 @@ func (d *DocumentResult) ToSortIndex() facet.SortIndex {
 }
 
 type ResultWithSort struct {
-	facet.IdList
+	*facet.IdList
 	SortIndex facet.SortIndex
 }
 
-func (d *DocumentResult) ToResult() facet.IdList {
+func (d *DocumentResult) ToResult() *facet.IdList {
 	res := facet.IdList{}
 
 	for id := range *d {
 		res[id] = struct{}{}
 		//res.AddId(id)
 	}
-	return res
+	return &res
 }
 
 func (d *DocumentResult) ToResultWithSort() ResultWithSort {

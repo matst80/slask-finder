@@ -36,8 +36,9 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	defer zipReader.Close()
 	idx.Lock()
 	defer idx.Unlock()
+	var tmp = &index.DataItem{}
 	for err == nil {
-		var tmp = &index.DataItem{}
+
 		if err = enc.Decode(tmp); err == nil {
 
 			idx.UpsertItemUnsafe(tmp)
@@ -45,6 +46,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	}
 	enc = nil
 	//v = nil
+	tmp = nil
 	if err.Error() == "EOF" {
 		return nil
 	}

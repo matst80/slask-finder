@@ -11,9 +11,9 @@ type Bucket[V FieldNumberValue] struct {
 
 func (b *Bucket[V]) AddValueLink(value V, id uint) {
 	idList, ok := b.values[value]
-	lst := IdList{id: struct{}{}}
+
 	if !ok {
-		b.values[value] = lst
+		b.values[value] = IdList{id: struct{}{}}
 
 	} else {
 		idList[id] = struct{}{}
