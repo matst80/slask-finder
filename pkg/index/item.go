@@ -25,10 +25,10 @@ type ItemProp struct {
 }
 
 type BaseItem struct {
-	Id    uint     `json:"id"`
-	Sku   string   `json:"sku"`
-	Title string   `json:"title"`
-	Props ItemProp `json:"props"`
+	ItemProp
+	Id    uint   `json:"id"`
+	Sku   string `json:"sku"`
+	Title string `json:"title"`
 }
 
 type DataItem struct {
