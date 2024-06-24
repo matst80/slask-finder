@@ -26,17 +26,16 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer"`
 }
 
-func (i *Index) Match(search *Filters, query string) *facet.IdList {
-	len := 0
+func (i *Index) Match(search *Filters, initialIds *facet.IdList) *facet.IdList {
+	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *facet.IdList)
-	if query != "" {
-		len++
-		go func() {
-			res := i.Search.Search(query)
-			results <- res.ToResult()
-		}()
+	if initialIds != nil && len(*initialIds) > 0 {
+
+		cnt++
+		results <- initialIds
+
 	}
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
 		results <- fld.Matches(field.Value)
@@ -49,24 +48,24 @@ func (i *Index) Match(search *Filters, query string) *facet.IdList {
 	}
 	for _, fld := range search.StringFilter {
 		if f, ok := i.KeyFacets[fld.Id]; ok {
-			len++
+			cnt++
 			go parseKeys(fld, f)
 		}
 	}
 	for _, fld := range search.IntegerFilter {
 		if f, ok := i.IntFacets[fld.Id]; ok {
-			len++
+			cnt++
 			go parseInts(fld, f)
 		}
 	}
 
 	for _, fld := range search.NumberFilter {
 		if f, ok := i.DecimalFacets[fld.Id]; ok {
-			len++
+			cnt++
 			go parseNumber(fld, f)
 		}
 	}
 
-	return facet.MakeIntersectResult(results, len)
+	return facet.MakeIntersectResult(results, cnt)
 
 }

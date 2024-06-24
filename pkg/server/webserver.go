@@ -16,6 +16,7 @@ type WebServer struct {
 	Index            *index.Index
 	Db               *persistance.Persistance
 	DefaultSort      *facet.SortIndex
+	SortMethods      map[string]*facet.SortIndex
 	FieldSort        *facet.SortIndex
 	FacetLimit       int
 	SearchFacetLimit int
@@ -34,11 +35,25 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	facetsChan := make(chan index.Facets)
 	defer close(itemsChan)
 	defer close(facetsChan)
-	matching := ws.Index.Match(&sr.Filters, sr.Query)
+	var initialIds *facet.IdList = nil
+	itemSort := ws.DefaultSort
+	if sr.Sort != "" {
+		s, ok := ws.SortMethods[sr.Sort]
+		if ok {
+			itemSort = s
+		}
+	}
+	if sr.Query != "" {
+		queryResult := ws.Index.Search.Search(sr.Query)
+		result := queryResult.ToResultWithSort()
+		initialIds = result.IdList
+		itemSort = &result.SortIndex
+	}
+	matching := ws.Index.Match(&sr.Filters, initialIds)
 
 	totalHits := len(*matching)
 	go func() {
-		itemsChan <- ws.Index.GetItems(matching.SortedIds(ws.DefaultSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
+		itemsChan <- ws.Index.GetItems(matching.SortedIds(itemSort, sr.PageSize*(sr.Page+1)), sr.Page, sr.PageSize)
 	}()
 	go func() {
 		if totalHits > ws.FacetLimit {
@@ -218,7 +233,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 			Value: categories[i],
 		})
 	}
-	resultIds := ws.Index.Match(&sr.Filters, "")
+	resultIds := ws.Index.Match(&sr.Filters, nil)
 	values := map[string]bool{}
 	for id := range *resultIds {
 		item, ok := ws.Index.Items[id]

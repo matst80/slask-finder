@@ -95,6 +95,7 @@ func Init() {
 		} else {
 			fieldSort := MakeSortForFields()
 			sortMap, priceSort := MakeSortFromNumberField(idx.Items, 4)
+			srv.SortMethods = MakeSortMaps(idx.Items)
 			idx.Search.BaseSortMap = ToMap(&sortMap)
 			srv.DefaultSort = &priceSort
 			srv.FieldSort = &fieldSort
