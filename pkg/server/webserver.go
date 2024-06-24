@@ -6,6 +6,7 @@ import (
 	"net/http/pprof"
 	"strconv"
 	"strings"
+	"time"
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -18,9 +19,24 @@ type WebServer struct {
 	DefaultSort      *facet.SortIndex
 	SortMethods      map[string]*facet.SortIndex
 	FieldSort        *facet.SortIndex
+	Cache            *Cache
 	FacetLimit       int
 	SearchFacetLimit int
 	ListenAddress    string
+}
+
+func getCacheKey(sr SearchRequest) string {
+	fields := ""
+	for _, f := range sr.Filters.StringFilter {
+		fields += string(f.Id) + "_" + f.Value
+	}
+	for _, f := range sr.Filters.NumberFilter {
+		fields += string(f.Id) + "_" + strconv.FormatFloat(f.Min, 'f', -1, 64) + "_" + strconv.FormatFloat(f.Max, 'f', -1, 64)
+	}
+	for _, f := range sr.Filters.IntegerFilter {
+		fields += string(f.Id) + "_" + strconv.Itoa(f.Min) + "_" + strconv.Itoa(f.Max)
+	}
+	return "fields_" + sr.Query + fields
 }
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
@@ -57,16 +73,32 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}()
 	go func() {
 		if totalHits > ws.FacetLimit {
-			facetsChan <- ws.Index.DefaultFacets
+			if ws.Cache == nil {
+				facetsChan <- index.Facets{}
+				return
+			}
+			var result = &index.Facets{}
+			cacheKey := getCacheKey(sr)
+			err := ws.Cache.Get(cacheKey, &result)
+			if err != nil {
+				r := ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+				ws.Cache.Set(cacheKey, r, time.Second*3600)
+			}
+			facetsChan <- *result
+			// ws.Cache.CacheKey(getCacheKey(sr), &result, func() *any {
+			// 	return &ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+			// }, time.Second*3600)
+
+			//facetsChan <- ws.Index.DefaultFacets
 		} else {
 			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
 		}
 	}()
 
 	w.Header().Set("Content-Type", "application/json")
-	//w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=20")
 	w.Header().Set("Access-Control-Allow-Origin", Origin)
-	//w.Header().Set("Age", "0")
+	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
 
 	data := SearchResponse{
@@ -117,7 +149,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	suggestions := ws.Index.AutoSuggest.FindMatches(query)
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
 	w.Header().Set("Access-Control-Allow-Origin", Origin)
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
@@ -171,7 +203,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
 	w.Header().Set("Access-Control-Allow-Origin", Origin)
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)
@@ -205,7 +237,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/values/"), "/"))
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "public, stale-while-revalidate=120")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
 	w.Header().Set("Access-Control-Allow-Origin", Origin)
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusOK)

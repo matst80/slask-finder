@@ -17,6 +17,8 @@ import (
 var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
+var redisUrl = os.Getenv("REDIS_URL")
+var redisPassword = os.Getenv("REDIS_PASSWORD")
 
 var rabbitConfig = sync.RabbitConfig{
 	ItemChangedTopic: "item_changed",
@@ -53,10 +55,13 @@ var srv = server.WebServer{
 	FacetLimit:       6400,
 	SearchFacetLimit: 3500,
 	ListenAddress:    ":8080",
+	Cache:            nil,
 }
 
 func Init() {
-
+	if redisUrl != "" {
+		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
+	}
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true})
 	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn"})
 	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Central stock level"})
