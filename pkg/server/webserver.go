@@ -87,11 +87,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			facetsChan <- *result
-			// ws.Cache.CacheKey(getCacheKey(sr), &result, func() *any {
-			// 	return &ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
-			// }, time.Second*3600)
 
-			//facetsChan <- ws.Index.DefaultFacets
 		} else {
 			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
 		}
