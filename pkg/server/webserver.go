@@ -82,8 +82,8 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 			err := ws.Cache.Get(cacheKey, result)
 			if err != nil {
 				r := ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
-				ws.Cache.Set(cacheKey, r, time.Second*3600)
 				facetsChan <- r
+				ws.Cache.Set(cacheKey, r, time.Second*3600)
 				return
 			}
 			facetsChan <- *result
