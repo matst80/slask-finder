@@ -44,7 +44,7 @@ func MakeSortFromNumberField(items map[uint]*index.DataItem, fieldId uint) (face
 			b = 50000.0
 		}
 		j += 0.0001
-		return b + float64(value) + j
+		return b + float64(value)/1000 + j
 	})
 	l := len(sortMap)
 

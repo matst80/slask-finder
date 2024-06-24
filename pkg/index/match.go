@@ -34,8 +34,9 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList) *facet.IdList {
 	if initialIds != nil && len(*initialIds) > 0 {
 
 		cnt++
-		results <- initialIds
-
+		go func() {
+			results <- initialIds
+		}()
 	}
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
 		results <- fld.Matches(field.Value)
