@@ -61,6 +61,7 @@ var srv = server.WebServer{
 func Init() {
 	if redisUrl != "" {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
+		log.Printf("Cache enabled, url: %s", redisUrl)
 	}
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true})
 	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn"})
