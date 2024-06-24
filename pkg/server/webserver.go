@@ -74,15 +74,17 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		if totalHits > ws.FacetLimit {
 			if ws.Cache == nil {
-				facetsChan <- index.Facets{}
+				facetsChan <- ws.Index.DefaultFacets
 				return
 			}
 			var result = &index.Facets{}
 			cacheKey := getCacheKey(sr)
-			err := ws.Cache.Get(cacheKey, &result)
+			err := ws.Cache.Get(cacheKey, result)
 			if err != nil {
 				r := ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
 				ws.Cache.Set(cacheKey, r, time.Second*3600)
+				facetsChan <- r
+				return
 			}
 			facetsChan <- *result
 			// ws.Cache.CacheKey(getCacheKey(sr), &result, func() *any {
