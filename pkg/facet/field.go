@@ -35,11 +35,11 @@ func (f *KeyField) Matches(value string) *IdList {
 }
 
 func (f *KeyField) AddValueLink(value string, id uint) {
-	key, found := f.keys[value]
+	list, found := f.keys[value]
 	if !found {
 		f.keys[value] = &IdList{id: struct{}{}}
 	} else {
-		key.Add(id)
+		list.Add(id)
 		//(*key)[id] = struct{}{}
 	}
 
