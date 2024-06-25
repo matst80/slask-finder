@@ -60,9 +60,9 @@ func (c *Cache) Get(key string, out any) error {
 	if err != nil {
 		return err
 	}
-	if out != nil {
-		c.memCache[key] = LocalEntry{Expires: time.Now().Add(time.Minute), Data: out}
-	}
+	// if out != nil {
+	// 	c.memCache[key] = LocalEntry{Expires: time.Now().Add(time.Minute), Data: out}
+	// }
 	return nil
 }
 
