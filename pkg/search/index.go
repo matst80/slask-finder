@@ -90,7 +90,7 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 				}
 			}
 			hits := res[doc.Id]
-			res[doc.Id] = base + ((hits * 1000.0) - ((l - dl) * 100.0))
+			res[doc.Id] = base + ((hits * 10000.0) - ((l - dl) * 100.0))
 		}
 	}
 

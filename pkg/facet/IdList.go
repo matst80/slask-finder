@@ -34,10 +34,12 @@ func MakeIntersectResult(r chan *IdList, len int) *IdList {
 	if len == 0 {
 		return &IdList{}
 	}
-	first := <-r
+	first := IdList{}
+	first.Merge(<-r)
+	//first := <-r
 	for i := 1; i < len; i++ {
 		first.Intersect(*<-r)
 	}
 	close(r)
-	return first
+	return &first
 }

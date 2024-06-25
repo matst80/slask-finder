@@ -17,8 +17,8 @@ import (
 var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
-var redisUrl = os.Getenv("REDIS_URL")
-var redisPassword = os.Getenv("REDIS_PASSWORD")
+var redisUrl = "10.10.3.18:6379" // os.Getenv("REDIS_URL")
+var redisPassword = "slaskredis" //os.Getenv("REDIS_PASSWORD")
 
 var rabbitConfig = sync.RabbitConfig{
 	ItemChangedTopic: "item_changed",
