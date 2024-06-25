@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"strconv"
@@ -28,15 +29,15 @@ type WebServer struct {
 func getCacheKey(sr SearchRequest) string {
 	fields := ""
 	for _, f := range sr.Filters.StringFilter {
-		fields += string(f.Id) + "_" + f.Value
+		fields += strconv.Itoa(int(f.Id)) + "_" + f.Value
 	}
 	for _, f := range sr.Filters.NumberFilter {
-		fields += string(f.Id) + "_" + strconv.FormatFloat(f.Min, 'f', -1, 64) + "_" + strconv.FormatFloat(f.Max, 'f', -1, 64)
+		fields += strconv.Itoa(int(f.Id)) + "_" + strconv.FormatFloat(f.Min, 'f', -1, 64) + "_" + strconv.FormatFloat(f.Max, 'f', -1, 64)
 	}
 	for _, f := range sr.Filters.IntegerFilter {
-		fields += string(f.Id) + "_" + strconv.Itoa(f.Min) + "_" + strconv.Itoa(f.Max)
+		fields += strconv.Itoa(int(f.Id)) + "_" + strconv.Itoa(f.Min) + "_" + strconv.Itoa(f.Max)
 	}
-	return "fields_" + sr.Query + fields
+	return fmt.Sprintf("facets_%s_%s", sr.Query, fields)
 }
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
