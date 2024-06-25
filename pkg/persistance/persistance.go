@@ -10,8 +10,8 @@ import (
 )
 
 func NewPersistance() *Persistance {
-	gob.Register(map[string]interface{}{})
-	gob.Register([]interface{}(nil))
+	// gob.Register(map[string]interface{}{})
+	// gob.Register([]interface{}(nil))
 	return &Persistance{
 		File:         "data/index-v2.dbz",
 		FreeTextFile: "data/freetext.dbz",
@@ -36,13 +36,13 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	defer zipReader.Close()
 	idx.Lock()
 	defer idx.Unlock()
-	var tmp = &index.DataItem{}
+	//var tmp = &index.DataItem{}
 	for err == nil {
-
+		tmp := &index.DataItem{}
 		if err = enc.Decode(tmp); err == nil {
 
 			idx.UpsertItemUnsafe(tmp)
-			tmp = &index.DataItem{}
+
 		}
 	}
 	enc = nil

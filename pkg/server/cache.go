@@ -35,10 +35,14 @@ func NewCache(addr, password string, db int) *Cache {
 }
 
 func (c *Cache) Get(key string, out any) error {
+	rv := reflect.ValueOf(out)
+	if rv.Kind() != reflect.Pointer || rv.IsNil() {
+		return &json.InvalidUnmarshalError{reflect.TypeOf(out)}
+	}
 	local, found := c.memCache[key]
 	if found {
 		if local.Expires.Before(time.Now()) {
-			rv := reflect.ValueOf(out)
+
 			rv.Set(local.Data.(reflect.Value))
 			//out = local.Data
 			return nil
@@ -56,7 +60,9 @@ func (c *Cache) Get(key string, out any) error {
 	if err != nil {
 		return err
 	}
-	c.memCache[key] = LocalEntry{Expires: time.Now().Add(time.Minute), Data: out}
+	if out != nil {
+		c.memCache[key] = LocalEntry{Expires: time.Now().Add(time.Minute), Data: out}
+	}
 	return nil
 }
 
@@ -71,13 +77,4 @@ func (c *Cache) Set(key string, value any, expiration time.Duration) error {
 
 func (c *Cache) Close() {
 	c.client.Close()
-}
-
-func (c *Cache) CacheKey(key string, instance *any, fn func() *any, expiration time.Duration) error {
-	err := c.Get(key, instance)
-	if err != nil {
-		*instance = fn()
-		return c.Set(key, *instance, expiration)
-	}
-	return nil
 }

@@ -136,11 +136,8 @@ func (i *Index) Unlock() {
 	i.mu.Unlock()
 }
 
-func (i *Index) UpsertItemUnsafe(inputItem *DataItem) {
-	item := &DataItem{
-		ItemFields: inputItem.ItemFields,
-		BaseItem:   inputItem.BaseItem,
-	}
+func (i *Index) UpsertItemUnsafe(item *DataItem) {
+
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
