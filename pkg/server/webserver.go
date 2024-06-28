@@ -351,7 +351,17 @@ func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Failed to track click %v", err)
 		}
 	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=2")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("ok"))
 }
 
 func (ws *WebServer) StartServer(enableProfiling bool) error {
