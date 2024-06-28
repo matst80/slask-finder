@@ -19,6 +19,7 @@ var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints"
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
+var clickhouseUrl = os.Getenv("CLICKHOUSE_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
 
 var rabbitConfig = sync.RabbitConfig{
@@ -59,12 +60,14 @@ var srv = server.WebServer{
 }
 
 func Init() {
-	trk, err := tracking.NewClickHouse("10.10.3.19:9000")
-	if err != nil {
-		log.Fatalf("Failed to connect to ClickHouse %v", err)
+	if clickhouseUrl != "" {
+		trk, err := tracking.NewClickHouse(clickhouseUrl) //
+		if err != nil {
+			log.Fatalf("Failed to connect to ClickHouse %v", err)
+		}
+
+		srv.Tracking = trk
 	}
-	trk.Query()
-	srv.Tracking = trk
 	if redisUrl != "" {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		log.Printf("Cache enabled, url: %s", redisUrl)
