@@ -66,7 +66,13 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList) *facet.IdList {
 			go parseNumber(fld, f)
 		}
 	}
-
+	if cnt == 0 {
+		list := facet.IdList{}
+		for id := range i.AllItems {
+			list.Add(id)
+		}
+		return &list
+	}
 	return facet.MakeIntersectResult(results, cnt)
 
 }
