@@ -12,6 +12,7 @@ import (
 	"tornberg.me/facet-search/pkg/search"
 	"tornberg.me/facet-search/pkg/server"
 	"tornberg.me/facet-search/pkg/sync"
+	"tornberg.me/facet-search/pkg/tracking"
 )
 
 var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
@@ -26,7 +27,6 @@ var rabbitConfig = sync.RabbitConfig{
 	ItemDeletedTopic: "item_deleted",
 	Url:              rabbitUrl,
 }
-
 var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
 var idx = index.NewIndex(freetext_search)
@@ -59,6 +59,12 @@ var srv = server.WebServer{
 }
 
 func Init() {
+	trk, err := tracking.NewClickHouse("10.10.3.19:9000")
+	if err != nil {
+		log.Fatalf("Failed to connect to ClickHouse %v", err)
+	}
+	trk.Query()
+	srv.Tracking = trk
 	if redisUrl != "" {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		log.Printf("Cache enabled, url: %s", redisUrl)

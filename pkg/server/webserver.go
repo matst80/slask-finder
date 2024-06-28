@@ -12,6 +12,7 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
+	"tornberg.me/facet-search/pkg/tracking"
 )
 
 type WebServer struct {
@@ -21,6 +22,7 @@ type WebServer struct {
 	SortMethods      map[string]*facet.SortIndex
 	FieldSort        *facet.SortIndex
 	Cache            *Cache
+	Tracking         *tracking.ClickHouse
 	FacetLimit       int
 	SearchFacetLimit int
 	ListenAddress    string
@@ -40,9 +42,42 @@ func getCacheKey(sr SearchRequest) string {
 	return fmt.Sprintf("facets_%s_%s", sr.Query, fields)
 }
 
-func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
+func generateSessionId() int {
+	return int(time.Now().UnixNano())
+}
 
+func handleSessionCookie(w http.ResponseWriter, r *http.Request) int {
+	session_id := generateSessionId()
+	c, err := r.Cookie("sid")
+	if err != nil {
+		// fmt.Printf("Failed to get cookie %v", err)
+		http.SetCookie(w, &http.Cookie{
+			Name:   "sid",
+			Value:  fmt.Sprintf("%d", session_id),
+			Path:   "/",
+			MaxAge: 7200,
+		})
+	} else {
+		session_id, err = strconv.Atoi(c.Value)
+		if err != nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:   "sid",
+				Value:  fmt.Sprintf("%d", session_id),
+				Path:   "/",
+				MaxAge: 7200,
+			})
+		}
+	}
+	return session_id
+}
+
+func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
+	session_id := handleSessionCookie(w, r)
 	sr, err := QueryFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
 	cacheHelper := NewCacheHelper[index.Facets](ws.Cache)
 
@@ -98,7 +133,14 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
 		}
 	}()
-
+	go func() {
+		if ws.Tracking != nil {
+			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
+			if err != nil {
+				fmt.Printf("Failed to track search %v", err)
+			}
+		}
+	}()
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "private, stale-while-revalidate=20")
 	w.Header().Set("Access-Control-Allow-Origin", Origin)
@@ -296,6 +338,22 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
+	session_id := handleSessionCookie(w, r)
+	id := r.URL.Query().Get("id")
+	itemId, err := strconv.Atoi(id)
+	pos := r.URL.Query().Get("pos")
+	position, _ := strconv.Atoi(pos)
+
+	if ws.Tracking != nil && err == nil {
+		err := ws.Tracking.TrackClick(uint32(session_id), uint(itemId), float32(position)/100.0)
+		if err != nil {
+			fmt.Printf("Failed to track click %v", err)
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ws *WebServer) StartServer(enableProfiling bool) error {
 
 	srv := http.NewServeMux()
@@ -308,6 +366,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	srv.HandleFunc("/filter", ws.Search)
 	srv.HandleFunc("/suggest", ws.Suggest)
 	srv.HandleFunc("/search", ws.QueryIndex)
+	srv.HandleFunc("/track/click", ws.TrackClick)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/save", ws.Save)
 	srv.HandleFunc("/values/", ws.GetValues)
