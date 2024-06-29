@@ -5,9 +5,19 @@ CREATE TABLE IF NOT EXISTS user_action
     evt UInt16,
     timestamp DateTime,
 		item_id UInt64,
+    metric Float32
+)
+ENGINE = MergeTree
+PRIMARY KEY (session_id, timestamp, evt);
+
+DROP TABLE IF EXISTS user_filter;
+CREATE TABLE IF NOT EXISTS user_filter
+(
+    session_id UInt32,
+    evt UInt16,
+    timestamp DateTime,
 		query String,
 		facets Map(UInt64,String),
-    metric Float32
 )
 ENGINE = MergeTree
 PRIMARY KEY (session_id, timestamp, evt);

@@ -100,7 +100,7 @@ func (ch *ClickHouse) TrackSearch(session_id uint32, filters *index.Filters, que
 	for _, filter := range filters.NumberFilter {
 		facets[filter.Id] = fmt.Sprintf("%f-%f", filter.Min, filter.Max)
 	}
-	return ch.Conn.Exec(ctx, "INSERT INTO user_action (session_id, evt, query, facets, timestamp) VALUES (?, ?, ?, ?,?)", session_id, SearchEvent, query, facets, time.Now())
+	return ch.Conn.Exec(ctx, "INSERT INTO user_search (session_id, evt, query, facets, timestamp) VALUES (?, ?, ?, ?,?)", session_id, SearchEvent, query, facets, time.Now())
 
 }
 
