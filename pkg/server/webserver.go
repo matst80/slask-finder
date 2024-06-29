@@ -46,6 +46,14 @@ func generateSessionId() int {
 	return int(time.Now().UnixNano())
 }
 
+func setSessionCookie(w http.ResponseWriter, session_id int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:  "sid",
+		Value: fmt.Sprintf("%d", session_id),
+		Path:  "/", //MaxAge: 7200
+	})
+}
+
 func handleSessionCookie(tracking *tracking.ClickHouse, w http.ResponseWriter, r *http.Request) int {
 	session_id := generateSessionId()
 	c, err := r.Cookie("sid")
@@ -54,21 +62,12 @@ func handleSessionCookie(tracking *tracking.ClickHouse, w http.ResponseWriter, r
 		if tracking != nil {
 			go tracking.TrackSession(uint32(session_id), r)
 		}
-		http.SetCookie(w, &http.Cookie{
-			Name:   "sid",
-			Value:  fmt.Sprintf("%d", session_id),
-			Path:   "/",
-			MaxAge: 7200,
-		})
+		setSessionCookie(w, session_id)
+
 	} else {
 		session_id, err = strconv.Atoi(c.Value)
 		if err != nil {
-			http.SetCookie(w, &http.Cookie{
-				Name:   "sid",
-				Value:  fmt.Sprintf("%d", session_id),
-				Path:   "/",
-				MaxAge: 7200,
-			})
+			setSessionCookie(w, session_id)
 		}
 	}
 	return session_id
