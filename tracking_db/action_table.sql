@@ -1,4 +1,4 @@
-DROP TABLE IF EXISTS user_action;
+DROP TABLE IF EXISTS user_action
 CREATE TABLE IF NOT EXISTS user_action
 (
     session_id UInt32,
@@ -8,10 +8,22 @@ CREATE TABLE IF NOT EXISTS user_action
     metric Float32
 )
 ENGINE = MergeTree
-PRIMARY KEY (session_id, timestamp, evt);
+PRIMARY KEY (session_id, timestamp, evt)
 
-DROP TABLE IF EXISTS user_filter;
-CREATE TABLE IF NOT EXISTS user_filter
+DROP TABLE IF EXISTS user_session
+CREATE TABLE IF NOT EXISTS user_session
+(
+    session_id UInt32,
+    timestamp DateTime,
+		language String,
+    user_agent String,
+    ip String,
+)
+ENGINE = MergeTree
+PRIMARY KEY (session_id, timestamp)
+
+DROP TABLE IF EXISTS user_search
+CREATE TABLE IF NOT EXISTS user_search
 (
     session_id UInt32,
     evt UInt16,
@@ -20,16 +32,5 @@ CREATE TABLE IF NOT EXISTS user_filter
 		facets Map(UInt64,String),
 )
 ENGINE = MergeTree
-PRIMARY KEY (session_id, timestamp, evt);
+PRIMARY KEY (session_id, timestamp, evt)
 
-
-INSERT INTO user_action (session_id, evt, timestamp, item_id, metric) VALUES
-    (101, 1,                                  now(),  21841,     1.0    ),
-    (101, 1,                                  now(),  21841,     1.0    ),
-		(102, 1,                                  now(),  21841,     1.0    ),
-		(102, 1,                                  now(),  21841,     1.0    ),
-		(101, 2,                                  now(),  21841,     10.0    );
-
-INSERT INTO user_action (session_id, evt, timestamp, item_id, query, metric) VALUES
-    (101, 1,                                  now(),  21841,     'test data', 1.0    );
-    

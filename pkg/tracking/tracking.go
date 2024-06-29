@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -85,6 +86,8 @@ func (ch *ClickHouse) Query() {
 const SearchEvent = 1
 const ClickEvent = 2
 const AddToCartEvent = 3
+const PurchaseEvent = 4
+const ImpressionEvent = 5
 
 func (ch *ClickHouse) TrackSearch(session_id uint32, filters *index.Filters, query string) error {
 	ctx := context.Background()
@@ -105,6 +108,33 @@ func (ch *ClickHouse) TrackSearch(session_id uint32, filters *index.Filters, que
 }
 
 func (ch *ClickHouse) TrackClick(session_id uint32, item_id uint, position float32) error {
+	return ch.TrackEvent(session_id, PurchaseEvent, item_id, position/10.0)
+}
+
+func (ch *ClickHouse) TrackAddToCart(session_id uint32, item_id uint, quantity uint) error {
+	return ch.TrackEvent(session_id, PurchaseEvent, item_id, float32(quantity)*50.0)
+}
+
+func (ch *ClickHouse) TrackPurchase(session_id uint32, item_id uint, quantity uint) error {
+	return ch.TrackEvent(session_id, PurchaseEvent, item_id, float32(quantity)*100.0)
+}
+
+func (ch *ClickHouse) TrackImpression(session_id uint32, item_id uint, position float32) error {
+	return ch.TrackEvent(session_id, ImpressionEvent, item_id, position)
+}
+
+func (ch *ClickHouse) TrackEvent(session_id uint32, evt uint16, item_id uint, metric float32) error {
 	ctx := context.Background()
-	return ch.Conn.Exec(ctx, "INSERT INTO user_action (session_id, evt, item_id, metric, timestamp) VALUES (?, ?, ?, ?, ?)", session_id, ClickEvent, item_id, position, time.Now())
+	return ch.Conn.Exec(ctx, "INSERT INTO user_action (session_id, evt, item_id, metric, timestamp) VALUES (?, ?, ?, ?, ?)", session_id, evt, item_id, metric, time.Now())
+}
+
+//  timestamp DateTime,
+// 		language String,
+//     user_agent String,
+//     ip String,
+
+func (ch *ClickHouse) TrackSession(session_id uint32, r *http.Request) error {
+
+	ctx := context.Background()
+	return ch.Conn.Exec(ctx, "INSERT INTO user_session (session_id, timestamp, language, user_agent, ip) VALUES (?, ?, ?, ?, ?)", session_id, time.Now(), r.Header.Get("Accept-Language"), r.UserAgent(), r.RemoteAddr)
 }

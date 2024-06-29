@@ -46,11 +46,14 @@ func generateSessionId() int {
 	return int(time.Now().UnixNano())
 }
 
-func handleSessionCookie(w http.ResponseWriter, r *http.Request) int {
+func handleSessionCookie(tracking *tracking.ClickHouse, w http.ResponseWriter, r *http.Request) int {
 	session_id := generateSessionId()
 	c, err := r.Cookie("sid")
 	if err != nil {
 		// fmt.Printf("Failed to get cookie %v", err)
+		if tracking != nil {
+			go tracking.TrackSession(uint32(session_id), r)
+		}
 		http.SetCookie(w, &http.Cookie{
 			Name:   "sid",
 			Value:  fmt.Sprintf("%d", session_id),
@@ -72,7 +75,7 @@ func handleSessionCookie(w http.ResponseWriter, r *http.Request) int {
 }
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
-	session_id := handleSessionCookie(w, r)
+	session_id := handleSessionCookie(ws.Tracking, w, r)
 	sr, err := QueryFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -339,7 +342,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
-	session_id := handleSessionCookie(w, r)
+	session_id := handleSessionCookie(ws.Tracking, w, r)
 	id := r.URL.Query().Get("id")
 	itemId, err := strconv.Atoi(id)
 	pos := r.URL.Query().Get("pos")
