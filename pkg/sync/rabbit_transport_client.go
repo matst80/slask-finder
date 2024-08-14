@@ -64,10 +64,12 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
-			log.Fatalf("Got add message %v", d)
+			log.Printf("Got add message")
 			var item index.DataItem
 			if err := json.Unmarshal(d.Body, &item); err == nil {
 				t.handler.UpsertItem(&item)
+			} else {
+				log.Printf("Failed to unmarshal %v", err)
 			}
 		}
 	}(toAdd)
@@ -78,10 +80,12 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
-			log.Fatalf("Got update message %v", d)
+			log.Printf("Got update message")
 			var item index.DataItem
 			if err := json.Unmarshal(d.Body, &item); err == nil {
 				t.handler.UpsertItem(&item)
+			} else {
+				log.Printf("Failed to unmarshal %v", err)
 			}
 		}
 	}(toUpdate)
