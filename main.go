@@ -40,14 +40,17 @@ type RabbitMasterChangeHandler struct{}
 
 func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
 	masterTransport.SendItemAdded(item)
+	log.Printf("Item changed %d", item.Id)
 }
 
 func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
 	masterTransport.SendItemChanged(item)
+	log.Printf("Item added %d", item.Id)
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 	masterTransport.SendItemDeleted(id)
+	log.Printf("Item deleted %d", id)
 }
 
 var srv = server.WebServer{

@@ -1,6 +1,7 @@
 package index
 
 import (
+	"log"
 	"sync"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -123,6 +124,7 @@ func (i *Index) removeItemValues(item *DataItem) {
 }
 
 func (i *Index) UpsertItem(item *DataItem) {
+	log.Printf("Upserting item %d", item.Id)
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.UpsertItemUnsafe(item)
