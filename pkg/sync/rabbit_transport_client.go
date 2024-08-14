@@ -2,6 +2,7 @@ package sync
 
 import (
 	"encoding/json"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 	"tornberg.me/facet-search/pkg/index"
@@ -63,6 +64,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
+			log.Fatalf("Got add message %v", d)
 			var item index.DataItem
 			if err := json.Unmarshal(d.Body, &item); err == nil {
 				t.handler.UpsertItem(&item)
@@ -76,6 +78,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
+			log.Fatalf("Got update message %v", d)
 			var item index.DataItem
 			if err := json.Unmarshal(d.Body, &item); err == nil {
 				t.handler.UpsertItem(&item)

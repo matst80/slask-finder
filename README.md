@@ -39,3 +39,37 @@ Guidelines for contributing to your project, including how to report issues and 
 ## License
 
 Information about the license under which your project is distributed.
+
+
+## Clickhouse database
+
+CREATE TABLE IF NOT EXISTS user_session 
+(
+    session_id UInt32,
+		timestamp DateTime DEFAULT now(),
+		language TEXT,
+		user_agent TEXT,
+		ip TEXT
+) ENGINE = MergeTree
+ORDER BY timestamp;
+
+CREATE TABLE IF NOT EXISTS user_action 
+(
+    session_id UInt32,
+		evt UInt32,
+		item_id UInt64,
+		metric Float32,
+		timestamp DateTime DEFAULT now()
+) ENGINE = MergeTree
+ORDER BY timestamp;
+
+
+CREATE TABLE IF NOT EXISTS user_search
+(
+    session_id UInt32,
+		evt UInt32,
+		query TEXT,
+		facets Map(UInt64,String),
+		timestamp DateTime DEFAULT now()
+) ENGINE = MergeTree
+ORDER BY timestamp;
