@@ -103,7 +103,10 @@ func Init() {
 					ClientName:   clientName,
 					RabbitConfig: rabbitConfig,
 				}
-				clientTransport.Connect(idx)
+				err := clientTransport.Connect(idx)
+				if err != nil {
+					log.Printf("Failed to connect to RabbitMQ as clinet, %v", err)
+				}
 			}
 		} else {
 			log.Println("Starting as standalone")
