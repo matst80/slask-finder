@@ -39,15 +39,27 @@ var masterTransport = sync.RabbitTransportMaster{
 type RabbitMasterChangeHandler struct{}
 
 func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
-	masterTransport.SendItemAdded(item)
+	err := masterTransport.SendItemAdded(item)
+	if err != nil {
+		log.Printf("Failed to send item added %v", err)
+	}
+	log.Printf("Item added %d", item.Id)
 }
 
 func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
-	masterTransport.SendItemChanged(item)
+	err := masterTransport.SendItemChanged(item)
+	if err != nil {
+		log.Printf("Failed to send item changed %v", err)
+	}
+	log.Printf("Item changed %d", item.Id)
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
-	masterTransport.SendItemDeleted(id)
+	err := masterTransport.SendItemDeleted(id)
+	if err != nil {
+		log.Printf("Failed to send item deleted %v", err)
+	}
+	log.Printf("Item deleted %d", id)
 }
 
 var srv = server.WebServer{
@@ -100,7 +112,10 @@ func Init() {
 					ClientName:   clientName,
 					RabbitConfig: rabbitConfig,
 				}
-				clientTransport.Connect(idx)
+				err := clientTransport.Connect(idx)
+				if err != nil {
+					log.Printf("Failed to connect to RabbitMQ as clinet, %v", err)
+				}
 			}
 		} else {
 			log.Println("Starting as standalone")

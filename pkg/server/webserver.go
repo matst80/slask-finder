@@ -176,6 +176,29 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
+	id := strings.Split(r.URL.Path, "/")[3]
+	itemId, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	item, ok := ws.Index.Items[uint(itemId)]
+	if !ok {
+		http.Error(w, "Item not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(item)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	err := ws.Db.SaveIndex(ws.Index)
 	if err != nil {
@@ -382,6 +405,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	srv.HandleFunc("/api/values/", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 	srv.HandleFunc("/admin/add", ws.AddItem)
+	srv.HandleFunc("/admin/get/", ws.GetItem)
 	srv.HandleFunc("/admin/save", ws.Save)
 
 	if enableProfiling {
