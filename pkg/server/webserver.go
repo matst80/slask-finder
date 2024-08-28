@@ -304,8 +304,37 @@ func removeEmptyStrings(s []string) []string {
 	return r
 }
 
+func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *facet.IdList {
+
+	for i := 0; i < len(categories); i++ {
+		sr.Filters.StringFilter = append(sr.Filters.StringFilter, index.StringSearch{
+			Id:    categoryStartId + uint(i),
+			Value: categories[i],
+		})
+	}
+	return ws.Index.Match(&sr.Filters, nil)
+}
+
+func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
+	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
+	baseSearch := SearchRequest{
+		PageSize: 1000,
+		Page:     0,
+	}
+	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
+	enc := json.NewEncoder(w)
+	for id := range *resultIds {
+		item, ok := ws.Index.Items[id]
+		if ok {
+			enc.Encode(item)
+		}
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
-	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/values/"), "/"))
+	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/values/"), "/"))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
@@ -319,24 +348,12 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	baseSearch := SearchRequest{
+		PageSize: 1000,
+		Page:     0,
+	}
+	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
 
-	sr := SearchRequest{
-		Filters: index.Filters{
-			StringFilter: []index.StringSearch{
-				{
-					Id:    10,
-					Value: categories[0],
-				},
-			},
-		},
-	}
-	for i := 1; i < len(categories); i++ {
-		sr.Filters.StringFilter = append(sr.Filters.StringFilter, index.StringSearch{
-			Id:    uint(10 + i),
-			Value: categories[i],
-		})
-	}
-	resultIds := ws.Index.Match(&sr.Filters, nil)
 	values := map[string]bool{}
 	for id := range *resultIds {
 		item, ok := ws.Index.Items[id]
@@ -360,6 +377,53 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	encErr := json.NewEncoder(w).Encode(valuesList)
 	if encErr != nil {
 		http.Error(w, encErr.Error(), http.StatusInternalServerError)
+	}
+}
+
+type FacetItem struct {
+	Id    uint   `json:"id"`
+	Name  string `json:"value"`
+	Count int    `json:"count"`
+}
+
+func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=1200")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusOK)
+
+	res := make([]FacetItem, len(ws.Index.KeyFacets)+len(ws.Index.DecimalFacets)+len(ws.Index.IntFacets))
+	i := 0
+	for _, f := range ws.Index.KeyFacets {
+		res[i] = FacetItem{
+			Id:    f.Id,
+			Name:  f.Name,
+			Count: f.UniqueCount(),
+		}
+		i++
+	}
+	for _, f := range ws.Index.DecimalFacets {
+		res[i] = FacetItem{
+			Id:    f.Id,
+			Name:  f.Name,
+			Count: int(f.Max - f.Min),
+		}
+		i++
+	}
+	for _, f := range ws.Index.IntFacets {
+		res[i] = FacetItem{
+			Id:    f.Id,
+			Name:  f.Name,
+			Count: int(f.Max - f.Min),
+		}
+		i++
+	}
+
+	err := json.NewEncoder(w).Encode(res)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
@@ -399,7 +463,8 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	})
 
 	srv.HandleFunc("/api/filter", ws.Search)
-	srv.HandleFunc("/api/learn/", ws.Search)
+	srv.HandleFunc("/api/learn/", ws.Learn)
+	srv.HandleFunc("/api/facets", ws.Facets)
 	srv.HandleFunc("/api/suggest", ws.Suggest)
 	srv.HandleFunc("/api/search", ws.QueryIndex)
 	srv.HandleFunc("/api/values/", ws.GetValues)
