@@ -141,9 +141,8 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	current, isUpdate := i.Items[item.Id]
 	if isUpdate {
 		i.removeItemValues(current)
-	} else {
-		go i.AutoSuggest.InsertItem(item)
 	}
+	go i.AutoSuggest.InsertItem(item)
 	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 

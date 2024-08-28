@@ -376,12 +376,14 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	})
 
 	srv.HandleFunc("/api/filter", ws.Search)
+	srv.HandleFunc("/api/learn/", ws.Search)
 	srv.HandleFunc("/api/suggest", ws.Suggest)
 	srv.HandleFunc("/api/search", ws.QueryIndex)
+	srv.HandleFunc("/api/values/", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 	srv.HandleFunc("/admin/add", ws.AddItem)
 	srv.HandleFunc("/admin/save", ws.Save)
-	srv.HandleFunc("/api/values/", ws.GetValues)
+
 	if enableProfiling {
 		srv.HandleFunc("/debug/pprof/", pprof.Index)
 		srv.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
