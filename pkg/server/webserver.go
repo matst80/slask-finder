@@ -317,6 +317,7 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 
 func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
 	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
+	w.WriteHeader(http.StatusOK)
 	baseSearch := SearchRequest{
 		PageSize: 1000,
 		Page:     0,
@@ -329,8 +330,6 @@ func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
 			enc.Encode(item)
 		}
 	}
-
-	w.WriteHeader(http.StatusOK)
 }
 
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
