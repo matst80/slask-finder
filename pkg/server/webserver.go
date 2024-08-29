@@ -426,6 +426,31 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	item, ok := ws.Index.Items[uint(id)]
+	if !ok {
+		http.Error(w, "Item not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusOK)
+	// related := ws.Index.Search.Related(item)
+	err = json.NewEncoder(w).Encode(item)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
 	session_id := handleSessionCookie(ws.Tracking, w, r)
 	id := r.URL.Query().Get("id")
@@ -463,6 +488,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 
 	srv.HandleFunc("/api/filter", ws.Search)
 	srv.HandleFunc("/api/learn/", ws.Learn)
+	srv.HandleFunc("/api/related/{id}", ws.Related)
 	srv.HandleFunc("/api/facets", ws.Facets)
 	srv.HandleFunc("/api/suggest", ws.Suggest)
 	srv.HandleFunc("/api/search", ws.QueryIndex)
