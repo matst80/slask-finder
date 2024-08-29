@@ -315,7 +315,15 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 	return ws.Index.Match(&sr.Filters, nil)
 }
 
+type FieldValueAndItemId struct {
+	Value int  `json:"value"`
+	Id    uint `json:"id"`
+}
+
 func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
+	fieldString := r.URL.Query().Get("field")
+	field, fieldError := strconv.Atoi(fieldString)
+
 	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
 	w.WriteHeader(http.StatusOK)
 	baseSearch := SearchRequest{
@@ -327,7 +335,16 @@ func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
 	for id := range *resultIds {
 		item, ok := ws.Index.Items[id]
 		if ok {
-			enc.Encode(item)
+			if fieldError == nil {
+				for _, itemField := range item.IntegerFields {
+					if itemField.Id == uint(field) {
+						enc.Encode(FieldValueAndItemId{Value: itemField.Value, Id: id})
+						break
+					}
+				}
+			} else {
+				enc.Encode(item)
+			}
 		}
 	}
 }
