@@ -65,8 +65,8 @@ func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
-	FacetLimit:       6400,
-	SearchFacetLimit: 3500,
+	FacetLimit:       65535,
+	SearchFacetLimit: 65535,
 	ListenAddress:    ":8080",
 	Cache:            nil,
 }
@@ -81,10 +81,14 @@ func Init() {
 		srv.Tracking = trk
 		log.Printf("Tracking enabled, url: %s", clickhouseUrl)
 	}
-	if redisUrl != "" {
-		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
-		log.Printf("Cache enabled, url: %s", redisUrl)
+	if redisUrl == "" {
+		log.Fatalf("No redis url provided")
+
 	}
+	srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
+	srv.Sorting = server.NewSorting(redisUrl, redisPassword, 0)
+	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
+
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0})
 	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 1199999999.0})
 	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Central stock level", Priority: 99999.0})
@@ -99,6 +103,7 @@ func Init() {
 	idx.AddIntegerField(&facet.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 999999999.0})
 	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999999999.0})
 	addDbFields(idx)
+	srv.Sorting.LoadAll()
 
 	go func() {
 		err := db.LoadIndex(idx)
@@ -124,14 +129,25 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
-			fieldSort := MakeSortForFields()
-			sortMap, priceSort := MakeSortFromNumberField(idx.Items, 4)
-			srv.SortMethods = MakeSortMaps(idx.Items)
-			idx.Search.BaseSortMap = ToMap(&sortMap)
-			srv.DefaultSort = &priceSort
-			srv.FieldSort = &fieldSort
+			if len(*srv.Sorting.FieldSort) < 10 {
+				log.Println("Creating field sorting")
+				fieldSort := MakeSortForFields()
+				srv.Sorting.SetFieldSort(&fieldSort)
+			}
+			if len(srv.Sorting.SortMethods) < 1 {
+				log.Println("Creating default sorting")
+
+				_, priceSort := MakeSortFromNumberField(idx.Items, 4)
+
+				sortMethods := MakeSortMaps(idx.Items)
+
+				for key, sort := range sortMethods {
+					srv.Sorting.AddSortMethod(key, sort)
+				}
+				srv.Sorting.SetDefaultSort(&priceSort)
+			}
+
 			log.Println("Index loaded")
-			idx.CreateDefaultFacets(&fieldSort)
 			log.Println("Default facets created")
 			runtime.GC()
 		}

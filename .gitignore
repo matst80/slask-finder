@@ -3,3 +3,4 @@ data/*.dbz
 .DS_Store
 facet-search
 clickhouse
+.env

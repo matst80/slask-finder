@@ -16,11 +16,12 @@ import (
 )
 
 type WebServer struct {
-	Index            *index.Index
-	Db               *persistance.Persistance
-	DefaultSort      *facet.SortIndex
-	SortMethods      map[string]*facet.SortIndex
-	FieldSort        *facet.SortIndex
+	Index   *index.Index
+	Db      *persistance.Persistance
+	Sorting *Sorting
+	//DefaultSort      *facet.SortIndex
+	//SortMethods      map[string]*facet.SortIndex
+	//FieldSort        *facet.SortIndex
 	Cache            *Cache
 	Tracking         *tracking.ClickHouse
 	FacetLimit       int
@@ -92,7 +93,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	defer close(itemsChan)
 	defer close(facetsChan)
 	var initialIds *facet.IdList = nil
-	itemSort := ws.GetSortOrDefault(sr.Sort)
+	itemSort := ws.Sorting.GetSort(sr.Sort)
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
 		result := queryResult.ToResultWithSort()
@@ -114,13 +115,13 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 			var result = &index.Facets{}
 			cacheKey := getCacheKey(sr)
 			cacheHelper.Handle(cacheKey, result, func() index.Facets {
-				return ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+				return ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.Sorting.FieldSort)
 			}, time.Second*3600)
 
 			facetsChan <- *result
 
 		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
+			facetsChan <- ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.Sorting.FieldSort)
 		}
 	}()
 	go func() {
@@ -151,16 +152,6 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) GetSortOrDefault(sortName string) *facet.SortIndex {
-	if sortName != "" {
-		s, ok := ws.SortMethods[sortName]
-		if ok {
-			return s
-		}
-	}
-	return ws.DefaultSort
-}
-
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	session_id := handleSessionCookie(ws.Tracking, w, r)
 	sr, err := QueryFromRequest(r)
@@ -170,7 +161,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var initialIds *facet.IdList = nil
-	itemSort := ws.GetSortOrDefault(sr.Sort)
+	itemSort := ws.Sorting.GetSort(sr.Sort)
 
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
@@ -314,7 +305,7 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 		if len(*searchResults) > ws.SearchFacetLimit {
 			facetsChan <- index.Facets{}
 		} else {
-			facetsChan <- ws.Index.GetFacetsFromResult(res.IdList, nil, ws.FieldSort)
+			facetsChan <- ws.Index.GetFacetsFromResult(res.IdList, nil, ws.Sorting.FieldSort)
 		}
 	}()
 	w.Header().Set("Content-Type", "application/json")
@@ -557,6 +548,73 @@ func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+func (ws *WebServer) HandleSortId(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+
+	if r.Method == "POST" {
+		sort := facet.SortIndex{}
+		err := json.NewDecoder(r.Body).Decode(&sort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		err = ws.Sorting.AddSortMethod(id, &sort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	sort := ws.Sorting.GetSort(id)
+	if sort == nil {
+		http.Error(w, "Sort not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+
+	err := json.NewEncoder(w).Encode(sort)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=120")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+
+	if r.Method == "POST" {
+		sort := facet.SortIndex{}
+		err := json.NewDecoder(r.Body).Decode(&sort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ws.Sorting.SetFieldSort(&sort)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	sort := ws.Sorting.FieldSort
+	if sort == nil {
+		http.Error(w, "Sort not found", http.StatusNotFound)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(sort)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) StartServer(enableProfiling bool) error {
 
 	srv := http.NewServeMux()
@@ -578,6 +636,8 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	srv.HandleFunc("/admin/add", ws.AddItem)
 	srv.HandleFunc("/admin/get/", ws.GetItem)
 	srv.HandleFunc("/admin/save", ws.Save)
+	srv.HandleFunc("/admin/sort/{id}", ws.HandleSortId)
+	srv.HandleFunc("/admin/field-sort", ws.HandleFieldSort)
 
 	if enableProfiling {
 		srv.HandleFunc("/debug/pprof/", pprof.Index)

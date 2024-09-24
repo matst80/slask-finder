@@ -1,6 +1,8 @@
 package index
 
 import (
+	"log"
+
 	"tornberg.me/facet-search/pkg/facet"
 )
 
@@ -55,8 +57,9 @@ type Facets struct {
 }
 
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
-
+	needsTruncation := len(*ids) > 65535
 	if sortIndex == nil {
+		log.Println("no sort index for fields")
 		return Facets{
 			Fields:       []JsonKeyResult{},
 			NumberFields: []JsonNumberResult{},
@@ -69,13 +72,32 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	intFields := map[uint]*NumberResult[int]{}
 
 	ignoredKeyFields := map[uint]struct{}{}
+	ignoredIntFields := map[uint]struct{}{}
+	ignoredDecimalFields := map[uint]struct{}{}
 
 	if filters != nil {
 		for _, filter := range filters.StringFilter {
 			keyFacet, ok := i.KeyFacets[filter.Id]
-			if ok && (keyFacet.IgnoreIfInSearch || keyFacet.HideFacet) {
+			if ok && (keyFacet.IgnoreIfInSearch) {
 				ignoredKeyFields[filter.Id] = struct{}{}
 			}
+		}
+	}
+	for key, facet := range i.KeyFacets {
+		if facet.HideFacet || (facet.Priority < 100 && needsTruncation) {
+			ignoredKeyFields[key] = struct{}{}
+		}
+	}
+
+	for key, facet := range i.IntFacets {
+		if facet.HideFacet || (facet.Priority < 100 && needsTruncation) {
+			ignoredIntFields[key] = struct{}{}
+		}
+	}
+
+	for key, facet := range i.DecimalFacets {
+		if facet.HideFacet || (facet.Priority < 100 && needsTruncation) {
+			ignoredDecimalFields[key] = struct{}{}
 		}
 	}
 
@@ -126,7 +148,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 		if item.DecimalFields != nil {
 			for _, field := range item.DecimalFields {
-
+				if _, ok := ignoredKeyFields[field.Id]; ok {
+					continue
+				}
 				if f, ok := numberFields[field.Id]; ok {
 					f.AddValue(field.Value)
 				} else {
@@ -143,6 +167,10 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			for _, field := range item.IntegerFields {
 
 				if field.Value == 0 || field.Value == -1 {
+					continue
+				}
+
+				if _, ok := ignoredKeyFields[field.Id]; ok {
 					continue
 				}
 

@@ -2,6 +2,8 @@ package facet
 
 import (
 	"log"
+	"strconv"
+	"strings"
 )
 
 type SortIndex []uint
@@ -13,6 +15,32 @@ func (s *SortIndex) GetScore(id uint) float64 {
 		}
 	}
 	return -1
+}
+
+func (s *SortIndex) Add(id uint) {
+	*s = append(*s, id)
+}
+
+func (s *SortIndex) FromString(data string) error {
+	for _, str := range strings.Split(data, ",") {
+		i, err := strconv.ParseInt(str, 10, 64)
+		if err != nil {
+			return err
+		}
+		s.Add(uint(i))
+	}
+	return nil
+}
+
+func (s *SortIndex) ToString() string {
+	var buffer strings.Builder
+	for i, id := range *s {
+		buffer.WriteString(strconv.Itoa(int(id)))
+		if i != len(*s)-1 {
+			buffer.WriteString(",")
+		}
+	}
+	return buffer.String()
 }
 
 func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
