@@ -7,7 +7,7 @@ import (
 )
 
 func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.SortIndex) []JsonKeyResult {
-	l := min(len(fields), 32)
+	l := min(len(fields), 16)
 	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {
@@ -31,7 +31,7 @@ func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.Sor
 }
 
 func mapToSliceNumber[K float64 | int](numberFields map[uint]*facet.NumberField[K], fields map[uint]*NumberResult[K], sortIndex *facet.SortIndex) []JsonNumberResult {
-	l := min(len(fields), 20)
+	l := min(len(fields), 8)
 	sorted := make([]JsonNumberResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {

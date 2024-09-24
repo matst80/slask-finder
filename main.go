@@ -79,24 +79,25 @@ func Init() {
 		}
 
 		srv.Tracking = trk
+		log.Printf("Tracking enabled, url: %s", clickhouseUrl)
 	}
 	if redisUrl != "" {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		log.Printf("Cache enabled, url: %s", redisUrl)
 	}
-	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true})
-	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn"})
-	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Central stock level"})
-	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category"})
-	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Kategori", Description: "Sub category"})
-	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori"})
-	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "B grade", Description: "Outlet rating"})
-	//idx.AddBoolField(&facet.BaseField{Id: 21, Name: "Discounted", Description: ""})
-	idx.AddIntegerField(&facet.BaseField{Id: 4, Name: "Pris"})
-	idx.AddIntegerField(&facet.BaseField{Id: 5, Name: "Tidigare pris"})
-	idx.AddIntegerField(&facet.BaseField{Id: 6, Name: "Betyg", Description: "Average rating"})
-	idx.AddIntegerField(&facet.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews"})
-	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value"})
+	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0})
+	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 1199999999.0})
+	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Central stock level", Priority: 99999.0})
+	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 3999999999.0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Kategori", Description: "Sub category", Priority: 2999999999.0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 1999999999.0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "B grade", Description: "Outlet rating", Priority: 9999999.0})
+	//idx.AddBoolField(&facet.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
+	idx.AddIntegerField(&facet.BaseField{Id: 4, Name: "Pris", Priority: 9999999999.0})
+	idx.AddIntegerField(&facet.BaseField{Id: 5, Name: "Tidigare pris", Priority: 9999999999.0})
+	idx.AddIntegerField(&facet.BaseField{Id: 6, Name: "Betyg", Description: "Average rating", Priority: 999999999.0})
+	idx.AddIntegerField(&facet.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 999999999.0})
+	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999999999.0})
 	addDbFields(idx)
 
 	go func() {

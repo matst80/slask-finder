@@ -40,6 +40,13 @@ Guidelines for contributing to your project, including how to report issues and 
 
 Information about the license under which your project is distributed.
 
+## RabbitMQ
+
+Exchanges topics
+
+item_added	
+item_changed	
+item_deleted	
 
 ## Clickhouse database
 

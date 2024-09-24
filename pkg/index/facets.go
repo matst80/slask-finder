@@ -68,12 +68,16 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	numberFields := map[uint]*NumberResult[float64]{}
 	intFields := map[uint]*NumberResult[int]{}
 
-	//ignoredKeyFields := map[uint]struct{}{}
+	ignoredKeyFields := map[uint]struct{}{}
 
-	// if filters != nil {
-	// 	for _, filter := range filters.StringFilter {
-	// 		ignoredKeyFields[filter.Id] = struct{}{}
-	// 	}
+	if filters != nil {
+		for _, filter := range filters.StringFilter {
+			keyFacet, ok := i.KeyFacets[filter.Id]
+			if ok && (keyFacet.IgnoreIfInSearch || keyFacet.HideFacet) {
+				ignoredKeyFields[filter.Id] = struct{}{}
+			}
+		}
+	}
 
 	// }
 
@@ -103,9 +107,9 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 				if l == 0 || l > 64 {
 					continue
 				}
-				// if _, ok := ignoredKeyFields[field.Id]; ok {
-				// 	continue
-				// }
+				if _, ok := ignoredKeyFields[field.Id]; ok {
+					continue
+				}
 
 				if f, ok := fields[field.Id]; ok {
 					f[field.Value]++
@@ -137,6 +141,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 		if item.IntegerFields != nil {
 			for _, field := range item.IntegerFields {
+
 				if field.Value == 0 || field.Value == -1 {
 					continue
 				}

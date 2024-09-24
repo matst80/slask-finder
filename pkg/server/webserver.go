@@ -92,13 +92,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	defer close(itemsChan)
 	defer close(facetsChan)
 	var initialIds *facet.IdList = nil
-	itemSort := ws.DefaultSort
-	if sr.Sort != "" {
-		s, ok := ws.SortMethods[sr.Sort]
-		if ok {
-			itemSort = s
-		}
-	}
+	itemSort := ws.GetSortOrDefault(sr.Sort)
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
 		result := queryResult.ToResultWithSort()
@@ -122,13 +116,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 			cacheHelper.Handle(cacheKey, result, func() index.Facets {
 				return ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
 			}, time.Second*3600)
-			// err := ws.Cache.Get(cacheKey, result)
-			// if err != nil {
-			// 	r := ws.Index.GetFacetsFromResult(matching, &sr.Filters, ws.FieldSort)
-			// 	facetsChan <- r
-			// 	ws.Cache.Set(cacheKey, r, time.Second*3600)
-			// 	return
-			// }
+
 			facetsChan <- *result
 
 		} else {
@@ -161,6 +149,62 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	if encErr != nil {
 		http.Error(w, encErr.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (ws *WebServer) GetSortOrDefault(sortName string) *facet.SortIndex {
+	if sortName != "" {
+		s, ok := ws.SortMethods[sortName]
+		if ok {
+			return s
+		}
+	}
+	return ws.DefaultSort
+}
+
+func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
+	session_id := handleSessionCookie(ws.Tracking, w, r)
+	sr, err := QueryFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var initialIds *facet.IdList = nil
+	itemSort := ws.GetSortOrDefault(sr.Sort)
+
+	if sr.Query != "" {
+		queryResult := ws.Index.Search.Search(sr.Query)
+		result := queryResult.ToResultWithSort()
+		initialIds = result.IdList
+		itemSort = &result.SortIndex
+	}
+	matching := ws.Index.Match(&sr.Filters, initialIds)
+
+	// totalHits := len(*matching)
+
+	go func() {
+		if ws.Tracking != nil {
+			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
+			if err != nil {
+				fmt.Printf("Failed to track search %v", err)
+			}
+		}
+	}()
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate=20")
+	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusOK)
+
+	enc := json.NewEncoder(w)
+	start := sr.PageSize * sr.Page
+	for idx, id := range matching.SortedIds(itemSort, sr.PageSize*(sr.Page+1)) {
+		item, ok := ws.Index.Items[id]
+		if ok && idx >= start {
+			enc.Encode(item)
+		}
+	}
+	w.Write([]byte("\n"))
 }
 
 func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
@@ -321,30 +365,49 @@ type FieldValueAndItemId struct {
 }
 
 func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
-	fieldString := r.URL.Query().Get("field")
-	field, fieldError := strconv.Atoi(fieldString)
+	fieldStrings := strings.Split(r.URL.Query().Get("fields"), ",")
+	fields := make([]int, len(fieldStrings))
+	for i, fieldString := range fieldStrings {
+		field, fieldError := strconv.Atoi(fieldString)
+		if fieldError != nil {
+			http.Error(w, fieldError.Error(), http.StatusBadRequest)
+			return
+		}
+		fields[i] = field
+	}
 
 	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
 	w.WriteHeader(http.StatusOK)
 	baseSearch := SearchRequest{
-		PageSize: 1000,
+		PageSize: 10000,
 		Page:     0,
 	}
 	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
-	enc := json.NewEncoder(w)
+
 	for id := range *resultIds {
 		item, ok := ws.Index.Items[id]
 		if ok {
-			if fieldError == nil {
+			parts := make([]string, len(fields)+1)
+			parts[0] = item.Sku
+			for i, field := range fields {
+
 				for _, itemField := range item.IntegerFields {
 					if itemField.Id == uint(field) {
-						enc.Encode(FieldValueAndItemId{Value: itemField.Value, Id: id})
+						parts[i+1] = strconv.Itoa(itemField.Value)
 						break
 					}
 				}
-			} else {
-				enc.Encode(item)
+				if parts[i+1] == "" {
+					for _, itemField := range item.DecimalFields {
+						if itemField.Id == uint(field) {
+							parts[i+1] = fmt.Sprintf("%v", itemField.Value)
+							break
+						}
+					}
+				}
 			}
+
+			fmt.Fprintln(w, strings.Join(parts, ";"))
 		}
 	}
 }
@@ -509,6 +572,7 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 	srv.HandleFunc("/api/facets", ws.Facets)
 	srv.HandleFunc("/api/suggest", ws.Suggest)
 	srv.HandleFunc("/api/search", ws.QueryIndex)
+	srv.HandleFunc("/api/stream", ws.SearchStreamed)
 	srv.HandleFunc("/api/values/", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 	srv.HandleFunc("/admin/add", ws.AddItem)
