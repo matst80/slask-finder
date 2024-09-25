@@ -78,6 +78,7 @@ func MakeSortMaps(items map[uint]*index.DataItem) map[string]*facet.SortIndex {
 		return float64(value) + j
 	})
 	ret := make(map[string]*facet.SortIndex)
+	ret["popular"] = ToSortIndex(&sortMap, false)
 	ret["price_desc"] = ToSortIndex(&sortMap, false)
 	ret["price"] = ToSortIndex(&sortMap, true)
 	return ret

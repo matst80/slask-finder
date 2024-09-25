@@ -135,13 +135,13 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
-			if sortingErr == nil {
+			if sortingErr != nil {
 
-				//if len(*srv.Sorting.FieldSort) < 10 {
-				log.Println("Creating field sorting")
-				fieldSort := MakeSortForFields()
-				srv.Sorting.SetFieldSort(&fieldSort)
-				//}
+				if len(*srv.Sorting.FieldSort) < 10 {
+					log.Println("Creating field sorting")
+					fieldSort := MakeSortForFields()
+					srv.Sorting.SetFieldSort(&fieldSort)
+				}
 				if len(srv.Sorting.SortMethods) < 1 {
 					log.Println("Creating default sorting")
 
