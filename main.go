@@ -100,7 +100,7 @@ func Init() {
 	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 3999999999.0, IgnoreIfInSearch: true})
 	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Kategori", Description: "Sub category", Priority: 2999999999.0, IgnoreIfInSearch: true})
 	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 1999999999.0, IgnoreIfInSearch: true})
-	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "B grade", Description: "Outlet rating", Priority: 9999999.0})
+	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "B grade", Description: "Outlet rating", Priority: 19999.0})
 	//idx.AddBoolField(&facet.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
 	idx.AddIntegerField(&facet.BaseField{Id: 4, Name: "Pris", Priority: 9999999999.0})
 	idx.AddIntegerField(&facet.BaseField{Id: 5, Name: "Tidigare pris", Priority: 9999999999.0})
@@ -135,13 +135,13 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
-			if sortingErr != nil {
+			if sortingErr == nil {
 
-				if len(*srv.Sorting.FieldSort) < 10 {
-					log.Println("Creating field sorting")
-					fieldSort := MakeSortForFields()
-					srv.Sorting.SetFieldSort(&fieldSort)
-				}
+				//if len(*srv.Sorting.FieldSort) < 10 {
+				log.Println("Creating field sorting")
+				fieldSort := MakeSortForFields()
+				srv.Sorting.SetFieldSort(&fieldSort)
+				//}
 				if len(srv.Sorting.SortMethods) < 1 {
 					log.Println("Creating default sorting")
 

@@ -91,17 +91,27 @@ func MakeSortForFields() facet.SortIndex {
 	sortMap := make(facet.ByValue, l)
 
 	for _, item := range idx.DecimalFacets {
+		if item.HideFacet {
+			continue
+		}
 		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount())}
 		i++
 	}
 	for _, item := range idx.KeyFacets {
+		if item.HideFacet {
+			continue
+		}
 		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount())}
 		i++
 	}
 	for _, item := range idx.IntFacets {
+		if item.HideFacet {
+			continue
+		}
 		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount())}
 		i++
 	}
+	sortMap = sortMap[:i]
 	sort.Sort(sort.Reverse(sortMap))
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
