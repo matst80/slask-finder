@@ -26,11 +26,12 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer"`
 }
 
-func (i *Index) Match(search *Filters, initialIds *facet.IdList) *facet.IdList {
+func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *facet.IdList) {
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *facet.IdList)
+
 	if initialIds != nil && len(*initialIds) > 0 {
 
 		cnt++
@@ -71,8 +72,9 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList) *facet.IdList {
 		for id := range i.AllItems {
 			list.Add(id)
 		}
-		return &list
+		idList <- &list
+		return
 	}
-	return facet.MakeIntersectResult(results, cnt)
+	idList <- facet.MakeIntersectResult(results, cnt)
 
 }
