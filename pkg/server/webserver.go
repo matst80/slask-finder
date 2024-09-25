@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/pprof"
 	"strconv"
 	"strings"
 	"time"
@@ -16,17 +15,13 @@ import (
 )
 
 type WebServer struct {
-	Index   *index.Index
-	Db      *persistance.Persistance
-	Sorting *Sorting
-	//DefaultSort      *facet.SortIndex
-	//SortMethods      map[string]*facet.SortIndex
-	//FieldSort        *facet.SortIndex
+	Index            *index.Index
+	Db               *persistance.Persistance
+	Sorting          *Sorting
 	Cache            *Cache
 	Tracking         *tracking.ClickHouse
 	FacetLimit       int
 	SearchFacetLimit int
-	ListenAddress    string
 }
 
 func getCacheKey(sr SearchRequest) string {
@@ -615,7 +610,21 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) StartServer(enableProfiling bool) error {
+func (ws *WebServer) AdminHandler() *http.ServeMux {
+	srv := http.NewServeMux()
+	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+	srv.HandleFunc("/add", ws.AddItem)
+	srv.HandleFunc("/get/", ws.GetItem)
+	srv.HandleFunc("/save", ws.Save)
+	srv.HandleFunc("/sort/{id}", ws.HandleSortId)
+	srv.HandleFunc("/field-sort", ws.HandleFieldSort)
+	return srv
+}
+
+func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
 
@@ -624,27 +633,15 @@ func (ws *WebServer) StartServer(enableProfiling bool) error {
 		w.Write([]byte("ok"))
 	})
 
-	srv.HandleFunc("/api/filter", ws.Search)
-	srv.HandleFunc("/api/learn/", ws.Learn)
-	srv.HandleFunc("/api/related/{id}", ws.Related)
-	srv.HandleFunc("/api/facets", ws.Facets)
-	srv.HandleFunc("/api/suggest", ws.Suggest)
-	srv.HandleFunc("/api/search", ws.QueryIndex)
-	srv.HandleFunc("/api/stream", ws.SearchStreamed)
-	srv.HandleFunc("/api/values/", ws.GetValues)
+	srv.HandleFunc("/filter", ws.Search)
+	srv.HandleFunc("/learn/", ws.Learn)
+	srv.HandleFunc("/related/{id}", ws.Related)
+	srv.HandleFunc("/facets", ws.Facets)
+	srv.HandleFunc("/suggest", ws.Suggest)
+	srv.HandleFunc("/search", ws.QueryIndex)
+	srv.HandleFunc("/stream", ws.SearchStreamed)
+	srv.HandleFunc("/values/", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
-	srv.HandleFunc("/admin/add", ws.AddItem)
-	srv.HandleFunc("/admin/get/", ws.GetItem)
-	srv.HandleFunc("/admin/save", ws.Save)
-	srv.HandleFunc("/admin/sort/{id}", ws.HandleSortId)
-	srv.HandleFunc("/admin/field-sort", ws.HandleFieldSort)
 
-	if enableProfiling {
-		srv.HandleFunc("/debug/pprof/", pprof.Index)
-		srv.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		srv.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		srv.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		srv.HandleFunc("/debug/pprof/trace", pprof.Trace)
-	}
-	return http.ListenAndServe(ws.ListenAddress, srv)
+	return srv
 }

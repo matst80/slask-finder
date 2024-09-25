@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"log"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"runtime"
 
@@ -21,6 +23,7 @@ var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
 var clickhouseUrl = os.Getenv("CLICKHOUSE_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
+var listenAddress = ":8080"
 
 var rabbitConfig = sync.RabbitConfig{
 	ItemChangedTopic: "item_changed",
@@ -67,7 +70,6 @@ var srv = server.WebServer{
 	Db:               db,
 	FacetLimit:       65535,
 	SearchFacetLimit: 65535,
-	ListenAddress:    ":8080",
 	Cache:            nil,
 }
 
@@ -160,8 +162,23 @@ func main() {
 	flag.Parse()
 	Init()
 
-	log.Printf("Starting server")
+	log.Printf("Starting server %v", listenAddress)
 
-	srv.StartServer(*enableProfiling)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+	mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+	mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
 
+	if enableProfiling != nil && *enableProfiling {
+		mux.HandleFunc("/debug/pprof/", pprof.Index)
+		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		//mux.Handle("/debug/pprof/", )
+	}
+	log.Fatal(http.ListenAndServe(listenAddress, mux))
 }

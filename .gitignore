@@ -1,4 +1,5 @@
 data/*.db
+__debug*
 data/*.dbz
 .DS_Store
 facet-search
