@@ -105,10 +105,11 @@ func Init() {
 	idx.AddIntegerField(&facet.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 999999999.0})
 	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999999999.0})
 	addDbFields(idx)
-	srv.Sorting.LoadAll()
+	sortingErr := srv.Sorting.LoadAll()
 
 	go func() {
 		err := db.LoadIndex(idx)
+		log.Println("Index loaded")
 		if rabbitUrl != "" && err == nil {
 			if clientName == "" {
 				log.Println("Starting as master")
@@ -131,26 +132,30 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
-			if len(*srv.Sorting.FieldSort) < 10 {
-				log.Println("Creating field sorting")
-				fieldSort := MakeSortForFields()
-				srv.Sorting.SetFieldSort(&fieldSort)
-			}
-			if len(srv.Sorting.SortMethods) < 1 {
-				log.Println("Creating default sorting")
+			if sortingErr != nil {
 
-				_, priceSort := MakeSortFromNumberField(idx.Items, 4)
-
-				sortMethods := MakeSortMaps(idx.Items)
-
-				for key, sort := range sortMethods {
-					srv.Sorting.AddSortMethod(key, sort)
+				if len(*srv.Sorting.FieldSort) < 10 {
+					log.Println("Creating field sorting")
+					fieldSort := MakeSortForFields()
+					srv.Sorting.SetFieldSort(&fieldSort)
 				}
-				srv.Sorting.SetDefaultSort(&priceSort)
+				if len(srv.Sorting.SortMethods) < 1 {
+					log.Println("Creating default sorting")
+
+					_, priceSort := MakeSortFromNumberField(idx.Items, 4)
+
+					sortMethods := MakeSortMaps(idx.Items)
+
+					for key, sort := range sortMethods {
+						srv.Sorting.AddSortMethod(key, sort)
+					}
+					srv.Sorting.SetDefaultSort(&priceSort)
+				}
+			} else {
+				log.Println("Field sorting loaded")
+				srv.Sorting.SetDefaultSort(srv.Sorting.GetSort("popular"))
 			}
 
-			log.Println("Index loaded")
-			log.Println("Default facets created")
 			runtime.GC()
 		}
 

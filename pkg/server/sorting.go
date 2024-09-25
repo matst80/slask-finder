@@ -42,10 +42,10 @@ func NewSorting(addr, password string, db int) *Sorting {
 		SortMethods: make(map[string]*facet.SortIndex),
 		FieldSort:   &facet.SortIndex{},
 	}
-	log.Printf("Sorting instance created")
+
 	pubsub := rdb.Subscribe(ctx, "sortChange")
 	fieldsub := rdb.Subscribe(ctx, "fieldSortChange")
-	log.Printf("Sorting instance subscribed")
+
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
 			fmt.Println("Received", msg.Channel, msg.Payload)
@@ -86,7 +86,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.mu.Unlock()
 		}
 	}(fieldsub.Channel())
-	log.Printf("Sorting instance returned")
+
 	return instance
 
 }
