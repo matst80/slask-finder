@@ -147,6 +147,9 @@ func (s *Sorting) AddSortMethod(id string, sort *facet.SortIndex) error {
 	s.client.Set(s.ctx, key, data, 0)
 	s.client.HSet(s.ctx, "sorts", id, key)
 	_, err := s.client.Publish(s.ctx, "sortChange", id).Result()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.SortMethods[id] = sort
 	return err
 
 }

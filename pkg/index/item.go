@@ -5,9 +5,9 @@ import (
 )
 
 type EnergyRating struct {
-	Value string `json:"value"`
-	Min   string `json:"min"`
-	Max   string `json:"max"`
+	Value string `json:"value,omitempty"`
+	Min   string `json:"min,omitempty"`
+	Max   string `json:"max,omitempty"`
 }
 
 type ItemProp struct {
