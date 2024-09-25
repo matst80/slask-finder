@@ -57,7 +57,10 @@ func TestIndexMatch(t *testing.T) {
 		NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 		IntegerFilter: []NumberSearch[int]{},
 	}
-	matching := i.Match(&query, nil)
+	ch := make(chan *facet.IdList)
+	defer close(ch)
+	i.Match(&query, nil, ch)
+	matching := <-ch
 	if !matchAll(*matching, 1) {
 		t.Errorf("Expected [1] but got %v", matching)
 	}
@@ -140,7 +143,10 @@ func TestMultipleIndexMatch(t *testing.T) {
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 	}
-	matching := i.Match(&query, nil)
+	ch := make(chan *facet.IdList)
+	defer close(ch)
+	i.Match(&query, nil, ch)
+	matching := <-ch
 	if !matchAll(*matching, 1, 2) {
 		t.Errorf("Expected [1,2] but got %v", matching)
 	}
@@ -152,7 +158,10 @@ func TestGetMatchItems(t *testing.T) {
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 	}
-	matching := i.Match(&query, nil)
+	ch := make(chan *facet.IdList)
+	defer close(ch)
+	i.Match(&query, nil, ch)
+	matching := <-ch
 	//items := i.GetItems(matching, 0, 10)
 	if !matchAll(*matching, 1, 2) {
 		t.Errorf("Expected ids [1,2] but got %v", matching)
@@ -171,7 +180,10 @@ func TestGetFacetsFromResultIds(t *testing.T) {
 		StringFilter: []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter: []NumberSearch[float64]{{Id: 3, Min: 1, Max: 2}},
 	}
-	matching := i.Match(&query, nil)
+	ch := make(chan *facet.IdList)
+	defer close(ch)
+	i.Match(&query, nil, ch)
+	matching := <-ch
 	facets := i.GetFacetsFromResult(matching, &query, &facet.SortIndex{1, 2, 3})
 	if len(facets.Fields) != 2 {
 		t.Errorf("Expected 2 fields but got %v", facets.Fields)
@@ -214,8 +226,11 @@ func TestUpdateItem(t *testing.T) {
 		NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 1000}},
 		IntegerFilter: []NumberSearch[int]{},
 	}
-	ids := *i.Match(&search, nil)
-	if !matchAll(ids, 1, 2) {
+	ch := make(chan *facet.IdList)
+	defer close(ch)
+	i.Match(&search, nil, ch)
+	ids := <-ch
+	if !matchAll(*ids, 1, 2) {
 		t.Errorf("Expected 1 ids but got %v", ids)
 	}
 }
@@ -231,8 +246,11 @@ func TestDeleteItem(t *testing.T) {
 		NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 1000}},
 		IntegerFilter: []NumberSearch[int]{},
 	}
-	ids := *i.Match(&search, nil)
-	if matchAll(ids, 1) {
+	ch := make(chan *facet.IdList)
+	defer close(ch)
+	i.Match(&search, nil, ch)
+	ids := <-ch
+	if matchAll(*ids, 1) {
 		t.Errorf("Expected 1 ids but got %v", ids)
 	}
 }

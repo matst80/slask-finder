@@ -71,8 +71,8 @@ func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
-	FacetLimit:       65535,
-	SearchFacetLimit: 65535,
+	FacetLimit:       10280,
+	SearchFacetLimit: 10280,
 	Cache:            nil,
 }
 

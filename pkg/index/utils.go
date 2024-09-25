@@ -2,6 +2,7 @@ package index
 
 import (
 	"hash/fnv"
+	"math"
 
 	"tornberg.me/facet-search/pkg/facet"
 )
@@ -37,6 +38,9 @@ func mapToSliceNumber[K float64 | int](numberFields map[uint]*facet.NumberField[
 	for _, id := range *sortIndex {
 		f, ok := fields[id]
 		if ok {
+			if math.Abs(float64(f.Max)-float64(f.Min)) < 1 {
+				continue
+			}
 			indexField, baseOk := numberFields[id]
 			if baseOk {
 

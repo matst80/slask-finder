@@ -57,7 +57,7 @@ type Facets struct {
 }
 
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
-	needsTruncation := len(*ids) > 65535
+	needsTruncation := len(*ids) > 10000
 	if sortIndex == nil {
 		log.Println("no sort index for fields")
 		return Facets{
