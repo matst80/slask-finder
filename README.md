@@ -80,3 +80,6 @@ CREATE TABLE IF NOT EXISTS user_search
 		timestamp DateTime DEFAULT now()
 ) ENGINE = MergeTree
 ORDER BY timestamp;
+
+
+LAST SYNC 1727297180740

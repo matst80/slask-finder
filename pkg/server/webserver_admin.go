@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"tornberg.me/facet-search/pkg/facet"
 )
@@ -85,7 +84,7 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
-	id := strings.Split(r.URL.Path, "/")[3]
+	id := r.PathValue("id")
 	itemId, err := strconv.Atoi(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -122,7 +121,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 		w.Write([]byte("ok"))
 	})
 	srv.HandleFunc("/add", ws.AddItem)
-	srv.HandleFunc("/get/", ws.GetItem)
+	srv.HandleFunc("/get/{id}", ws.GetItem)
 	srv.HandleFunc("/save", ws.Save)
 	srv.HandleFunc("/sort/{id}", ws.HandleSortId)
 	srv.HandleFunc("/field-sort", ws.HandleFieldSort)
