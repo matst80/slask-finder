@@ -51,7 +51,7 @@ func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
 }
 
 func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
-	srv.Sorting.ItemAdded(item)
+	go srv.Sorting.ItemAdded(item)
 	err := masterTransport.SendItemChanged(item)
 	if err != nil {
 		log.Printf("Failed to send item changed %v", err)
@@ -60,7 +60,7 @@ func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
-	srv.Sorting.ItemDeleted(id)
+	go srv.Sorting.ItemDeleted(id)
 	err := masterTransport.SendItemDeleted(id)
 	if err != nil {
 		log.Printf("Failed to send item deleted %v", err)
