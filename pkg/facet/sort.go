@@ -21,6 +21,15 @@ func (s *SortIndex) Add(id uint) {
 	*s = append(*s, id)
 }
 
+func (s *SortIndex) Remove(id uint) {
+	for i, v := range *s {
+		if v == id {
+			*s = append((*s)[:i], (*s)[i+1:]...)
+			return
+		}
+	}
+}
+
 func (s *SortIndex) FromString(data string) error {
 	for _, str := range strings.Split(data, ",") {
 		i, err := strconv.ParseInt(str, 10, 64)

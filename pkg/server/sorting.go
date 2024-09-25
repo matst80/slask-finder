@@ -8,6 +8,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/index"
 )
 
 type Sorting struct {
@@ -89,6 +90,25 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 	return instance
 
+}
+
+func (s *Sorting) ItemAdded(item *index.DataItem) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for key, sort := range s.SortMethods {
+		sort.Add(item.Id)
+		s.AddSortMethod(key, sort)
+	}
+}
+
+func (s *Sorting) ItemDeleted(itemId uint) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for key, sort := range s.SortMethods {
+		sort.Remove(itemId)
+		s.AddSortMethod(key, sort)
+	}
 }
 
 func (s *Sorting) Close() {
