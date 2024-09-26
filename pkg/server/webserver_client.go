@@ -12,52 +12,32 @@ import (
 )
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
-	session_id := handleSessionCookie(ws.Tracking, w, r)
+
 	sr, err := QueryFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	//cacheHelper := NewCacheHelper[index.Facets](ws.Cache)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	itemsChan := make(chan []index.ResultItem)
 	facetsChan := make(chan index.Facets)
 	matchingChan := make(chan *facet.IdList)
-	defer close(itemsChan)
+
 	defer close(facetsChan)
 	defer close(matchingChan)
 
 	go ws.matchQuery(&sr, matchingChan)
-	itemSort := ws.Sorting.GetSort(sr.Sort)
 
 	matching := <-matchingChan
 	totalHits := len(*matching)
 
-	go getSortedItems(matching, ws.Index, itemSort, sr.Page, sr.PageSize, itemsChan)
 	go getFacetsForIds(matching, ws.Index, &sr.Filters, ws.Sorting.FieldSort, facetsChan)
 
-	go func() {
-		if ws.Tracking != nil {
-			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
-			if err != nil {
-				fmt.Printf("Failed to track search %v", err)
-			}
-		}
-	}()
 	defaultHeaders(w, true, "20")
 	enc := json.NewEncoder(w)
 	w.WriteHeader(http.StatusOK)
 
 	data := SearchResponse{
-		Items:     <-itemsChan,
 		Facets:    <-facetsChan,
-		Page:      sr.Page,
-		PageSize:  sr.PageSize,
 		TotalHits: totalHits,
 	}
 
@@ -67,35 +47,23 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) FacetsStreamed(w http.ResponseWriter, r *http.Request) {
-	sr, err := QueryFromRequest(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	defaultHeaders(w, true, "60")
-	w.WriteHeader(http.StatusOK)
-
-	facetsChan := make(chan index.Facets)
-	matchingChan := make(chan *facet.IdList)
-	defer close(facetsChan)
-	defer close(matchingChan)
-	go ws.matchQuery(&sr, matchingChan)
-	go getFacetsForIds(<-matchingChan, ws.Index, &sr.Filters, ws.Sorting.FieldSort, facetsChan)
-	enc := json.NewEncoder(w)
-	encErr := enc.Encode(<-facetsChan)
-	if encErr != nil {
-		http.Error(w, encErr.Error(), http.StatusInternalServerError)
-	}
-}
-
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
-	session_id := handleSessionCookie(ws.Tracking, w, r)
+
 	sr, err := QueryFromRequest(r)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	session_id := handleSessionCookie(ws.Tracking, w, r)
+	go func() {
+		if ws.Tracking != nil {
+			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
+			if err != nil {
+				fmt.Printf("Failed to track search %v", err)
+			}
+		}
+	}()
 
 	matchingChan := make(chan *facet.IdList)
 
@@ -118,14 +86,18 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	enc := json.NewEncoder(w)
 	start := sr.PageSize * sr.Page
+	end := start + sr.PageSize
 	matching := <-matchingChan
-	for idx, id := range matching.SortedIds(itemSort, sr.PageSize*(sr.Page+1)) {
+	for idx, id := range matching.SortedIds(itemSort, end) {
+		if idx < start {
+			continue
+		}
 		item, ok := ws.Index.Items[id]
-		if ok && idx >= start {
+		if ok {
 			enc.Encode(index.MakeResultItem(item))
 		}
 	}
-	w.Write([]byte("\n"))
+	//w.Write([]byte("\n"))
 }
 
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
@@ -142,49 +114,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	err := json.NewEncoder(w).Encode(result)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
-
-	itemsChan := make(chan []index.ResultItem)
-	facetsChan := make(chan index.Facets)
-	defer close(itemsChan)
-	defer close(facetsChan)
-	qs := r.URL.Query()
-	query := qs.Get("q")
-	ps := qs.Get("size")
-	pg := qs.Get("p")
-
-	pageSize, sizeErr := strconv.Atoi(ps)
-	if sizeErr != nil {
-		pageSize = 50
-	}
-	page, pageError := strconv.Atoi(pg)
-	if pageError != nil {
-		page = 0
-	}
-
-	searchResults := ws.Index.Search.Search(query)
-	res := searchResults.ToResultWithSort()
-	go getSortedItems(res.IdList, ws.Index, ws.Sorting.DefaultSort, page, pageSize, itemsChan)
-	go getFacetsForIds(res.IdList, ws.Index, nil, ws.Sorting.FieldSort, facetsChan)
-
-	defaultHeaders(w, true, "360")
-	w.WriteHeader(http.StatusOK)
-
-	result := SearchResponse{
-		Items:     <-itemsChan,
-		Facets:    <-facetsChan,
-		Page:      page,
-		PageSize:  pageSize,
-		TotalHits: len(*searchResults),
-	}
-
-	err := json.NewEncoder(w).Encode(result)
-
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -379,9 +308,9 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/related/{id}", ws.Related)
 	srv.HandleFunc("/facet-list", ws.Facets)
 	srv.HandleFunc("/suggest", ws.Suggest)
-	srv.HandleFunc("/search", ws.QueryIndex)
-	srv.HandleFunc("/stream/items", ws.SearchStreamed)
-	srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
+	//srv.HandleFunc("/search", ws.QueryIndex)
+	srv.HandleFunc("/stream", ws.SearchStreamed)
+	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 

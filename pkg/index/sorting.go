@@ -37,16 +37,24 @@ func (s *SortOverride) FromString(data string) error {
 }
 
 type Sorting struct {
-	mu            sync.Mutex
-	muOverride    sync.Mutex
-	client        *redis.Client
-	ctx           context.Context
-	fieldOverride *SortOverride
-	sortOverrides map[string]*SortOverride
-	DefaultSort   *facet.SortIndex
-	SortMethods   map[string]*facet.SortIndex
-	FieldSort     *facet.SortIndex
+	idx              *Index
+	mu               sync.Mutex
+	muOverride       sync.Mutex
+	client           *redis.Client
+	ctx              context.Context
+	fieldOverride    *SortOverride
+	popularOverrides *SortOverride
+	sortMethods      map[string]*facet.SortIndex
+	FieldSort        *facet.SortIndex
 }
+
+const POPULAR_SORT = "popular"
+const PRICE_SORT = "price"
+const PRICE_DESC_SORT = "price_desc"
+const REDIS_POPULAR_KEY = "_popular"
+const REDIS_POPULAR_CHANGE = "popularChange"
+const REDIS_FIELD_KEY = "_field"
+const REDIS_FIELD_CHANGE = "fieldChange"
 
 func NewSorting(addr, password string, db int) *Sorting {
 	ctx := context.Background()
@@ -65,20 +73,22 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 	instance := &Sorting{
 
-		ctx:         ctx,
-		client:      rdb,
-		DefaultSort: &facet.SortIndex{},
-		SortMethods: make(map[string]*facet.SortIndex),
-		FieldSort:   &facet.SortIndex{},
+		ctx:              ctx,
+		client:           rdb,
+		sortMethods:      make(map[string]*facet.SortIndex),
+		FieldSort:        &facet.SortIndex{},
+		popularOverrides: &SortOverride{},
+		fieldOverride:    &SortOverride{},
+		idx:              nil,
 	}
 
-	pubsub := rdb.Subscribe(ctx, "sortOverrideChange")
-	fieldsub := rdb.Subscribe(ctx, "fieldSortOverrideChange")
+	pubsub := rdb.Subscribe(ctx, REDIS_POPULAR_CHANGE)
+	fieldsub := rdb.Subscribe(ctx, REDIS_FIELD_CHANGE)
 
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
-			fmt.Println("Received", msg.Channel, msg.Payload)
-			sort_data, err := rdb.Get(ctx, "override_"+msg.Payload).Result()
+			fmt.Println("Received popular override change", msg.Channel, msg.Payload)
+			sort_data, err := rdb.Get(ctx, REDIS_POPULAR_KEY).Result()
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -90,16 +100,18 @@ func NewSorting(addr, password string, db int) *Sorting {
 				continue
 			}
 			instance.muOverride.Lock()
-			instance.sortOverrides[msg.Pattern] = &sort
+			instance.popularOverrides = &sort
 			instance.muOverride.Unlock()
-
+			if instance.idx != nil {
+				instance.regeneratePopular(instance.idx)
+			}
 		}
 	}(pubsub.Channel())
 
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
 			fmt.Println("Received field sort", msg.Channel, msg.Payload)
-			sort_data, err := rdb.Get(ctx, "fieldSort").Result()
+			sort_data, err := rdb.Get(ctx, REDIS_FIELD_KEY).Result()
 			if err != nil {
 				fmt.Println(err)
 				continue
@@ -113,6 +125,9 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.muOverride.Lock()
 			instance.fieldOverride = &sort
 			instance.muOverride.Unlock()
+			if instance.idx != nil {
+				instance.GenerateFieldSort(instance.idx)
+			}
 		}
 	}(fieldsub.Channel())
 
@@ -120,39 +135,49 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 }
 
+func (s *Sorting) regeneratePopular(idx *Index) {
+	sortMap := makePopularSortMap(idx.Items, *s.popularOverrides)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sortMethods[POPULAR_SORT] = ToSortIndex(&sortMap, true)
+}
+
 func (s *Sorting) IndexChanged(idx *Index) {
+	s.idx = idx
 	go func() {
-		maps := MakeItemSorting(idx.Items)
+		s.regeneratePopular(idx)
+		maps := MakeItemStaticSorting(idx.Items)
+
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		for key, sort := range maps {
-			s.SortMethods[key] = sort
+			s.sortMethods[key] = sort
 		}
+
 	}()
 }
 
 func (s *Sorting) GenerateFieldSort(idx *Index) {
-	fieldSort := MakeSortForFields(idx)
+	fieldSort := MakeSortForFields(idx, *s.fieldOverride)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.FieldSort = &fieldSort
 }
 
-func MakeItemSorting(items map[uint]*DataItem) map[string]*facet.SortIndex {
+func MakeItemStaticSorting(items map[uint]*DataItem) map[string]*facet.SortIndex {
 	j := 0.0
 	sortMap := MakeSortMap(items, 4, func(value int, item *DataItem) float64 {
 		j += 0.000001
 		return float64(value) + j
 	})
 	ret := make(map[string]*facet.SortIndex)
-	popularMap := MakePopularSortMap(items)
-	ret["popular"] = ToSortIndex(&popularMap, true)
-	ret["price"] = ToSortIndex(&sortMap, false)
-	ret["price_desc"] = ToSortIndex(&sortMap, true)
+
+	ret[PRICE_SORT] = ToSortIndex(&sortMap, false)
+	ret[PRICE_DESC_SORT] = ToSortIndex(&sortMap, true)
 	return ret
 }
 
-func MakeSortForFields(idx *Index) facet.SortIndex {
+func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
 
 	l := len(idx.DecimalFacets) + len(idx.KeyFacets) + len(idx.IntFacets)
 	i := 0
@@ -163,21 +188,33 @@ func MakeSortForFields(idx *Index) facet.SortIndex {
 		if item.HideFacet {
 			continue
 		}
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount())}
+		o, found := overrides[item.Id]
+		if !found {
+			o = 0
+		}
+		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
 		i++
 	}
 	for _, item := range idx.KeyFacets {
 		if item.HideFacet {
 			continue
 		}
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount())}
+		o, found := overrides[item.Id]
+		if !found {
+			o = 0
+		}
+		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
 		i++
 	}
 	for _, item := range idx.IntFacets {
 		if item.HideFacet {
 			continue
 		}
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount())}
+		o, found := overrides[item.Id]
+		if !found {
+			o = 0
+		}
+		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
 		i++
 	}
 	sortMap = sortMap[:i]
@@ -192,82 +229,51 @@ func (s *Sorting) Close() {
 	s.client.Close()
 }
 
-// func (s *Sorting) LoadAll() error {
-// 	//rdb := s.client
-// 	//ctx := s.ctx
-// 	//fieldSortData := rdb.Get(ctx, "fieldSort").Val()
-// 	//sortMap := rdb.HGetAll(ctx, "sorts").Val()
-
-// 	// fieldSort := facet.SortIndex{}
-// 	// err := fieldSort.FromString(fieldSortData)
-// 	// if err != nil {
-// 	// 	return err
-// 	// }
-// 	// s.mu.Lock()
-// 	// defer s.mu.Unlock()
-// 	// s.FieldSort = &fieldSort
-// 	// for key, redisKey := range sortMap {
-// 	// 	if key == "price" || key == "price_desc" {
-// 	// 		continue
-// 	// 	}
-// 	// 	sort := facet.SortIndex{}
-// 	// 	data := rdb.Get(ctx, redisKey).Val()
-// 	// 	if err = sort.FromString(data); err != nil {
-// 	// 		return err
-// 	// 	}
-
-// 	// 	s.SortMethods[key] = &sort
-// 	// }
-// 	return nil
-// }
-
-func (s *Sorting) AddSortMethodOverride(id string, sort *SortOverride) {
-	go func() {
-		data := sort.ToString()
-		key := "sort_" + id
-		s.client.Set(s.ctx, key, data, 0)
-		s.client.HSet(s.ctx, "sorts", id, key)
-		_, err := s.client.Publish(s.ctx, "sortChange", id).Result()
-		if err != nil {
-			log.Println("Unable to publish overrides", err)
+func (s *Sorting) AddPopularOverride(sort *SortOverride) {
+	data := sort.ToString()
+	s.client.Set(s.ctx, REDIS_POPULAR_KEY, data, 0)
+	_, err := s.client.Publish(s.ctx, REDIS_POPULAR_CHANGE, "external").Result()
+	if err != nil {
+		s.muOverride.Lock()
+		defer s.muOverride.Unlock()
+		s.popularOverrides = sort
+		if s.idx != nil {
+			s.regeneratePopular(s.idx)
 		}
-	}()
-	s.muOverride.Lock()
-	defer s.muOverride.Unlock()
-	s.sortOverrides[id] = sort
-
+	}
 }
 
-// func (s *Sorting) SetDefaultSort(defaultSort *facet.SortIndex) {
-// 	s.mu.Lock()
-// 	defer s.mu.Unlock()
-// 	s.DefaultSort = defaultSort
-// }
+func (s *Sorting) GetPopularOverrides() *SortOverride {
+	s.muOverride.Lock()
+	defer s.muOverride.Unlock()
+	return s.popularOverrides
+}
 
 func (s *Sorting) GetSort(id string) *facet.SortIndex {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if sort, ok := s.SortMethods[id]; ok {
+	if sort, ok := s.sortMethods[id]; ok {
 		return sort
 	}
-	if s.DefaultSort != nil {
-		return s.DefaultSort
-	}
-	for _, sort := range s.SortMethods {
-		s.DefaultSort = sort
+	for _, sort := range s.sortMethods {
 		return sort
 	}
 	return &facet.SortIndex{}
 }
 
 func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {
-	go func() {
-		data := sort.ToString()
-		log.Printf("Setting field sort %d", len(data))
-		s.client.Set(s.ctx, "fieldSort", data, 0)
-		s.client.Publish(s.ctx, "fieldSortChange", "fieldSort")
-	}()
-	s.muOverride.Lock()
-	defer s.muOverride.Unlock()
-	s.fieldOverride = sort
+
+	data := sort.ToString()
+	log.Printf("Setting field sort %d", len(data))
+	s.client.Set(s.ctx, REDIS_FIELD_KEY, data, 0)
+	err := s.client.Publish(s.ctx, REDIS_FIELD_CHANGE, "fieldSort")
+	if err != nil {
+		s.muOverride.Lock()
+		defer s.muOverride.Unlock()
+		s.fieldOverride = sort
+		if s.idx != nil {
+			go s.GenerateFieldSort(s.idx)
+		}
+	}
+
 }

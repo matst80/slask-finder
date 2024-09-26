@@ -3,9 +3,6 @@ package server
 import "tornberg.me/facet-search/pkg/index"
 
 type SearchResponse struct {
-	Items     []index.ResultItem `json:"items"`
-	Facets    index.Facets       `json:"facets,omitempty"`
-	Page      int                `json:"page"`
-	PageSize  int                `json:"pageSize"`
-	TotalHits int                `json:"totalHits"`
+	Facets    index.Facets `json:"facets,omitempty"`
+	TotalHits int          `json:"totalHits"`
 }

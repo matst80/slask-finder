@@ -8,8 +8,7 @@ import (
 	"tornberg.me/facet-search/pkg/index"
 )
 
-func (ws *WebServer) HandleSortId(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
+func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		defaultHeaders(w, true, "0")
@@ -19,13 +18,13 @@ func (ws *WebServer) HandleSortId(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		ws.Sorting.AddSortMethodOverride(id, &sort)
+		ws.Sorting.AddPopularOverride(&sort)
 
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	sort := ws.Sorting.GetSort(id)
+	sort := ws.Sorting.GetPopularOverrides()
 	if sort == nil {
 		http.Error(w, "Sort not found", http.StatusNotFound)
 		return
@@ -122,8 +121,8 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/get/{id}", ws.GetItem)
 	srv.HandleFunc("/save", ws.Save)
-	srv.HandleFunc("/sort/{id}", ws.HandleSortId)
+	srv.HandleFunc("/sort/popular", ws.HandlePopularOverride)
 	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
-	srv.HandleFunc("/field-sort", ws.HandleFieldSort)
+	srv.HandleFunc("/sort/fields", ws.HandleFieldSort)
 	return srv
 }

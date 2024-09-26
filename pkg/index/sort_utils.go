@@ -27,7 +27,7 @@ func MakeSortMap(items map[uint]*DataItem, fieldId uint, fn func(value int, item
 	return sortMap[:idx]
 }
 
-func MakePopularSortMap(items map[uint]*DataItem) facet.ByValue {
+func makePopularSortMap(items map[uint]*DataItem, overrides SortOverride) facet.ByValue {
 	l := len(items)
 	j := 0.0
 	sortMap := make(facet.ByValue, l)
@@ -45,19 +45,15 @@ func MakePopularSortMap(items map[uint]*DataItem) facet.ByValue {
 		for _, f := range item.IntegerFields {
 			if f.Id == 4 {
 				price = f.Value
-
 			}
 			if f.Id == 5 {
 				orgPrice = f.Value
-
 			}
 			if f.Id == 6 {
 				grade = f.Value
-
 			}
 			if f.Id == 7 {
 				noGrades = f.Value
-
 			}
 		}
 		if orgPrice > 0 {
@@ -77,8 +73,14 @@ func MakePopularSortMap(items map[uint]*DataItem) facet.ByValue {
 		if price%900 == 0 {
 			v += 10000 - (price / 10000)
 		}
+		o := 0.0
+		manualOverride, hasOverride := overrides[item.Id]
+		if hasOverride {
+			o = manualOverride
+		}
+
 		f := float64((discount * 100) + (grade * noGrades * 10) + v)
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: f + j}
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: f + j + o}
 		idx++
 	}
 	return sortMap[:idx]
