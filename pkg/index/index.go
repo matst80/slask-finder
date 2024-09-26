@@ -137,13 +137,13 @@ func (i *Index) Lock() {
 
 func (i *Index) Unlock() {
 	i.mu.Unlock()
-	i.Sorting.IndexChanged(i)
+	go i.Sorting.IndexChanged(i)
 }
 
 func (i *Index) UpsertItemUnsafe(item *DataItem) {
 
 	current, isUpdate := i.Items[item.Id]
-	if item.SaleStatus == "MDD" {
+	if item.SaleStatus == "MDD" || item.SaleStatus == "DIS" {
 		if isUpdate {
 			i.DeleteItem(item.Id)
 		}

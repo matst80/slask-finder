@@ -33,12 +33,12 @@ func MakePopularSortMap(items map[uint]*DataItem) facet.ByValue {
 	sortMap := make(facet.ByValue, l)
 	idx := 0
 	for _, item := range items {
-		j += 0.000000000001
+		j += 0.0000000000001
 		v := 0
 		price := 0
 		//sinceUpdate := 0
 		orgPrice := 0
-		discount := 0
+		discount := 1
 		grade := 0
 		noGrades := 0
 		//chanedTs :=  item.LastUpdate
@@ -55,7 +55,7 @@ func MakePopularSortMap(items map[uint]*DataItem) facet.ByValue {
 				grade = f.Value
 				break
 			}
-			if f.Id == 6 {
+			if f.Id == 7 {
 				noGrades = f.Value
 				break
 			}
@@ -64,9 +64,10 @@ func MakePopularSortMap(items map[uint]*DataItem) facet.ByValue {
 			discount = orgPrice - price
 		}
 		if item.SaleStatus == "ACT" {
-			v += 500000
+			v += 5000
 		}
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: float64(discount*100+(grade-2)*noGrades*10+v) + j}
+		f := float64((discount * 100000) + ((grade - 1) * noGrades * 100) + v)
+		sortMap[idx] = facet.Lookup{Id: item.Id, Value: f + j}
 		idx++
 	}
 	return sortMap[:idx]
