@@ -209,9 +209,10 @@ func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
 		if item.HideFacet {
 			continue
 		}
-		o, found := overrides[item.Id]
-		if !found {
-			o = 0
+		o := 0.0
+		manualOverride, hasOverride := overrides[item.Id]
+		if hasOverride {
+			o = manualOverride
 		}
 		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
 		i++
@@ -220,9 +221,10 @@ func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
 		if item.HideFacet {
 			continue
 		}
-		o, found := overrides[item.Id]
-		if !found {
-			o = 0
+		o := 0.0
+		manualOverride, hasOverride := overrides[item.Id]
+		if hasOverride {
+			o = manualOverride
 		}
 		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
 		i++
@@ -231,9 +233,10 @@ func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
 		if item.HideFacet {
 			continue
 		}
-		o, found := overrides[item.Id]
-		if !found {
-			o = 0
+		o := 0.0
+		manualOverride, hasOverride := overrides[item.Id]
+		if hasOverride {
+			o = manualOverride
 		}
 		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
 		i++
