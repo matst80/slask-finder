@@ -29,6 +29,9 @@ func (s *SortOverride) FromString(data string) error {
 		var value float64
 		_, err := fmt.Sscanf(item, "%d:%f", &key, &value)
 		if err != nil {
+			if err.Error() == "EOF" {
+				return nil
+			}
 			return err
 		}
 		(*s)[key] = value
@@ -84,6 +87,24 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 	pubsub := rdb.Subscribe(ctx, REDIS_POPULAR_CHANGE)
 	fieldsub := rdb.Subscribe(ctx, REDIS_FIELD_CHANGE)
+
+	popularData, err := rdb.Get(ctx, REDIS_POPULAR_KEY).Result()
+	if err == nil {
+		sort := SortOverride{}
+		err = sort.FromString(popularData)
+		if err == nil {
+			instance.popularOverrides = &sort
+		}
+	}
+
+	fieldData, err := rdb.Get(ctx, REDIS_FIELD_KEY).Result()
+	if err == nil {
+		sort := SortOverride{}
+		err = sort.FromString(fieldData)
+		if err == nil {
+			instance.fieldOverride = &sort
+		}
+	}
 
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
