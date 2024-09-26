@@ -203,10 +203,7 @@ func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
 	for _, id := range i.GetItemIds(ids, page, pageSize) {
 		item, ok := i.Items[id]
 		if ok {
-			items[idx] = ResultItem{
-				BaseItem: &item.BaseItem,
-				Fields:   item.getFieldValues(),
-			}
+			items[idx] = MakeResultItem(item)
 			idx++
 		}
 	}

@@ -122,7 +122,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	for idx, id := range matching.SortedIds(itemSort, sr.PageSize*(sr.Page+1)) {
 		item, ok := ws.Index.Items[id]
 		if ok && idx >= start {
-			enc.Encode(item)
+			enc.Encode(index.MakeResultItem(item))
 		}
 	}
 	w.Write([]byte("\n"))

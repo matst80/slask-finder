@@ -60,6 +60,13 @@ type ResultItem struct {
 	Fields FieldValues `json:"values"`
 }
 
+func MakeResultItem(item *DataItem) ResultItem {
+	return ResultItem{
+		BaseItem: &item.BaseItem,
+		Fields:   item.getFieldValues(),
+	}
+}
+
 func (item *DataItem) getFieldValues() FieldValues {
 	//if item.fieldValues == nil {
 
