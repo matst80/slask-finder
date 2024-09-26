@@ -146,9 +146,9 @@ func MakeItemSorting(items map[uint]*DataItem) map[string]*facet.SortIndex {
 	})
 	ret := make(map[string]*facet.SortIndex)
 	popularMap := MakePopularSortMap(items)
-	ret["popular"] = ToSortIndex(&popularMap, false)
-	ret["price_desc"] = ToSortIndex(&sortMap, false)
-	ret["price"] = ToSortIndex(&sortMap, true)
+	ret["popular"] = ToSortIndex(&popularMap, true)
+	ret["price"] = ToSortIndex(&sortMap, false)
+	ret["price_desc"] = ToSortIndex(&sortMap, true)
 	return ret
 }
 
