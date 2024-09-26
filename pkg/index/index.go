@@ -33,6 +33,7 @@ type Index struct {
 	AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
+	Sorting       *Sorting
 	Search        *search.FreeTextIndex
 }
 
@@ -125,8 +126,8 @@ func (i *Index) removeItemValues(item *DataItem) {
 
 func (i *Index) UpsertItem(item *DataItem) {
 	log.Printf("Upserting item %d", item.Id)
-	i.mu.Lock()
-	defer i.mu.Unlock()
+	i.Lock()
+	defer i.Unlock()
 	i.UpsertItemUnsafe(item)
 }
 
@@ -136,6 +137,7 @@ func (i *Index) Lock() {
 
 func (i *Index) Unlock() {
 	i.mu.Unlock()
+	i.Sorting.IndexChanged(i)
 }
 
 func (i *Index) UpsertItemUnsafe(item *DataItem) {

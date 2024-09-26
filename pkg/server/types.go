@@ -9,7 +9,7 @@ import (
 type WebServer struct {
 	Index            *index.Index
 	Db               *persistance.Persistance
-	Sorting          *Sorting
+	Sorting          *index.Sorting
 	Cache            *Cache
 	Tracking         *tracking.ClickHouse
 	FacetLimit       int

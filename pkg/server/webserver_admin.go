@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/index"
 )
 
 func (ws *WebServer) HandleSortId(w http.ResponseWriter, r *http.Request) {
@@ -13,17 +13,14 @@ func (ws *WebServer) HandleSortId(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		defaultHeaders(w, true, "0")
-		sort := facet.SortIndex{}
+		sort := index.SortOverride{}
 		err := json.NewDecoder(r.Body).Decode(&sort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		err = ws.Sorting.AddSortMethod(id, &sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		ws.Sorting.AddSortMethodOverride(id, &sort)
+
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -46,13 +43,13 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		defaultHeaders(w, true, "0")
-		sort := facet.SortIndex{}
+		sort := index.SortOverride{}
 		err := json.NewDecoder(r.Body).Decode(&sort)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		ws.Sorting.SetFieldSort(&sort)
+		ws.Sorting.SetFieldSortOverride(&sort)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -115,18 +112,6 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
-func (ws *WebServer) ReOrderSort(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	sort := ws.Sorting.GetSort(id)
-	if sort == nil {
-		http.Error(w, "Sort not found", http.StatusNotFound)
-		return
-	}
-
-	//ws.Sorting.ReOrderSort(id, &sortIndex)
-	w.WriteHeader(http.StatusOK)
-}
-
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv := http.NewServeMux()
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +123,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/get/{id}", ws.GetItem)
 	srv.HandleFunc("/save", ws.Save)
 	srv.HandleFunc("/sort/{id}", ws.HandleSortId)
-	srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
+	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
 	srv.HandleFunc("/field-sort", ws.HandleFieldSort)
 	return srv
 }

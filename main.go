@@ -51,7 +51,7 @@ func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
 }
 
 func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
-	go srv.Sorting.ItemAdded(item)
+
 	err := masterTransport.SendItemChanged(item)
 	if err != nil {
 		log.Printf("Failed to send item changed %v", err)
@@ -60,7 +60,7 @@ func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
-	go srv.Sorting.ItemDeleted(id)
+
 	err := masterTransport.SendItemDeleted(id)
 	if err != nil {
 		log.Printf("Failed to send item deleted %v", err)
@@ -91,7 +91,9 @@ func Init() {
 
 	}
 	srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
-	srv.Sorting = server.NewSorting(redisUrl, redisPassword, 0)
+
+	srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
+	idx.Sorting = srv.Sorting
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0})
@@ -108,11 +110,12 @@ func Init() {
 	idx.AddIntegerField(&facet.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 999999999.0})
 	idx.AddIntegerField(&facet.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999999999.0})
 	addDbFields(idx)
-	sortingErr := srv.Sorting.LoadAll()
+	//srv.Sorting.LoadAll()
 
 	go func() {
 		err := db.LoadIndex(idx)
 		log.Println("Index loaded")
+		srv.Sorting.GenerateFieldSort(idx)
 		if rabbitUrl != "" && err == nil {
 			if clientName == "" {
 				log.Println("Starting as master")
@@ -135,29 +138,29 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
-			if sortingErr != nil {
+			// if sortingErr == nil {
 
-				if len(*srv.Sorting.FieldSort) < 10 {
-					log.Println("Creating field sorting")
-					fieldSort := MakeSortForFields()
-					srv.Sorting.SetFieldSort(&fieldSort)
-				}
-				if len(srv.Sorting.SortMethods) < 1 {
-					log.Println("Creating default sorting")
+			// 	if len(*srv.Sorting.FieldSort) < 10 {
+			// 		log.Println("Creating field sorting")
+			// 		fieldSort := MakeSortForFields()
+			// 		srv.Sorting.SetFieldSort(&fieldSort)
+			// 	}
+			// 	if len(srv.Sorting.SortMethods) < 1 {
+			// 		log.Println("Creating default sorting")
 
-					_, priceSort := MakeSortFromNumberField(idx.Items, 4)
+			// 		_, priceSort := MakeSortFromNumberField(idx.Items, 4)
 
-					sortMethods := MakeSortMaps(idx.Items)
+			// 		sortMethods := MakeSortMaps(idx.Items)
 
-					for key, sort := range sortMethods {
-						srv.Sorting.AddSortMethod(key, sort)
-					}
-					srv.Sorting.SetDefaultSort(&priceSort)
-				}
-			} else {
-				log.Println("Field sorting loaded")
-				srv.Sorting.SetDefaultSort(srv.Sorting.GetSort("popular"))
-			}
+			// 		for key, sort := range sortMethods {
+			// 			srv.Sorting.AddSortMethod(key, sort)
+			// 		}
+			// 		srv.Sorting.SetDefaultSort(&priceSort)
+			// 	}
+			// } else {
+			// 	log.Println("Field sorting loaded")
+			// 	srv.Sorting.SetDefaultSort(srv.Sorting.GetSort("popular"))
+			// }
 
 			runtime.GC()
 		}
