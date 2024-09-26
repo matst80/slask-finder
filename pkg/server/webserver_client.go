@@ -9,19 +9,7 @@ import (
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
-	"tornberg.me/facet-search/pkg/persistance"
-	"tornberg.me/facet-search/pkg/tracking"
 )
-
-type WebServer struct {
-	Index            *index.Index
-	Db               *persistance.Persistance
-	Sorting          *Sorting
-	Cache            *Cache
-	Tracking         *tracking.ClickHouse
-	FacetLimit       int
-	SearchFacetLimit int
-}
 
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	session_id := handleSessionCookie(ws.Tracking, w, r)
@@ -140,11 +128,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("\n"))
 }
 
-type SuggestResult struct {
-	Word string `json:"match"`
-	Hits int    `json:"hits"`
-}
-
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	suggestions := ws.Index.AutoSuggest.FindMatches(query)
@@ -205,11 +188,6 @@ func (ws *WebServer) QueryIndex(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-type FieldValueAndItemId struct {
-	Value int  `json:"value"`
-	Id    uint `json:"id"`
 }
 
 func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
@@ -301,12 +279,6 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	if encErr != nil {
 		http.Error(w, encErr.Error(), http.StatusInternalServerError)
 	}
-}
-
-type FacetItem struct {
-	Id    uint   `json:"id"`
-	Name  string `json:"value"`
-	Count int    `json:"count"`
 }
 
 func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {

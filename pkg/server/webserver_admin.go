@@ -115,6 +115,18 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+func (ws *WebServer) ReOrderSort(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	sort := ws.Sorting.GetSort(id)
+	if sort == nil {
+		http.Error(w, "Sort not found", http.StatusNotFound)
+		return
+	}
+
+	//ws.Sorting.ReOrderSort(id, &sortIndex)
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv := http.NewServeMux()
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -126,6 +138,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/get/{id}", ws.GetItem)
 	srv.HandleFunc("/save", ws.Save)
 	srv.HandleFunc("/sort/{id}", ws.HandleSortId)
+	srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
 	srv.HandleFunc("/field-sort", ws.HandleFieldSort)
 	return srv
 }
