@@ -41,6 +41,7 @@ func (s *SortOverride) FromString(data string) error {
 }
 
 type Sorting struct {
+	quit             chan struct{}
 	idx              *Index
 	mu               sync.Mutex
 	muOverride       sync.Mutex
@@ -107,17 +108,31 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.fieldOverride = &sort
 		}
 	}
+	instance.quit = make(chan struct{})
 	ticker := time.NewTicker(10 * time.Second)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
+				log.Println("tick")
 				if instance.hasItemChanges {
-					if instance.idx != nil {
-						instance.regeneratePopular(instance.idx)
-					}
 					instance.hasItemChanges = false
+					if instance.idx != nil {
+
+						instance.regeneratePopular(instance.idx)
+						maps := MakeItemStaticSorting(instance.idx.Items)
+
+						instance.mu.Lock()
+						defer instance.mu.Unlock()
+						for key, sort := range maps {
+							instance.sortMethods[key] = sort
+						}
+					}
 				}
+
+			case <-instance.quit:
+				ticker.Stop()
+				return
 			}
 		}
 	}()
@@ -182,14 +197,7 @@ func (s *Sorting) regeneratePopular(idx *Index) {
 func (s *Sorting) IndexChanged(idx *Index) {
 	s.idx = idx
 	go func() {
-		s.regeneratePopular(idx)
-		maps := MakeItemStaticSorting(idx.Items)
-
-		s.mu.Lock()
-		defer s.mu.Unlock()
-		for key, sort := range maps {
-			s.sortMethods[key] = sort
-		}
+		s.hasItemChanges = true
 
 	}()
 }
