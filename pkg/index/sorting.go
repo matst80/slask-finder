@@ -118,7 +118,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 				if instance.hasItemChanges {
 					instance.hasItemChanges = false
 					if instance.idx != nil {
-
+						instance.mu.Lock()
+						defer instance.mu.Unlock()
 						instance.regeneratePopular(instance.idx)
 						maps := MakeItemStaticSorting(instance.idx.Items)
 
