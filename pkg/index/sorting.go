@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 	"tornberg.me/facet-search/pkg/facet"
@@ -49,6 +50,7 @@ type Sorting struct {
 	popularOverrides *SortOverride
 	sortMethods      map[string]*facet.SortIndex
 	FieldSort        *facet.SortIndex
+	hasItemChanges   bool
 }
 
 const POPULAR_SORT = "popular"
@@ -105,7 +107,20 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.fieldOverride = &sort
 		}
 	}
-
+	ticker := time.NewTicker(10 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				if instance.hasItemChanges {
+					if instance.idx != nil {
+						instance.regeneratePopular(instance.idx)
+					}
+					instance.hasItemChanges = false
+				}
+			}
+		}
+	}()
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
 			fmt.Println("Received popular override change", msg.Channel, msg.Payload)
@@ -123,9 +138,10 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.muOverride.Lock()
 			instance.popularOverrides = &sort
 			instance.muOverride.Unlock()
-			if instance.idx != nil {
-				instance.regeneratePopular(instance.idx)
-			}
+			instance.hasItemChanges = true
+			// if instance.idx != nil {
+			// 	instance.regeneratePopular(instance.idx)
+			// }
 		}
 	}(pubsub.Channel())
 
