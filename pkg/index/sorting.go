@@ -230,7 +230,7 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 		sortIndex[idx] = item.Id
 	}
 
-	s.FieldSort = ToSortIndex(&sortMap, false)
+	s.FieldSort = ToSortIndex(&sortMap, true)
 }
 
 func (s *Sorting) Close() {
