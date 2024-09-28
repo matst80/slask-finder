@@ -40,10 +40,8 @@ func getSortingData(item *DataItem) SortingData {
 func getPopularValue(itemData SortingData, overrideValue float64) float64 {
 	v := overrideValue
 	if itemData.orgPrice > 0 && itemData.orgPrice-itemData.price > 0 {
-
 		discount := itemData.orgPrice - itemData.price
-		v += float64((discount / itemData.orgPrice) * 100)
-
+		v += float64((discount / itemData.orgPrice) * 10000)
 	}
 	if itemData.sellable {
 		v += 5000
@@ -57,7 +55,7 @@ func getPopularValue(itemData SortingData, overrideValue float64) float64 {
 	if itemData.price%900 == 0 {
 		v += float64(10000 - (itemData.price / 10000))
 	}
-	return v + float64(itemData.grade*itemData.noGrades*10)
+	return v + float64(itemData.grade*itemData.noGrades)
 }
 
 func ToMap(f *facet.ByValue) map[uint]float64 {

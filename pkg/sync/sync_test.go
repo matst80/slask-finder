@@ -12,9 +12,9 @@ import (
 )
 
 var rabbitConfig = RabbitConfig{
-	ItemsAddedTopic:  "item_added",
-	ItemDeletedTopic: "item_deleted",
-	Url:              "amqp://admin:12bananer@localhost:5672/",
+	ItemsUpsertedTopic: "item_added",
+	ItemDeletedTopic:   "item_deleted",
+	Url:                "amqp://admin:12bananer@localhost:5672/",
 }
 
 func createTopic(ch *amqp.Channel, topic string) error {
@@ -50,7 +50,7 @@ func TestDeclareTopicsAndExchange(t *testing.T) {
 	// 	t.Error(err)
 	// }
 
-	if err = createTopic(ch, rabbitConfig.ItemsAddedTopic); err != nil {
+	if err = createTopic(ch, rabbitConfig.ItemsUpsertedTopic); err != nil {
 		t.Error(err)
 	}
 

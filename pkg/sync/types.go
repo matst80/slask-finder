@@ -9,10 +9,9 @@ type BaseClient struct {
 }
 
 type RabbitConfig struct {
-	//ItemChangedTopic string
-	ItemsAddedTopic  string
-	ItemDeletedTopic string
-	Url              string
+	ItemsUpsertedTopic string
+	ItemDeletedTopic   string
+	Url                string
 }
 
 func MakeBaseClient(index *index.Index, transport TransportClient) *BaseClient {

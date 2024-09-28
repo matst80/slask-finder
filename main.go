@@ -27,9 +27,9 @@ var listenAddress = ":8080"
 
 var rabbitConfig = sync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
-	ItemsAddedTopic:  "item_added",
-	ItemDeletedTopic: "item_deleted",
-	Url:              rabbitUrl,
+	ItemsUpsertedTopic: "item_added",
+	ItemDeletedTopic:   "item_deleted",
+	Url:                rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
@@ -43,7 +43,7 @@ type RabbitMasterChangeHandler struct{}
 
 func (r *RabbitMasterChangeHandler) ItemsUpserted(items []*index.DataItem) {
 
-	err := masterTransport.SendItemsAdded(items)
+	err := masterTransport.ItemsUpserted(items)
 	if err != nil {
 		log.Printf("Failed to send item changed %v", err)
 	}
@@ -109,8 +109,12 @@ func Init() {
 		if rabbitUrl != "" && err == nil {
 			if clientName == "" {
 				log.Println("Starting as master")
-				masterTransport.Connect()
-				idx.ChangeHandler = &RabbitMasterChangeHandler{}
+				err := masterTransport.Connect()
+				if err != nil {
+					log.Printf("Failed to connect to RabbitMQ as master, %v", err)
+				} else {
+					idx.ChangeHandler = &RabbitMasterChangeHandler{}
+				}
 			} else {
 				log.Printf("Starting as client: %s", clientName)
 				clientTransport := sync.RabbitTransportClient{
