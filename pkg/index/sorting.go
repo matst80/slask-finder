@@ -152,8 +152,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 				continue
 			}
 			instance.muOverride.Lock()
-			defer instance.muOverride.Unlock()
 			instance.popularOverrides = &sort
+			instance.muOverride.Unlock()
 
 			instance.hasItemChanges = true
 			// if instance.idx != nil {
@@ -177,8 +177,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 				continue
 			}
 			instance.muOverride.Lock()
-			defer instance.muOverride.Unlock()
 			instance.fieldOverride = &sort
+			instance.muOverride.Unlock()
 
 			if instance.idx != nil {
 				instance.GenerateFieldSort(instance.idx)
@@ -192,11 +192,15 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 func (s *Sorting) regeneratePopular(idx *Index) {
 	idx.Lock()
-	defer idx.Unlock()
 	sortMap := makePopularSortMap(idx.Items, *s.popularOverrides)
+	idx.Unlock()
+	s.setPopularSort(&sortMap)
+}
+
+func (s *Sorting) setPopularSort(sortMap *facet.ByValue) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.sortMethods[POPULAR_SORT] = ToSortIndex(&sortMap, true)
+	s.sortMethods[POPULAR_SORT] = ToSortIndex(sortMap, true)
 }
 
 func (s *Sorting) IndexChanged(idx *Index) {
@@ -206,8 +210,8 @@ func (s *Sorting) IndexChanged(idx *Index) {
 
 func (s *Sorting) GenerateFieldSort(idx *Index) {
 	idx.Lock()
-	defer idx.Unlock()
 	fieldSort := MakeSortForFields(idx, *s.fieldOverride)
+	idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.FieldSort = &fieldSort

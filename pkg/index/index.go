@@ -140,7 +140,6 @@ func (i *Index) UpsertItems(items []*DataItem) {
 	}
 	if i.ChangeHandler != nil {
 		i.ChangeHandler.ItemsUpserted(items)
-
 	}
 }
 

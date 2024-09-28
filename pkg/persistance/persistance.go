@@ -72,7 +72,8 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
 	defer zipWriter.Close()
-
+	idx.Lock()
+	defer idx.Unlock()
 	for _, item := range idx.Items {
 		err = enc.Encode(*item)
 		if err != nil {
