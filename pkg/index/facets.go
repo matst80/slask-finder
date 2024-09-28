@@ -75,28 +75,28 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	ignoredIntFields := map[uint]struct{}{}
 	ignoredDecimalFields := map[uint]struct{}{}
 
-	if filters != nil {
-		for _, filter := range filters.StringFilter {
-			keyFacet, ok := i.KeyFacets[filter.Id]
-			if ok && (keyFacet.IgnoreIfInSearch) {
-				ignoredKeyFields[filter.Id] = struct{}{}
-			}
-		}
-	}
+	// if filters != nil {
+	// 	for _, filter := range filters.StringFilter {
+	// 		keyFacet, ok := i.KeyFacets[filter.Id]
+	// 		if ok && (keyFacet.IgnoreIfInSearch) {
+	// 			ignoredKeyFields[filter.Id] = struct{}{}
+	// 		}
+	// 	}
+	// }
 	for key, facet := range i.KeyFacets {
-		if facet.HideFacet || (facet.Priority < 100 && needsTruncation) {
+		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
 			ignoredKeyFields[key] = struct{}{}
 		}
 	}
 
 	for key, facet := range i.IntFacets {
-		if facet.HideFacet || (facet.Priority < 100 && needsTruncation) {
+		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
 			ignoredIntFields[key] = struct{}{}
 		}
 	}
 
 	for key, facet := range i.DecimalFacets {
-		if facet.HideFacet || (facet.Priority < 100 && needsTruncation) {
+		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
 			ignoredDecimalFields[key] = struct{}{}
 		}
 	}

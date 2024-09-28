@@ -52,7 +52,7 @@ func (t *RabbitTransportMaster) send(topic string, data any) error {
 }
 
 func (t *RabbitTransportMaster) SendItemsAdded(items []*index.DataItem) error {
-	return t.send(t.ItemAddedTopic, items)
+	return t.send(t.ItemsAddedTopic, items)
 }
 
 func (t *RabbitTransportMaster) SendItemDeleted(id uint) error {

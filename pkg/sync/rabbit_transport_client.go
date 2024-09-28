@@ -58,13 +58,13 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	t.handler = handler
 	t.channel = ch
-	toAdd, err := t.declareBindAndConsume(t.ItemAddedTopic)
+	toAdd, err := t.declareBindAndConsume(t.ItemsAddedTopic)
 	if err != nil {
 		return err
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
-			log.Printf("Got add message")
+			log.Printf("Got upsert message")
 			var items []*index.DataItem
 			if err := json.Unmarshal(d.Body, &items); err == nil {
 				t.handler.UpsertItems(items)

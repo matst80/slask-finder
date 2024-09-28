@@ -26,8 +26,8 @@ var redisPassword = os.Getenv("REDIS_PASSWORD")
 var listenAddress = ":8080"
 
 var rabbitConfig = sync.RabbitConfig{
-	ItemChangedTopic: "item_changed",
-	ItemAddedTopic:   "item_added",
+	//ItemChangedTopic: "item_changed",
+	ItemsAddedTopic:  "item_added",
 	ItemDeletedTopic: "item_deleted",
 	Url:              rabbitUrl,
 }
@@ -41,13 +41,13 @@ var masterTransport = sync.RabbitTransportMaster{
 
 type RabbitMasterChangeHandler struct{}
 
-func (r *RabbitMasterChangeHandler) ItemsUpserted(item []*index.DataItem) {
+func (r *RabbitMasterChangeHandler) ItemsUpserted(items []*index.DataItem) {
 
-	err := masterTransport.SendItemsAdded(item)
+	err := masterTransport.SendItemsAdded(items)
 	if err != nil {
 		log.Printf("Failed to send item changed %v", err)
 	}
-	log.Printf("Items changed %d", len(item))
+	log.Printf("Items changed %d", len(items))
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
@@ -105,8 +105,7 @@ func Init() {
 
 	go func() {
 		err := db.LoadIndex(idx)
-		log.Println("Index loaded")
-		srv.Sorting.InitializeWithIndex(idx)
+
 		if rabbitUrl != "" && err == nil {
 			if clientName == "" {
 				log.Println("Starting as master")
@@ -129,30 +128,8 @@ func Init() {
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
-			// if sortingErr == nil {
-
-			// 	if len(*srv.Sorting.FieldSort) < 10 {
-			// 		log.Println("Creating field sorting")
-			// 		fieldSort := MakeSortForFields()
-			// 		srv.Sorting.SetFieldSort(&fieldSort)
-			// 	}
-			// 	if len(srv.Sorting.SortMethods) < 1 {
-			// 		log.Println("Creating default sorting")
-
-			// 		_, priceSort := MakeSortFromNumberField(idx.Items, 4)
-
-			// 		sortMethods := MakeSortMaps(idx.Items)
-
-			// 		for key, sort := range sortMethods {
-			// 			srv.Sorting.AddSortMethod(key, sort)
-			// 		}
-			// 		srv.Sorting.SetDefaultSort(&priceSort)
-			// 	}
-			// } else {
-			// 	log.Println("Field sorting loaded")
-			// 	srv.Sorting.SetDefaultSort(srv.Sorting.GetSort("popular"))
-			// }
-
+			log.Println("Index loaded")
+			srv.Sorting.InitializeWithIndex(idx)
 			runtime.GC()
 		}
 

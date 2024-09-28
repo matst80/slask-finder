@@ -30,6 +30,7 @@ type Index struct {
 	IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
 	Items         map[uint]*DataItem
+	ItemsInStock  map[string]facet.IdList
 	AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
@@ -43,6 +44,7 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
 		Items:         make(map[uint]*DataItem),
+		ItemsInStock:  make(map[string]facet.IdList),
 		AllItems:      facet.MatchList{},
 		AutoSuggest:   AutoSuggest{Trie: search.NewTrie()},
 		Search:        freeText,
@@ -70,7 +72,19 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 }
 
 func (i *Index) addItemValues(item *DataItem) {
-
+	for _, stock := range i.ItemsInStock {
+		delete(stock, item.Id)
+	}
+	if item.Stock != nil {
+		for _, stock := range item.Stock {
+			stockLocation, ok := i.ItemsInStock[stock.Id]
+			if !ok {
+				stockLocation = facet.IdList{item.Id: struct{}{}}
+			} else {
+				stockLocation[item.Id] = struct{}{}
+			}
+		}
+	}
 	if item.Fields != nil {
 		for _, field := range item.Fields {
 			if field.Value == "" || len(field.Value) > 64 {

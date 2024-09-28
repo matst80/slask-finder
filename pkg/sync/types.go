@@ -9,8 +9,8 @@ type BaseClient struct {
 }
 
 type RabbitConfig struct {
-	ItemChangedTopic string
-	ItemAddedTopic   string
+	//ItemChangedTopic string
+	ItemsAddedTopic  string
 	ItemDeletedTopic string
 	Url              string
 }
@@ -24,15 +24,15 @@ func MakeBaseClient(index *index.Index, transport TransportClient) *BaseClient {
 
 type TransportMaster interface {
 	Connect() error
-	SendItemAdded(item *index.DataItem) error
-	SendItemChanged(item *index.DataItem) error
+	SendItemsAdded(item []*index.DataItem) error
+	//SendItemChanged(item *index.DataItem) error
 	SendItemDeleted(id uint) error
 }
 
 type TransportClient interface {
 	Connect() error
-	OnItemAdded(item *index.DataItem)
-	OnItemChanged(item *index.DataItem)
+	OnItemAdded(items []*index.DataItem)
+	//OnItemChanged(item *index.DataItem)
 	OnItemDeleted(id uint)
 }
 

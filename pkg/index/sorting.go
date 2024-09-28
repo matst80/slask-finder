@@ -96,44 +96,6 @@ func NewSorting(addr, password string, db int) *Sorting {
 	pubsub := rdb.Subscribe(ctx, REDIS_POPULAR_CHANGE)
 	fieldsub := rdb.Subscribe(ctx, REDIS_FIELD_CHANGE)
 
-	popularData, err := rdb.Get(ctx, REDIS_POPULAR_KEY).Result()
-	if err == nil {
-		sort := SortOverride{}
-		err = sort.FromString(popularData)
-		if err == nil {
-			instance.popularOverrides = &sort
-		}
-	}
-
-	fieldData, err := rdb.Get(ctx, REDIS_FIELD_KEY).Result()
-	if err == nil {
-		sort := SortOverride{}
-		err = sort.FromString(fieldData)
-		if err == nil {
-			instance.fieldOverride = &sort
-		}
-	}
-	instance.quit = make(chan struct{})
-	ticker := time.NewTicker(15 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-
-				if instance.hasItemChanges {
-					log.Println("items changed")
-					if instance.idx != nil {
-						instance.hasItemChanges = false
-						instance.makeItemSortMaps()
-					}
-				}
-
-			case <-instance.quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
 			fmt.Println("Received popular override change", msg.Channel, msg.Payload)
@@ -191,7 +153,52 @@ func (s *Sorting) IndexChanged(idx *Index) {
 }
 
 func (s *Sorting) InitializeWithIndex(idx *Index) {
+	popularData, err := s.client.Get(s.ctx, REDIS_POPULAR_KEY).Result()
+	if err == nil {
+		sort := SortOverride{}
+		err = sort.FromString(popularData)
+		if err == nil {
+			s.muOverride.Lock()
+			s.popularOverrides = &sort
+			s.muOverride.Unlock()
+		}
+	}
+
+	fieldData, err := s.client.Get(s.ctx, REDIS_FIELD_KEY).Result()
+	if err == nil {
+		sort := SortOverride{}
+		err = sort.FromString(fieldData)
+		if err == nil {
+			s.muOverride.Lock()
+			s.fieldOverride = &sort
+			s.muOverride.Unlock()
+		}
+	}
 	s.makeFieldSort(idx, *s.fieldOverride)
+	s.makeItemSortMaps()
+	s.hasItemChanges = false
+	log.Println("Sorting initialized")
+	s.quit = make(chan struct{})
+	ticker := time.NewTicker(15 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+
+				if s.hasItemChanges {
+					log.Println("items changed, updating sort maps")
+					if s.idx != nil {
+						s.hasItemChanges = false
+						s.makeItemSortMaps()
+					}
+				}
+
+			case <-s.quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }
 
 func getFieldLookupValue(field facet.BaseField, overrideValue float64) facet.Lookup {

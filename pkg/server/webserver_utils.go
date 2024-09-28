@@ -57,6 +57,13 @@ func (ws *WebServer) matchQuery(sr *SearchRequest, ids chan<- *facet.IdList) {
 		initialIds = result.IdList
 	}
 
+	if sr.Stock != "" {
+		stockIds, ok := ws.Index.ItemsInStock[sr.Sort]
+		if ok {
+			initialIds.Intersect(stockIds)
+		}
+	}
+
 	ws.Index.Match(&sr.Filters, initialIds, ids)
 }
 
