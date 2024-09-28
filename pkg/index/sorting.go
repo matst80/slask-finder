@@ -56,6 +56,11 @@ type Sorting struct {
 
 const POPULAR_SORT = "popular"
 const PRICE_SORT = "price"
+const UPDATED_SORT = "updated"
+const CREATED_SORT = "created"
+const UPDATED_DESC_SORT = "updated_desc"
+const CREATED_DESC_SORT = "created_desc"
+
 const PRICE_DESC_SORT = "price_desc"
 const REDIS_POPULAR_KEY = "_popular"
 const REDIS_POPULAR_CHANGE = "popularChange"
@@ -119,16 +124,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 					log.Println("items changed")
 					if instance.idx != nil {
 						instance.hasItemChanges = false
-						instance.muOverride.Lock()
-
-						instance.regeneratePopular(instance.idx)
-						maps := MakeItemStaticSorting(instance.idx)
-						instance.muOverride.Unlock()
-						instance.mu.Lock()
-						for key, sort := range maps {
-							instance.sortMethods[key] = sort
-						}
-						instance.mu.Unlock()
+						instance.makeItemSortMaps()
 					}
 				}
 
@@ -157,9 +153,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.muOverride.Unlock()
 
 			instance.hasItemChanges = true
-			// if instance.idx != nil {
-			// 	instance.regeneratePopular(instance.idx)
-			// }
+
 		}
 	}(pubsub.Channel())
 
@@ -182,7 +176,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 			instance.muOverride.Unlock()
 
 			if instance.idx != nil {
-				instance.GenerateFieldSort(instance.idx)
+				instance.makeItemSortMaps()
 			}
 		}
 	}(fieldsub.Channel())
@@ -191,88 +185,43 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 }
 
-func (s *Sorting) regeneratePopular(idx *Index) {
-	idx.Lock()
-	sortMap := makePopularSortMap(idx.Items, *s.popularOverrides)
-	idx.Unlock()
-	s.setPopularSort(&sortMap)
-}
-
-func (s *Sorting) setPopularSort(sortMap *facet.ByValue) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.sortMethods[POPULAR_SORT] = ToSortIndex(sortMap, true)
-}
-
 func (s *Sorting) IndexChanged(idx *Index) {
 	s.idx = idx
 	s.hasItemChanges = true
 }
 
-func (s *Sorting) GenerateFieldSort(idx *Index) {
-	fieldSort := MakeSortForFields(idx, *s.fieldOverride)
+func (s *Sorting) InitializeWithIndex(idx *Index) {
+	s.makeFieldSort(idx, *s.fieldOverride)
+}
+
+func getFieldLookupValue(field facet.BaseField, overrideValue float64) facet.Lookup {
+	if field.HideFacet {
+		return facet.Lookup{Id: field.Id, Value: 0}
+	}
+
+	return facet.Lookup{Id: field.Id, Value: field.Priority + overrideValue}
+}
+
+func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
+	idx.Lock()
+	defer idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.FieldSort = &fieldSort
-}
-
-func MakeItemStaticSorting(idx *Index) map[string]*facet.SortIndex {
-	idx.Lock()
-	defer idx.Unlock()
-	j := 0.0
-	sortMap := MakeSortMap(idx.Items, 4, func(value int, item *DataItem) float64 {
-		j += 0.000001
-		return float64(value) + j
-	})
-	ret := make(map[string]*facet.SortIndex)
-
-	ret[PRICE_SORT] = ToSortIndex(&sortMap, false)
-	ret[PRICE_DESC_SORT] = ToSortIndex(&sortMap, true)
-	return ret
-}
-
-func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
-	idx.Lock()
-	defer idx.Unlock()
 	l := len(idx.DecimalFacets) + len(idx.KeyFacets) + len(idx.IntFacets)
 	i := 0
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
 
 	for _, item := range idx.DecimalFacets {
-		if item.HideFacet {
-			continue
-		}
-		o := 0.0
-		manualOverride, hasOverride := overrides[item.Id]
-		if hasOverride {
-			o = manualOverride
-		}
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
+		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
 		i++
 	}
 	for _, item := range idx.KeyFacets {
-		if item.HideFacet {
-			continue
-		}
-		o := 0.0
-		manualOverride, hasOverride := overrides[item.Id]
-		if hasOverride {
-			o = manualOverride
-		}
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
+		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
 		i++
 	}
 	for _, item := range idx.IntFacets {
-		if item.HideFacet {
-			continue
-		}
-		o := 0.0
-		manualOverride, hasOverride := overrides[item.Id]
-		if hasOverride {
-			o = manualOverride
-		}
-		sortMap[i] = facet.Lookup{Id: item.Id, Value: item.Priority + float64(item.TotalCount()) + o}
+		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
 		i++
 	}
 	sortMap = sortMap[:i]
@@ -280,7 +229,8 @@ func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
-	return sortIndex
+
+	s.FieldSort = ToSortIndex(&sortMap, false)
 }
 
 func (s *Sorting) Close() {
@@ -295,9 +245,7 @@ func (s *Sorting) AddPopularOverride(sort *SortOverride) {
 		s.muOverride.Lock()
 		defer s.muOverride.Unlock()
 		s.popularOverrides = sort
-		if s.idx != nil {
-			s.regeneratePopular(s.idx)
-		}
+		s.hasItemChanges = true
 	}
 }
 
@@ -319,6 +267,53 @@ func (s *Sorting) GetSort(id string) *facet.SortIndex {
 	return &facet.SortIndex{}
 }
 
+func (s *Sorting) makeItemSortMaps() {
+	s.idx.Lock()
+	defer s.idx.Unlock()
+
+	s.muOverride.Lock()
+	defer s.muOverride.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	overrides := *s.popularOverrides
+
+	l := len(s.idx.Items)
+	j := 0.0
+	now := time.Now()
+	ts := now.Unix() / 1000
+	popularMap := make(facet.ByValue, l)
+	priceMap := make(facet.ByValue, l)
+	updatedMap := make(facet.ByValue, l)
+	createdMap := make(facet.ByValue, l)
+	i := 0
+	for _, item := range s.idx.Items {
+		j += 0.0000000000001
+		if item.LastUpdate == 0 {
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: j}
+		} else {
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.LastUpdate/1000) + j}
+		}
+		if item.Created == 0 {
+			createdMap[i] = facet.Lookup{Id: item.Id, Value: j}
+		} else {
+			createdMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.Created/1000) + j}
+		}
+		itemData := getSortingData(item)
+		priceMap[i] = facet.Lookup{Id: item.Id, Value: float64(itemData.price) + j}
+		popularMap[i] = facet.Lookup{Id: item.Id, Value: getPopularValue(itemData, overrides[item.Id]) + j}
+		i++
+	}
+
+	s.sortMethods[POPULAR_SORT] = ToSortIndex(&popularMap, false)
+	s.sortMethods[PRICE_SORT] = ToSortIndex(&priceMap, false)
+	s.sortMethods[PRICE_DESC_SORT] = ToSortIndex(&priceMap, true)
+	s.sortMethods[UPDATED_SORT] = ToSortIndex(&updatedMap, false)
+	s.sortMethods[CREATED_SORT] = ToSortIndex(&createdMap, false)
+	s.sortMethods[UPDATED_DESC_SORT] = ToSortIndex(&updatedMap, true)
+	s.sortMethods[CREATED_DESC_SORT] = ToSortIndex(&createdMap, true)
+
+}
+
 func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {
 
 	data := sort.ToString()
@@ -326,12 +321,12 @@ func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {
 	s.client.Set(s.ctx, REDIS_FIELD_KEY, data, 0)
 	err := s.client.Publish(s.ctx, REDIS_FIELD_CHANGE, "fieldSort")
 	if err != nil {
+		if s.idx != nil {
+			go s.makeFieldSort(s.idx, *sort)
+		}
 		s.muOverride.Lock()
 		defer s.muOverride.Unlock()
 		s.fieldOverride = sort
-		if s.idx != nil {
-			go s.GenerateFieldSort(s.idx)
-		}
 	}
 
 }

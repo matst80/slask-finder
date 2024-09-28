@@ -106,7 +106,7 @@ func Init() {
 	go func() {
 		err := db.LoadIndex(idx)
 		log.Println("Index loaded")
-		srv.Sorting.GenerateFieldSort(idx)
+		srv.Sorting.InitializeWithIndex(idx)
 		if rabbitUrl != "" && err == nil {
 			if clientName == "" {
 				log.Println("Starting as master")

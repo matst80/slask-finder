@@ -22,13 +22,22 @@ type ItemProp struct {
 	BadgeUrl        string       `json:"badgeUrl,omitempty"`
 	EnergyRating    EnergyRating `json:"energyRating,omitempty"`
 	BulletPoints    string       `json:"bp,omitempty"`
+	LastUpdate      int64        `json:"lastUpdate,omitempty"`
+	Created         int64        `json:"created,omitempty"`
+}
+
+type LocationStock []struct {
+	Id    string `json:"id"`
+	Level string `json:"level"`
 }
 
 type BaseItem struct {
 	ItemProp
-	Id    uint   `json:"id"`
-	Sku   string `json:"sku"`
-	Title string `json:"title"`
+	StockLevel string        `json:"stockLevel,omitempty"`
+	Stock      LocationStock `json:"stock"`
+	Id         uint          `json:"id"`
+	Sku        string        `json:"sku"`
+	Title      string        `json:"title"`
 }
 
 type DataItem struct {

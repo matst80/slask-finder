@@ -6,84 +6,58 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-func MakeSortMap(items map[uint]*DataItem, fieldId uint, fn func(value int, item *DataItem) float64) facet.ByValue {
-	l := len(items)
-
-	sortMap := make(facet.ByValue, l)
-	idx := 0
-	for _, item := range items {
-
-		v := 0
-
-		for _, f := range item.IntegerFields {
-			if f.Id == fieldId {
-				v = f.Value
-				break
-			}
-		}
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: fn(v, item)}
-		idx++
-	}
-	return sortMap[:idx]
+type SortingData struct {
+	price    int
+	orgPrice int
+	grade    int
+	noGrades int
+	sellable bool
 }
 
-func makePopularSortMap(items map[uint]*DataItem, overrides SortOverride) facet.ByValue {
-	l := len(items)
-	j := 0.0
-	sortMap := make(facet.ByValue, l)
-	idx := 0
-	for _, item := range items {
-		j += 0.0000000000001
-		v := 0
-		price := 0
-		//sinceUpdate := 0
-		orgPrice := 0
-		discount := 0
-		grade := 0
-		noGrades := 0
-		//chanedTs :=  item.LastUpdate
-		for _, f := range item.IntegerFields {
-			if f.Id == 4 {
-				price = f.Value
-			}
-			if f.Id == 5 {
-				orgPrice = f.Value
-			}
-			if f.Id == 6 {
-				grade = f.Value
-			}
-			if f.Id == 7 {
-				noGrades = f.Value
-			}
-		}
-		if orgPrice > 0 {
-			if orgPrice-price > 0 {
-				discount = orgPrice - price
-			}
-		}
-		if item.SaleStatus == "ACT" {
-			v += 5000
-		}
-		if price > 99999900 {
-			v -= 2500
-		}
-		if price < 10000 {
-			v -= 800
-		}
-		if price%900 == 0 {
-			v += 10000 - (price / 10000)
-		}
-		o := 0.0
-		manualOverride, hasOverride := overrides[item.Id]
-		if hasOverride {
-			o = manualOverride
-		}
+func getSortingData(item *DataItem) SortingData {
+	price := 0
+	orgPrice := 0
+	grade := 0
+	noGrades := 0
 
-		f := float64((discount * 100) + (grade * noGrades * 10) + v)
-		sortMap[idx] = facet.Lookup{Id: item.Id, Value: f + j + o}
-		idx++
+	for _, f := range item.IntegerFields {
+		if f.Id == 4 {
+			price = f.Value
+		}
+		if f.Id == 5 {
+			orgPrice = f.Value
+		}
+		if f.Id == 6 {
+			grade = f.Value
+		}
+		if f.Id == 7 {
+			noGrades = f.Value
+		}
 	}
-	return sortMap[:idx]
+	return SortingData{price, orgPrice, grade, noGrades, item.SaleStatus == "ACT"}
+}
+
+func getPopularValue(itemData SortingData, overrideValue float64) float64 {
+	v := overrideValue
+	if itemData.orgPrice > 0 && itemData.orgPrice-itemData.price > 0 {
+
+		discount := itemData.orgPrice - itemData.price
+		v += float64((discount / itemData.orgPrice) * 100)
+
+	}
+	if itemData.sellable {
+		v += 5000
+	}
+	if itemData.price > 99999900 {
+		v -= 2500
+	}
+	if itemData.price < 10000 {
+		v -= 800
+	}
+	if itemData.price%900 == 0 {
+		v += float64(10000 - (itemData.price / 10000))
+	}
+	return v + float64(itemData.grade*itemData.noGrades*10)
 }
 
 func ToMap(f *facet.ByValue) map[uint]float64 {
