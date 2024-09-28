@@ -42,7 +42,9 @@ var masterTransport = sync.RabbitTransportMaster{
 type RabbitMasterChangeHandler struct{}
 
 func (r *RabbitMasterChangeHandler) ItemsUpserted(items []index.DataItem) {
-
+	if len(items) == 0 {
+		return
+	}
 	err := masterTransport.ItemsUpserted(items)
 	if err != nil {
 		log.Printf("Failed to send item changed %v", err)

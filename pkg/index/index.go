@@ -146,6 +146,9 @@ func (i *Index) UpsertItem(item *DataItem) {
 }
 
 func (i *Index) UpsertItems(items []DataItem) {
+	if len(items) == 0 {
+		return
+	}
 	log.Printf("Upserting items %d", len(items))
 	i.Lock()
 	defer i.Unlock()
