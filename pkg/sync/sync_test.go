@@ -14,7 +14,7 @@ import (
 var rabbitConfig = RabbitConfig{
 	ItemsUpsertedTopic: "item_added",
 	ItemDeletedTopic:   "item_deleted",
-	Url:                "amqp://admin:12bananer@localhost:5672/",
+	Url:                "amqp://admin:12bananer@10.10.3.17:5672/",
 }
 
 func createTopic(ch *amqp.Channel, topic string) error {
@@ -79,9 +79,9 @@ func TestSendChanges(t *testing.T) {
 			},
 		},
 	}
-	items := make([]*index.DataItem, 0)
-	items = append(items, item)
-	err = masterTransport.SendItemsAdded(items)
+	items := make([]index.DataItem, 0)
+	items = append(items, *item)
+	err = masterTransport.ItemsUpserted(items)
 
 	if err != nil {
 		t.Error(err)
@@ -124,9 +124,9 @@ func TestSync(t *testing.T) {
 		},
 	}
 
-	items := make([]*index.DataItem, 0)
-	items = append(items, item)
-	err = masterTransport.SendItemsAdded(items)
+	items := make([]index.DataItem, 0)
+	items = append(items, *item)
+	err = masterTransport.ItemsUpserted(items)
 
 	if err != nil {
 		t.Error(err)
@@ -138,9 +138,9 @@ func TestSync(t *testing.T) {
 	}
 
 	item.Fields[0].Value = "Test2"
-	items = make([]*index.DataItem, 0)
-	items = append(items, item)
-	err = masterTransport.SendItemsAdded(items)
+	items = make([]index.DataItem, 0)
+	items = append(items, *item)
+	err = masterTransport.ItemsUpserted(items)
 	if err != nil {
 		t.Error(err)
 	}

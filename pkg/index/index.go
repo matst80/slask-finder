@@ -15,11 +15,11 @@ type IntFacet = facet.NumberField[int]
 type ChangeHandler interface {
 	//ItemChanged(item *DataItem)
 	ItemDeleted(id uint)
-	ItemsUpserted(item []*DataItem)
+	ItemsUpserted(item []DataItem)
 }
 
 type UpdateHandler interface {
-	UpsertItems(item []*DataItem)
+	UpsertItems(item []DataItem)
 	DeleteItem(id uint)
 }
 
@@ -145,12 +145,12 @@ func (i *Index) UpsertItem(item *DataItem) {
 	i.UpsertItemUnsafe(item)
 }
 
-func (i *Index) UpsertItems(items []*DataItem) {
+func (i *Index) UpsertItems(items []DataItem) {
 	log.Printf("Upserting items %d", len(items))
 	i.Lock()
 	defer i.Unlock()
 	for _, it := range items {
-		i.UpsertItemUnsafe(it)
+		i.UpsertItemUnsafe(&it)
 	}
 	if i.ChangeHandler != nil {
 		i.ChangeHandler.ItemsUpserted(items)

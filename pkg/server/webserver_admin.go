@@ -73,11 +73,9 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	ws.Index.Lock()
-	defer ws.Index.Unlock()
-	for _, item := range items {
-		ws.Index.UpsertItemUnsafe(&item)
-	}
+
+	ws.Index.UpsertItems(items)
+
 	w.WriteHeader(http.StatusOK)
 }
 

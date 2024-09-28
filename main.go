@@ -41,7 +41,7 @@ var masterTransport = sync.RabbitTransportMaster{
 
 type RabbitMasterChangeHandler struct{}
 
-func (r *RabbitMasterChangeHandler) ItemsUpserted(items []*index.DataItem) {
+func (r *RabbitMasterChangeHandler) ItemsUpserted(items []index.DataItem) {
 
 	err := masterTransport.ItemsUpserted(items)
 	if err != nil {

@@ -51,7 +51,7 @@ func (t *RabbitTransportMaster) send(topic string, data any) error {
 	)
 }
 
-func (t *RabbitTransportMaster) ItemsUpserted(items []*index.DataItem) error {
+func (t *RabbitTransportMaster) ItemsUpserted(items []index.DataItem) error {
 	return t.send(t.ItemsUpsertedTopic, items)
 }
 
