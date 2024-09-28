@@ -13,13 +13,13 @@ type DecimalFacet = facet.NumberField[float64]
 type IntFacet = facet.NumberField[int]
 
 type ChangeHandler interface {
-	ItemChanged(item *DataItem)
+	//ItemChanged(item *DataItem)
 	ItemDeleted(id uint)
-	ItemAdded(item *DataItem)
+	ItemsUpserted(item []*DataItem)
 }
 
 type UpdateHandler interface {
-	UpsertItem(item *DataItem)
+	UpsertItems(item []*DataItem)
 	DeleteItem(id uint)
 }
 
@@ -131,13 +131,25 @@ func (i *Index) UpsertItem(item *DataItem) {
 	i.UpsertItemUnsafe(item)
 }
 
+func (i *Index) UpsertItems(items []*DataItem) {
+	log.Printf("Upserting items %d", len(items))
+	i.Lock()
+	defer i.Unlock()
+	for _, it := range items {
+		i.UpsertItemUnsafe(it)
+	}
+	if i.ChangeHandler != nil {
+		i.ChangeHandler.ItemsUpserted(items)
+
+	}
+}
+
 func (i *Index) Lock() {
 	i.mu.Lock()
 }
 
 func (i *Index) Unlock() {
 	i.mu.Unlock()
-	go i.Sorting.IndexChanged(i)
 }
 
 func (i *Index) UpsertItemUnsafe(item *DataItem) {
@@ -161,13 +173,6 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 		go i.Search.CreateDocument(item.Id, item.Title)
 	}
 
-	if i.ChangeHandler != nil {
-		if isUpdate {
-			i.ChangeHandler.ItemChanged(item)
-		} else {
-			i.ChangeHandler.ItemAdded(item)
-		}
-	}
 }
 
 func (i *Index) DeleteItem(id uint) {

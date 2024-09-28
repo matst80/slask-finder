@@ -109,20 +109,20 @@ func NewSorting(addr, password string, db int) *Sorting {
 		}
 	}
 	instance.quit = make(chan struct{})
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(15 * time.Second)
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
 				log.Println("tick")
 				if instance.hasItemChanges {
-					instance.hasItemChanges = false
-					if instance.idx != nil {
-						instance.mu.Lock()
-						defer instance.mu.Unlock()
-						instance.regeneratePopular(instance.idx)
-						maps := MakeItemStaticSorting(instance.idx.Items)
 
+					if instance.idx != nil {
+						instance.hasItemChanges = false
+						instance.muOverride.Lock()
+						instance.regeneratePopular(instance.idx)
+						maps := MakeItemStaticSorting(instance.idx)
+						instance.muOverride.Unlock()
 						instance.mu.Lock()
 						defer instance.mu.Unlock()
 						for key, sort := range maps {
@@ -152,8 +152,9 @@ func NewSorting(addr, password string, db int) *Sorting {
 				continue
 			}
 			instance.muOverride.Lock()
+			defer instance.muOverride.Unlock()
 			instance.popularOverrides = &sort
-			instance.muOverride.Unlock()
+
 			instance.hasItemChanges = true
 			// if instance.idx != nil {
 			// 	instance.regeneratePopular(instance.idx)
@@ -176,8 +177,9 @@ func NewSorting(addr, password string, db int) *Sorting {
 				continue
 			}
 			instance.muOverride.Lock()
+			defer instance.muOverride.Unlock()
 			instance.fieldOverride = &sort
-			instance.muOverride.Unlock()
+
 			if instance.idx != nil {
 				instance.GenerateFieldSort(instance.idx)
 			}
@@ -189,6 +191,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 }
 
 func (s *Sorting) regeneratePopular(idx *Index) {
+	idx.Lock()
+	defer idx.Unlock()
 	sortMap := makePopularSortMap(idx.Items, *s.popularOverrides)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -197,22 +201,23 @@ func (s *Sorting) regeneratePopular(idx *Index) {
 
 func (s *Sorting) IndexChanged(idx *Index) {
 	s.idx = idx
-	go func() {
-		s.hasItemChanges = true
-
-	}()
+	s.hasItemChanges = true
 }
 
 func (s *Sorting) GenerateFieldSort(idx *Index) {
+	idx.Lock()
+	defer idx.Unlock()
 	fieldSort := MakeSortForFields(idx, *s.fieldOverride)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.FieldSort = &fieldSort
 }
 
-func MakeItemStaticSorting(items map[uint]*DataItem) map[string]*facet.SortIndex {
+func MakeItemStaticSorting(idx *Index) map[string]*facet.SortIndex {
+	idx.Lock()
+	defer idx.Unlock()
 	j := 0.0
-	sortMap := MakeSortMap(items, 4, func(value int, item *DataItem) float64 {
+	sortMap := MakeSortMap(idx.Items, 4, func(value int, item *DataItem) float64 {
 		j += 0.000001
 		return float64(value) + j
 	})
@@ -224,7 +229,8 @@ func MakeItemStaticSorting(items map[uint]*DataItem) map[string]*facet.SortIndex
 }
 
 func MakeSortForFields(idx *Index, overrides SortOverride) facet.SortIndex {
-
+	idx.Lock()
+	defer idx.Unlock()
 	l := len(idx.DecimalFacets) + len(idx.KeyFacets) + len(idx.IntFacets)
 	i := 0
 	sortIndex := make(facet.SortIndex, l)

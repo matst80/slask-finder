@@ -41,22 +41,13 @@ var masterTransport = sync.RabbitTransportMaster{
 
 type RabbitMasterChangeHandler struct{}
 
-func (r *RabbitMasterChangeHandler) ItemChanged(item *index.DataItem) {
+func (r *RabbitMasterChangeHandler) ItemsUpserted(item []*index.DataItem) {
 
-	err := masterTransport.SendItemAdded(item)
-	if err != nil {
-		log.Printf("Failed to send item added %v", err)
-	}
-	log.Printf("Item added %d", item.Id)
-}
-
-func (r *RabbitMasterChangeHandler) ItemAdded(item *index.DataItem) {
-
-	err := masterTransport.SendItemChanged(item)
+	err := masterTransport.SendItemsAdded(item)
 	if err != nil {
 		log.Printf("Failed to send item changed %v", err)
 	}
-	log.Printf("Item changed %d", item.Id)
+	log.Printf("Items changed %d", len(item))
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {

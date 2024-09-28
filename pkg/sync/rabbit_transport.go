@@ -51,12 +51,8 @@ func (t *RabbitTransportMaster) send(topic string, data any) error {
 	)
 }
 
-func (t *RabbitTransportMaster) SendItemAdded(item *index.DataItem) error {
-	return t.send(t.ItemAddedTopic, item)
-}
-
-func (t *RabbitTransportMaster) SendItemChanged(item *index.DataItem) error {
-	return t.send(t.ItemChangedTopic, item)
+func (t *RabbitTransportMaster) SendItemsAdded(items []*index.DataItem) error {
+	return t.send(t.ItemAddedTopic, items)
 }
 
 func (t *RabbitTransportMaster) SendItemDeleted(id uint) error {
