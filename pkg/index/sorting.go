@@ -304,7 +304,7 @@ func (s *Sorting) makeItemSortMaps() {
 		i++
 	}
 
-	s.sortMethods[POPULAR_SORT] = ToSortIndex(&popularMap, false)
+	s.sortMethods[POPULAR_SORT] = ToSortIndex(&popularMap, true)
 	s.sortMethods[PRICE_SORT] = ToSortIndex(&priceMap, false)
 	s.sortMethods[PRICE_DESC_SORT] = ToSortIndex(&priceMap, true)
 	s.sortMethods[UPDATED_SORT] = ToSortIndex(&updatedMap, false)
