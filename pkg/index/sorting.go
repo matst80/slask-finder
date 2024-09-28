@@ -315,8 +315,8 @@ func (s *Sorting) makeItemSortMaps() {
 	s.sortMethods[PRICE_SORT] = ToSortIndex(&priceMap, false)
 	s.sortMethods[PRICE_DESC_SORT] = ToSortIndex(&priceMap, true)
 	s.sortMethods[UPDATED_SORT] = ToSortIndex(&updatedMap, false)
-	s.sortMethods[CREATED_SORT] = ToSortIndex(&createdMap, false)
 	s.sortMethods[UPDATED_DESC_SORT] = ToSortIndex(&updatedMap, true)
+	s.sortMethods[CREATED_SORT] = ToSortIndex(&createdMap, false)
 	s.sortMethods[CREATED_DESC_SORT] = ToSortIndex(&createdMap, true)
 
 }
