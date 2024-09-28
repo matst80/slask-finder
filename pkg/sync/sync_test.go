@@ -70,7 +70,7 @@ func TestSendChanges(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	err = masterTransport.SendItemAdded(&index.DataItem{
+	item := &index.DataItem{
 		BaseItem: index.BaseItem{
 			Id:    3,
 			Title: "Test",
@@ -81,7 +81,10 @@ func TestSendChanges(t *testing.T) {
 				{Value: "Test", Id: 1},
 			},
 		},
-	})
+	}
+	items := make([]*index.DataItem, 0)
+	items = append(items, item)
+	err = masterTransport.SendItemsAdded(items)
 
 	if err != nil {
 		t.Error(err)
@@ -124,7 +127,9 @@ func TestSync(t *testing.T) {
 		},
 	}
 
-	err = masterTransport.SendItemAdded(item)
+	items := make([]*index.DataItem, 0)
+	items = append(items, item)
+	err = masterTransport.SendItemsAdded(items)
 
 	if err != nil {
 		t.Error(err)
@@ -136,8 +141,9 @@ func TestSync(t *testing.T) {
 	}
 
 	item.Fields[0].Value = "Test2"
-
-	err = masterTransport.SendItemChanged(item)
+	items = make([]*index.DataItem, 0)
+	items = append(items, item)
+	err = masterTransport.SendItemsAdded(items)
 	if err != nil {
 		t.Error(err)
 	}

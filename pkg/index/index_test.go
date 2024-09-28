@@ -20,7 +20,7 @@ type LoggingChangeHandler struct {
 	Printf func(format string, v ...interface{})
 }
 
-func (l *LoggingChangeHandler) ItemsAdded(item []*DataItem) {
+func (l *LoggingChangeHandler) ItemsUpserted(item []*DataItem) {
 	l.Printf("Item added %v", len(item))
 }
 
