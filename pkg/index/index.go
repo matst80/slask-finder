@@ -79,7 +79,7 @@ func (i *Index) addItemValues(item *DataItem) {
 		for _, stock := range item.Stock {
 			stockLocation, ok := i.ItemsInStock[stock.Id]
 			if !ok {
-				stockLocation = facet.IdList{item.Id: struct{}{}}
+				i.ItemsInStock[stock.Id] = facet.IdList{item.Id: struct{}{}}
 			} else {
 				stockLocation[item.Id] = struct{}{}
 			}

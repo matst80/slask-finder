@@ -12,8 +12,7 @@ import (
 )
 
 var rabbitConfig = RabbitConfig{
-	ItemChangedTopic: "item_changed",
-	ItemAddedTopic:   "item_added",
+	ItemsAddedTopic:  "item_added",
 	ItemDeletedTopic: "item_deleted",
 	Url:              "amqp://admin:12bananer@localhost:5672/",
 }
@@ -51,12 +50,10 @@ func TestDeclareTopicsAndExchange(t *testing.T) {
 	// 	t.Error(err)
 	// }
 
-	if err = createTopic(ch, rabbitConfig.ItemAddedTopic); err != nil {
+	if err = createTopic(ch, rabbitConfig.ItemsAddedTopic); err != nil {
 		t.Error(err)
 	}
-	if err = createTopic(ch, rabbitConfig.ItemChangedTopic); err != nil {
-		t.Error(err)
-	}
+
 	if err = createTopic(ch, rabbitConfig.ItemDeletedTopic); err != nil {
 		t.Error(err)
 	}
