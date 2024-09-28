@@ -114,20 +114,21 @@ func NewSorting(addr, password string, db int) *Sorting {
 		for {
 			select {
 			case <-ticker.C:
-				log.Println("tick")
-				if instance.hasItemChanges {
 
+				if instance.hasItemChanges {
+					log.Println("items changed")
 					if instance.idx != nil {
 						instance.hasItemChanges = false
 						instance.muOverride.Lock()
+
 						instance.regeneratePopular(instance.idx)
 						maps := MakeItemStaticSorting(instance.idx)
 						instance.muOverride.Unlock()
 						instance.mu.Lock()
-						defer instance.mu.Unlock()
 						for key, sort := range maps {
 							instance.sortMethods[key] = sort
 						}
+						instance.mu.Unlock()
 					}
 				}
 

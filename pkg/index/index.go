@@ -171,7 +171,9 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	if i.Search != nil {
 		go i.Search.CreateDocument(item.Id, item.Title)
 	}
-
+	if i.Sorting != nil {
+		i.Sorting.IndexChanged(i)
+	}
 }
 
 func (i *Index) DeleteItem(id uint) {
