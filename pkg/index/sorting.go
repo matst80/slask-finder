@@ -209,9 +209,7 @@ func (s *Sorting) IndexChanged(idx *Index) {
 }
 
 func (s *Sorting) GenerateFieldSort(idx *Index) {
-	idx.Lock()
 	fieldSort := MakeSortForFields(idx, *s.fieldOverride)
-	idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.FieldSort = &fieldSort
