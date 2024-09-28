@@ -90,13 +90,13 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	}
 
 	for key, facet := range i.IntFacets {
-		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
+		if facet.HideFacet || (facet.Priority < 29176 && needsTruncation) {
 			ignoredIntFields[key] = struct{}{}
 		}
 	}
 
 	for key, facet := range i.DecimalFacets {
-		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
+		if facet.HideFacet || (facet.Priority < 29176 && needsTruncation) {
 			ignoredDecimalFields[key] = struct{}{}
 		}
 	}
