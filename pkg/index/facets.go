@@ -15,14 +15,6 @@ type JsonKeyResult struct {
 	Values *map[string]uint `json:"values"`
 }
 
-// func (k *KeyResult) AddValue(value *string) {
-// 	if count, ok := k.values[*value]; ok {
-// 		k.values[*value] = count + 1
-// 	} else {
-// 		k.values[*value] = 1
-// 	}
-// }
-
 func (k *KeyResult) GetValues() map[string]int {
 	return k.values
 }
@@ -67,22 +59,14 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 	}
 
-	fields := map[uint]map[string]uint{}
-	numberFields := map[uint]*NumberResult[float64]{}
-	intFields := map[uint]*NumberResult[int]{}
+	fields := make(map[uint]map[string]uint)
+	numberFields := make(map[uint]*NumberResult[float64])
+	intFields := make(map[uint]*NumberResult[int])
 
-	ignoredKeyFields := map[uint]struct{}{}
-	ignoredIntFields := map[uint]struct{}{}
-	ignoredDecimalFields := map[uint]struct{}{}
+	ignoredKeyFields := make(map[uint]struct{})
+	ignoredIntFields := make(map[uint]struct{})
+	ignoredDecimalFields := make(map[uint]struct{})
 
-	// if filters != nil {
-	// 	for _, filter := range filters.StringFilter {
-	// 		keyFacet, ok := i.KeyFacets[filter.Id]
-	// 		if ok && (keyFacet.IgnoreIfInSearch) {
-	// 			ignoredKeyFields[filter.Id] = struct{}{}
-	// 		}
-	// 	}
-	// }
 	for key, facet := range i.KeyFacets {
 		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
 			ignoredKeyFields[key] = struct{}{}
@@ -101,21 +85,6 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 	}
 
-	// }
-
-	// if len(i.DefaultFacets.Fields) > 0 && len(*ids) > 65535 {
-	// 	for id, _ := range i.KeyFacets {
-	// 		ignoredKeyFields[id] = struct{}{}
-
-	// 	}
-	// 	for _, defaultField := range i.DefaultFacets.Fields[0:min(len(i.DefaultFacets.Fields), 10)] {
-	// 		delete(ignoredKeyFields, defaultField.Id)
-	// 	}
-
-	// }
-	// if (len(ignoredKeyFields) + len(ignoredDecimalFields) + len(ignoredIntFields)) == 0 {
-	// 	return i.DefaultFacets
-	// }
 	for id := range *ids {
 
 		item, ok := i.AllItems[id]
