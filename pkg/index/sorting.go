@@ -295,19 +295,22 @@ func (s *Sorting) makeItemSortMaps() {
 	i := 0
 	for _, item := range s.idx.Items {
 		j += 0.0000000000001
+		itemData := getSortingData(item)
+		popular := getPopularValue(itemData, overrides[item.Id])
+		partPopular := popular / 1000.0
 		if item.LastUpdate == 0 {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: j}
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
 		} else {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.LastUpdate/1000) + j}
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + float64(ts-item.LastUpdate/1000) + j}
 		}
 		if item.Created == 0 {
-			createdMap[i] = facet.Lookup{Id: item.Id, Value: j}
+			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
 		} else {
-			createdMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.Created/1000) + j}
+			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + float64(ts-item.Created/1000) + j}
 		}
-		itemData := getSortingData(item)
+
 		priceMap[i] = facet.Lookup{Id: item.Id, Value: float64(itemData.price) + j}
-		popularMap[i] = facet.Lookup{Id: item.Id, Value: getPopularValue(itemData, overrides[item.Id]) + j}
+		popularMap[i] = facet.Lookup{Id: item.Id, Value: popular + j}
 		i++
 	}
 
