@@ -1,6 +1,7 @@
 data/*.db
 __debug*
 data/*.dbz
+data/carts/
 .DS_Store
 facet-search
 clickhouse

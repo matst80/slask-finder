@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 
+	"tornberg.me/facet-search/pkg/cart"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
@@ -24,6 +25,7 @@ var redisUrl = os.Getenv("REDIS_URL")
 var clickhouseUrl = os.Getenv("CLICKHOUSE_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
 var listenAddress = ":8080"
+var cartStorage = cart.NewDiskCartStorage("data/carts")
 
 var rabbitConfig = sync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
@@ -37,6 +39,12 @@ var idx = index.NewIndex(freetext_search)
 var db = persistance.NewPersistance()
 var masterTransport = sync.RabbitTransportMaster{
 	RabbitConfig: rabbitConfig,
+}
+
+var cartServer = cart.CartServer{
+	Storage:   cartStorage,
+	IdHandler: cartStorage,
+	Index:     idx,
 }
 
 type RabbitMasterChangeHandler struct{}
@@ -156,6 +164,7 @@ func main() {
 	})
 	mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 	mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+	mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
 
 	if enableProfiling != nil && *enableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
