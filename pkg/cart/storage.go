@@ -43,36 +43,6 @@ type CartIdStorage interface {
 	GetNextCartId() (int, error)
 }
 
-// type MemoryCartStorage struct {
-// 	carts map[int]*Cart
-// }
-
-// func NewMemoryCartStorage() *MemoryCartStorage {
-// 	return &MemoryCartStorage{
-// 		carts: make(map[int]*Cart),
-// 	}
-// }
-
-// func (s *MemoryCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
-// 	cart, ok := s.carts[cartId]
-// 	if !ok {
-// 		cart = &Cart{
-// 			Id: cartId,
-// 		}
-// 		s.carts[cartId] = cart
-// 	}
-// 	cart.Items = append(cart.Items, *item)
-// 	return cart, nil
-// }
-
-// func (s *MemoryCartStorage) GetCart(cartId int) (*Cart, error) {
-// 	cart, ok := s.carts[cartId]
-// 	if !ok {
-// 		return nil, nil
-// 	}
-// 	return cart, nil
-// }
-
 type DiskCartStorage struct {
 	Path string
 }
