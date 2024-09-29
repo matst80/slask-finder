@@ -5,6 +5,7 @@ type BaseField struct {
 	Name             string  `json:"name"`
 	Description      string  `json:"description"`
 	Priority         float64 `json:"priority"`
+	Type             string  `json:"type"`
 	HideFacet        bool    `json:"-"`
 	IgnoreIfInSearch bool    `json:"-"`
 }

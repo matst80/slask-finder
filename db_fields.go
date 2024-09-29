@@ -226,7 +226,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&facet.BaseField{Id: 30286, Name: "Cold setting", Description: "For cooling and setting a curl.  If you use a round brush to curl your hair,  before removing the brush, use the cool setting. This will cool the curl and set it, so the curl will last longer.", Priority: 89.0})
 	idx.AddDecimalField(&facet.BaseField{Id: 30288, Name: "Färgdjup (bit)", Description: "Färgdjup (bit) är mängden information scannern får av föremålet du scannar. Ju större djup, desto mer färg används och desto bättre blir resultatet.", Priority: 82.0})
 	idx.AddKeyField(&facet.BaseField{Id: 30289, Name: "Färgskärm", Priority: 9.0})
-	idx.AddKeyField(&facet.BaseField{Id: 30290, Name: "Färg", Priority: 40077.0})
+	idx.AddKeyField(&facet.BaseField{Id: 30290, Name: "Färg", Priority: 40077.0, Type: "color"})
 	idx.AddKeyField(&facet.BaseField{Id: 30292, Name: "Färgtemperatur (Kelvin)", Priority: 826.0})
 	idx.AddDecimalField(&facet.BaseField{Id: 30293, Name: "Text i färg A4 (sidor per minut)", Description: "PPM står för \"pages per minute\" d.v.s. antal sidor per minut. PPM visar hur många A4 sidor (färgutskrift) en skrivare kan skriva ut eller kopiera per minut.", Priority: 121.0})
 	idx.AddKeyField(&facet.BaseField{Id: 30298, Name: "Kompatibel med följande operativsystem", Priority: 0.0, HideFacet: true})
