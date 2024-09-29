@@ -41,7 +41,7 @@ func getPopularValue(itemData SortingData, overrideValue float64) float64 {
 	v := overrideValue
 	if itemData.orgPrice > 0 && itemData.orgPrice-itemData.price > 0 {
 		discount := itemData.orgPrice - itemData.price
-		v += ((float64(discount) / float64(itemData.orgPrice)) * 100000.0) + float64(discount)
+		v += ((float64(discount) / float64(itemData.orgPrice)) * 100000.0) + (float64(discount) / 5.0)
 	}
 	if itemData.sellable {
 		v += 5000
