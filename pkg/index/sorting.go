@@ -5,40 +5,12 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"tornberg.me/facet-search/pkg/facet"
 )
-
-type SortOverride map[uint]float64
-
-func (s *SortOverride) ToString() string {
-	ret := ""
-	for key, value := range *s {
-		ret += fmt.Sprintf("%d:%f,", key, value)
-	}
-	return ret
-}
-
-func (s *SortOverride) FromString(data string) error {
-	*s = make(map[uint]float64)
-	for _, item := range strings.Split(data, ",") {
-		var key uint
-		var value float64
-		_, err := fmt.Sscanf(item, "%d:%f", &key, &value)
-		if err != nil {
-			if err.Error() == "EOF" {
-				return nil
-			}
-			return err
-		}
-		(*s)[key] = value
-	}
-	return nil
-}
 
 type Sorting struct {
 	quit             chan struct{}
