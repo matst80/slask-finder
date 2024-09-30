@@ -234,6 +234,10 @@ func (s *Sorting) GetPopularOverrides() *SortOverride {
 	return s.popularOverrides
 }
 
+func (s *Sorting) GetSorting(id string, sortChan chan *facet.SortIndex) {
+	sortChan <- s.GetSort(id)
+}
+
 func (s *Sorting) GetSort(id string) *facet.SortIndex {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -264,6 +268,7 @@ func (s *Sorting) makeItemSortMaps() {
 	priceMap := make(facet.ByValue, l)
 	updatedMap := make(facet.ByValue, l)
 	createdMap := make(facet.ByValue, l)
+	popularSearchMap := make(map[uint]float64)
 	i := 0
 	for _, item := range s.idx.Items {
 		j += 0.0000000000001
@@ -283,9 +288,12 @@ func (s *Sorting) makeItemSortMaps() {
 
 		priceMap[i] = facet.Lookup{Id: item.Id, Value: float64(itemData.price) + j}
 		popularMap[i] = facet.Lookup{Id: item.Id, Value: popular + j}
+		popularSearchMap[item.Id] = popular / 1000.0
 		i++
 	}
-
+	if s.idx != nil {
+		s.idx.SetBaseSortMap(popularSearchMap)
+	}
 	s.sortMethods[POPULAR_SORT] = ToSortIndex(&popularMap, true)
 	s.sortMethods[PRICE_SORT] = ToSortIndex(&priceMap, false)
 	s.sortMethods[PRICE_DESC_SORT] = ToSortIndex(&priceMap, true)

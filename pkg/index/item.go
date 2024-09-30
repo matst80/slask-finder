@@ -78,6 +78,11 @@ func MakeResultItem(item *DataItem) ResultItem {
 	}
 }
 
+func ToResultItem(item *DataItem, resultItem *ResultItem) {
+	resultItem.BaseItem = &item.BaseItem
+	resultItem.Fields = item.getFieldValues()
+}
+
 func (item *DataItem) getFieldValues() FieldValues {
 	//if item.fieldValues == nil {
 

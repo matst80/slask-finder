@@ -3,10 +3,11 @@ package facet
 type BaseField struct {
 	Id               uint    `json:"id"`
 	Name             string  `json:"name"`
-	Description      string  `json:"description"`
-	Priority         float64 `json:"priority"`
-	Type             string  `json:"type"`
+	Description      string  `json:"description,omitempty"`
+	Priority         float64 `json:"-"`
+	Type             string  `json:"type,omitempty"`
 	HideFacet        bool    `json:"-"`
+	CategoryLevel    int     `json:"categoryLevel,omitempty"`
 	IgnoreIfInSearch bool    `json:"-"`
 }
 
