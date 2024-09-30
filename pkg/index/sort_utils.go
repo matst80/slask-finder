@@ -55,7 +55,7 @@ func getPopularValue(itemData SortingData, overrideValue float64) float64 {
 		v -= 800
 	}
 	if itemData.price%900 == 0 {
-		v += float64(10000 - (itemData.price / 10000))
+		v += 700
 	}
 	return v + float64(itemData.grade*itemData.noGrades)
 }
