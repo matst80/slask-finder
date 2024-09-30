@@ -12,6 +12,7 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
+	"tornberg.me/facet-search/pkg/promotions"
 	"tornberg.me/facet-search/pkg/search"
 	"tornberg.me/facet-search/pkg/server"
 	"tornberg.me/facet-search/pkg/sync"
@@ -25,8 +26,11 @@ var redisUrl = os.Getenv("REDIS_URL")
 var clickhouseUrl = os.Getenv("CLICKHOUSE_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
 var listenAddress = ":8080"
-var cartStorage = cart.NewDiskCartStorage("data/carts")
 
+var promotionStorage = promotions.DiskPromotionStorage{
+	Path: "data/promotions.json",
+}
+var cartStorage = cart.NewDiskCartStorage("data/carts", &promotionStorage)
 var rabbitConfig = sync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
 	ItemsUpsertedTopic: "item_added",
@@ -42,9 +46,14 @@ var masterTransport = sync.RabbitTransportMaster{
 }
 
 var cartServer = cart.CartServer{
+
 	Storage:   cartStorage,
 	IdHandler: cartStorage,
 	Index:     idx,
+}
+
+var promotionServer = promotions.PromotionServer{
+	Storage: &promotionStorage,
 }
 
 type RabbitMasterChangeHandler struct{}
@@ -165,6 +174,7 @@ func main() {
 	mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 	mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
 	mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
+	mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
 
 	if enableProfiling != nil && *enableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)

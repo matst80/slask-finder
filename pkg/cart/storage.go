@@ -6,6 +6,8 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+
+	"tornberg.me/facet-search/pkg/promotions"
 )
 
 type CartInputItem struct {
@@ -14,11 +16,9 @@ type CartInputItem struct {
 }
 
 type CartItem struct {
-	Sku           string `json:"sku"`
+	*promotions.PromotionInput
 	Title         string `json:"title,omitempty"`
-	Price         int    `json:"price"`
 	OriginalPrice int    `json:"original_price,omitempty"`
-	Quantity      uint   `json:"qty"`
 	Id            uint   `json:"id,omitempty"`
 	// AddedAt        Timestamp
 	// StockValue     int
@@ -27,9 +27,10 @@ type CartItem struct {
 }
 
 type Cart struct {
-	Id         int        `json:"id"`
-	Items      []CartItem `json:"items"`
-	TotalPrice int        `json:"total_price"`
+	Id                int                    `json:"id"`
+	Items             []CartItem             `json:"items"`
+	AppliedPromotions []promotions.Promotion `json:"applied_promotions"`
+	TotalPrice        int                    `json:"total_price"`
 }
 
 type CartStorage interface {
@@ -44,12 +45,14 @@ type CartIdStorage interface {
 }
 
 type DiskCartStorage struct {
-	Path string
+	Path             string
+	PromotionStorage promotions.PromotionStorage
 }
 
-func NewDiskCartStorage(path string) *DiskCartStorage {
+func NewDiskCartStorage(path string, promotionStorage promotions.PromotionStorage) *DiskCartStorage {
 	return &DiskCartStorage{
-		Path: path,
+		Path:             path,
+		PromotionStorage: promotionStorage,
 	}
 }
 
@@ -152,6 +155,45 @@ func (s *DiskCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
 			Id: cartId,
 		}
 	}
+	if s.PromotionStorage != nil {
+		available, err := s.PromotionStorage.GetPromotions()
+		if err != nil {
+			return nil, err
+		}
+		input := make([]*promotions.PromotionInput, 0)
+		for _, cartItem := range cart.Items {
+			input = append(input, cartItem.PromotionInput)
+		}
+
+		all := append(input, item.PromotionInput)
+		for _, promotion := range available {
+			if promotion.IsAvailable(all...) {
+				outputs, err := promotion.Apply(item.PromotionInput, input...)
+
+				if err != nil {
+					return nil, err
+				}
+				if hasPromotionApplied(cart.AppliedPromotions, promotion) {
+					continue
+				}
+				for _, output := range *outputs {
+
+					for _, input := range all {
+						if input.Sku == output.Sku {
+							item.OriginalPrice = item.Price
+							item.Price -= output.Discount
+							break
+						}
+					}
+				}
+				if cart.AppliedPromotions == nil {
+					cart.AppliedPromotions = make([]promotions.Promotion, 0)
+				}
+				cart.AppliedPromotions = append(cart.AppliedPromotions, promotion)
+			}
+		}
+	}
+
 	cart.Items = append(cart.Items, *item)
 	for idx, _ := range cart.Items {
 		cart.Items[idx].Id = uint(idx)
@@ -162,6 +204,15 @@ func (s *DiskCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
 		return nil, err
 	}
 	return cart, nil
+}
+
+func hasPromotionApplied(applied []promotions.Promotion, output promotions.Promotion) bool {
+	for _, p := range applied {
+		if p.Id == output.Id {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *DiskCartStorage) GetCart(cartId int) (*Cart, error) {

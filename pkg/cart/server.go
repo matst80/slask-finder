@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"tornberg.me/facet-search/pkg/index"
+	"tornberg.me/facet-search/pkg/promotions"
 )
 
 type CartServer struct {
@@ -94,14 +95,18 @@ func (s *CartServer) GetCartItem(item *CartInputItem) (*CartItem, error) {
 		return nil, errors.New("item not found")
 	}
 	cartItem := CartItem{
-		Sku:      dataItem.Sku,
-		Title:    dataItem.Title,
-		Quantity: item.Quantity,
-		ImageUrl: dataItem.Img,
+		PromotionInput: &promotions.PromotionInput{},
+		Title:          dataItem.Title,
+		ImageUrl:       dataItem.Img,
 	}
+	cartItem.Sku = dataItem.Sku
+	cartItem.Quantity = item.Quantity
+
 	for _, field := range dataItem.IntegerFields {
 		if field.Id == 4 {
 			cartItem.Price = field.Value
+		} else if field.Id == 5 {
+			cartItem.OriginalPrice = field.Value
 		}
 	}
 

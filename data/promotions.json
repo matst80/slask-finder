@@ -1,0 +1,19 @@
+{
+	"promotions": [
+		{
+			"id": 1,
+			"name": "Promotion test",
+			"articles": [
+				{
+					"actions": [
+						{
+							"type": "percentage",
+							"value": 50
+						}
+					],
+					"sku": "769380"
+				}
+			]
+		}
+	]
+}
