@@ -167,13 +167,14 @@ func (s *DiskCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
 
 		all := append(input, item.PromotionInput)
 		for _, promotion := range available {
-			if promotion.IsAvailable(all...) {
+			available := promotion.IsAvailable(all...)
+			if available > 0 {
 				outputs, err := promotion.Apply(item.PromotionInput, input...)
 
 				if err != nil {
 					return nil, err
 				}
-				if hasPromotionApplied(cart.AppliedPromotions, promotion) {
+				if hasPromotionApplied(cart.AppliedPromotions, promotion) >= available {
 					continue
 				}
 				for _, output := range *outputs {
@@ -206,13 +207,14 @@ func (s *DiskCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
 	return cart, nil
 }
 
-func hasPromotionApplied(applied []promotions.Promotion, output promotions.Promotion) bool {
+func hasPromotionApplied(applied []promotions.Promotion, output promotions.Promotion) int {
+	ret := 0
 	for _, p := range applied {
 		if p.Id == output.Id {
-			return true
+			ret += 1
 		}
 	}
-	return false
+	return ret
 }
 
 func (s *DiskCartStorage) GetCart(cartId int) (*Cart, error) {
