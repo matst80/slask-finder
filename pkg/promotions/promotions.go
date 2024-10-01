@@ -83,6 +83,7 @@ func (p *Promotion) Apply(current *PromotionInput, others ...*PromotionInput) (*
 					output.PromotionId = p.Id
 					result = append(result, output)
 				}
+				break
 			}
 		}
 	}
