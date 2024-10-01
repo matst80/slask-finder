@@ -276,9 +276,9 @@ func (s *Sorting) makeItemSortMaps() {
 		popular := getPopularValue(itemData, overrides[item.Id])
 		partPopular := popular / 1000.0
 		if item.LastUpdate == 0 {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: j}
 		} else {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + float64(ts-item.LastUpdate/1000) + j}
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.LastUpdate/1000) + j}
 		}
 		if item.Created == 0 {
 			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
