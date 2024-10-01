@@ -17,6 +17,7 @@ type Promotion struct {
 	Id          int                `json:"id"`
 	Name        string             `json:"name"`
 	Description string             `json:"description"`
+	MaxAmount   uint               `json:"max_amount"`
 	Articles    []PromotionArticle `json:"articles"`
 }
 
@@ -33,21 +34,19 @@ type PromotionInput struct {
 	Price    int    `json:"price"`
 }
 
-func (p *Promotion) IsAvailable(input ...*PromotionInput) bool {
-	hasAll := true
+func (p *Promotion) IsAvailable(input ...*PromotionInput) int {
+	couldBeApplied := 10000
 	for _, article := range p.Articles {
-		hasAll = false
+		matches := 0
 		for _, i := range input {
 			if i.Sku == article.Sku {
-				hasAll = true
+				matches += int(i.Quantity)
 			}
 		}
-		if !hasAll {
-			return false
-		}
+		couldBeApplied = min(couldBeApplied, matches)
 	}
 
-	return hasAll
+	return couldBeApplied
 }
 
 func (a *PromotionAction) Apply(input *PromotionInput) (PromotionOutput, error) {
@@ -68,7 +67,7 @@ func (a *PromotionAction) Apply(input *PromotionInput) (PromotionOutput, error) 
 
 func (p *Promotion) Apply(current *PromotionInput, others ...*PromotionInput) (*[]PromotionOutput, error) {
 	all := append(others, current)
-	if !p.IsAvailable(all...) {
+	if p.IsAvailable(all...) < 1 {
 		return nil, fmt.Errorf("promotion not available")
 	}
 	result := make([]PromotionOutput, 0)
