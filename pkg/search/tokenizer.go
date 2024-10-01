@@ -78,7 +78,7 @@ func SplitWords(text string, onWord func(word string, count int) bool) {
 	count := 0
 	lastSplit := 0
 	for idx, chr := range text {
-		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' {
+		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' || chr == '/' {
 			if idx > lastSplit+1 {
 				if !onWord(text[lastSplit:idx], count) {
 					return

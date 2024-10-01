@@ -5,40 +5,12 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
 	"tornberg.me/facet-search/pkg/facet"
 )
-
-type SortOverride map[uint]float64
-
-func (s *SortOverride) ToString() string {
-	ret := ""
-	for key, value := range *s {
-		ret += fmt.Sprintf("%d:%f,", key, value)
-	}
-	return ret
-}
-
-func (s *SortOverride) FromString(data string) error {
-	*s = make(map[uint]float64)
-	for _, item := range strings.Split(data, ",") {
-		var key uint
-		var value float64
-		_, err := fmt.Sscanf(item, "%d:%f", &key, &value)
-		if err != nil {
-			if err.Error() == "EOF" {
-				return nil
-			}
-			return err
-		}
-		(*s)[key] = value
-	}
-	return nil
-}
 
 type Sorting struct {
 	quit             chan struct{}
@@ -262,6 +234,10 @@ func (s *Sorting) GetPopularOverrides() *SortOverride {
 	return s.popularOverrides
 }
 
+func (s *Sorting) GetSorting(id string, sortChan chan *facet.SortIndex) {
+	sortChan <- s.GetSort(id)
+}
+
 func (s *Sorting) GetSort(id string) *facet.SortIndex {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -292,6 +268,7 @@ func (s *Sorting) makeItemSortMaps() {
 	priceMap := make(facet.ByValue, l)
 	updatedMap := make(facet.ByValue, l)
 	createdMap := make(facet.ByValue, l)
+	popularSearchMap := make(map[uint]float64)
 	i := 0
 	for _, item := range s.idx.Items {
 		j += 0.0000000000001
@@ -299,9 +276,9 @@ func (s *Sorting) makeItemSortMaps() {
 		popular := getPopularValue(itemData, overrides[item.Id])
 		partPopular := popular / 1000.0
 		if item.LastUpdate == 0 {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: j}
 		} else {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + float64(ts-item.LastUpdate/1000) + j}
+			updatedMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.LastUpdate/1000) + j}
 		}
 		if item.Created == 0 {
 			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
@@ -311,9 +288,12 @@ func (s *Sorting) makeItemSortMaps() {
 
 		priceMap[i] = facet.Lookup{Id: item.Id, Value: float64(itemData.price) + j}
 		popularMap[i] = facet.Lookup{Id: item.Id, Value: popular + j}
+		popularSearchMap[item.Id] = popular / 1000.0
 		i++
 	}
-
+	if s.idx != nil {
+		s.idx.SetBaseSortMap(popularSearchMap)
+	}
 	s.sortMethods[POPULAR_SORT] = ToSortIndex(&popularMap, true)
 	s.sortMethods[PRICE_SORT] = ToSortIndex(&priceMap, false)
 	s.sortMethods[PRICE_DESC_SORT] = ToSortIndex(&priceMap, true)

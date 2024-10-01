@@ -1,7 +1,10 @@
 package index
 
 import (
+	"cmp"
+	"fmt"
 	"log"
+	"slices"
 	"sync"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -23,15 +26,24 @@ type UpdateHandler interface {
 	DeleteItem(id uint)
 }
 
+type Category struct {
+	level    int
+	id       uint
+	Value    string `json:"value"`
+	parent   *Category
+	Children map[string]*Category `json:"children"`
+}
+
 type Index struct {
 	mu            sync.Mutex
+	categories    map[string]*Category
 	KeyFacets     map[uint]*KeyFacet
 	DecimalFacets map[uint]*DecimalFacet
 	IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
 	Items         map[uint]*DataItem
 	ItemsInStock  map[string]facet.IdList
-	AllItems      facet.MatchList
+	//AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
 	Sorting       *Sorting
@@ -40,24 +52,25 @@ type Index struct {
 
 func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
+		categories:    make(map[string]*Category),
 		KeyFacets:     make(map[uint]*KeyFacet),
 		DecimalFacets: make(map[uint]*DecimalFacet),
 		IntFacets:     make(map[uint]*IntFacet),
 		Items:         make(map[uint]*DataItem),
 		ItemsInStock:  make(map[string]facet.IdList),
-		AllItems:      facet.MatchList{},
-		AutoSuggest:   AutoSuggest{Trie: search.NewTrie()},
-		Search:        freeText,
+		// AllItems:      facet.MatchList{},
+		AutoSuggest: AutoSuggest{Trie: search.NewTrie()},
+		Search:      freeText,
 	}
 }
 
-func (i *Index) CreateDefaultFacets(sort *facet.SortIndex) {
-	ids := facet.IdList{}
-	for id := range i.AllItems {
-		ids[id] = struct{}{}
-	}
-	i.DefaultFacets = i.GetFacetsFromResult(&ids, &Filters{}, sort)
-}
+// func (i *Index) CreateDefaultFacets(sort *facet.SortIndex) {
+// 	ids := facet.IdList{}
+// 	for id := range i.AllItems {
+// 		ids[id] = struct{}{}
+// 	}
+// 	i.DefaultFacets = i.GetFacetsFromResult(&ids, &Filters{}, sort)
+// }
 
 func (i *Index) AddKeyField(field *facet.BaseField) {
 	i.KeyFacets[field.Id] = facet.EmptyKeyValueField(field)
@@ -69,6 +82,10 @@ func (i *Index) AddDecimalField(field *facet.BaseField) {
 
 func (i *Index) AddIntegerField(field *facet.BaseField) {
 	i.IntFacets[field.Id] = facet.EmptyNumberField[int](field)
+}
+
+func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
+	i.Search.BaseSortMap = sortMap
 }
 
 func (i *Index) addItemValues(item *DataItem) {
@@ -85,6 +102,7 @@ func (i *Index) addItemValues(item *DataItem) {
 			}
 		}
 	}
+	tree := make([]*Category, 0)
 	if item.Fields != nil {
 		for _, field := range item.Fields {
 			if field.Value == "" || len(field.Value) > 64 {
@@ -92,10 +110,31 @@ func (i *Index) addItemValues(item *DataItem) {
 			}
 
 			if f, ok := i.KeyFacets[field.Id]; ok {
+				if f.CategoryLevel > 0 {
+					id := fmt.Sprintf("%d%s", f.CategoryLevel, field.Value)
+					if i.categories[id] == nil {
+						i.categories[id] = &Category{Value: field.Value, level: f.CategoryLevel, id: f.Id}
+					}
+					tree = append(tree, i.categories[id])
+				}
 				//if !f.BaseField.HideFacet {
 				f.AddValueLink(field.Value, item.Id)
 				//}
 			}
+		}
+	}
+	if len(tree) > 0 {
+		slices.SortFunc(tree, func(a, b *Category) int {
+			return cmp.Compare(a.level, b.level)
+		})
+		for i := 0; i < len(tree)-1; i++ {
+
+			if tree[i].Children == nil {
+				tree[i].Children = make(map[string]*Category, 0)
+			}
+			id := fmt.Sprintf("%d%s", tree[i+1].level, tree[i+1].Value)
+			tree[i].Children[id] = tree[i+1]
+			tree[i+1].parent = tree[i]
 		}
 	}
 	if item.DecimalFields != nil {
@@ -118,6 +157,16 @@ func (i *Index) addItemValues(item *DataItem) {
 			}
 		}
 	}
+}
+
+func (i *Index) GetCategories() []*Category {
+	categories := make([]*Category, 0)
+	for _, category := range i.categories {
+		if category.parent == nil && category.level == 1 {
+			categories = append(categories, category)
+		}
+	}
+	return categories
 }
 
 func (i *Index) removeItemValues(item *DataItem) {
@@ -181,7 +230,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 		i.removeItemValues(current)
 	}
 	go i.AutoSuggest.InsertItem(item)
-	i.AllItems[item.Id] = &item.ItemFields
+	//	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
 	i.Items[item.Id] = item
@@ -198,7 +247,7 @@ func (i *Index) DeleteItem(id uint) {
 	if ok {
 		i.removeItemValues(item)
 		delete(i.Items, id)
-		delete(i.AllItems, id)
+		// delete(i.AllItems, id)
 		if i.ChangeHandler != nil {
 			i.ChangeHandler.ItemDeleted(id)
 		}

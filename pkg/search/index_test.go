@@ -15,7 +15,7 @@ func TestDocumentIndex(t *testing.T) {
 	if len(*res) != 3 {
 		t.Errorf("Expected 3 results but got %d", len(*res))
 	}
-	sort := res.ToSortIndex()
+	sort := *res.ToSortIndex()
 	if len(sort) != 3 {
 		t.Errorf("Expected 3 results but got %d", len(sort))
 	}

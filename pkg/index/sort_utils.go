@@ -1,7 +1,9 @@
 package index
 
 import (
+	"fmt"
 	"sort"
+	"strings"
 
 	"tornberg.me/facet-search/pkg/facet"
 )
@@ -34,11 +36,11 @@ func getSortingData(item *DataItem) SortingData {
 			noGrades = f.Value
 		}
 	}
-	return SortingData{price, orgPrice, grade, noGrades, item.SaleStatus == "ACT"}
+	return SortingData{price, orgPrice, grade, noGrades, item.SaleStatus == "ACT" && (item.Buyable || item.BuyableInStore)}
 }
 
 func getPopularValue(itemData SortingData, overrideValue float64) float64 {
-	v := overrideValue
+	v := (overrideValue * 1000.0)
 	if itemData.orgPrice > 0 && itemData.orgPrice-itemData.price > 0 {
 		discount := itemData.orgPrice - itemData.price
 		v += ((float64(discount) / float64(itemData.orgPrice)) * 100000.0) + (float64(discount) / 5.0)
@@ -53,7 +55,7 @@ func getPopularValue(itemData SortingData, overrideValue float64) float64 {
 		v -= 800
 	}
 	if itemData.price%900 == 0 {
-		v += float64(10000 - (itemData.price / 10000))
+		v += 700
 	}
 	return v + float64(itemData.grade*itemData.noGrades)
 }
@@ -79,4 +81,31 @@ func ToSortIndex(f *facet.ByValue, reversed bool) *facet.SortIndex {
 		sortIndex[idx] = item.Id
 	}
 	return &sortIndex
+}
+
+type SortOverride map[uint]float64
+
+func (s *SortOverride) ToString() string {
+	ret := ""
+	for key, value := range *s {
+		ret += fmt.Sprintf("%d:%f,", key, value)
+	}
+	return ret
+}
+
+func (s *SortOverride) FromString(data string) error {
+	*s = make(map[uint]float64)
+	for _, item := range strings.Split(data, ",") {
+		var key uint
+		var value float64
+		_, err := fmt.Sscanf(item, "%d:%f", &key, &value)
+		if err != nil {
+			if err.Error() == "EOF" {
+				return nil
+			}
+			return err
+		}
+		(*s)[key] = value
+	}
+	return nil
 }

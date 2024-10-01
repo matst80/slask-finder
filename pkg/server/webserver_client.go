@@ -11,6 +11,53 @@ import (
 	"tornberg.me/facet-search/pkg/index"
 )
 
+type searchResult struct {
+	matching *facet.IdList
+	sort     *facet.SortIndex
+}
+
+func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
+	matchingChan := make(chan *facet.IdList)
+	sortChan := make(chan *facet.SortIndex)
+
+	defer close(matchingChan)
+	defer close(sortChan)
+
+	var initialIds *facet.IdList = nil
+
+	if sr.Query != "" {
+		queryResult := ws.Index.Search.Search(sr.Query)
+
+		initialIds = queryResult.ToResult()
+		go queryResult.GetSorting(sortChan)
+	} else {
+		go ws.Sorting.GetSorting(sr.Sort, sortChan)
+	}
+
+	if sr.Stock != "" {
+		stockIds, ok := ws.Index.ItemsInStock[sr.Stock]
+
+		if ok {
+			if initialIds == nil {
+				initialIds = &stockIds
+			} else {
+				initialIds.Intersect(stockIds)
+			}
+		} else {
+			initialIds = &facet.IdList{}
+		}
+
+	}
+
+	go ws.Index.Match(&sr.Filters, initialIds, matchingChan)
+
+	result <- searchResult{
+		matching: <-matchingChan,
+		sort:     <-sortChan,
+	}
+
+}
+
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
 	sr, err := QueryFromRequest(r)
@@ -20,17 +67,17 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	facetsChan := make(chan index.Facets)
-	matchingChan := make(chan *facet.IdList)
+	resultChan := make(chan searchResult)
 
 	defer close(facetsChan)
-	defer close(matchingChan)
+	defer close(resultChan)
 
-	go ws.matchQuery(&sr, matchingChan)
+	go ws.getMatchAndSort(&sr, resultChan)
 
-	matching := <-matchingChan
-	totalHits := len(*matching)
+	result := <-resultChan
+	totalHits := len(*result.matching)
 
-	go getFacetsForIds(matching, ws.Index, &sr.Filters, ws.Sorting.FieldSort, facetsChan)
+	go getFacetsForIds(result.matching, ws.Index, &sr.Filters, ws.Sorting.FieldSort, facetsChan)
 
 	defaultHeaders(w, true, "20")
 	enc := json.NewEncoder(w)
@@ -65,13 +112,13 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	matchingChan := make(chan *facet.IdList)
+	facetsChan := make(chan index.Facets)
+	resultChan := make(chan searchResult)
 
-	defer close(matchingChan)
+	defer close(facetsChan)
+	defer close(resultChan)
 
-	go ws.matchQuery(&sr, matchingChan)
-
-	itemSort := ws.Sorting.GetSort(sr.Sort)
+	go ws.getMatchAndSort(&sr, resultChan)
 
 	go func() {
 		if ws.Tracking != nil {
@@ -87,14 +134,17 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
-	matching := <-matchingChan
-	for idx, id := range matching.SortedIds(itemSort, end) {
+	result := <-resultChan
+
+	ritem := &index.ResultItem{}
+	for idx, id := range (*result.matching).SortedIds(result.sort, end) {
 		if idx < start {
 			continue
 		}
 		item, ok := ws.Index.Items[id]
 		if ok {
-			enc.Encode(index.MakeResultItem(item))
+			index.ToResultItem(item, ritem)
+			enc.Encode(ritem)
 		}
 	}
 	//w.Write([]byte("\n"))
@@ -293,6 +343,43 @@ func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("ok"))
 }
 
+type CategoryResult struct {
+	Value    string            `json:"value"`
+	Children []*CategoryResult `json:"children,omitempty"`
+}
+
+func CategoryResultFrom(c *index.Category) *CategoryResult {
+	ret := &CategoryResult{}
+	ret.Value = c.Value
+	ret.Children = make([]*CategoryResult, 0)
+	if c.Children != nil {
+		for _, child := range c.Children {
+			if child != nil {
+				ret.Children = append(ret.Children, CategoryResultFrom(child))
+			}
+		}
+	}
+	return ret
+}
+
+func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, true, "120")
+	w.WriteHeader(http.StatusOK)
+	categories := ws.Index.GetCategories()
+	result := make([]*CategoryResult, 0)
+
+	for _, category := range categories {
+		if category != nil {
+			result = append(result, CategoryResultFrom(category))
+		}
+	}
+
+	err := json.NewEncoder(w).Encode(result)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -308,6 +395,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/related/{id}", ws.Related)
 	srv.HandleFunc("/facet-list", ws.Facets)
 	srv.HandleFunc("/suggest", ws.Suggest)
+	srv.HandleFunc("/categories", ws.Categories)
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", ws.SearchStreamed)
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)

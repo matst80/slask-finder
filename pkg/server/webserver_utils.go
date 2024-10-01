@@ -37,6 +37,8 @@ func removeEmptyStrings(s []string) []string {
 func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *facet.IdList {
 
 	ch := make(chan *facet.IdList)
+	sortChan := make(chan *facet.SortIndex)
+	defer close(sortChan)
 	defer close(ch)
 	for i := 0; i < len(categories); i++ {
 		sr.Filters.StringFilter = append(sr.Filters.StringFilter, index.StringSearch{
@@ -44,35 +46,13 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 			Value: categories[i],
 		})
 	}
-
-	go ws.matchQuery(sr, ch)
+	go ws.Index.Match(&sr.Filters, nil, ch)
 	return <-ch
 }
 
-func (ws *WebServer) matchQuery(sr *SearchRequest, ids chan<- *facet.IdList) {
-	var initialIds *facet.IdList = nil
-	if sr.Query != "" {
-		queryResult := ws.Index.Search.Search(sr.Query)
-		result := queryResult.ToResultWithSort()
-		initialIds = result.IdList
-	}
-
-	if sr.Stock != "" {
-		stockIds, ok := ws.Index.ItemsInStock[sr.Stock]
-
-		if ok {
-			if initialIds == nil {
-				initialIds = &stockIds
-			} else {
-				initialIds.Intersect(stockIds)
-			}
-		} else {
-			initialIds = &facet.IdList{}
-		}
-
-	}
-
-	ws.Index.Match(&sr.Filters, initialIds, ids)
+type matchResult struct {
+	matching *facet.IdList
+	sort     *facet.SortIndex
 }
 
 func getSortedItems(matching *facet.IdList, index *index.Index, sort *facet.SortIndex, page int, pageSize int, itemChan chan<- []index.ResultItem) {

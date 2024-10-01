@@ -32,13 +32,6 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *
 	defer i.mu.Unlock()
 	results := make(chan *facet.IdList)
 
-	if initialIds != nil && len(*initialIds) > 0 {
-
-		cnt++
-		go func() {
-			results <- initialIds
-		}()
-	}
 	parseKeys := func(field StringSearch, fld *facet.KeyField) {
 		results <- fld.Matches(field.Value)
 	}
@@ -56,6 +49,9 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *
 	}
 	for _, fld := range search.IntegerFilter {
 		if f, ok := i.IntFacets[fld.Id]; ok {
+			if (f.Max == fld.Max && f.Min == fld.Min) || (f.Max == 0 && f.Min == 0) || (fld.Min == fld.Max) {
+				continue
+			}
 			cnt++
 			go parseInts(fld, f)
 		}
@@ -63,18 +59,24 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *
 
 	for _, fld := range search.NumberFilter {
 		if f, ok := i.DecimalFacets[fld.Id]; ok {
+			if (f.Max == fld.Max && f.Min == fld.Min) || (f.Max == 0 && f.Min == 0) || (fld.Min == fld.Max) {
+				continue
+			}
 			cnt++
 			go parseNumber(fld, f)
 		}
 	}
-	if cnt == 0 {
-		list := facet.IdList{}
-		for id := range i.AllItems {
-			list.Add(id)
+	if initialIds != nil && len(*initialIds) > 0 {
+		if cnt == 0 {
+			idList <- initialIds
+			return
 		}
-		idList <- &list
-		return
+		cnt++
+		go func() {
+			results <- initialIds
+		}()
 	}
+
 	idList <- facet.MakeIntersectResult(results, cnt)
 
 }

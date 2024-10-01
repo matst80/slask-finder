@@ -24,6 +24,8 @@ type ItemProp struct {
 	BulletPoints    string       `json:"bp,omitempty"`
 	LastUpdate      int64        `json:"lastUpdate,omitempty"`
 	Created         int64        `json:"created,omitempty"`
+	Buyable         bool         `json:"buyable"`
+	BuyableInStore  bool         `json:"buyableInStore"`
 }
 
 type LocationStock []struct {
@@ -74,6 +76,11 @@ func MakeResultItem(item *DataItem) ResultItem {
 		BaseItem: &item.BaseItem,
 		Fields:   item.getFieldValues(),
 	}
+}
+
+func ToResultItem(item *DataItem, resultItem *ResultItem) {
+	resultItem.BaseItem = &item.BaseItem
+	resultItem.Fields = item.getFieldValues()
 }
 
 func (item *DataItem) getFieldValues() FieldValues {

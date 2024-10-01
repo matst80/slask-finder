@@ -87,7 +87,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 
 	for id := range *ids {
 
-		item, ok := i.AllItems[id]
+		item, ok := i.Items[id]
 		if !ok {
 			continue
 		}
