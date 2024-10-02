@@ -1,6 +1,7 @@
 package cart
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -217,8 +218,40 @@ func (s *CartServer) RemoveSessionItem(w http.ResponseWriter, req *http.Request)
 	}
 }
 
+func (s *CartServer) StartCheckout(w http.ResponseWriter, req *http.Request) {
+	cartId, err := handleCartCookie(nil, w, req)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte("Unable to create cart session"))
+		return
+	}
+	cart, err := s.Storage.GetCart(cartId)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error getting cart"))
+		return
+	}
+	doc := MakeCreateOrderFromCart(cart)
+	data, err := json.Marshal(doc)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Error creating order"))
+		return
+	}
+	body := bytes.NewReader(data)
+	request, err := http.NewRequest(http.MethodPost, "https://api.klarna.com/checkout/v3/orders", body)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Klarna-Partner", "")
+}
+
 func (srv *CartServer) CartHandler() *http.ServeMux {
 	mux := http.NewServeMux()
+	mux.HandleFunc("GET /checkout", srv.StartCheckout)
 	mux.HandleFunc("GET /", srv.GetSessionCart)
 	mux.HandleFunc("POST /", srv.AddSessionItem)
 	mux.HandleFunc("PUT /", srv.ChangeQuantitySessionItem)

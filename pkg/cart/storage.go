@@ -20,10 +20,20 @@ type CartItem struct {
 	Title         string `json:"title,omitempty"`
 	OriginalPrice int    `json:"original_price,omitempty"`
 	Id            uint   `json:"id,omitempty"`
+	TaxAmount     int    `json:"tax,omitempty"`
+	DeliveryId    int    `json:"shipping_option,omitempty"`
 	// AddedAt        Timestamp
 	// StockValue     int
 	// StockUpdatedAt DateTime
 	ImageUrl string `json:"image,omitempty"`
+}
+
+type Delivery struct {
+	Id          int    `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Price       int    `json:"price"`
+	Type        string `json:"type"`
 }
 
 type Cart struct {
@@ -31,6 +41,8 @@ type Cart struct {
 	Items             []CartItem             `json:"items"`
 	AppliedPromotions []promotions.Promotion `json:"applied_promotions"`
 	TotalPrice        int                    `json:"total_price"`
+	TaxAmount         int                    `json:"tax"`
+	Deliveries        []Delivery             `json:"deliveries"`
 }
 
 type CartStorage interface {
@@ -101,6 +113,14 @@ func cartCartPrice(cart *Cart) int {
 	return total
 }
 
+func cartCartTax(cart *Cart) int {
+	total := 0
+	for _, item := range cart.Items {
+		total += item.TaxAmount * int(item.Quantity)
+	}
+	return total
+}
+
 func (s *DiskCartStorage) ChangeQuantity(cartId int, id uint, quantity uint) (*Cart, error) {
 	cart, err := s.GetCart(cartId)
 	if err != nil {
@@ -112,7 +132,7 @@ func (s *DiskCartStorage) ChangeQuantity(cartId int, id uint, quantity uint) (*C
 	for i, item := range cart.Items {
 		if item.Id == id {
 			cart.Items[i].Quantity = quantity
-			cart.TotalPrice = cartCartPrice(cart)
+			s.handleCartChange(cart)
 			err = s.saveCart(cart)
 			if err != nil {
 				return nil, err
@@ -134,7 +154,7 @@ func (s *DiskCartStorage) RemoveItem(cartId int, id uint) (*Cart, error) {
 	for i, item := range cart.Items {
 		if item.Id == id {
 			cart.Items = append(cart.Items[:i], cart.Items[i+1:]...)
-			cart.TotalPrice = cartCartPrice(cart)
+			s.handleCartChange(cart)
 			err = s.saveCart(cart)
 			if err != nil {
 				return nil, err
@@ -155,34 +175,49 @@ func (s *DiskCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
 			Id: cartId,
 		}
 	}
+
+	cart.Items = append(cart.Items, *item)
+	for idx, _ := range cart.Items {
+		cart.Items[idx].Id = uint(idx)
+	}
+	s.handleCartChange(cart)
+	err = s.saveCart(cart)
+	if err != nil {
+		return nil, err
+	}
+	return cart, nil
+}
+
+func (s *DiskCartStorage) handleCartChange(cart *Cart) {
+
 	if s.PromotionStorage != nil {
 		available, err := s.PromotionStorage.GetPromotions()
 		if err != nil {
-			return nil, err
+			return
 		}
 		input := make([]*promotions.PromotionInput, 0)
 		for _, cartItem := range cart.Items {
 			input = append(input, cartItem.PromotionInput)
 		}
 
-		all := append(input, item.PromotionInput)
+		//all := append(input, item.PromotionInput)
 		for _, promotion := range available {
-			available := promotion.IsAvailable(all...)
+			available := promotion.IsAvailable(input...)
 			if available > 0 {
-				outputs, err := promotion.Apply(item.PromotionInput, input...)
+				outputs, err := promotion.Apply(input...)
 
 				if err != nil {
-					return nil, err
+					break
 				}
 				if hasPromotionApplied(cart.AppliedPromotions, promotion) >= available {
 					continue
 				}
 				for _, output := range *outputs {
 
-					for _, input := range all {
+					for _, input := range input {
 						if input.Sku == output.Sku {
-							item.OriginalPrice = item.Price
-							item.Price -= output.Discount
+							applyToItem(cart, output)
+
 							break
 						}
 					}
@@ -194,17 +229,23 @@ func (s *DiskCartStorage) AddItem(cartId int, item *CartItem) (*Cart, error) {
 			}
 		}
 	}
-
-	cart.Items = append(cart.Items, *item)
-	for idx, _ := range cart.Items {
-		cart.Items[idx].Id = uint(idx)
-	}
 	cart.TotalPrice = cartCartPrice(cart)
-	err = s.saveCart(cart)
-	if err != nil {
-		return nil, err
+	cart.TaxAmount = cartCartTax(cart)
+}
+
+func applyToItem(cart *Cart, output promotions.PromotionOutput) {
+	var found *CartItem = nil
+	for _, item := range cart.Items {
+		if item.Id == uint(output.Id) {
+			found = &item
+			break
+		}
 	}
-	return cart, nil
+	if found != nil {
+		found.OriginalPrice = output.Price
+		found.Price -= output.Discount
+		found.TaxAmount = int(float64(output.Price) * 0.2)
+	}
 }
 
 func hasPromotionApplied(applied []promotions.Promotion, output promotions.Promotion) int {

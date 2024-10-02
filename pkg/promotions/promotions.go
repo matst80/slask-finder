@@ -65,8 +65,8 @@ func (a *PromotionAction) Apply(input *PromotionInput) (PromotionOutput, error) 
 	return result, nil
 }
 
-func (p *Promotion) Apply(current *PromotionInput, others ...*PromotionInput) (*[]PromotionOutput, error) {
-	all := append(others, current)
+func (p *Promotion) Apply(all ...*PromotionInput) (*[]PromotionOutput, error) {
+
 	if p.IsAvailable(all...) < 1 {
 		return nil, fmt.Errorf("promotion not available")
 	}
