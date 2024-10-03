@@ -173,8 +173,17 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
-	mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+	if rabbitUrl != "" {
+		if clientName == "" {
+			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+		} else {
+			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+		}
+	} else {
+		mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+	}
+
 	mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
 	mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
 

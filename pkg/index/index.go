@@ -52,6 +52,7 @@ type Index struct {
 
 func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
+		mu:            sync.Mutex{},
 		categories:    make(map[string]*Category),
 		KeyFacets:     make(map[uint]*KeyFacet),
 		DecimalFacets: make(map[uint]*DecimalFacet),

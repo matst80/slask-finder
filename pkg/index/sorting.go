@@ -126,6 +126,7 @@ func (s *Sorting) IndexChanged(idx *Index) {
 
 func (s *Sorting) InitializeWithIndex(idx *Index) {
 	popularData, err := s.client.Get(s.ctx, REDIS_POPULAR_KEY).Result()
+	s.idx = idx
 	if err == nil {
 		sort := SortOverride{}
 		err = sort.FromString(popularData)
