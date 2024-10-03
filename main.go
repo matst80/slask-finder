@@ -108,7 +108,8 @@ func Init() {
 
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0})
 	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 1199999999.0})
-	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Central stock level", Priority: 99999.0})
+	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Lagerstatus", Priority: 99999.0})
+	idx.AddKeyField(&facet.BaseField{Id: 4, Name: "Säljs av", Description: "", Priority: 199999.0})
 	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 3999999999.0, IgnoreIfInSearch: true, CategoryLevel: 1})
 	idx.AddKeyField(&facet.BaseField{Id: 11, Name: "Underkaterori", Description: "Sub category", Priority: 2999999999.0, IgnoreIfInSearch: true, CategoryLevel: 2})
 	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 1999999999.0, IgnoreIfInSearch: true, CategoryLevel: 3})

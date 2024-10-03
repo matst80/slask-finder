@@ -1,6 +1,9 @@
 package cart
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 type OrderLine struct {
 	Type                string `json:"type"`
@@ -58,20 +61,20 @@ func OrderRequestFromCart(cart *Cart) CreateOrderRequest {
 	lines := make([]OrderLine, len(cart.Items))
 	for i, item := range cart.Items {
 		lines[i] = OrderLine{
-			Type:                "physical",
-			Reference:           item.Sku,
-			Name:                item.Title,
-			Quantity:            int(item.Quantity),
-			QuantityUnit:        "pcs",
-			UnitPrice:           item.Price,
-			TaxRate:             int(item.TaxRate * 100),
-			TotalAmount:         item.TotalPrice,
+			Type:         "physical",
+			Reference:    item.Sku,
+			Name:         item.Title,
+			Quantity:     int(item.Quantity),
+			QuantityUnit: "pcs",
+			UnitPrice:    item.Price,
+			//TaxRate:             int(item.TaxRate * 100),
+			TotalAmount:         item.Price * int(item.Quantity),
 			TotalDiscountAmount: 0,
-			TotalTaxAmount:      item.TotalTax,
+			TotalTaxAmount:      0, // TODO Fix this
 		}
 	}
 	return CreateOrderRequest{
-		OrderID:          cart.ID,
+		OrderID:          fmt.Sprintf("%d", cart.Id),
 		Status:           "created",
 		PurchaseCountry:  "se",
 		PurchaseCurrency: "SEK",

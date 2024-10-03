@@ -13,6 +13,7 @@ type EnergyRating struct {
 type ItemProp struct {
 	Url string `json:"url"`
 	//Tree            []string      `json:"tree"`
+	Disclaimer      string       `json:"disclaimer,omitempty"`
 	ReleaseDate     string       `json:"releaseDate,omitempty"`
 	SaleStatus      string       `json:"saleStatus"`
 	PresaleDate     string       `json:"presaleDate,omitempty"`
