@@ -239,7 +239,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	}
 	go i.AutoSuggest.InsertItem(item)
 	if i.Search != nil {
-		go i.Search.CreateDocument(item.Id, item.Title, item.BulletPoints, item.Sku)
+		go i.Search.CreateDocument(item.Id, item.Sku, item.Title, item.BulletPoints)
 	}
 	if i.Sorting != nil {
 		i.Sorting.IndexChanged(i)
