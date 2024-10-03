@@ -8,12 +8,12 @@ import (
 )
 
 func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.SortIndex) []JsonKeyResult {
-	l := min(len(fields), 16)
+	l := min(len(fields), 10)
 	sorted := make([]JsonKeyResult, len(fields))
 	idx := 0
 	for _, id := range *sortIndex {
 		f, ok := fields[id]
-		if ok {
+		if ok && len(f) > 1 {
 			indexField, baseOk := i.KeyFacets[id]
 			if baseOk && !indexField.HideFacet {
 
