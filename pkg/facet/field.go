@@ -4,7 +4,7 @@ type BaseField struct {
 	Id               uint    `json:"id"`
 	Name             string  `json:"name"`
 	Description      string  `json:"description,omitempty"`
-	Priority         float64 `json:"-"`
+	Priority         float64 `json:"prio,omitempty"`
 	Type             string  `json:"type,omitempty"`
 	HideFacet        bool    `json:"-"`
 	CategoryLevel    int     `json:"categoryLevel,omitempty"`
