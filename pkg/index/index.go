@@ -85,7 +85,9 @@ func (i *Index) AddIntegerField(field *facet.BaseField) {
 }
 
 func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
-	i.Search.BaseSortMap = sortMap
+	if i.Search != nil {
+		i.Search.BaseSortMap = sortMap
+	}
 }
 
 func (i *Index) addItemValues(item *DataItem) {
