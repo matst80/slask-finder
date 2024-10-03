@@ -229,11 +229,15 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	if isUpdate {
 		i.removeItemValues(current)
 	}
-	go i.AutoSuggest.InsertItem(item)
+
 	//	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
 	i.Items[item.Id] = item
+	if i.ChangeHandler != nil {
+		return
+	}
+	go i.AutoSuggest.InsertItem(item)
 	if i.Search != nil {
 		go i.Search.CreateDocument(item.Id, item.Title, item.BulletPoints, item.Sku)
 	}

@@ -125,9 +125,8 @@ func Init() {
 	//srv.Sorting.LoadAll()
 
 	go func() {
-		err := db.LoadIndex(idx)
 
-		if rabbitUrl != "" && err == nil {
+		if rabbitUrl != "" {
 			if clientName == "" {
 				log.Println("Starting as master")
 				err := masterTransport.Connect()
@@ -150,6 +149,7 @@ func Init() {
 		} else {
 			log.Println("Starting as standalone")
 		}
+		err := db.LoadIndex(idx)
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {
