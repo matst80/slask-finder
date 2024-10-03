@@ -235,7 +235,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 
 	i.Items[item.Id] = item
 	if i.Search != nil {
-		go i.Search.CreateDocument(item.Id, item.Title)
+		go i.Search.CreateDocument(item.Id, item.Title, item.BulletPoints, item.Sku)
 	}
 	if i.Sorting != nil {
 		i.Sorting.IndexChanged(i)
