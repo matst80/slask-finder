@@ -1,6 +1,7 @@
 package server
 
 import (
+	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
 	"tornberg.me/facet-search/pkg/tracking"
@@ -29,7 +30,6 @@ type FieldValueAndItemId struct {
 }
 
 type FacetItem struct {
-	Id    uint   `json:"id"`
-	Name  string `json:"value"`
-	Count int    `json:"count"`
+	*facet.BaseField
+	Count int `json:"count"`
 }

@@ -269,25 +269,22 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	i := 0
 	for _, f := range ws.Index.KeyFacets {
 		res[i] = FacetItem{
-			Id:    f.Id,
-			Name:  f.Name,
-			Count: f.UniqueCount(),
+			BaseField: f.BaseField,
+			Count:     f.UniqueCount(),
 		}
 		i++
 	}
 	for _, f := range ws.Index.DecimalFacets {
 		res[i] = FacetItem{
-			Id:    f.Id,
-			Name:  f.Name,
-			Count: int(f.Max - f.Min),
+			BaseField: f.BaseField,
+			Count:     int(f.Max - f.Min),
 		}
 		i++
 	}
 	for _, f := range ws.Index.IntFacets {
 		res[i] = FacetItem{
-			Id:    f.Id,
-			Name:  f.Name,
-			Count: int(f.Max - f.Min),
+			BaseField: f.BaseField,
+			Count:     int(f.Max - f.Min),
 		}
 		i++
 	}
