@@ -1,6 +1,9 @@
 package index
 
 import (
+	"cmp"
+	"slices"
+
 	"tornberg.me/facet-search/pkg/facet"
 )
 
@@ -79,4 +82,42 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *
 
 	idList <- facet.MakeIntersectResult(results, cnt)
 
+}
+
+type KeyFieldWithValue struct {
+	*facet.KeyField
+	Value string
+}
+
+func (i *Index) Related(item *DataItem) *facet.IdList {
+	fields := make([]KeyFieldWithValue, 0)
+	result := facet.IdList{}
+	i.Lock()
+	defer i.Unlock()
+	for _, itemField := range item.Fields {
+		field, ok := i.KeyFacets[itemField.Id]
+		if ok && field.CategoryLevel != 1 {
+			fields = append(fields, KeyFieldWithValue{
+				KeyField: field,
+				Value:    itemField.Value,
+			})
+		}
+	}
+	slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
+		return cmp.Compare(b.Priority, a.Priority)
+	})
+	if len(fields) == 0 {
+		return &result
+	}
+
+	first := fields[0]
+	result = *first.Matches(first.Value)
+	for _, field := range fields[1:] {
+		if len(result) < 500 {
+			return &result
+		}
+		next := field.Matches(field.Value)
+		result.Intersect(*next)
+	}
+	return &result
 }

@@ -311,13 +311,25 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Item not found", http.StatusNotFound)
 		return
 	}
-	defaultHeaders(w, true, "120")
+
+	defaultHeaders(w, false, "120")
 	w.WriteHeader(http.StatusOK)
-	// related := ws.Index.Search.Related(item)
-	err = json.NewEncoder(w).Encode(item)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	related := ws.Index.Related(item)
+	sort := ws.Index.Sorting.GetSort("popular")
+
+	ritem := &index.ResultItem{}
+	i := 0
+	enc := json.NewEncoder(w)
+	for _, relatedId := range (*related).SortedIds(sort, len(*related)) {
+
+		item, ok := ws.Index.Items[relatedId]
+		if ok && i < 20 && item.Id != uint(id) {
+			index.ToResultItem(item, ritem)
+			enc.Encode(ritem)
+			i++
+		}
 	}
+
 }
 
 func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
