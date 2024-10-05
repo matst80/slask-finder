@@ -49,7 +49,8 @@ type Facets struct {
 }
 
 func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
-	needsTruncation := len(*ids) > 6144
+	l := uint(len(*ids))
+	needsTruncation := l > 6144
 	if sortIndex == nil {
 		log.Println("no sort index for fields")
 		return Facets{
@@ -70,6 +71,31 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	for key, facet := range i.KeyFacets {
 		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
 			ignoredKeyFields[key] = struct{}{}
+		}
+	}
+
+	for _, facet := range filters.StringFilter {
+		ignoredKeyFields[facet.Id] = struct{}{}
+		fields[facet.Id] = map[string]uint{
+			facet.Value: uint(l),
+		}
+	}
+
+	for _, facet := range filters.IntegerFilter {
+		ignoredIntFields[facet.Id] = struct{}{}
+		intFields[facet.Id] = &NumberResult[int]{
+			Count: l,
+			Min:   facet.Min,
+			Max:   facet.Max,
+		}
+	}
+
+	for _, facet := range filters.NumberFilter {
+		ignoredDecimalFields[facet.Id] = struct{}{}
+		numberFields[facet.Id] = &NumberResult[float64]{
+			Count: l,
+			Min:   facet.Min,
+			Max:   facet.Max,
 		}
 	}
 

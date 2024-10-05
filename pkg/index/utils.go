@@ -13,7 +13,7 @@ func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.Sor
 	idx := 0
 	for _, id := range *sortIndex {
 		f, ok := fields[id]
-		if ok && len(f) > 1 {
+		if ok {
 			indexField, baseOk := i.KeyFacets[id]
 			if baseOk && !indexField.HideFacet {
 

@@ -241,46 +241,26 @@ func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
-	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/values/"), "/"))
-	defaultHeaders(w, true, "120")
-	w.WriteHeader(http.StatusOK)
-	if len(categories) == 0 {
-		encErr := json.NewEncoder(w).Encode(ws.Index.KeyFacets[10].GetValues())
-		if encErr != nil {
-			http.Error(w, encErr.Error(), http.StatusInternalServerError)
-		}
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	baseSearch := SearchRequest{
-		PageSize: 1000,
-		Page:     0,
-	}
-	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
-
-	values := map[string]bool{}
-	for id := range *resultIds {
-		item, ok := ws.Index.Items[id]
-		if ok {
-			if item.Fields != nil {
-				for _, field := range item.Fields {
-					if field.Id == uint(10+len(categories)) {
-						values[field.Value] = true
-					}
-				}
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
+	for _, field := range ws.Index.KeyFacets {
+		if field.BaseField.Id == uint(id) {
+			defaultHeaders(w, true, "120")
+			w.WriteHeader(http.StatusOK)
+			err := json.NewEncoder(w).Encode(field.GetValues())
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
+			return
 		}
 	}
-	valuesList := make([]string, len(values))
-	i := 0
-	for value := range values {
-		valuesList[i] = value
-		i++
-	}
-
-	encErr := json.NewEncoder(w).Encode(valuesList)
-	if encErr != nil {
-		http.Error(w, encErr.Error(), http.StatusInternalServerError)
-	}
+	w.WriteHeader(http.StatusNotFound)
 }
 
 func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
@@ -432,7 +412,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/stream", ws.SearchStreamed)
 	srv.HandleFunc("/ids", ws.GetIds)
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
-	srv.HandleFunc("/values/", ws.GetValues)
+	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 
 	return srv
