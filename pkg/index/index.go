@@ -120,9 +120,9 @@ func (i *Index) addItemValues(item *DataItem) {
 					}
 					tree = append(tree, i.categories[id])
 				}
-				//if !f.BaseField.HideFacet {
+
 				f.AddValueLink(field.Value, item.Id)
-				//}
+
 			}
 		}
 	}
@@ -195,6 +195,28 @@ func (i *Index) UpsertItem(item *DataItem) {
 	i.Lock()
 	defer i.Unlock()
 	i.UpsertItemUnsafe(item)
+}
+
+type CategoryUpdate struct {
+	Id    uint   `json:"id"`
+	Value string `json:"value"`
+}
+
+func (i *Index) UpdateCategoryValues(ids []uint, updates []CategoryUpdate) {
+	i.Lock()
+	defer i.Unlock()
+	items := make([]DataItem, 0)
+	for _, id := range ids {
+		item, ok := i.Items[id]
+		if ok {
+			item.MergeKeyFields(updates)
+			i.UpsertItemUnsafe(item)
+			items = append(items, *item)
+		}
+	}
+	if i.ChangeHandler != nil {
+		i.ChangeHandler.ItemsUpserted(items)
+	}
 }
 
 func (i *Index) UpsertItems(items []DataItem) {

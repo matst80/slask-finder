@@ -94,6 +94,31 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
+	sr, err := QueryFromRequest(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resultChan := make(chan searchResult)
+
+	defer close(resultChan)
+
+	go ws.getMatchAndSort(&sr, resultChan)
+
+	result := <-resultChan
+
+	defaultHeaders(w, false, "20")
+	w.WriteHeader(http.StatusOK)
+
+	enc := json.NewEncoder(w)
+	encErr := enc.Encode(result.matching)
+	if encErr != nil {
+		http.Error(w, encErr.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	sr, err := QueryFromRequest(r)
@@ -112,10 +137,8 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	facetsChan := make(chan index.Facets)
 	resultChan := make(chan searchResult)
 
-	defer close(facetsChan)
 	defer close(resultChan)
 
 	go ws.getMatchAndSort(&sr, resultChan)
@@ -407,6 +430,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/categories", ws.Categories)
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", ws.SearchStreamed)
+	srv.HandleFunc("/ids", ws.GetIds)
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)

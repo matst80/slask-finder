@@ -115,6 +115,8 @@ func Init() {
 	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 1999999996.0, IgnoreIfInSearch: true, CategoryLevel: 3})
 	idx.AddKeyField(&facet.BaseField{Id: 12, Name: "Kategori", Description: "Extra kategori", Priority: 1999999995.0, IgnoreIfInSearch: true, CategoryLevel: 4})
 	idx.AddKeyField(&facet.BaseField{Id: 20, Name: "Skick", Description: "Outlet rating", Priority: 1999.0, Type: "bgrade"})
+	idx.AddKeyField(&facet.BaseField{Id: 21, Name: "Promotion", Description: "", Priority: 999999999.0, Type: "virtual"})
+	idx.AddKeyField(&facet.BaseField{Id: 22, Name: "Test", Description: "", Priority: 99.0, Type: "virtual"})
 	//idx.AddBoolField(&facet.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
 	idx.AddIntegerField(&facet.BaseField{Id: 4, Name: "Pris", Priority: 1999999995.5, Type: "currency"})
 	idx.AddIntegerField(&facet.BaseField{Id: 5, Name: "Tidigare pris", Priority: 1999999995.4, Type: "currency"})

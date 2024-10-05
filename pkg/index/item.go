@@ -79,6 +79,24 @@ func MakeResultItem(item *DataItem) ResultItem {
 	}
 }
 
+func (item *DataItem) MergeKeyFields(updates []CategoryUpdate) {
+	for _, update := range updates {
+		found := false
+		for idx, f := range item.Fields {
+			if f.Id == update.Id {
+				item.Fields[idx].Value = update.Value
+				found = true
+			}
+		}
+		if !found {
+			item.Fields = append(item.Fields, facet.KeyFieldValue{
+				Value: update.Value,
+				Id:    update.Id,
+			})
+		}
+	}
+}
+
 func ToResultItem(item *DataItem, resultItem *ResultItem) {
 	resultItem.BaseItem = &item.BaseItem
 	resultItem.Fields = item.getFieldValues()

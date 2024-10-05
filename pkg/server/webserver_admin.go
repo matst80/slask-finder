@@ -105,8 +105,24 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	w.WriteHeader(http.StatusAccepted)
+}
+
+type CategoryUpdateRequest struct {
+	Ids     []uint                 `json:"ids"`
+	Updates []index.CategoryUpdate `json:"updates"`
+}
+
+func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
+	update := CategoryUpdateRequest{}
+	err := json.NewDecoder(r.Body).Decode(&update)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ws.Index.UpdateCategoryValues(update.Ids, update.Updates)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
@@ -118,6 +134,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	})
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/get/{id}", ws.GetItem)
+	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
 	srv.HandleFunc("/save", ws.Save)
 	srv.HandleFunc("/sort/popular", ws.HandlePopularOverride)
 	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
