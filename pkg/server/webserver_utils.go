@@ -50,33 +50,23 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 	return <-ch
 }
 
-type matchResult struct {
-	matching *facet.IdList
-	sort     *facet.SortIndex
-}
-
-func getSortedItems(matching *facet.IdList, index *index.Index, sort *facet.SortIndex, page int, pageSize int, itemChan chan<- []index.ResultItem) {
-	ids := matching.SortedIds(sort, pageSize*(page+1))
-	itemChan <- index.GetItems(ids, page, pageSize)
-}
-
 func getFacetsForIds(matching *facet.IdList, index *index.Index, filters *index.Filters, fieldSort *facet.SortIndex, facetChan chan<- index.Facets) {
 	facetChan <- index.GetFacetsFromResult(matching, filters, fieldSort)
 }
 
-func getCacheKey(sr SearchRequest) string {
-	fields := ""
-	for _, f := range sr.Filters.StringFilter {
-		fields += strconv.Itoa(int(f.Id)) + "_" + f.Value
-	}
-	for _, f := range sr.Filters.NumberFilter {
-		fields += strconv.Itoa(int(f.Id)) + "_" + strconv.FormatFloat(f.Min, 'f', -1, 64) + "_" + strconv.FormatFloat(f.Max, 'f', -1, 64)
-	}
-	for _, f := range sr.Filters.IntegerFilter {
-		fields += strconv.Itoa(int(f.Id)) + "_" + strconv.Itoa(f.Min) + "_" + strconv.Itoa(f.Max)
-	}
-	return fmt.Sprintf("facets_%s_%s", sr.Query, fields)
-}
+// func getCacheKey(sr SearchRequest) string {
+// 	fields := ""
+// 	for _, f := range sr.Filters.StringFilter {
+// 		fields += strconv.Itoa(int(f.Id)) + "_" + f.Value
+// 	}
+// 	for _, f := range sr.Filters.NumberFilter {
+// 		fields += strconv.Itoa(int(f.Id)) + "_" + strconv.FormatFloat(f.Min, 'f', -1, 64) + "_" + strconv.FormatFloat(f.Max, 'f', -1, 64)
+// 	}
+// 	for _, f := range sr.Filters.IntegerFilter {
+// 		fields += strconv.Itoa(int(f.Id)) + "_" + strconv.Itoa(f.Min) + "_" + strconv.Itoa(f.Max)
+// 	}
+// 	return fmt.Sprintf("facets_%s_%s", sr.Query, fields)
+// }
 
 func generateSessionId() int {
 	return int(time.Now().UnixNano())

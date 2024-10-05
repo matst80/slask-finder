@@ -9,6 +9,7 @@ import (
 
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
+	"tornberg.me/facet-search/pkg/search"
 )
 
 type searchResult struct {
@@ -34,17 +35,19 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 		go ws.Sorting.GetSorting(sr.Sort, sortChan)
 	}
 
-	if sr.Stock != "" {
-		stockIds, ok := ws.Index.ItemsInStock[sr.Stock]
-
-		if ok {
-			if initialIds == nil {
-				initialIds = &stockIds
-			} else {
-				initialIds.Intersect(stockIds)
+	if len(sr.Stock) > 0 {
+		resultStockIds := facet.IdList{}
+		for _, stockId := range sr.Stock {
+			stockIds, ok := ws.Index.ItemsInStock[stockId]
+			if ok {
+				resultStockIds.Merge(&stockIds)
 			}
+		}
+
+		if initialIds == nil {
+			initialIds = &resultStockIds
 		} else {
-			initialIds = &facet.IdList{}
+			initialIds.Intersect(resultStockIds)
 		}
 
 	}
@@ -175,21 +178,43 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
-	suggestions := ws.Index.AutoSuggest.FindMatches(query)
-	defaultHeaders(w, true, "120")
+	wordMatchesChan := make(chan []search.Match)
+	sortChan := make(chan *facet.SortIndex)
+	defer close(wordMatchesChan)
+	defer close(sortChan)
+	go ws.Index.AutoSuggest.FindMatchesForWord(query, wordMatchesChan)
+	go ws.Sorting.GetSorting("popular", sortChan)
+	defaultHeaders(w, false, "360")
 
 	w.WriteHeader(http.StatusOK)
-	result := make([]SuggestResult, len(suggestions))
-	for i, s := range suggestions {
-		result[i] = SuggestResult{
-			Word: s.Word,
-			Hits: len(*s.Ids),
+
+	results := facet.IdList{}
+	suggestions := <-wordMatchesChan
+
+	sitem := &SuggestResult{}
+	enc := json.NewEncoder(w)
+	for _, s := range suggestions {
+
+		sitem.Word = s.Word
+		sitem.Hits = len(*s.Ids)
+
+		json.NewEncoder(w).Encode(sitem)
+		results.Merge(s.Ids)
+	}
+	w.Write([]byte("\n"))
+	ritem := &index.ResultItem{}
+
+	for _, id := range results.SortedIds(<-sortChan, 40) {
+		item, ok := ws.Index.Items[id]
+		if ok {
+			index.ToResultItem(item, ritem)
+			enc.Encode(ritem)
 		}
 	}
-	err := json.NewEncoder(w).Encode(result)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+
+	facets := ws.Index.GetFacetsFromResult(&results, &index.Filters{}, ws.Sorting.FieldSort)
+	w.Write([]byte("\n"))
+	enc.Encode(facets)
 }
 
 func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {

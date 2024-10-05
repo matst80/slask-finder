@@ -43,3 +43,7 @@ func (a *AutoSuggest) FindMatches(text string) []search.Match {
 	prefix := words[len(words)-1]
 	return a.Trie.FindMatches(strings.ToLower(prefix))
 }
+
+func (a *AutoSuggest) FindMatchesForWord(word string, resultChan chan<- []search.Match) {
+	resultChan <- a.Trie.FindMatches(strings.ToLower(word))
+}

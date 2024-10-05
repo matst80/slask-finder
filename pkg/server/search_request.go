@@ -9,11 +9,11 @@ import (
 
 type SearchRequest struct {
 	index.Filters
-	Stock    string `json:"stock"`
-	Query    string `json:"query"`
-	Sort     string `json:"sort"`
-	Page     int    `json:"page"`
-	PageSize int    `json:"pageSize"`
+	Stock    []string `json:"stock"`
+	Query    string   `json:"query"`
+	Sort     string   `json:"sort"`
+	Page     int      `json:"page"`
+	PageSize int      `json:"pageSize"`
 }
 
 func QueryFromRequest(r *http.Request) (SearchRequest, error) {
