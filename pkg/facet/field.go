@@ -6,6 +6,7 @@ type BaseField struct {
 	Description      string  `json:"description,omitempty"`
 	Priority         float64 `json:"prio,omitempty"`
 	Type             string  `json:"type,omitempty"`
+	LinkedId         uint    `json:"linkedId,omitempty"`
 	HideFacet        bool    `json:"-"`
 	CategoryLevel    int     `json:"categoryLevel,omitempty"`
 	IgnoreIfInSearch bool    `json:"-"`
