@@ -64,20 +64,26 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 	numberFields := make(map[uint]*NumberResult[float64])
 	intFields := make(map[uint]*NumberResult[int])
 
+	filterCategoryLevel := 0
+
 	ignoredKeyFields := make(map[uint]struct{})
 	ignoredIntFields := make(map[uint]struct{})
 	ignoredDecimalFields := make(map[uint]struct{})
-
-	for key, facet := range i.KeyFacets {
-		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) {
-			ignoredKeyFields[key] = struct{}{}
-		}
-	}
 
 	for _, facet := range filters.StringFilter {
 		ignoredKeyFields[facet.Id] = struct{}{}
 		fields[facet.Id] = map[string]uint{
 			facet.Value: uint(l),
+		}
+		f, ok := i.KeyFacets[facet.Id]
+		if ok {
+			filterCategoryLevel = max(f.CategoryLevel, filterCategoryLevel)
+		}
+	}
+
+	for key, facet := range i.KeyFacets {
+		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) || (facet.CategoryLevel > 0 && facet.CategoryLevel < filterCategoryLevel) {
+			ignoredKeyFields[key] = struct{}{}
 		}
 	}
 
