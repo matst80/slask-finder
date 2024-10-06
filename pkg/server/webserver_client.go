@@ -30,7 +30,11 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 		queryResult := ws.Index.Search.Search(sr.Query)
 
 		initialIds = queryResult.ToResult()
-		go queryResult.GetSorting(sortChan)
+		if sr.Sort == "popular" || sr.Sort == "" {
+			go queryResult.GetSorting(sortChan)
+		} else {
+			go ws.Sorting.GetSorting(sr.Sort, sortChan)
+		}
 	} else {
 		go ws.Sorting.GetSorting(sr.Sort, sortChan)
 	}
