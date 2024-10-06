@@ -20,8 +20,9 @@ type WebServer struct {
 type AddItemRequest []index.DataItem
 
 type SuggestResult struct {
-	Word string `json:"match"`
-	Hits int    `json:"hits"`
+	Word  string   `json:"match"`
+	Other []string `json:"other"`
+	Hits  int      `json:"hits"`
 }
 
 type FieldValueAndItemId struct {

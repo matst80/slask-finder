@@ -29,6 +29,16 @@ func (i IdList) Merge(other *IdList) {
 	maps.Copy(i, *other)
 }
 
+func (i IdList) HasIntersection(other *IdList) bool {
+	for id := range i {
+		_, ok := (*other)[id]
+		if ok {
+			return true
+		}
+	}
+	return false
+}
+
 func MakeIntersectResult(r chan *IdList, len int) *IdList {
 
 	if len == 0 {

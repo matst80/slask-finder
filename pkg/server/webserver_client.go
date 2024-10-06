@@ -178,28 +178,39 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
+	query = strings.TrimSpace(query)
+	words := strings.Split(query, " ")
+	results := facet.IdList{}
+	lastWord := words[len(words)-1]
+	hasMoreWords := len(words) > 1
+	other := words[:len(words)-1]
+
+	if hasMoreWords {
+		docResult := ws.Index.Search.Search(strings.Join(words[:len(words)-1], " "))
+		results = *docResult.ToResult()
+	}
+
 	wordMatchesChan := make(chan []search.Match)
 	sortChan := make(chan *facet.SortIndex)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
-	go ws.Index.AutoSuggest.FindMatchesForWord(query, wordMatchesChan)
+	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
 	go ws.Sorting.GetSorting("popular", sortChan)
 	defaultHeaders(w, false, "360")
 
 	w.WriteHeader(http.StatusOK)
 
-	results := facet.IdList{}
-	suggestions := <-wordMatchesChan
-
 	sitem := &SuggestResult{}
+	sitem.Other = other
 	enc := json.NewEncoder(w)
-	for _, s := range suggestions {
+	for _, s := range <-wordMatchesChan {
 
 		sitem.Word = s.Word
 		sitem.Hits = len(*s.Ids)
-
-		json.NewEncoder(w).Encode(sitem)
-		results.Merge(s.Ids)
+		if !hasMoreWords || results.HasIntersection(s.Ids) {
+			json.NewEncoder(w).Encode(sitem)
+			results.Merge(s.Ids)
+		}
 	}
 	w.Write([]byte("\n"))
 	ritem := &index.ResultItem{}
@@ -211,7 +222,8 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 			enc.Encode(ritem)
 		}
 	}
-
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
 	facets := ws.Index.GetFacetsFromResult(&results, &index.Filters{}, ws.Sorting.FieldSort)
 	w.Write([]byte("\n"))
 	enc.Encode(facets)
