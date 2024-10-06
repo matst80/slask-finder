@@ -185,17 +185,19 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
 
-	if hasMoreWords {
-		docResult := ws.Index.Search.Search(strings.Join(words[:len(words)-1], " "))
-		results = *docResult.ToResult()
-	}
-
 	wordMatchesChan := make(chan []search.Match)
 	sortChan := make(chan *facet.SortIndex)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
+	var docResult *search.DocumentResult = nil
+	if hasMoreWords {
+		docResult = ws.Index.Search.Search(query)
+		results = *docResult.ToResult()
+
+	}
+
 	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
-	go ws.Sorting.GetSorting("popular", sortChan)
+
 	defaultHeaders(w, false, "360")
 
 	w.WriteHeader(http.StatusOK)
@@ -211,6 +213,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(sitem)
 			results.Merge(s.Ids)
 		}
+	}
+	if hasMoreWords && docResult != nil {
+		go docResult.GetSortingWithAdditionalItems(&results, ws.Index.Search.BaseSortMap, sortChan)
+
+	} else {
+		go ws.Sorting.GetSorting("popular", sortChan)
 	}
 	w.Write([]byte("\n"))
 	ritem := &index.ResultItem{}
