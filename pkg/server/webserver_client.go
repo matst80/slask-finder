@@ -197,7 +197,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	if hasMoreWords {
 		docResult = ws.Index.Search.Search(query)
 		results = *docResult.ToResult()
-
 	}
 
 	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)

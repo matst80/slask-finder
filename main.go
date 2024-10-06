@@ -107,7 +107,7 @@ func Init() {
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
 	idx.AddKeyField(&facet.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0})
-	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 1199999999.0})
+	idx.AddKeyField(&facet.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 1199999999.0, Type: "brand"})
 	idx.AddKeyField(&facet.BaseField{Id: 3, Name: "Lager", Description: "Lagerstatus", Priority: 99999.0})
 	idx.AddKeyField(&facet.BaseField{Id: 9, Name: "Säljs av", Description: "", Priority: 199999.0})
 	idx.AddKeyField(&facet.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 3999999999.0, IgnoreIfInSearch: true, CategoryLevel: 1})
