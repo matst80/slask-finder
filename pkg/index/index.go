@@ -163,6 +163,8 @@ func (i *Index) addItemValues(item *DataItem) {
 }
 
 func (i *Index) GetCategories() []*Category {
+	i.Lock()
+	defer i.Unlock()
 	categories := make([]*Category, 0)
 	for _, category := range i.categories {
 		if category.parent == nil && category.level == 1 {
