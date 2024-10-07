@@ -354,20 +354,20 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, ok := ws.Index.Items[uint(id)]
-	if !ok {
-		http.Error(w, "Item not found", http.StatusNotFound)
-		return
-	}
-
 	defaultHeaders(w, false, "120")
 	w.WriteHeader(http.StatusOK)
-	related := ws.Index.Related(item)
+	related, err := ws.Index.Related(uint(id))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 	sort := ws.Index.Sorting.GetSort("popular")
 
 	ritem := &index.ResultItem{}
 	i := 0
 	enc := json.NewEncoder(w)
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
 	for _, relatedId := range (*related).SortedIds(sort, len(*related)) {
 
 		item, ok := ws.Index.Items[relatedId]

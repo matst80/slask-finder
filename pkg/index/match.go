@@ -2,6 +2,7 @@ package index
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 
 	"tornberg.me/facet-search/pkg/facet"
@@ -89,11 +90,16 @@ type KeyFieldWithValue struct {
 	Value string
 }
 
-func (i *Index) Related(item *DataItem) *facet.IdList {
-	fields := make([]KeyFieldWithValue, 0)
-	result := facet.IdList{}
+func (i *Index) Related(id uint) (*facet.IdList, error) {
 	i.Lock()
 	defer i.Unlock()
+	item, ok := i.Items[uint(id)]
+	if !ok {
+		return nil, fmt.Errorf("Item with id %d not found", id)
+	}
+	fields := make([]KeyFieldWithValue, 0)
+	result := facet.IdList{}
+
 	for _, itemField := range item.Fields {
 		field, ok := i.KeyFacets[itemField.Id]
 		if ok && field.CategoryLevel != 1 {
@@ -107,17 +113,17 @@ func (i *Index) Related(item *DataItem) *facet.IdList {
 		return cmp.Compare(b.Priority, a.Priority)
 	})
 	if len(fields) == 0 {
-		return &result
+		return &result, nil
 	}
 
 	first := fields[0]
 	result = *first.Matches(first.Value)
 	for _, field := range fields[1:] {
 		if len(result) < 500 {
-			return &result
+			return &result, nil
 		}
 		next := field.Matches(field.Value)
 		result.Intersect(*next)
 	}
-	return &result
+	return &result, nil
 }
