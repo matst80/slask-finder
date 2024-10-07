@@ -152,7 +152,7 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	s.hasItemChanges = false
 	log.Println("Sorting initialized")
 	s.quit = make(chan struct{})
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(5 * time.Second)
 	go func() {
 		for {
 			select {
@@ -193,14 +193,23 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	sortMap := make(facet.ByValue, l)
 
 	for _, item := range idx.DecimalFacets {
+		if item.HideFacet {
+			continue
+		}
 		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
 		i++
 	}
 	for _, item := range idx.KeyFacets {
+		if item.HideFacet {
+			continue
+		}
 		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
 		i++
 	}
 	for _, item := range idx.IntFacets {
+		if item.HideFacet {
+			continue
+		}
 		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
 		i++
 	}

@@ -14,6 +14,7 @@ type SortingData struct {
 	grade    int
 	noGrades int
 	sellable bool
+	margin   float64
 }
 
 func getSortingData(item *DataItem) SortingData {
@@ -36,7 +37,7 @@ func getSortingData(item *DataItem) SortingData {
 			noGrades = f.Value
 		}
 	}
-	return SortingData{price, orgPrice, grade, noGrades, item.SaleStatus == "ACT" && (item.Buyable || item.BuyableInStore)}
+	return SortingData{price, orgPrice, grade, noGrades, item.SaleStatus == "ACT" && (item.Buyable || item.BuyableInStore), item.MarginPercent}
 }
 
 func getPopularValue(itemData SortingData, overrideValue float64) float64 {
@@ -57,6 +58,7 @@ func getPopularValue(itemData SortingData, overrideValue float64) float64 {
 	if itemData.price%900 == 0 {
 		v += 700
 	}
+	v += itemData.margin * 400
 	return v + float64(itemData.grade*itemData.noGrades)
 }
 
