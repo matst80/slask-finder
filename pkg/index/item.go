@@ -16,6 +16,7 @@ type ItemProp struct {
 	Disclaimer      string       `json:"disclaimer,omitempty"`
 	ReleaseDate     string       `json:"releaseDate,omitempty"`
 	SaleStatus      string       `json:"saleStatus"`
+	MarginPercent   float64      `json:"mp,omitempty"`
 	PresaleDate     string       `json:"presaleDate,omitempty"`
 	Restock         string       `json:"restock,omitempty"`
 	AdvertisingText string       `json:"advertisingText,omitempty"`

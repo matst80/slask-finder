@@ -245,7 +245,7 @@ func (i *Index) Unlock() {
 func (i *Index) UpsertItemUnsafe(item *DataItem) {
 
 	current, isUpdate := i.Items[item.Id]
-	if item.SaleStatus == "MDD" || item.SaleStatus == "DIS" {
+	if item.SaleStatus == "MDD" {
 		if isUpdate {
 			i.DeleteItem(item.Id)
 		}
