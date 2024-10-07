@@ -247,7 +247,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	current, isUpdate := i.Items[item.Id]
 	if item.SaleStatus == "MDD" {
 		if isUpdate {
-			i.DeleteItem(item.Id)
+			i.deleteItemUnsafe(item.Id)
 		}
 		return
 	}
@@ -272,6 +272,12 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 }
 
 func (i *Index) DeleteItem(id uint) {
+	i.Lock()
+	defer i.Unlock()
+	i.deleteItemUnsafe(id)
+}
+
+func (i *Index) deleteItemUnsafe(id uint) {
 	item, ok := i.Items[id]
 	if ok {
 		i.removeItemValues(item)
