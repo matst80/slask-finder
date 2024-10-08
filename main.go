@@ -23,7 +23,6 @@ var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints"
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
-var clickhouseUrl = os.Getenv("CLICKHOUSE_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
 var listenAddress = ":8080"
 
