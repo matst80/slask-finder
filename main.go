@@ -100,6 +100,7 @@ func Init() {
 				TrackingTopic: "tracking",
 				Url:           rabbitUrl,
 			})
+			cartServer.Tracking = srv.Tracking
 			if clientName == "" {
 				masterTransport := sync.RabbitTransportMaster{
 					RabbitConfig: rabbitConfig,
