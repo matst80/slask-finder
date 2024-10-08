@@ -61,6 +61,8 @@ var srv = server.WebServer{
 	Cache:            nil,
 }
 
+var done = false
+
 func Init() {
 
 	if redisUrl == "" {
@@ -136,19 +138,25 @@ func Init() {
 			srv.Sorting.InitializeWithIndex(idx)
 			runtime.GC()
 		}
-
+		done = true
 	}()
 
 }
 
 func main() {
 	flag.Parse()
+
 	Init()
 
 	log.Printf("Starting server %v", listenAddress)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		if !done {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("not ready"))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
