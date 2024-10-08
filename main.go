@@ -62,15 +62,7 @@ var srv = server.WebServer{
 }
 
 func Init() {
-	// if clickhouseUrl != "" {
-	// 	trk, err := tracking.NewClickHouse(clickhouseUrl) //"10.10.3.19:9000"
-	// 	if err != nil {
-	// 		log.Fatalf("Failed to connect to ClickHouse %v", err)
-	// 	}
 
-	// 	srv.Tracking = trk
-	// 	log.Printf("Tracking enabled, url: %s", clickhouseUrl)
-	// }
 	if redisUrl == "" {
 		log.Fatalf("No redis url provided")
 
