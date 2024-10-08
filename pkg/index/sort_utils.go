@@ -37,7 +37,7 @@ func getSortingData(item *DataItem) SortingData {
 			noGrades = f.Value
 		}
 	}
-	return SortingData{price, orgPrice, grade, noGrades, item.SaleStatus == "ACT" && (item.Buyable || item.BuyableInStore), item.MarginPercent}
+	return SortingData{price, orgPrice, grade, noGrades, (item.Buyable || item.BuyableInStore), item.MarginPercent}
 }
 
 func getPopularValue(itemData SortingData, overrideValue float64) float64 {

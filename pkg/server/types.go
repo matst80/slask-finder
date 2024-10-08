@@ -12,7 +12,7 @@ type WebServer struct {
 	Db               *persistance.Persistance
 	Sorting          *index.Sorting
 	Cache            *Cache
-	Tracking         *tracking.ClickHouse
+	Tracking         tracking.Tracking
 	FacetLimit       int
 	SearchFacetLimit int
 }

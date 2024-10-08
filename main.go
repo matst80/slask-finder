@@ -41,9 +41,6 @@ var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
 var idx = index.NewIndex(freetext_search)
 var db = persistance.NewPersistance()
-var masterTransport = sync.RabbitTransportMaster{
-	RabbitConfig: rabbitConfig,
-}
 
 var cartServer = cart.CartServer{
 
@@ -56,28 +53,6 @@ var promotionServer = promotions.PromotionServer{
 	Storage: &promotionStorage,
 }
 
-type RabbitMasterChangeHandler struct{}
-
-func (r *RabbitMasterChangeHandler) ItemsUpserted(items []index.DataItem) {
-	if len(items) == 0 {
-		return
-	}
-	err := masterTransport.ItemsUpserted(items)
-	if err != nil {
-		log.Printf("Failed to send item changed %v", err)
-	}
-	log.Printf("Items changed %d", len(items))
-}
-
-func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
-
-	err := masterTransport.SendItemDeleted(id)
-	if err != nil {
-		log.Printf("Failed to send item deleted %v", err)
-	}
-	log.Printf("Item deleted %d", id)
-}
-
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
@@ -87,15 +62,7 @@ var srv = server.WebServer{
 }
 
 func Init() {
-	if clickhouseUrl != "" {
-		trk, err := tracking.NewClickHouse(clickhouseUrl) //"10.10.3.19:9000"
-		if err != nil {
-			log.Fatalf("Failed to connect to ClickHouse %v", err)
-		}
 
-		srv.Tracking = trk
-		log.Printf("Tracking enabled, url: %s", clickhouseUrl)
-	}
 	if redisUrl == "" {
 		log.Fatalf("No redis url provided")
 
@@ -129,13 +96,22 @@ func Init() {
 	go func() {
 
 		if rabbitUrl != "" {
+			srv.Tracking = tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
+				TrackingTopic: "tracking",
+				Url:           rabbitUrl,
+			})
 			if clientName == "" {
+				masterTransport := sync.RabbitTransportMaster{
+					RabbitConfig: rabbitConfig,
+				}
 				log.Println("Starting as master")
 				err := masterTransport.Connect()
 				if err != nil {
 					log.Printf("Failed to connect to RabbitMQ as master, %v", err)
 				} else {
-					idx.ChangeHandler = &RabbitMasterChangeHandler{}
+					idx.ChangeHandler = &sync.RabbitMasterChangeHandler{
+						Master: masterTransport,
+					}
 				}
 			} else {
 				log.Printf("Starting as client: %s", clientName)

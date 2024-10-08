@@ -80,7 +80,7 @@ func setSessionCookie(w http.ResponseWriter, session_id int) {
 	})
 }
 
-func handleSessionCookie(tracking *tracking.ClickHouse, w http.ResponseWriter, r *http.Request) int {
+func handleSessionCookie(tracking tracking.Tracking, w http.ResponseWriter, r *http.Request) int {
 	session_id := generateSessionId()
 	c, err := r.Cookie("sid")
 	if err != nil {
