@@ -150,14 +150,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	go ws.getMatchAndSort(&sr, resultChan)
 
-	go func() {
-		if ws.Tracking != nil {
-			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
-			if err != nil {
-				fmt.Printf("Failed to track search %v", err)
-			}
-		}
-	}()
 	defaultHeaders(w, false, "20")
 	w.WriteHeader(http.StatusOK)
 

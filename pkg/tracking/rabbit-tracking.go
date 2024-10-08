@@ -65,8 +65,13 @@ func (t *RabbitTracking) send(data any) error {
 	)
 }
 
-type Session struct {
+type BaseEvent struct {
 	SessionId uint32 `json:"session_id"`
+	Event     uint16 `json:"event"`
+}
+
+type Session struct {
+	*BaseEvent
 	UserAgent string `json:"user_agent"`
 	Ip        string `json:"ip"`
 	Language  string `json:"language"`
@@ -74,7 +79,7 @@ type Session struct {
 
 func (rt *RabbitTracking) TrackSession(session_id uint32, r *http.Request) error {
 	return rt.send(Session{
-		SessionId: session_id,
+		BaseEvent: &BaseEvent{Event: 0, SessionId: session_id},
 		Language:  r.Header.Get("Accept-Language"),
 		UserAgent: r.UserAgent(),
 		Ip:        r.RemoteAddr,
@@ -82,38 +87,35 @@ func (rt *RabbitTracking) TrackSession(session_id uint32, r *http.Request) error
 }
 
 type Event struct {
-	SessionId uint32  `json:"session_id"`
-	Event     uint16  `json:"event"`
-	Item      uint    `json:"item"`
-	Position  float32 `json:"position"`
+	*BaseEvent
+	Item     uint    `json:"item"`
+	Position float32 `json:"position"`
 }
 
 type CartEvent struct {
-	SessionId uint32 `json:"session_id"`
-	Event     uint16 `json:"event"`
-	Item      uint   `json:"item"`
-	Quantity  uint   `json:"quantity"`
+	*BaseEvent
+	Item     uint `json:"item"`
+	Quantity uint `json:"quantity"`
 }
 
 type SearchEventData struct {
 	*index.Filters
-	Event uint16 `json:"event"` // 1
+	*BaseEvent
 	Query string `json:"query"`
 }
 
 func (rt *RabbitTracking) TrackSearch(session_id uint32, filters *index.Filters, query string) error {
 	return rt.send(&SearchEventData{
-		Event:   1,
-		Filters: filters,
-		Query:   query,
+		BaseEvent: &BaseEvent{Event: 1, SessionId: session_id},
+		Filters:   filters,
+		Query:     query,
 	})
 
 }
 
 func (rt *RabbitTracking) TrackClick(session_id uint32, item_id uint, position float32) error {
 	return rt.send(&Event{
-		SessionId: session_id,
-		Event:     2,
+		BaseEvent: &BaseEvent{Event: 2, SessionId: session_id},
 		Item:      item_id,
 		Position:  position,
 	})
@@ -121,8 +123,7 @@ func (rt *RabbitTracking) TrackClick(session_id uint32, item_id uint, position f
 
 func (rt *RabbitTracking) TrackAddToCart(session_id uint32, item_id uint, quantity uint) error {
 	return rt.send(&CartEvent{
-		SessionId: session_id,
-		Event:     3,
+		BaseEvent: &BaseEvent{Event: 3, SessionId: session_id},
 		Item:      item_id,
 		Quantity:  quantity,
 	})
@@ -130,8 +131,7 @@ func (rt *RabbitTracking) TrackAddToCart(session_id uint32, item_id uint, quanti
 
 func (rt *RabbitTracking) TrackPurchase(session_id uint32, item_id uint, quantity uint) error {
 	return rt.send(&CartEvent{
-		SessionId: session_id,
-		Event:     4,
+		BaseEvent: &BaseEvent{Event: 4, SessionId: session_id},
 		Item:      item_id,
 		Quantity:  quantity,
 	})
@@ -139,8 +139,7 @@ func (rt *RabbitTracking) TrackPurchase(session_id uint32, item_id uint, quantit
 
 func (rt *RabbitTracking) TrackImpression(session_id uint32, item_id uint, position float32) error {
 	return rt.send(&Event{
-		SessionId: session_id,
-		Event:     5,
+		BaseEvent: &BaseEvent{Event: 5, SessionId: session_id},
 		Item:      item_id,
 		Position:  position,
 	})
