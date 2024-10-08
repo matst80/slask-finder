@@ -8,12 +8,14 @@ import (
 
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/promotions"
+	"tornberg.me/facet-search/pkg/tracking"
 )
 
 type CartServer struct {
 	Storage   CartStorage
 	IdHandler CartIdStorage
 	Index     *index.Index
+	Tracking  tracking.Tracking
 }
 
 func (s *CartServer) AddItem(w http.ResponseWriter, req *http.Request) {
@@ -144,6 +146,9 @@ func (s *CartServer) AddSessionItem(w http.ResponseWriter, req *http.Request) {
 	err = json.NewEncoder(w).Encode(cart)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	if s.Tracking != nil {
+		s.Tracking.TrackAddToCart(uint32(cartId), item.ItemId, item.Quantity)
 	}
 }
 
