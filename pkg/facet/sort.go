@@ -67,6 +67,13 @@ func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
 		if idx >= l {
 			break
 		}
+		if idx == 4 {
+			_, ok := ids[465526]
+			if ok {
+				sortedIds[idx] = 465526
+				idx++
+			}
+		}
 		_, ok := ids[id]
 		if ok {
 			sortedIds[idx] = id
