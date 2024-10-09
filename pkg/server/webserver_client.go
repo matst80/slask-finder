@@ -11,6 +11,7 @@ import (
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
+	"tornberg.me/facet-search/pkg/tracking"
 )
 
 type searchResult struct {
@@ -396,13 +397,12 @@ func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) TrackImpression(w http.ResponseWriter, r *http.Request) {
 	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
-	id := r.URL.Query().Get("id")
-	itemId, err := strconv.Atoi(id)
-	pos := r.URL.Query().Get("pos")
-	position, _ := strconv.Atoi(pos)
+	data := make([]tracking.Impression, 0)
+	err := json.NewDecoder(r.Body).Decode(&data)
 
 	if ws.Tracking != nil && err == nil {
-		err := ws.Tracking.TrackImpression(uint32(session_id), uint(itemId), float32(position)/100.0)
+
+		err := ws.Tracking.TrackImpressions(uint32(session_id), data)
 		if err != nil {
 			fmt.Printf("Failed to track click %v", err)
 		}

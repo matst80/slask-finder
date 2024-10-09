@@ -92,6 +92,11 @@ type Event struct {
 	Position float32 `json:"position"`
 }
 
+type ImpressionEvent struct {
+	*BaseEvent
+	Items []Impression `json:"items"`
+}
+
 type CartEvent struct {
 	*BaseEvent
 	Item     uint `json:"item"`
@@ -137,10 +142,9 @@ func (rt *RabbitTracking) TrackPurchase(session_id uint32, item_id uint, quantit
 	})
 }
 
-func (rt *RabbitTracking) TrackImpression(session_id uint32, item_id uint, position float32) error {
-	return rt.send(&Event{
+func (rt *RabbitTracking) TrackImpressions(session_id uint32, viewedItems []Impression) error {
+	return rt.send(&ImpressionEvent{
 		BaseEvent: &BaseEvent{Event: 5, SessionId: session_id},
-		Item:      item_id,
-		Position:  position,
+		Items:     viewedItems,
 	})
 }

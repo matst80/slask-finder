@@ -202,6 +202,7 @@ func (s *CartServer) ChangeQuantitySessionItem(w http.ResponseWriter, req *http.
 }
 
 func (s *CartServer) RemoveSessionItem(w http.ResponseWriter, req *http.Request) {
+	session_id := common.HandleSessionCookie(s.Tracking, w, req)
 	cartId, err := handleCartCookie(nil, w, req)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -226,6 +227,10 @@ func (s *CartServer) RemoveSessionItem(w http.ResponseWriter, req *http.Request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	if s.Tracking != nil {
+		s.Tracking.TrackAddToCart(uint32(session_id), uint(id), 0)
+	}
+
 }
 
 func (srv *CartServer) CartHandler() *http.ServeMux {

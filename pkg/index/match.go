@@ -19,11 +19,6 @@ type StringSearch struct {
 	Value string `json:"value"`
 }
 
-type BoolSearch struct {
-	Id    uint `json:"id"`
-	Value bool `json:"value"`
-}
-
 type Filters struct {
 	StringFilter  []StringSearch          `json:"string"`
 	NumberFilter  []NumberSearch[float64] `json:"number"`
