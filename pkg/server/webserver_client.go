@@ -415,6 +415,26 @@ func (ws *WebServer) TrackImpression(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func (ws *WebServer) TrackAction(w http.ResponseWriter, r *http.Request) {
+	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
+	var data tracking.TrackingAction
+	err := json.NewDecoder(r.Body).Decode(&data)
+
+	if ws.Tracking != nil && err == nil {
+
+		err := ws.Tracking.TrackAction(uint32(session_id), data)
+		if err != nil {
+			fmt.Printf("Failed to track click %v", err)
+		}
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
 type CategoryResult struct {
 	Value    string            `json:"value"`
 	Children []*CategoryResult `json:"children,omitempty"`
@@ -475,6 +495,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 	srv.HandleFunc("/track/impressions", ws.TrackImpression)
+	srv.HandleFunc("/track/action", ws.TrackAction)
 
 	return srv
 }
