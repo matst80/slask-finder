@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"tornberg.me/facet-search/pkg/common"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
@@ -134,7 +135,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session_id := handleSessionCookie(ws.Tracking, w, r)
+	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 	go func() {
 		if ws.Tracking != nil {
 			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
@@ -150,14 +151,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	go ws.getMatchAndSort(&sr, resultChan)
 
-	go func() {
-		if ws.Tracking != nil {
-			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
-			if err != nil {
-				fmt.Printf("Failed to track search %v", err)
-			}
-		}
-	}()
 	defaultHeaders(w, false, "20")
 	w.WriteHeader(http.StatusOK)
 
@@ -381,7 +374,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
-	session_id := handleSessionCookie(ws.Tracking, w, r)
+	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 	id := r.URL.Query().Get("id")
 	itemId, err := strconv.Atoi(id)
 	pos := r.URL.Query().Get("pos")
@@ -393,14 +386,33 @@ func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Failed to track click %v", err)
 		}
 	}
-	defaultHeaders(w, false, "2")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (ws *WebServer) TrackImpression(w http.ResponseWriter, r *http.Request) {
+	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
+	id := r.URL.Query().Get("id")
+	itemId, err := strconv.Atoi(id)
+	pos := r.URL.Query().Get("pos")
+	position, _ := strconv.Atoi(pos)
+
+	if ws.Tracking != nil && err == nil {
+		err := ws.Tracking.TrackImpression(uint32(session_id), uint(itemId), float32(position)/100.0)
+		if err != nil {
+			fmt.Printf("Failed to track click %v", err)
+		}
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
 }
 
 type CategoryResult struct {
@@ -462,6 +474,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
+	srv.HandleFunc("/track/impression", ws.TrackImpression)
 
 	return srv
 }

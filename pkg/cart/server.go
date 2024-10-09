@@ -6,14 +6,17 @@ import (
 	"net/http"
 	"strconv"
 
+	"tornberg.me/facet-search/pkg/common"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/promotions"
+	"tornberg.me/facet-search/pkg/tracking"
 )
 
 type CartServer struct {
 	Storage   CartStorage
 	IdHandler CartIdStorage
 	Index     *index.Index
+	Tracking  tracking.Tracking
 }
 
 func (s *CartServer) AddItem(w http.ResponseWriter, req *http.Request) {
@@ -114,6 +117,7 @@ func (s *CartServer) GetCartItem(item *CartInputItem) (*CartItem, error) {
 }
 
 func (s *CartServer) AddSessionItem(w http.ResponseWriter, req *http.Request) {
+	session_id := common.HandleSessionCookie(s.Tracking, w, req)
 	cartId, err := handleCartCookie(s.IdHandler, w, req)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -145,6 +149,9 @@ func (s *CartServer) AddSessionItem(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	if s.Tracking != nil {
+		s.Tracking.TrackAddToCart(uint32(session_id), item.ItemId, item.Quantity)
+	}
 }
 
 type ChangeQuantity struct {
@@ -153,6 +160,7 @@ type ChangeQuantity struct {
 }
 
 func (s *CartServer) ChangeQuantitySessionItem(w http.ResponseWriter, req *http.Request) {
+	session_id := common.HandleSessionCookie(s.Tracking, w, req)
 	cartId, err := handleCartCookie(nil, w, req)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -187,6 +195,9 @@ func (s *CartServer) ChangeQuantitySessionItem(w http.ResponseWriter, req *http.
 	err = json.NewEncoder(w).Encode(cart)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	if s.Tracking != nil {
+		s.Tracking.TrackAddToCart(uint32(session_id), item.Id, item.Quantity)
 	}
 }
 
