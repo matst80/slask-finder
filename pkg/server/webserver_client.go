@@ -474,7 +474,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
-	srv.HandleFunc("/track/impression", ws.TrackImpression)
+	srv.HandleFunc("/track/impressions", ws.TrackImpression)
 
 	return srv
 }
