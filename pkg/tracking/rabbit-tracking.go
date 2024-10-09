@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -78,11 +79,14 @@ type Session struct {
 }
 
 func (rt *RabbitTracking) TrackSession(session_id uint32, r *http.Request) error {
+	for key, value := range r.Header {
+		log.Printf("%s = %s", key, value)
+	}
 	return rt.send(Session{
 		BaseEvent: &BaseEvent{Event: 0, SessionId: session_id},
 		Language:  r.Header.Get("Accept-Language"),
 		UserAgent: r.UserAgent(),
-		Ip:        r.RemoteAddr,
+		Ip:        r.Header.Get("X-Forwarded-For"),
 	})
 }
 
