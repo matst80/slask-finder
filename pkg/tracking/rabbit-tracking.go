@@ -107,13 +107,15 @@ type SearchEventData struct {
 	*index.Filters
 	*BaseEvent
 	Query string `json:"query"`
+	Page  int    `json:"page"`
 }
 
-func (rt *RabbitTracking) TrackSearch(session_id uint32, filters *index.Filters, query string) error {
+func (rt *RabbitTracking) TrackSearch(session_id uint32, filters *index.Filters, query string, page int) error {
 	return rt.send(&SearchEventData{
 		BaseEvent: &BaseEvent{Event: 1, SessionId: session_id},
 		Filters:   filters,
 		Query:     query,
+		Page:      page,
 	})
 
 }

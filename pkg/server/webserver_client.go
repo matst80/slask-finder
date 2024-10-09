@@ -139,7 +139,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 	go func() {
 		if ws.Tracking != nil {
-			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query)
+			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query, sr.Page)
 			if err != nil {
 				fmt.Printf("Failed to track search %v", err)
 			}
