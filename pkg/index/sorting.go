@@ -66,6 +66,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 		FieldSort:        &facet.SortIndex{},
 		popularOverrides: &SortOverride{},
 		fieldOverride:    &SortOverride{},
+		staticPositions:  &StaticPositions{},
 		idx:              nil,
 	}
 
