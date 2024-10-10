@@ -191,6 +191,15 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 			s.muOverride.Unlock()
 		}
 	}
+
+	staticData, err := s.client.Get(s.ctx, REDIS_STATIC_KEY).Result()
+	if err == nil {
+		sort := StaticPositions{}
+		err = sort.FromString(staticData)
+		if err == nil {
+			s.setStaticPositions(sort)
+		}
+	}
 	s.makeFieldSort(idx, *s.fieldOverride)
 	s.makeItemSortMaps()
 	s.hasItemChanges = false
