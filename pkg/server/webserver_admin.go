@@ -66,6 +66,34 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method == "POST" {
+		defaultHeaders(w, true, "0")
+		sort := index.StaticPositions{}
+		err := json.NewDecoder(r.Body).Decode(&sort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ws.Sorting.SetStaticPositions(sort)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	sort := ws.Sorting.GetStaticPositions()
+	if sort == nil {
+		http.Error(w, "Sort not found", http.StatusNotFound)
+		return
+	}
+	defaultHeaders(w, true, "120")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(sort)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	items := AddItemRequest{}
 	err := json.NewDecoder(r.Body).Decode(&items)
@@ -137,6 +165,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
 	srv.HandleFunc("/save", ws.Save)
 	srv.HandleFunc("/sort/popular", ws.HandlePopularOverride)
+	srv.HandleFunc("/sort/static", ws.HandleStaticPositions)
 	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
 	srv.HandleFunc("/sort/fields", ws.HandleFieldSort)
 	return srv

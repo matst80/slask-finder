@@ -23,7 +23,7 @@ type Sorting struct {
 	fieldOverride    *SortOverride
 	popularOverrides *SortOverride
 	sortMethods      map[string]*facet.SortIndex
-	staticPositions  map[int]uint
+	staticPositions  *StaticPositions
 	FieldSort        *facet.SortIndex
 	hasItemChanges   bool
 }
@@ -40,6 +40,8 @@ const REDIS_POPULAR_KEY = "_popular"
 const REDIS_POPULAR_CHANGE = "popularChange"
 const REDIS_FIELD_KEY = "_field"
 const REDIS_FIELD_CHANGE = "fieldChange"
+const REDIS_STATIC_KEY = "_staticPositions"
+const REDIS_STATIC_CHANGE = "staticPositionsChange"
 
 func NewSorting(addr, password string, db int) *Sorting {
 	ctx := context.Background()
@@ -69,6 +71,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 	pubsub := rdb.Subscribe(ctx, REDIS_POPULAR_CHANGE)
 	fieldsub := rdb.Subscribe(ctx, REDIS_FIELD_CHANGE)
+	staticsub := rdb.Subscribe(ctx, REDIS_STATIC_CHANGE)
 
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
@@ -92,6 +95,25 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 		}
 	}(pubsub.Channel())
+
+	go func(ch <-chan *redis.Message) {
+		for msg := range ch {
+			fmt.Println("Received static positions change", msg.Channel, msg.Payload)
+			sort_data, err := rdb.Get(ctx, REDIS_STATIC_KEY).Result()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			sort := StaticPositions{}
+			err = sort.FromString(sort_data)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			instance.setStaticPositions(sort)
+
+		}
+	}(staticsub.Channel())
 
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
@@ -126,10 +148,24 @@ func (s *Sorting) IndexChanged(idx *Index) {
 	s.hasItemChanges = true
 }
 
-func (s *Sorting) GetStaticPositions() map[int]uint {
+func (s *Sorting) GetStaticPositions() StaticPositions {
 	s.muStaticPos.Lock()
 	defer s.muStaticPos.Unlock()
-	return s.staticPositions
+	return *s.staticPositions
+}
+
+func (s *Sorting) SetStaticPositions(positions StaticPositions) error {
+	s.setStaticPositions(positions)
+	data := positions.ToString()
+	s.client.Set(s.ctx, REDIS_STATIC_KEY, data, 0)
+	_, err := s.client.Publish(s.ctx, REDIS_STATIC_CHANGE, "external").Result()
+	return err
+}
+
+func (s *Sorting) setStaticPositions(positions StaticPositions) {
+	s.muStaticPos.Lock()
+	defer s.muStaticPos.Unlock()
+	s.staticPositions = &positions
 }
 
 func (s *Sorting) InitializeWithIndex(idx *Index) {

@@ -85,6 +85,33 @@ func ToSortIndex(f *facet.ByValue, reversed bool) *facet.SortIndex {
 	return &sortIndex
 }
 
+type StaticPositions map[int]uint
+
+func (s *StaticPositions) ToString() string {
+	ret := ""
+	for key, value := range *s {
+		ret += fmt.Sprintf("%d:%d,", key, value)
+	}
+	return ret
+}
+
+func (s *StaticPositions) FromString(data string) error {
+	*s = make(map[int]uint)
+	for _, item := range strings.Split(data, ",") {
+		var key int
+		var value uint
+		_, err := fmt.Sscanf(item, "%d:%d", &key, &value)
+		if err != nil {
+			if err.Error() == "EOF" {
+				return nil
+			}
+			return err
+		}
+		(*s)[key] = value
+	}
+	return nil
+}
+
 type SortOverride map[uint]float64
 
 func (s *SortOverride) ToString() string {
