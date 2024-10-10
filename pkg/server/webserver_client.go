@@ -161,7 +161,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	result := <-resultChan
 
 	ritem := &index.ResultItem{}
-	for idx, id := range (*result.matching).SortedIds(result.sort, end) {
+	for idx, id := range (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end) {
 		if idx < start {
 			continue
 		}

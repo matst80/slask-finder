@@ -52,6 +52,40 @@ func (s *SortIndex) ToString() string {
 	return buffer.String()
 }
 
+func (s *SortIndex) SortMapWithStaticPositions(ids IdList, staticPositions map[int]uint, breakAt int) []uint {
+	if s == nil {
+		log.Printf("SortIndex is nil")
+		return []uint{}
+	}
+
+	l := min(len(ids), breakAt)
+	sortedIds := make([]uint, l)
+	idx := 0
+
+	for _, id := range *s {
+		if idx >= l {
+			break
+		}
+		if sp, ok := staticPositions[idx]; ok {
+			_, ok := ids[sp]
+			if ok {
+				sortedIds[idx] = sp
+				idx++
+			}
+		}
+
+		_, ok := ids[id]
+		if ok {
+			sortedIds[idx] = id
+
+			idx++
+
+		}
+	}
+
+	return sortedIds
+}
+
 func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
 
 	if s == nil {

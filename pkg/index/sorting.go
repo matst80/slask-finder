@@ -16,12 +16,14 @@ type Sorting struct {
 	quit             chan struct{}
 	idx              *Index
 	mu               sync.Mutex
+	muStaticPos      sync.Mutex
 	muOverride       sync.Mutex
 	client           *redis.Client
 	ctx              context.Context
 	fieldOverride    *SortOverride
 	popularOverrides *SortOverride
 	sortMethods      map[string]*facet.SortIndex
+	staticPositions  map[int]uint
 	FieldSort        *facet.SortIndex
 	hasItemChanges   bool
 }
@@ -122,6 +124,12 @@ func NewSorting(addr, password string, db int) *Sorting {
 func (s *Sorting) IndexChanged(idx *Index) {
 	s.idx = idx
 	s.hasItemChanges = true
+}
+
+func (s *Sorting) GetStaticPositions() map[int]uint {
+	s.muStaticPos.Lock()
+	defer s.muStaticPos.Unlock()
+	return s.staticPositions
 }
 
 func (s *Sorting) InitializeWithIndex(idx *Index) {

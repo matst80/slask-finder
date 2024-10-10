@@ -16,6 +16,10 @@ func (r *IdList) SortedIds(srt *SortIndex, maxItems int) []uint {
 	return srt.SortMap(*r, maxItems)
 }
 
+func (r *IdList) SortedIdsWithStaticPositions(srt *SortIndex, sp map[int]uint, maxItems int) []uint {
+	return srt.SortMapWithStaticPositions(*r, sp, maxItems)
+}
+
 func (a IdList) Intersect(b IdList) {
 	for id := range a {
 		_, ok := b[id]
