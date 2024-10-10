@@ -79,9 +79,9 @@ type Session struct {
 }
 
 func (rt *RabbitTracking) TrackSession(session_id uint32, r *http.Request) error {
-	ip := r.Header.Get("X-Forwarded-For")
+	ip := r.Header.Get("X-Real-Ip")
 	if ip == "" {
-		ip = r.Header.Get("X-Real-Ip")
+		ip = r.Header.Get("X-Forwarded-For")
 	}
 	if ip == "" {
 		ip = r.RemoteAddr
