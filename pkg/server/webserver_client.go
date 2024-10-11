@@ -315,6 +315,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	for _, f := range ws.Index.KeyFacets {
 		res[i] = FacetItem{
 			BaseField: f.BaseField,
+			FieldType: "key",
 			Count:     f.UniqueCount(),
 		}
 		i++
@@ -322,6 +323,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	for _, f := range ws.Index.DecimalFacets {
 		res[i] = FacetItem{
 			BaseField: f.BaseField,
+			FieldType: "decimal",
 			Count:     int(f.Max - f.Min),
 		}
 		i++
@@ -329,6 +331,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	for _, f := range ws.Index.IntFacets {
 		res[i] = FacetItem{
 			BaseField: f.BaseField,
+			FieldType: "int",
 			Count:     int(f.Max - f.Min),
 		}
 		i++

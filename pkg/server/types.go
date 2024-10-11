@@ -32,5 +32,6 @@ type FieldValueAndItemId struct {
 
 type FacetItem struct {
 	*facet.BaseField
-	Count int `json:"count"`
+	FieldType string `json:"fieldType"`
+	Count     int    `json:"count"`
 }
