@@ -35,7 +35,7 @@ var (
 	// 	Help: "The total number of ms consumed by search",
 	// })
 	facetSearches = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "slaskfinder_searches_total",
+		Name: "slaskfinder_facets_total",
 		Help: "The total number of processed searches",
 	})
 	// facetGenerationTime = promauto.NewCounter(prometheus.CounterOpts{
