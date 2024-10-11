@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"tornberg.me/facet-search/pkg/cart"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -172,6 +173,7 @@ func main() {
 
 	mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
 	mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
+	mux.Handle("/metrics", promhttp.Handler())
 
 	if enableProfiling != nil && *enableProfiling {
 		mux.HandleFunc("/debug/pprof/", pprof.Index)

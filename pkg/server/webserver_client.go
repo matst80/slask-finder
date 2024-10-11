@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"tornberg.me/facet-search/pkg/common"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -19,9 +21,33 @@ type searchResult struct {
 	sort     *facet.SortIndex
 }
 
+var (
+	noSearches = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_searches_total",
+		Help: "The total number of processed searches",
+	})
+	noSuggests = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_suggest_total",
+		Help: "The total number of processed suggestions",
+	})
+	// avgSearchTime = promauto.NewCounter(prometheus.CounterOpts{
+	// 	Name: "slaskfinder_searches_ms_total",
+	// 	Help: "The total number of ms consumed by search",
+	// })
+	facetSearches = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_searches_total",
+		Help: "The total number of processed searches",
+	})
+	// facetGenerationTime = promauto.NewCounter(prometheus.CounterOpts{
+	// 	Name: "slaskfinder_searches_ms_total",
+	// 	Help: "The total number of ms consumed by search",
+	// })
+)
+
 func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
 	matchingChan := make(chan *facet.IdList)
 	sortChan := make(chan *facet.SortIndex)
+	go noSearches.Inc()
 
 	defer close(matchingChan)
 	defer close(sortChan)
@@ -87,7 +113,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	totalHits := len(*result.matching)
 
 	go getFacetsForIds(result.matching, ws.Index, &sr.Filters, ws.Sorting.FieldSort, facetsChan)
-
+	go facetSearches.Inc()
 	defaultHeaders(w, true, "20")
 	enc := json.NewEncoder(w)
 	w.WriteHeader(http.StatusOK)
@@ -182,6 +208,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	lastWord := words[len(words)-1]
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
+	go noSuggests.Inc()
 
 	wordMatchesChan := make(chan []search.Match)
 	sortChan := make(chan *facet.SortIndex)
