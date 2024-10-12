@@ -20,9 +20,9 @@ type StringSearch struct {
 }
 
 type Filters struct {
-	StringFilter  []StringSearch          `json:"string"`
-	NumberFilter  []NumberSearch[float64] `json:"number"`
-	IntegerFilter []NumberSearch[int]     `json:"integer"`
+	StringFilter  []StringSearch          `json:"string" schema:"str"`
+	NumberFilter  []NumberSearch[float64] `json:"number" schema:"num"`
+	IntegerFilter []NumberSearch[int]     `json:"integer" schema:"int"`
 }
 
 func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *facet.IdList) {

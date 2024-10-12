@@ -84,7 +84,7 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 
 	}
 
-	go ws.Index.Match(&sr.Filters, initialIds, matchingChan)
+	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
 
 	result <- searchResult{
 		matching: <-matchingChan,
@@ -112,7 +112,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	result := <-resultChan
 	totalHits := len(*result.matching)
 
-	go getFacetsForIds(result.matching, ws.Index, &sr.Filters, ws.Sorting.FieldSort, facetsChan)
+	go getFacetsForIds(result.matching, ws.Index, sr.Filters, ws.Sorting.FieldSort, facetsChan)
 	go facetSearches.Inc()
 	defaultHeaders(w, true, "20")
 	enc := json.NewEncoder(w)
@@ -165,7 +165,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 	go func() {
 		if ws.Tracking != nil {
-			err := ws.Tracking.TrackSearch(uint32(session_id), &sr.Filters, sr.Query, sr.Page)
+			err := ws.Tracking.TrackSearch(uint32(session_id), sr.Filters, sr.Query, sr.Page)
 			if err != nil {
 				fmt.Printf("Failed to track search %v", err)
 			}
