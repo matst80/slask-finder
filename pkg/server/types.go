@@ -1,6 +1,7 @@
 package server
 
 import (
+	"golang.org/x/oauth2"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
@@ -8,6 +9,7 @@ import (
 )
 
 type WebServer struct {
+	OAuthConfig      *oauth2.Config
 	Index            *index.Index
 	Db               *persistance.Persistance
 	Sorting          *index.Sorting

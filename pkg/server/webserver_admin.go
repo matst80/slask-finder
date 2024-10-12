@@ -1,10 +1,14 @@
 package server
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
+	"golang.org/x/oauth2"
 	"tornberg.me/facet-search/pkg/index"
 )
 
@@ -153,13 +157,55 @@ func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func generateStateOauthCookie(w http.ResponseWriter) string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	state := base64.URLEncoding.EncodeToString(b)
+
+	return state
+}
+
+func (ws *WebServer) Login(w http.ResponseWriter, r *http.Request) {
+	oauthState := generateStateOauthCookie(w)
+	url := ws.OAuthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+
+func (ws *WebServer) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   "session",
+		Value:  "",
+		MaxAge: -1,
+	})
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
+
+	token, err := ws.OAuthConfig.Exchange(context.Background(), r.FormValue("code"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:  "sf-admin",
+		Value: token.AccessToken,
+	})
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
+
 	srv := http.NewServeMux()
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		defaultHeaders(w, false, "0")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
+	srv.HandleFunc("/login", ws.Login)
+	srv.HandleFunc("/logout", ws.Logout)
+	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/get/{id}", ws.GetItem)
 	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)

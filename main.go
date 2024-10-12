@@ -9,6 +9,9 @@ import (
 	"runtime"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
+
 	"tornberg.me/facet-search/pkg/cart"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
@@ -26,6 +29,8 @@ var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
 var listenAddress = ":8080"
+var clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
+var callbackUrl = os.Getenv("CALLBACK_URL")
 
 var promotionStorage = promotions.DiskPromotionStorage{
 	Path: "data/promotions.json",
@@ -148,6 +153,16 @@ func main() {
 
 	Init()
 
+	authConfig := &oauth2.Config{
+		ClientID:     "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com",
+		ClientSecret: clientSecret,
+		RedirectURL:  callbackUrl,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+		},
+		Endpoint: google.Endpoint,
+	}
+
 	log.Printf("Starting server %v", listenAddress)
 
 	mux := http.NewServeMux()
@@ -163,11 +178,13 @@ func main() {
 	if rabbitUrl != "" {
 		if clientName == "" {
 			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+			srv.OAuthConfig = authConfig
 		} else {
 			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 		}
 	} else {
 		mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+		srv.OAuthConfig = authConfig
 		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 	}
 
