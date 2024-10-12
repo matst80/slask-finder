@@ -133,6 +133,30 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, true, "120")
+	items := make([]index.DataItem, 0)
+	err := json.NewDecoder(r.Body).Decode(&items)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	result := make([]index.DataItem, len(items))
+	i := 0
+	for _, item := range items {
+		item, ok := ws.Index.Items[item.Id]
+		if ok {
+			result[i] = *item
+			i++
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(result[:i])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	err := ws.Db.SaveIndex(ws.Index)
 	if err != nil {
