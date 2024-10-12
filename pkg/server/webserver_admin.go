@@ -173,7 +173,7 @@ func (ws *WebServer) Login(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   "session",
+		Name:   "sf-admin",
 		Value:  "",
 		MaxAge: -1,
 	})
@@ -189,11 +189,26 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:  "sf-admin",
-		Value: token.AccessToken,
+		Name:   "sf-admin",
+		Value:  token.AccessToken,
+		Path:   "/",
+		MaxAge: 3600,
 	})
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
+
+// func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
+
+// 	response, err := http.Get(oauthGoogleUrlAPI + token.AccessToken)
+//  if err != nil {
+//   return nil, fmt.Errorf("failed getting user info: %s", err.Error())
+//  }
+//  defer response.Body.Close()
+//  contents, err := ioutil.ReadAll(response.Body)
+//  if err != nil {
+//   return nil, fmt.Errorf("failed read response: %s", err.Error())
+//  }
+// }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
@@ -205,6 +220,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	})
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
+	//srv.HandleFunc("/user",ws.User)
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AddItem)
 	srv.HandleFunc("/get/{id}", ws.GetItem)
