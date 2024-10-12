@@ -159,7 +159,7 @@ func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func generateStateOauthCookie(w http.ResponseWriter) string {
+func generateStateOauthCookie() string {
 	b := make([]byte, 16)
 	rand.Read(b)
 	state := base64.URLEncoding.EncodeToString(b)
@@ -187,7 +187,7 @@ func createToken(username string, name string) (string, error) {
 }
 
 func (ws *WebServer) Login(w http.ResponseWriter, r *http.Request) {
-	oauthState := generateStateOauthCookie(w)
+	oauthState := generateStateOauthCookie()
 	url := ws.OAuthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
@@ -201,7 +201,7 @@ type UserData struct {
 }
 
 const tokenCookieName = "sf-admin"
-const apiKey = "masterslasker2000"
+const apiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
 
 func (ws *WebServer) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
