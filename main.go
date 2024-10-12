@@ -159,6 +159,7 @@ func main() {
 		RedirectURL:  callbackUrl,
 		Scopes: []string{
 			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
 		},
 		Endpoint: google.Endpoint,
 	}

@@ -7,7 +7,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt"
 	"golang.org/x/oauth2"
 	"tornberg.me/facet-search/pkg/index"
 )
@@ -165,19 +167,89 @@ func generateStateOauthCookie(w http.ResponseWriter) string {
 	return state
 }
 
+var secretKey = []byte("slask-62541337!-banansecret")
+
+func createToken(username string, name string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"username": username,
+			"name":     name,
+			"role":     "admin",
+			"exp":      time.Now().Add(time.Hour * 24).Unix(),
+		})
+
+	tokenString, err := token.SignedString(secretKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
 func (ws *WebServer) Login(w http.ResponseWriter, r *http.Request) {
 	oauthState := generateStateOauthCookie(w)
 	url := ws.OAuthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
 }
 
+type UserData struct {
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Id            string `json:"id"`
+	Picture       string `json:"picture"`
+}
+
+const tokenCookieName = "sf-admin"
+const apiKey = "masterslasker2000"
+
 func (ws *WebServer) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
-		Name:   "sf-admin",
+		Name:   tokenCookieName,
 		Value:  "",
 		MaxAge: -1,
 	})
 	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != apiKey {
+			cookie, err := r.Cookie(tokenCookieName)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+				return secretKey, nil
+			})
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			if !token.Valid {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getUserData(token *oauth2.Token) (*UserData, error) {
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	var userData UserData
+	err = json.NewDecoder(resp.Body).Decode(&userData)
+	if err != nil {
+		return nil, err
+	}
+	return &userData, nil
 }
 
 func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
@@ -188,27 +260,61 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userData, err := getUserData(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ownToken, err := createToken(userData.Email, userData.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	http.SetCookie(w, &http.Cookie{
-		Name:   "sf-admin",
-		Value:  token.AccessToken,
-		Path:   "/",
-		MaxAge: 3600,
+		Name:     tokenCookieName,
+		Value:    ownToken,
+		Path:     "/",
+		MaxAge:   3600,
+		SameSite: http.SameSiteStrictMode,
 	})
+
 	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
 }
 
-// func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(tokenCookieName)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-// 	response, err := http.Get(oauthGoogleUrlAPI + token.AccessToken)
-//  if err != nil {
-//   return nil, fmt.Errorf("failed getting user info: %s", err.Error())
-//  }
-//  defer response.Body.Close()
-//  contents, err := ioutil.ReadAll(response.Body)
-//  if err != nil {
-//   return nil, fmt.Errorf("failed read response: %s", err.Error())
-//  }
-// }
+	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+		return secretKey, nil
+	})
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !token.Valid {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	defaultHeaders(w, true, "0")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(claims)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
@@ -220,15 +326,15 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	})
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
-	//srv.HandleFunc("/user",ws.User)
+	srv.HandleFunc("/user", ws.User)
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
-	srv.HandleFunc("/add", ws.AddItem)
-	srv.HandleFunc("/get/{id}", ws.GetItem)
+	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
+	srv.HandleFunc("/get/{id}", ws.AuthMiddleware(ws.GetItem))
 	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
-	srv.HandleFunc("/save", ws.Save)
-	srv.HandleFunc("/sort/popular", ws.HandlePopularOverride)
-	srv.HandleFunc("/sort/static", ws.HandleStaticPositions)
+	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
+	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
+	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
 	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
-	srv.HandleFunc("/sort/fields", ws.HandleFieldSort)
+	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
 }
