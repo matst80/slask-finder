@@ -502,6 +502,50 @@ func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	itemId, err := strconv.Atoi(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	item, ok := ws.Index.Items[uint(itemId)]
+	if !ok {
+		http.Error(w, "Item not found", http.StatusNotFound)
+		return
+	}
+	defaultHeaders(w, true, "120")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(item)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, true, "120")
+	items := make([]index.DataItem, 0)
+	err := json.NewDecoder(r.Body).Decode(&items)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	result := make([]index.DataItem, len(items))
+	i := 0
+	for _, item := range items {
+		item, ok := ws.Index.Items[item.Id]
+		if ok {
+			result[i] = *item
+			i++
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(result[:i])
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -521,7 +565,8 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", ws.SearchStreamed)
 	srv.HandleFunc("/ids", ws.GetIds)
-	srv.HandleFunc("/get/{id}", ws.GetItem)
+	srv.HandleFunc("GET /get/{id}", ws.GetItem)
+	srv.HandleFunc("POST /get", ws.GetItems)
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
