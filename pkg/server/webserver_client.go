@@ -521,6 +521,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", ws.SearchStreamed)
 	srv.HandleFunc("/ids", ws.GetIds)
+	srv.HandleFunc("/get/{id}", ws.GetItem)
 	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
