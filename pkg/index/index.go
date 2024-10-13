@@ -19,6 +19,7 @@ type ChangeHandler interface {
 	//ItemChanged(item *DataItem)
 	ItemDeleted(id uint)
 	ItemsUpserted(item []DataItem)
+	PriceLowered(item []DataItem)
 }
 
 type UpdateHandler interface {
@@ -222,17 +223,24 @@ func (i *Index) UpdateCategoryValues(ids []uint, updates []CategoryUpdate) {
 }
 
 func (i *Index) UpsertItems(items []DataItem) {
-	if len(items) == 0 {
+	l := len(items)
+	if l == 0 {
 		return
 	}
-	log.Printf("Upserting items %d", len(items))
+	log.Printf("Upserting items %d", l)
 	i.Lock()
 	defer i.Unlock()
+	price_lowered := make([]DataItem, l)
+	j := 0
 	for _, it := range items {
-		i.UpsertItemUnsafe(&it)
+		if i.UpsertItemUnsafe(&it) {
+			price_lowered[j] = it
+			j++
+		}
 	}
 	if i.ChangeHandler != nil {
 		i.ChangeHandler.ItemsUpserted(items)
+		i.ChangeHandler.PriceLowered(price_lowered[0:j])
 	}
 }
 
@@ -244,16 +252,32 @@ func (i *Index) Unlock() {
 	i.mu.Unlock()
 }
 
-func (i *Index) UpsertItemUnsafe(item *DataItem) {
+func getPrice(item *DataItem) int {
+	if item.IntegerFields != nil {
+		for _, field := range item.IntegerFields {
+			if field.Id == 4 {
+				return field.Value
+			}
+		}
+	}
+	return 0
+}
 
+func (i *Index) UpsertItemUnsafe(item *DataItem) bool {
+	price_lowered := false
 	current, isUpdate := i.Items[item.Id]
 	if item.SaleStatus == "MDD" {
 		if isUpdate {
 			i.deleteItemUnsafe(item.Id)
 		}
-		return
+		return price_lowered
 	}
 	if isUpdate {
+		old_price := getPrice(current)
+		new_price := getPrice(item)
+		if new_price < old_price {
+			price_lowered = true
+		}
 		i.removeItemValues(current)
 	}
 
@@ -262,7 +286,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 
 	i.Items[item.Id] = item
 	if i.ChangeHandler != nil {
-		return
+		return price_lowered
 	}
 	go i.AutoSuggest.InsertItem(item)
 	if i.Search != nil {
@@ -271,6 +295,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	if i.Sorting != nil {
 		i.Sorting.IndexChanged(i)
 	}
+	return price_lowered
 }
 
 func (i *Index) DeleteItem(id uint) {

@@ -40,6 +40,7 @@ var rabbitConfig = sync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
 	ItemsUpsertedTopic: "item_added",
 	ItemDeletedTopic:   "item_deleted",
+	PriceLoweredTopic:  "price_lowered",
 	Url:                rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}

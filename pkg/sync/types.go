@@ -11,6 +11,7 @@ type BaseClient struct {
 type RabbitConfig struct {
 	ItemsUpsertedTopic string
 	ItemDeletedTopic   string
+	PriceLoweredTopic  string
 	Url                string
 }
 

@@ -21,11 +21,15 @@ type LoggingChangeHandler struct {
 }
 
 func (l *LoggingChangeHandler) ItemsUpserted(item []DataItem) {
-	l.Printf("Item added %v", len(item))
+	l.Printf("Items added %v", len(item))
 }
 
 func (l *LoggingChangeHandler) ItemDeleted(id uint) {
 	l.Printf("Item deleted %v", id)
+}
+
+func (l *LoggingChangeHandler) PriceLowered(item []DataItem) {
+	l.Printf("Prices lowered %v", len(item))
 }
 
 func TestIndexMatch(t *testing.T) {
