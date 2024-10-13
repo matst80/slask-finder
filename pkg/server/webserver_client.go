@@ -3,9 +3,11 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -108,9 +110,39 @@ func makeBaseSearchRequest() *SearchRequest {
 	}
 }
 
+type cacheWriter struct {
+	key string
+	//buff     []byte
+	duration time.Duration
+	store    func(string, []byte, time.Duration) error
+}
+
+func (cw *cacheWriter) Write(p []byte) (n int, err error) {
+	//cw.buff = append(cw.buff, p...)
+	cw.store(cw.key, p, cw.duration)
+	return len(p), nil
+}
+
+// func (cw *cacheWriter) Close() error {
+// 	return cw.store(cw.key, cw.buff, cw.duration)
+// }
+
+func MakeCacheWriter(w io.Writer, key string, setRaw func(string, []byte, time.Duration) error) io.Writer {
+
+	cacheWriter := &cacheWriter{
+		key:      key,
+		duration: time.Second * (60 * 5),
+		store:    setRaw,
+	}
+
+	return io.MultiWriter(w, cacheWriter)
+
+}
+
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	sr := makeBaseSearchRequest()
 	err := GetQueryFromRequest(r, sr)
+	writer := io.Writer(w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -126,12 +158,22 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 
 	result := <-resultChan
 	totalHits := len(*result.matching)
+	publicHeaders(w, true, "3600")
+	w.WriteHeader(http.StatusOK)
+	if totalHits > ws.FacetLimit {
+		key := getCacheKey(sr)
+		result, err := ws.Cache.GetRaw(key)
+		if err == nil && len(result) > 0 {
+			w.Write(result)
+			return
+		}
+		writer = MakeCacheWriter(writer, key, ws.Cache.SetRaw)
+	}
 
 	go getFacetsForIds(result.matching, ws.Index, sr.Filters, ws.Sorting.FieldSort, facetsChan)
 	go facetSearches.Inc()
-	defaultHeaders(w, true, "20")
-	enc := json.NewEncoder(w)
-	w.WriteHeader(http.StatusOK)
+
+	enc := json.NewEncoder(writer)
 
 	data := SearchResponse{
 		Facets:    <-facetsChan,

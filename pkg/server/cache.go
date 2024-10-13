@@ -22,6 +22,10 @@ type Cache struct {
 	//memCache map[string]LocalEntry
 }
 
+type CacheWriter interface {
+	SetRaw(key string, value []byte, expiration time.Duration) error
+}
+
 func NewCache(addr, password string, db int) *Cache {
 	ctx := context.Background()
 
@@ -31,6 +35,22 @@ func NewCache(addr, password string, db int) *Cache {
 		DB:       db,       // use default DB
 	})
 	return &Cache{Addr: addr, Password: password, DB: db, client: rdb, ctx: ctx} //, memCache: make(map[string]LocalEntry)
+}
+
+func (c *Cache) Ping() error {
+	_, err := c.client.Ping(c.ctx).Result()
+	return err
+}
+
+func (c *Cache) Del(key string) error {
+	return c.client.Del(c.ctx, key).Err()
+}
+
+func (c *Cache) GetRaw(key string) ([]byte, error) {
+	return c.client.Get(c.ctx, key).Bytes()
+}
+func (c *Cache) SetRaw(key string, value []byte, expiration time.Duration) error {
+	return c.client.Set(c.ctx, key, value, expiration).Err()
 }
 
 func (c *Cache) Get(key string, out any) error {
