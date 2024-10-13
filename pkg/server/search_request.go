@@ -2,28 +2,97 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 
+	"github.com/gorilla/schema"
 	"tornberg.me/facet-search/pkg/index"
 )
 
 type SearchRequest struct {
-	index.Filters
-	Stock    []string `json:"stock"`
-	Query    string   `json:"query"`
-	Sort     string   `json:"sort"`
-	Page     int      `json:"page"`
-	PageSize int      `json:"pageSize"`
+	*index.Filters
+	Stock    []string `json:"stock" schema:"stock"`
+	Query    string   `json:"query" schema:"query"`
+	Sort     string   `json:"sort" schema:"sort,default:popular"`
+	Page     int      `json:"page" schema:"page"`
+	PageSize int      `json:"pageSize" schema:"size,default:40"`
 }
 
-func QueryFromRequest(r *http.Request) (SearchRequest, error) {
-	sr := SearchRequest{
-		Page:     0,
-		PageSize: 25,
+func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
+	if r.Method == http.MethodGet {
+		return queryFromRequestQuery(r.URL.Query(), searchRequest)
 	}
-	err := json.NewDecoder(r.Body).Decode(&sr)
+	return queryFromRequest(r, searchRequest)
+}
+
+func queryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
+
+	err := json.NewDecoder(r.Body).Decode(searchRequest)
 	if err != nil {
-		return sr, err
+		return err
 	}
-	return sr, nil
+	return nil
+}
+
+func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
+	decoder := schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	err := decoder.Decode(result, query)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range query["str"] {
+
+		parts := strings.Split(v, ":")
+		if len(parts) != 2 {
+			continue
+		}
+		id, err := strconv.Atoi(parts[0])
+
+		if err != nil {
+			continue
+		}
+		result.StringFilter = append(result.StringFilter, index.StringSearch{
+			Id:    uint(id),
+			Value: parts[1],
+		})
+	}
+
+	for _, v := range query["num"] {
+		var id uint
+		var min float64
+		var max float64
+		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &min, &max)
+
+		if err != nil {
+			continue
+		}
+		result.NumberFilter = append(result.NumberFilter, index.NumberSearch[float64]{
+			Id:  uint(id),
+			Min: min,
+			Max: max,
+		})
+	}
+
+	for _, v := range query["int"] {
+		var id uint
+		var min int
+		var max int
+		_, err := fmt.Sscanf(v, "%d:%d-%d", &id, &min, &max)
+
+		if err != nil {
+			continue
+		}
+		result.IntegerFilter = append(result.IntegerFilter, index.NumberSearch[int]{
+			Id:  uint(id),
+			Min: min,
+			Max: max,
+		})
+	}
+
+	return nil
 }

@@ -42,7 +42,7 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 			Value: categories[i],
 		})
 	}
-	go ws.Index.Match(&sr.Filters, nil, ch)
+	go ws.Index.Match(sr.Filters, nil, ch)
 	return <-ch
 }
 
