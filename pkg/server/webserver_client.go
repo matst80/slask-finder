@@ -237,7 +237,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	go ws.getMatchAndSort(sr, resultChan)
 
-	defaultHeaders(w, false, "20")
+	defaultHeaders(w, false, "3600")
 	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)
@@ -392,7 +392,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, true, "1200")
+	publicHeaders(w, true, "1200")
 
 	w.WriteHeader(http.StatusOK)
 
@@ -437,7 +437,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defaultHeaders(w, false, "120")
+	publicHeaders(w, false, "600")
 	w.WriteHeader(http.StatusOK)
 	related, err := ws.Index.Related(uint(id))
 	if err != nil {
@@ -544,7 +544,7 @@ func CategoryResultFrom(c *index.Category) *CategoryResult {
 }
 
 func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, true, "120")
+	publicHeaders(w, true, "600")
 	w.WriteHeader(http.StatusOK)
 	categories := ws.Index.GetCategories()
 	result := make([]*CategoryResult, 0)
@@ -573,7 +573,7 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Item not found", http.StatusNotFound)
 		return
 	}
-	defaultHeaders(w, true, "120")
+	publicHeaders(w, true, "120")
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(item)
 	if err != nil {
@@ -582,7 +582,7 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, true, "120")
+	defaultHeaders(w, true, "600")
 	items := make([]index.DataItem, 0)
 	err := json.NewDecoder(r.Body).Decode(&items)
 	if err != nil {
