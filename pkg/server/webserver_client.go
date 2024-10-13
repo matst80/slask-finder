@@ -93,9 +93,24 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 
 }
 
-func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
+func makeBaseSearchRequest() *SearchRequest {
+	return &SearchRequest{
+		Filters: &index.Filters{
+			StringFilter:  []index.StringSearch{},
+			NumberFilter:  []index.NumberSearch[float64]{},
+			IntegerFilter: []index.NumberSearch[int]{},
+		},
+		Stock:    []string{},
+		Query:    "",
+		Sort:     "popular",
+		Page:     0,
+		PageSize: 40,
+	}
+}
 
-	sr, err := QueryFromRequest(r)
+func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
+	sr := makeBaseSearchRequest()
+	err := GetQueryFromRequest(r, sr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -107,7 +122,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	defer close(facetsChan)
 	defer close(resultChan)
 
-	go ws.getMatchAndSort(&sr, resultChan)
+	go ws.getMatchAndSort(sr, resultChan)
 
 	result := <-resultChan
 	totalHits := len(*result.matching)
@@ -130,7 +145,8 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
-	sr, err := QueryFromRequest(r)
+	sr := makeBaseSearchRequest()
+	err := GetQueryFromRequest(r, sr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -140,7 +156,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
 
 	defer close(resultChan)
 
-	go ws.getMatchAndSort(&sr, resultChan)
+	go ws.getMatchAndSort(sr, resultChan)
 
 	result := <-resultChan
 
@@ -156,7 +172,8 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
-	sr, err := QueryFromRequest(r)
+	sr := makeBaseSearchRequest()
+	err := GetQueryFromRequest(r, sr)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -176,7 +193,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	defer close(resultChan)
 
-	go ws.getMatchAndSort(&sr, resultChan)
+	go ws.getMatchAndSort(sr, resultChan)
 
 	defaultHeaders(w, false, "20")
 	w.WriteHeader(http.StatusOK)

@@ -2,9 +2,9 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -21,79 +21,78 @@ type SearchRequest struct {
 	PageSize int      `json:"pageSize" schema:"size,default:40"`
 }
 
-func QueryFromRequest(r *http.Request) (SearchRequest, error) {
-	sr := SearchRequest{
-		Page:     0,
-		PageSize: 25,
+func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
+	if r.Method == http.MethodGet {
+		return queryFromRequestQuery(r.URL.Query(), searchRequest)
 	}
-	err := json.NewDecoder(r.Body).Decode(&sr)
-	if err != nil {
-		return sr, err
-	}
-	return sr, nil
+	return queryFromRequest(r, searchRequest)
 }
 
-func QueryFromRequestQuery(query url.Values, result *SearchRequest) error {
+func queryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
+
+	err := json.NewDecoder(r.Body).Decode(searchRequest)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	decoder := schema.NewDecoder()
-	decoder.RegisterConverter("str", func(value string) reflect.Value {
-		parts := strings.Split(value, ":")
+	decoder.IgnoreUnknownKeys(true)
+	err := decoder.Decode(result, query)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range query["str"] {
+
+		parts := strings.Split(v, ":")
 		if len(parts) != 2 {
-			return reflect.Value{}
+			continue
 		}
 		id, err := strconv.Atoi(parts[0])
+
 		if err != nil {
-			return reflect.Value{}
+			continue
 		}
-		return reflect.ValueOf(index.StringSearch{
+		result.StringFilter = append(result.StringFilter, index.StringSearch{
 			Id:    uint(id),
 			Value: parts[1],
 		})
-	})
-	decoder.RegisterConverter("int", func(value string) reflect.Value {
-		parts := strings.Split(value, ":")
-		if len(parts) != 3 {
-			return reflect.Value{}
-		}
-		id, err := strconv.Atoi(parts[0])
+	}
+
+	for _, v := range query["num"] {
+		var id uint
+		var min float64
+		var max float64
+		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &min, &max)
+
 		if err != nil {
-			return reflect.Value{}
+			continue
 		}
-		min, err := strconv.ParseFloat(parts[1], 64)
-		if err != nil {
-			return reflect.Value{}
-		}
-		max, err := strconv.ParseFloat(parts[2], 64)
-		if err != nil {
-			return reflect.Value{}
-		}
-		return reflect.ValueOf(index.NumberSearch[float64]{
+		result.NumberFilter = append(result.NumberFilter, index.NumberSearch[float64]{
 			Id:  uint(id),
 			Min: min,
 			Max: max,
 		})
-	})
-	decoder.RegisterConverter("num", func(value string) reflect.Value {
-		parts := strings.Split(value, ":")
-		if len(parts) != 3 {
-			return reflect.Value{}
-		}
-		id, err := strconv.Atoi(parts[0])
+	}
+
+	for _, v := range query["int"] {
+		var id uint
+		var min int
+		var max int
+		_, err := fmt.Sscanf(v, "%d:%d-%d", &id, &min, &max)
+
 		if err != nil {
-			return reflect.Value{}
+			continue
 		}
-		min, err := strconv.ParseFloat(parts[1], 64)
-		if err != nil {
-			return reflect.Value{}
-		}
-		max, err := strconv.ParseFloat(parts[2], 64)
-		if err != nil {
-			return reflect.Value{}
-		}
-		return reflect.ValueOf(index.NumberSearch[float64]{
+		result.IntegerFilter = append(result.IntegerFilter, index.NumberSearch[int]{
 			Id:  uint(id),
 			Min: min,
 			Max: max,
 		})
-	})
-	return decoder.Decode(result, query)
+	}
+
+	return nil
 }
