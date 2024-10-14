@@ -9,8 +9,17 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/oauth2"
 	"tornberg.me/facet-search/pkg/index"
+)
+
+var (
+	totalItems = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "slaskfinder_items_total",
+		Help: "The total number of items in index",
+	})
 )
 
 func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +117,7 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ws.Index.UpsertItems(items)
-
+	totalItems.Set(float64(len(ws.Index.Items)))
 	w.WriteHeader(http.StatusOK)
 }
 
