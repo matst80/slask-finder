@@ -23,7 +23,7 @@ import (
 	"tornberg.me/facet-search/pkg/tracking"
 )
 
-var enableProfiling = flag.Bool("profiling", false, "enable profiling endpoints")
+var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
@@ -195,6 +195,7 @@ func main() {
 	mux.Handle("/metrics", promhttp.Handler())
 
 	if enableProfiling != nil && *enableProfiling {
+		log.Println("Profiling enabled")
 		mux.HandleFunc("/debug/pprof/", pprof.Index)
 		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
 		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
