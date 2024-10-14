@@ -246,7 +246,13 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	result := <-resultChan
 
 	ritem := &index.ResultItem{}
-	for idx, id := range (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end) {
+	var sortedIds []uint
+	if sr.Sort == "popular" || sr.Sort == "" {
+		sortedIds = (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
+	} else {
+		sortedIds = (*result.matching).SortedIds(result.sort, end)
+	}
+	for idx, id := range sortedIds {
 		if idx < start {
 			continue
 		}
