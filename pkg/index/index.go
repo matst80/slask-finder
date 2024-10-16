@@ -36,7 +36,7 @@ type Category struct {
 }
 
 type Index struct {
-	mu            sync.Mutex
+	mu            sync.RWMutex
 	categories    map[string]*Category
 	KeyFacets     map[uint]*KeyFacet
 	DecimalFacets map[uint]*DecimalFacet
@@ -53,7 +53,7 @@ type Index struct {
 
 func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
-		mu:            sync.Mutex{},
+		mu:            sync.RWMutex{},
 		categories:    make(map[string]*Category),
 		KeyFacets:     make(map[uint]*KeyFacet),
 		DecimalFacets: make(map[uint]*DecimalFacet),
@@ -195,8 +195,8 @@ func (i *Index) removeItemValues(item *DataItem) {
 
 func (i *Index) UpsertItem(item *DataItem) {
 	log.Printf("Upserting item %d", item.Id)
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	i.UpsertItemUnsafe(item)
 }
 
@@ -206,8 +206,8 @@ type CategoryUpdate struct {
 }
 
 func (i *Index) UpdateCategoryValues(ids []uint, updates []CategoryUpdate) {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	items := make([]DataItem, 0)
 	for _, id := range ids {
 		item, ok := i.Items[id]
@@ -228,8 +228,8 @@ func (i *Index) UpsertItems(items []DataItem) {
 		return
 	}
 	log.Printf("Upserting items %d", l)
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	price_lowered := make([]DataItem, l)
 	j := 0
 	for _, it := range items {
@@ -245,11 +245,11 @@ func (i *Index) UpsertItems(items []DataItem) {
 }
 
 func (i *Index) Lock() {
-	i.mu.Lock()
+	i.mu.RLock()
 }
 
 func (i *Index) Unlock() {
-	i.mu.Unlock()
+	i.mu.RUnlock()
 }
 
 func getPrice(item *DataItem) int {
@@ -299,8 +299,8 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) bool {
 }
 
 func (i *Index) DeleteItem(id uint) {
-	i.Lock()
-	defer i.Unlock()
+	i.mu.Lock()
+	defer i.mu.Unlock()
 	i.deleteItemUnsafe(id)
 }
 

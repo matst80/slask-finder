@@ -15,9 +15,9 @@ import (
 type Sorting struct {
 	quit             chan struct{}
 	idx              *Index
-	mu               sync.Mutex
-	muStaticPos      sync.Mutex
-	muOverride       sync.Mutex
+	mu               sync.RWMutex
+	muStaticPos      sync.RWMutex
+	muOverride       sync.RWMutex
 	client           *redis.Client
 	ctx              context.Context
 	fieldOverride    *SortOverride
@@ -150,8 +150,8 @@ func (s *Sorting) IndexChanged(idx *Index) {
 }
 
 func (s *Sorting) GetStaticPositions() StaticPositions {
-	s.muStaticPos.Lock()
-	defer s.muStaticPos.Unlock()
+	s.muStaticPos.RLock()
+	defer s.muStaticPos.RUnlock()
 	return *s.staticPositions
 }
 
@@ -293,8 +293,8 @@ func (s *Sorting) AddPopularOverride(sort *SortOverride) {
 }
 
 func (s *Sorting) GetPopularOverrides() *SortOverride {
-	s.muOverride.Lock()
-	defer s.muOverride.Unlock()
+	s.muOverride.RLock()
+	defer s.muOverride.RUnlock()
 	return s.popularOverrides
 }
 
@@ -303,8 +303,8 @@ func (s *Sorting) GetSorting(id string, sortChan chan *facet.SortIndex) {
 }
 
 func (s *Sorting) GetSort(id string) *facet.SortIndex {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	if sort, ok := s.sortMethods[id]; ok {
 		return sort
 	}

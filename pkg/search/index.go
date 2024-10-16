@@ -10,7 +10,7 @@ import (
 )
 
 type FreeTextIndex struct {
-	mu          sync.Mutex
+	mu          sync.RWMutex
 	Tokenizer   *Tokenizer
 	Documents   map[uint]*Document
 	TokenMap    map[Token][]*Document
@@ -147,8 +147,8 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 
 	tokens := i.Tokenizer.Tokenize(query)
 	res := make(DocumentResult)
-	i.mu.Lock()
-	defer i.mu.Unlock()
+	i.mu.RLock()
+	defer i.mu.RUnlock()
 	result := i.getMatchDocs(tokens)
 
 	for _, doc := range result {

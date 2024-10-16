@@ -8,7 +8,7 @@ import (
 )
 
 type AutoSuggest struct {
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	Trie *search.Trie
 }
 
@@ -36,6 +36,8 @@ func (a *AutoSuggest) InsertItem(item *DataItem) {
 }
 
 func (a *AutoSuggest) FindMatches(text string) []search.Match {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	words := strings.Split(strings.ToLower(text), " ")
 	// for i, word := range words[:len(words)-1] {
 	// 	a.Trie.FindMatches(strings.ToLower(word))
