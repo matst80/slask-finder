@@ -59,62 +59,35 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 			IntFields:    []JsonNumberResult{},
 		}
 	}
+	// Preallocate slices for fields, numberFields, and intFields to avoid repeated allocations
+	fields := make(map[uint]map[string]uint, len(i.KeyFacets))
+	numberFields := make(map[uint]*NumberResult[float64], len(i.DecimalFacets))
+	intFields := make(map[uint]*NumberResult[int], len(i.IntFacets))
 
-	fields := make(map[uint]map[string]uint)
-	numberFields := make(map[uint]*NumberResult[float64])
-	intFields := make(map[uint]*NumberResult[int])
-
-	filterCategoryLevel := 0
-
-	ignoredKeyFields := make(map[uint]struct{})
-	ignoredIntFields := make(map[uint]struct{})
-	ignoredDecimalFields := make(map[uint]struct{})
-
-	for _, facet := range filters.StringFilter {
-		ignoredKeyFields[facet.Id] = struct{}{}
-		fields[facet.Id] = map[string]uint{
-			facet.Value: uint(l),
-		}
-		f, ok := i.KeyFacets[facet.Id]
-		if ok {
-			filterCategoryLevel = max(f.CategoryLevel, filterCategoryLevel)
-		}
-	}
-
+	// Use a single loop to initialize ignored fields and prepopulate maps
 	for key, facet := range i.KeyFacets {
-		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) || (facet.CategoryLevel > 0 && facet.CategoryLevel < filterCategoryLevel) {
-			ignoredKeyFields[key] = struct{}{}
+		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) || (facet.CategoryLevel > 0) {
+			//	ignoredKeyFields[key] = struct{}{}
+		} else {
+			fields[key] = make(map[string]uint)
 		}
-	}
 
-	for _, facet := range filters.IntegerFilter {
-		ignoredIntFields[facet.Id] = struct{}{}
-		intFields[facet.Id] = &NumberResult[int]{
-			Count: l,
-			Min:   facet.Min,
-			Max:   facet.Max,
-		}
-	}
-
-	for _, facet := range filters.NumberFilter {
-		ignoredDecimalFields[facet.Id] = struct{}{}
-		numberFields[facet.Id] = &NumberResult[float64]{
-			Count: l,
-			Min:   facet.Min,
-			Max:   facet.Max,
-		}
 	}
 
 	for key, facet := range i.IntFacets {
 		if facet.HideFacet || (facet.Priority < 29176 && needsTruncation) {
-			ignoredIntFields[key] = struct{}{}
+		} else {
+			intFields[key] = &NumberResult[int]{}
 		}
+
 	}
 
 	for key, facet := range i.DecimalFacets {
 		if facet.HideFacet || (facet.Priority < 29176 && needsTruncation) {
-			ignoredDecimalFields[key] = struct{}{}
+		} else {
+			numberFields[key] = &NumberResult[float64]{}
 		}
+
 	}
 
 	for id := range *ids {
@@ -125,65 +98,23 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 		}
 		if item.Fields != nil {
 			for _, field := range item.Fields {
-
-				l := len(field.Value)
-				if l == 0 || l > 64 {
-					continue
-				}
-				if _, ok := ignoredKeyFields[field.Id]; ok {
-					continue
-				}
-
 				if f, ok := fields[field.Id]; ok {
 					f[field.Value]++
 					//f.AddValue(&field.Value) // TODO optimize
-				} else {
-					//count++
-
-					fields[field.Id] = map[string]uint{
-						field.Value: 1,
-					}
-
 				}
 			}
 		}
 		if item.DecimalFields != nil {
 			for _, field := range item.DecimalFields {
-				if _, ok := ignoredKeyFields[field.Id]; ok {
-					continue
-				}
 				if f, ok := numberFields[field.Id]; ok {
 					f.AddValue(field.Value)
-				} else {
-					//count++
-					numberFields[field.Id] = &NumberResult[float64]{
-						Count: 1,
-						Min:   field.Value,
-						Max:   field.Value,
-					}
 				}
 			}
 		}
 		if item.IntegerFields != nil {
 			for _, field := range item.IntegerFields {
-
-				if field.Value == 0 || field.Value == -1 {
-					continue
-				}
-
-				if _, ok := ignoredKeyFields[field.Id]; ok {
-					continue
-				}
-
 				if f, ok := intFields[field.Id]; ok {
 					f.AddValue(field.Value)
-				} else {
-					//count++
-					intFields[field.Id] = &NumberResult[int]{
-						Count: 1,
-						Min:   field.Value,
-						Max:   field.Value,
-					}
 				}
 			}
 		}
