@@ -58,3 +58,7 @@ func (t *RabbitTransportMaster) ItemsUpserted(items []index.DataItem) error {
 func (t *RabbitTransportMaster) SendItemDeleted(id uint) error {
 	return t.send(t.ItemDeletedTopic, id)
 }
+
+func (t *RabbitTransportMaster) SendPriceLowered(items []index.DataItem) error {
+	return t.send(t.PriceLoweredTopic, items)
+}

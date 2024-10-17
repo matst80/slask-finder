@@ -21,6 +21,15 @@ func (r *RabbitMasterChangeHandler) ItemsUpserted(items []index.DataItem) {
 	log.Printf("Items changed %d", len(items))
 }
 
+func (r *RabbitMasterChangeHandler) PriceLowered(items []index.DataItem) {
+
+	err := r.Master.SendPriceLowered(items)
+	if err != nil {
+		log.Printf("Failed to send price updates %v", err)
+	}
+	log.Printf("Items with price lowered %d", len(items))
+}
+
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 
 	err := r.Master.SendItemDeleted(id)

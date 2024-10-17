@@ -1,11 +1,25 @@
 package server
 
 import (
+	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+	"golang.org/x/oauth2"
 	"tornberg.me/facet-search/pkg/index"
+)
+
+var (
+	totalItems = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "slaskfinder_items_total",
+		Help: "The total number of items in index",
+	})
 )
 
 func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
@@ -103,28 +117,8 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ws.Index.UpsertItems(items)
-
+	totalItems.Set(float64(len(ws.Index.Items)))
 	w.WriteHeader(http.StatusOK)
-}
-
-func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
-	id := r.PathValue("id")
-	itemId, err := strconv.Atoi(id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	item, ok := ws.Index.Items[uint(itemId)]
-	if !ok {
-		http.Error(w, "Item not found", http.StatusNotFound)
-		return
-	}
-	defaultHeaders(w, true, "120")
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(item)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
 }
 
 func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
@@ -153,20 +147,182 @@ func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
+func generateStateOauthCookie() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	state := base64.URLEncoding.EncodeToString(b)
+
+	return state
+}
+
+var secretKey = []byte("slask-62541337!-banansecret")
+
+func createToken(username string, name string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
+		jwt.MapClaims{
+			"username": username,
+			"name":     name,
+			"role":     "admin",
+			"exp":      time.Now().Add(time.Hour * 24).Unix(),
+		})
+
+	tokenString, err := token.SignedString(secretKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
+func (ws *WebServer) Login(w http.ResponseWriter, r *http.Request) {
+	oauthState := generateStateOauthCookie()
+	url := ws.OAuthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
+}
+
+type UserData struct {
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	VerifiedEmail bool   `json:"verified_email"`
+	Id            string `json:"id"`
+	Picture       string `json:"picture"`
+}
+
+const tokenCookieName = "sf-admin"
+const apiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
+
+func (ws *WebServer) Logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:   tokenCookieName,
+		Value:  "",
+		MaxAge: -1,
+	})
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != apiKey {
+			cookie, err := r.Cookie(tokenCookieName)
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+				return secretKey, nil
+			})
+			if err != nil {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+
+			if !token.Valid {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func getUserData(token *oauth2.Token) (*UserData, error) {
+	resp, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	var userData UserData
+	err = json.NewDecoder(resp.Body).Decode(&userData)
+	if err != nil {
+		return nil, err
+	}
+	return &userData, nil
+}
+
+func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
+
+	token, err := ws.OAuthConfig.Exchange(context.Background(), r.FormValue("code"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	userData, err := getUserData(token)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	ownToken, err := createToken(userData.Email, userData.Name)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     tokenCookieName,
+		Value:    ownToken,
+		Path:     "/",
+		MaxAge:   3600,
+		SameSite: http.SameSiteStrictMode,
+	})
+
+	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+}
+
+func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
+	cookie, err := r.Cookie(tokenCookieName)
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
+		return secretKey, nil
+	})
+	if err != nil {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	if !token.Valid {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	defaultHeaders(w, true, "0")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(claims)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
+
 	srv := http.NewServeMux()
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		defaultHeaders(w, false, "0")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	srv.HandleFunc("/add", ws.AddItem)
-	srv.HandleFunc("/get/{id}", ws.GetItem)
+	srv.HandleFunc("/login", ws.Login)
+	srv.HandleFunc("/logout", ws.Logout)
+	srv.HandleFunc("/user", ws.User)
+	srv.HandleFunc("/auth_callback", ws.AuthCallback)
+	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
+	//srv.HandleFunc("/get/{id}", ws.AuthMiddleware(ws.GetItem))
 	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
-	srv.HandleFunc("/save", ws.Save)
-	srv.HandleFunc("/sort/popular", ws.HandlePopularOverride)
-	srv.HandleFunc("/sort/static", ws.HandleStaticPositions)
+	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
+	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
+	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
 	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
-	srv.HandleFunc("/sort/fields", ws.HandleFieldSort)
+	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
 }
