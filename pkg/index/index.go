@@ -7,8 +7,21 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/search"
+)
+
+var (
+	noUpdates = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_index_updates_total",
+		Help: "The total number of item updates",
+	})
+	noDeletes = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_index_deletes_total",
+		Help: "The total number of item deletions",
+	})
 )
 
 type KeyFacet = facet.KeyField
@@ -256,7 +269,7 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) {
 	if isUpdate {
 		i.removeItemValues(current)
 	}
-
+	go noUpdates.Inc()
 	//	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
@@ -282,6 +295,7 @@ func (i *Index) DeleteItem(id uint) {
 func (i *Index) deleteItemUnsafe(id uint) {
 	item, ok := i.Items[id]
 	if ok {
+		noDeletes.Inc()
 		i.removeItemValues(item)
 		delete(i.Items, id)
 		// delete(i.AllItems, id)
