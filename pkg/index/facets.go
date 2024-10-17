@@ -90,31 +90,37 @@ func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortInd
 
 	}
 
+	var fi *NumberResult[int]
+	var fd *NumberResult[float64]
+	var fk map[string]uint
+	var ok bool
+	var item *DataItem
+
 	for id := range *ids {
 
-		item, ok := i.Items[id]
+		item, ok = i.Items[id]
 		if !ok {
 			continue
 		}
 		if item.Fields != nil {
 			for _, field := range item.Fields {
-				if f, ok := fields[field.Id]; ok {
-					f[field.Value]++
+				if fk, ok = fields[field.Id]; ok {
+					fk[field.Value]++
 					//f.AddValue(&field.Value) // TODO optimize
 				}
 			}
 		}
 		if item.DecimalFields != nil {
 			for _, field := range item.DecimalFields {
-				if f, ok := numberFields[field.Id]; ok {
-					f.AddValue(field.Value)
+				if fd, ok = numberFields[field.Id]; ok {
+					fd.AddValue(field.Value)
 				}
 			}
 		}
 		if item.IntegerFields != nil {
 			for _, field := range item.IntegerFields {
-				if f, ok := intFields[field.Id]; ok {
-					f.AddValue(field.Value)
+				if fi, ok = intFields[field.Id]; ok {
+					fi.AddValue(field.Value)
 				}
 			}
 		}

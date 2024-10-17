@@ -165,6 +165,7 @@ func (i *Index) addItemValues(item *DataItem) {
 		}
 	}
 	if item.IntegerFields != nil {
+
 		for _, field := range item.IntegerFields {
 			if field.Value == 0 {
 				continue
@@ -265,17 +266,6 @@ func (i *Index) Unlock() {
 	i.mu.RUnlock()
 }
 
-func getPrice(item *DataItem) int {
-	if item.IntegerFields != nil {
-		for _, field := range item.IntegerFields {
-			if field.Id == 4 {
-				return field.Value
-			}
-		}
-	}
-	return 0
-}
-
 func (i *Index) UpsertItemUnsafe(item *DataItem) bool {
 	price_lowered := false
 	current, isUpdate := i.Items[item.Id]
@@ -286,8 +276,8 @@ func (i *Index) UpsertItemUnsafe(item *DataItem) bool {
 		return price_lowered
 	}
 	if isUpdate {
-		old_price := getPrice(current)
-		new_price := getPrice(item)
+		old_price := current.GetPrice()
+		new_price := item.GetPrice()
 		if new_price < old_price {
 			price_lowered = true
 		}

@@ -17,30 +17,30 @@ type SortingData struct {
 	margin   float64
 }
 
-func getSortingData(item *DataItem) SortingData {
-	price := 0
-	orgPrice := 0
-	grade := 0
-	noGrades := 0
+func getSortingData(item *DataItem, data *SortingData) {
+	data.price = 0
+	data.orgPrice = 0
+	data.grade = 0
+	data.noGrades = 0
 
 	for _, f := range item.IntegerFields {
 		if f.Id == 4 {
-			price = f.Value
+			data.price = f.Value
 		}
 		if f.Id == 5 {
-			orgPrice = f.Value
+			data.orgPrice = f.Value
 		}
 		if f.Id == 6 {
-			grade = f.Value
+			data.grade = f.Value
 		}
 		if f.Id == 7 {
-			noGrades = f.Value
+			data.noGrades = f.Value
 		}
 	}
-	return SortingData{price, orgPrice, grade, noGrades, (item.Buyable || item.BuyableInStore), item.MarginPercent}
+	//return SortingData{price, orgPrice, grade, noGrades, (item.Buyable || item.BuyableInStore), item.MarginPercent}
 }
 
-func getPopularValue(itemData SortingData, overrideValue float64) float64 {
+func getPopularValue(itemData *SortingData, overrideValue float64) float64 {
 	v := (overrideValue * 1000.0)
 	if itemData.orgPrice > 0 && itemData.orgPrice-itemData.price > 0 {
 		discount := itemData.orgPrice - itemData.price

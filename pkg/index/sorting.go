@@ -334,9 +334,10 @@ func (s *Sorting) makeItemSortMaps() {
 	createdMap := make(facet.ByValue, l)
 	popularSearchMap := make(map[uint]float64)
 	i := 0
+	itemData := &SortingData{}
 	for _, item := range s.idx.Items {
 		j += 0.0000000000001
-		itemData := getSortingData(item)
+		getSortingData(item, itemData)
 		popular := getPopularValue(itemData, overrides[item.Id])
 		partPopular := popular / 1000.0
 		if item.LastUpdate == 0 {

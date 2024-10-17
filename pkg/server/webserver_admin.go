@@ -5,7 +5,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -304,6 +306,33 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, false, "240")
+	w.WriteHeader(http.StatusOK)
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
+	sorting := ws.Index.Sorting.GetSort("popular")
+	for i, id := range *sorting {
+		item, ok := ws.Index.Items[id]
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(w, "%d;%s, %s, pris %d (%s)", item.Id, item.Title, strings.ReplaceAll(item.BulletPoints, "\n", ", "), item.GetPrice()/100, item.Url)
+
+		for _, field := range item.Fields {
+			base, ok := ws.Index.KeyFacets[field.Id]
+			if ok && !base.HideFacet {
+				fmt.Fprintf(w, "%s %s, ", base.Name, strings.ReplaceAll(field.Value, "\n", "\\n"))
+			}
+		}
+		w.Write([]byte("\n"))
+		if i > 500 {
+			break
+		}
+	}
+
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -315,6 +344,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
 	srv.HandleFunc("/user", ws.User)
+	srv.HandleFunc("GET /rag", ws.RagData)
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
 	//srv.HandleFunc("/get/{id}", ws.AuthMiddleware(ws.GetItem))

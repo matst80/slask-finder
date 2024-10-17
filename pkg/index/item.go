@@ -80,6 +80,19 @@ func MakeResultItem(item *DataItem) ResultItem {
 	}
 }
 
+func (item *DataItem) GetPrice() int {
+
+	if item.IntegerFields != nil {
+		for _, field := range item.IntegerFields {
+			if field.Id == 4 {
+				return field.Value
+			}
+		}
+	}
+	return 0
+
+}
+
 func (item *DataItem) MergeKeyFields(updates []CategoryUpdate) {
 	for _, update := range updates {
 		found := false

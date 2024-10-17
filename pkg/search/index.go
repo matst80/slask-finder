@@ -72,13 +72,15 @@ func absMin(x, y int) int {
 func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
 	matching := make([]tokenScore, 0)
 	tl := len(token)
+	score := 0.0
+	found := false
 	for _, i := range i.Tokens {
 		il := len(i)
 		if il < tl {
 			continue
 		}
-		score := 0.0
-		found := false
+		score = 0.0
+		found = false
 		for idx, chr := range token {
 			found = false
 			for jdx, jchr := range i {
