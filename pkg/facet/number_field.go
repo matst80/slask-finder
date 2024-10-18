@@ -10,14 +10,19 @@ type FieldNumberValue interface {
 
 type NumberField[V FieldNumberValue] struct {
 	*BaseField
+	*NumberRange[V]
 	buckets map[int]Bucket[V]
+	all     *IdList
 	Count   int
-	Min     V
-	Max     V
 }
 
 func (f *NumberField[V]) MatchesRange(minValue V, maxValue V) *IdList {
-
+	if minValue > maxValue {
+		return &IdList{}
+	}
+	if minValue <= f.Min && maxValue >= f.Max {
+		return f.all
+	}
 	minBucket := GetBucket(max(minValue, f.Min))
 	maxBucket := GetBucket(min(maxValue, f.Max))
 	found := make(IdList, f.Count)
@@ -57,15 +62,17 @@ type NumberRange[V FieldNumberValue] struct {
 
 func (f *NumberField[V]) Bounds() NumberRange[V] {
 
-	return NumberRange[V]{Min: f.Min, Max: f.Max}
+	return *f.NumberRange
 }
 
 func (f *NumberField[V]) AddValueLink(value V, id uint) {
-	bucket := GetBucket(value)
-	bucketValues, ok := f.buckets[bucket]
+
 	f.Min = min(f.Min, value)
 	f.Max = max(f.Max, value)
 	f.Count++
+	f.all.Add(id)
+	bucket := GetBucket(value)
+	bucketValues, ok := f.buckets[bucket]
 	if !ok {
 		f.buckets[bucket] = MakeBucket(value, id)
 	} else {
@@ -76,7 +83,7 @@ func (f *NumberField[V]) AddValueLink(value V, id uint) {
 func (f *NumberField[V]) RemoveValueLink(value V, id uint) {
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-
+	delete(*f.all, id)
 	if ok {
 		f.Count--
 		bucketValues.RemoveValueLink(value, id)
@@ -93,14 +100,18 @@ func (f *NumberField[V]) GetRangeForIds(ids *IdList) NumberRange[V] {
 
 func NewNumberField[V FieldNumberValue](field *BaseField, value V, ids *IdList) *NumberField[V] {
 	return &NumberField[V]{
-		BaseField: field,
-		buckets:   map[int]Bucket[V]{GetBucket(value): MakeBucketList(value, ids)},
+		BaseField:   field,
+		NumberRange: &NumberRange[V]{Min: value, Max: value},
+		all:         ids,
+		buckets:     map[int]Bucket[V]{GetBucket(value): MakeBucketList(value, ids)},
 	}
 }
 
 func EmptyNumberField[V FieldNumberValue](field *BaseField) *NumberField[V] {
 	return &NumberField[V]{
-		BaseField: field,
-		buckets:   map[int]Bucket[V]{},
+		BaseField:   field,
+		NumberRange: &NumberRange[V]{Min: 0, Max: 0},
+		all:         &IdList{},
+		buckets:     map[int]Bucket[V]{},
 	}
 }
