@@ -82,7 +82,7 @@ func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortI
 
 	for key, field := range i.Facets {
 		base = field.GetBaseField()
-		if base.HideFacet || (base.Type == "" && needsTruncation) {
+		if base.HideFacet || ((base.Type == "" || base.Priority < 1000) && needsTruncation) {
 
 		} else {
 			switch field.GetType() {
@@ -120,8 +120,8 @@ func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortI
 }
 
 type JsonFacet struct {
-	facet.BaseField
-	FieldResult
+	*facet.BaseField
+	Result FieldResult `json:"result,omitempty"`
 }
 
 func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *facet.SortIndex) []JsonFacet {
@@ -140,7 +140,7 @@ func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *facet.SortInd
 			if !base.HideFacet || !f.HasValues() {
 
 				sorted[idx] = JsonFacet{
-					*base,
+					base,
 					f,
 				}
 				idx++

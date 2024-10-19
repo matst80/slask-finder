@@ -6,11 +6,12 @@ import (
 	"os"
 	"runtime"
 
+	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 )
 
 func NewPersistance() *Persistance {
-	// gob.Register(map[string]interface{}{})
+	gob.Register(index.DataItem{})
 	// gob.Register([]interface{}(nil))
 	return &Persistance{
 		File:         "data/index-v2.dbz",
@@ -18,29 +19,44 @@ func NewPersistance() *Persistance {
 	}
 }
 
-type KeyFieldValue struct {
-	Value string `json:"value"`
-	Id    uint   `json:"id"`
+// type KeyFieldValue struct {
+// 	Value string `json:"value"`
+// 	Id    uint   `json:"id"`
+// }
+
+// type DecimalFieldValue struct {
+// 	Value float64 `json:"value"`
+// 	Id    uint    `json:"id"`
+// }
+
+// type IntegerFieldValue struct {
+// 	Value int  `json:"value"`
+// 	Id    uint `json:"id"`
+// }
+
+// type ItemFields struct {
+// 	Fields        []KeyFieldValue     `json:"values"`
+// 	DecimalFields []DecimalFieldValue `json:"numberValues"`
+// 	IntegerFields []IntegerFieldValue `json:"integerValues"`
+// }
+// type StoredItem struct {
+// 	index.BaseItem
+// 	ItemFields
+// }
+
+type Field struct {
+	Id    uint
+	Value interface{}
 }
 
-type DecimalFieldValue struct {
-	Value float64 `json:"value"`
-	Id    uint    `json:"id"`
+type PersistanceItem struct {
+	Data   index.BaseItem
+	Fields []Field
 }
 
-type IntegerFieldValue struct {
-	Value int  `json:"value"`
-	Id    uint `json:"id"`
-}
-
-type ItemFields struct {
-	Fields        []KeyFieldValue     `json:"values"`
-	DecimalFields []DecimalFieldValue `json:"numberValues"`
-	IntegerFields []IntegerFieldValue `json:"integerValues"`
-}
-type StoredItem struct {
-	index.BaseItem
-	ItemFields
+type PersistanceItem2 struct {
+	Data   index.BaseItem
+	Fields facet.ItemFields
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {
@@ -59,18 +75,18 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 	enc := gob.NewDecoder(zipReader)
 	defer zipReader.Close()
+
 	idx.Lock()
 	defer idx.Unlock()
-	//var tmp = &index.DataItem{}
+	tmp := index.DataItem{}
 	for err == nil {
-		tmp := &index.DataItem{}
-		if err = enc.Decode(tmp); err == nil {
 
+		if err = enc.Decode(&tmp); err == nil {
 			idx.UpsertItemUnsafe(tmp)
-
+			tmp = index.DataItem{}
 		}
 	}
-	enc = nil
+	//enc = nil
 	//v = nil
 	//tmp = nil
 	if err.Error() == "EOF" {
@@ -82,7 +98,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
 
-	file, err := os.Create(p.File)
+	file, err := os.Create(p.File + ".tmp")
 	if err != nil {
 		return err
 	}
@@ -99,14 +115,38 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer zipWriter.Close()
 	idx.Lock()
 	defer idx.Unlock()
+
 	for _, item := range idx.Items {
-		err = enc.Encode(*item)
+		store := item.(index.DataItem)
+		err = enc.Encode(store)
 		if err != nil {
 			return err
 		}
 	}
 
 	enc = nil
+	err = os.Rename(p.File+".tmp", p.File)
 
-	return nil
+	return err
 }
+
+// func toSlice(fields map[uint]interface{}) []Field {
+// 	slice := make([]Field, len(fields))
+// 	i := 0
+// 	for id, value := range fields {
+// 		slice[i] = Field{
+// 			Id:    id,
+// 			Value: value,
+// 		}
+// 		i++
+// 	}
+// 	return slice
+// }
+
+// func toMap(fields []Field) *facet.ItemFields {
+// 	m := make(facet.ItemFields, len(fields))
+// 	for _, f := range fields {
+// 		m[f.Id] = f.Value
+// 	}
+// 	return &m
+// }

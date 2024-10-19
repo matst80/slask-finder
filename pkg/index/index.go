@@ -56,7 +56,7 @@ type Index struct {
 	// DecimalFacets map[uint]*DecimalFacet
 	// IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
-	Items         map[uint]*facet.Item
+	Items         map[uint]facet.Item
 	ItemsInStock  map[string]facet.ItemList
 	//AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
@@ -73,7 +73,7 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 		// KeyFacets:     make(map[uint]*KeyFacet),
 		// DecimalFacets: make(map[uint]*DecimalFacet),
 		// IntFacets:     make(map[uint]*IntFacet),
-		Items:        make(map[uint]*facet.Item),
+		Items:        make(map[uint]facet.Item),
 		ItemsInStock: make(map[string]facet.ItemList),
 		// AllItems:      facet.MatchList{},
 		AutoSuggest: AutoSuggest{Trie: search.NewTrie()},
@@ -139,12 +139,16 @@ func (i *Index) addItemValues(item facet.Item) {
 					tree = append(tree, i.categories[cid])
 				}
 			}
+			if !base.HideFacet {
 
-			ok := f.AddValueLink(fieldValue, item)
-			if !ok {
-				delete(i.Facets, id)
+				ok := f.AddValueLink(fieldValue, item)
+				if !ok {
+					delete(i.Facets, id)
+				}
 			}
 
+		} else {
+			delete(i.Facets, id)
 		}
 	}
 
@@ -276,22 +280,22 @@ func (i *Index) UpsertItemUnsafe(item facet.Item) bool {
 		return price_lowered
 	}
 	if isUpdate {
-		old_price := (*current).GetPrice()
+		old_price := current.GetPrice()
 		new_price := item.GetPrice()
 		if new_price < old_price {
 			price_lowered = true
 		}
-		i.removeItemValues(*current)
+		i.removeItemValues(current)
 	}
 	go noUpdates.Inc()
 	//	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
-	i.Items[item.GetId()] = &item
+	i.Items[item.GetId()] = item
 	if i.ChangeHandler != nil {
 		return price_lowered
 	}
-	go i.AutoSuggest.InsertItem(&item)
+	go i.AutoSuggest.InsertItem(item)
 	if i.Search != nil {
 		go i.Search.CreateDocument(item.GetId(), item.ToString())
 	}
@@ -311,7 +315,7 @@ func (i *Index) deleteItemUnsafe(id uint) {
 	item, ok := i.Items[id]
 	if ok {
 		noDeletes.Inc()
-		i.removeItemValues(*item)
+		i.removeItemValues(item)
 		delete(i.Items, id)
 		// delete(i.AllItems, id)
 		if i.ChangeHandler != nil {

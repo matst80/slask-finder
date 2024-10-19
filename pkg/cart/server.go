@@ -93,12 +93,12 @@ func (s *CartServer) GetSessionCart(w http.ResponseWriter, req *http.Request) {
 
 func (s *CartServer) GetCartItem(item *CartInputItem) (*CartItem, error) {
 	s.Index.Lock()
-	iItem, ok := s.Index.Items[item.ItemId]
+	idxItem, ok := s.Index.Items[item.ItemId]
 	s.Index.Unlock()
 	if !ok {
 		return nil, errors.New("item not found")
 	}
-	dataItem := (*iItem).GetBaseItem()
+	dataItem := idxItem.GetBaseItem()
 	cartItem := CartItem{
 		PromotionInput: &promotions.PromotionInput{},
 		Title:          dataItem.Title,

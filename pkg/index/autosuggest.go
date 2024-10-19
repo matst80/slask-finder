@@ -13,19 +13,19 @@ type AutoSuggest struct {
 	Trie *search.Trie
 }
 
-func (a *AutoSuggest) Insert(word string, item *facet.Item) {
+func (a *AutoSuggest) Insert(word string, item facet.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.insertUnsafe(word, item)
 }
 
-func (a *AutoSuggest) insertUnsafe(word string, item *facet.Item) {
+func (a *AutoSuggest) insertUnsafe(word string, item facet.Item) {
 	if len(word) > 1 {
-		a.Trie.Insert(word, item)
+		a.Trie.Insert(word, &item)
 	}
 }
 
-func (a *AutoSuggest) InsertItem(item *facet.Item) {
+func (a *AutoSuggest) InsertItem(item facet.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -33,7 +33,7 @@ func (a *AutoSuggest) InsertItem(item *facet.Item) {
 		a.insertUnsafe(word, item)
 		return true
 	}
-	title := strings.ToLower((*item).GetTitle())
+	title := strings.ToLower(item.GetTitle())
 	search.SplitWords(strings.ToLower(title), addItem)
 }
 

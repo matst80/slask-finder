@@ -114,33 +114,33 @@ func (s *SortIndex) SortMap(ids ItemList, breakAt int) []*Item {
 
 }
 
-func (s *SortIndex) SortMatch(ids MatchList, breakAt int) []uint {
+// func (s *SortIndex) SortMatch(ids MatchList, breakAt int) []uint {
 
-	if s == nil {
-		log.Printf("SortIndex is nil")
-		return []uint{}
-	}
+// 	if s == nil {
+// 		log.Printf("SortIndex is nil")
+// 		return []uint{}
+// 	}
 
-	l := min(len(ids), breakAt)
-	sortedIds := make([]uint, l)
-	idx := 0
+// 	l := min(len(ids), breakAt)
+// 	sortedIds := make([]uint, l)
+// 	idx := 0
 
-	for _, id := range *s {
-		if idx >= l {
-			break
-		}
-		_, ok := ids[id]
-		if ok {
-			sortedIds[idx] = id
+// 	for _, id := range *s {
+// 		if idx >= l {
+// 			break
+// 		}
+// 		_, ok := ids[id]
+// 		if ok {
+// 			sortedIds[idx] = id
 
-			idx++
+// 			idx++
 
-		}
-	}
+// 		}
+// 	}
 
-	return sortedIds
+// 	return sortedIds
 
-}
+// }
 
 type Lookup struct {
 	Id    uint

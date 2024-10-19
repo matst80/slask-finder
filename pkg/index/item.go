@@ -41,62 +41,12 @@ type BaseItem struct {
 
 type DataItem struct {
 	BaseItem
-	facet.ItemFields
-	//fieldValues   *FieldValues
-}
-
-type ItemKeyField struct {
-	Value *string `json:"value"`
-}
-
-type ItemNumberField[K facet.FieldNumberValue] struct {
-	Value K `json:"value"`
-}
-
-// type Item struct {
-// 	*BaseItem
-// 	Fields        map[uint]ItemKeyField
-// 	DecimalFields map[uint]ItemNumberField[float64]
-// 	IntegerFields map[uint]ItemNumberField[int]
-// 	fieldValues   *FieldValues
-// }
-
-type FieldValues map[uint]interface{}
-
-type ResultItem struct {
-	*BaseItem
-	Fields FieldValues `json:"values"`
-}
-
-func MakeResultItem(item *DataItem) ResultItem {
-	return ResultItem{
-		BaseItem: &item.BaseItem,
-		Fields:   item.getFieldValues(),
-	}
+	Fields facet.ItemFields `json:"facets"`
 }
 
 func (item DataItem) GetId() uint {
 	return item.Id
 }
-
-// func (item *DataItem) GetPrice() int {
-
-// 	if item.Fields != nil {
-// 		for id, field := range item.Fields {
-// 			if id == 4 {
-// 				return field.(int)
-// 			}
-// 		}
-// 	}
-// 	return 0
-
-// }
-
-// func (item *DataItem) MergeKeyFields(updates []CategoryUpdate) {
-// 	for _, update := range updates {
-// 		item.Fields[update.Id] = update.Value
-// 	}
-// }
 
 func (item DataItem) IsDeleted() bool {
 	return item.SaleStatus == "MDD"
@@ -110,18 +60,8 @@ func (item DataItem) GetStock() facet.LocationStock {
 	return item.Stock
 }
 
-func ToResultItem(item *DataItem, resultItem *ResultItem) {
-	resultItem.BaseItem = &item.BaseItem
-	resultItem.Fields = item.getFieldValues()
-}
-
-func (item *DataItem) getFieldValues() FieldValues {
-	return item.Fields
-
-}
-
 func (item DataItem) GetFields() map[uint]interface{} {
-	return item.ItemFields.Fields
+	return item.Fields
 }
 
 func (item DataItem) GetLastUpdated() int64 {
@@ -191,4 +131,7 @@ func (item DataItem) GetBaseItem() facet.BaseItem {
 		Price: item.GetPrice(),
 		Img:   item.Img,
 	}
+}
+func (item DataItem) GetItem() interface{} {
+	return item.BaseItem
 }

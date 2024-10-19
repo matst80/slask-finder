@@ -38,6 +38,7 @@ type Item interface {
 	GetTitle() string
 	ToString() string
 	GetBaseItem() BaseItem
+	GetItem() interface{}
 }
 
 const FacetKeyType = 1
@@ -61,7 +62,7 @@ func (i *ItemList) Add(item Item) {
 
 type KeyField struct {
 	*BaseField
-	keys map[string]*ItemList
+	keys map[string]ItemList
 	//values []IdList
 	//len    uint
 }
@@ -86,7 +87,7 @@ func (f KeyField) Match(input interface{}) *ItemList {
 
 		list, found := f.keys[value]
 		if found {
-			return list
+			return &list
 		}
 	}
 	return &ItemList{}
@@ -97,13 +98,16 @@ func (f KeyField) GetBaseField() *BaseField {
 }
 
 func (f KeyField) AddValueLink(data interface{}, item Item) bool {
-	value, ok := data.(string)
+	str, ok := data.(string)
 	if !ok {
 		return false
 	}
-	list, found := f.keys[value]
+	if len(str) > 64 {
+		str = str[:61] + "..."
+	}
+	list, found := f.keys[str]
 	if !found {
-		f.keys[value] = &ItemList{item.GetId(): &item}
+		f.keys[str] = ItemList{item.GetId(): &item}
 	} else {
 		list.Add(item)
 	}
@@ -111,24 +115,21 @@ func (f KeyField) AddValueLink(data interface{}, item Item) bool {
 }
 
 func (f KeyField) RemoveValueLink(data interface{}, id uint) {
-	value, ok := data.(string)
+	str, ok := data.(string)
 	if !ok {
 		return
 	}
-	key, found := f.keys[value]
+	key, found := f.keys[str]
 	if found {
-		delete(*key, id)
+		delete(key, id)
 	}
-	// idList, ok := f.values[value]
-	// if ok {
-	// 	delete(idList, id)
-	// }
+
 }
 
 func (f *KeyField) TotalCount() int {
 	total := 0
 	for _, ids := range f.keys {
-		total += len(*ids)
+		total += len(ids)
 	}
 	return total
 }
@@ -137,34 +138,9 @@ func (f *KeyField) UniqueCount() int {
 	return len(f.keys)
 }
 
-// func (f *KeyField) GetValues() interface{} {
-// 	return f.values
-// }
-
-// func count(ids IdList, other IdList) int {
-// 	count := 0
-// 	for id := range ids {
-// 		if _, ok := other[id]; ok {
-// 			count++
-// 		}
-// 	}
-// 	return count
-// }
-
-// func (f *KeyField) GetValuesForIds(ids IdList) map[string]int {
-// 	res := map[string]int{}
-// 	for value, valueIds := range f.values {
-// 		idCount := count(valueIds, ids)
-// 		if idCount > 0 {
-// 			res[value] = idCount
-// 		}
-// 	}
-// 	return res
-// }
-
 func EmptyKeyValueField(field *BaseField) KeyField {
 	return KeyField{
 		BaseField: field,
-		keys:      map[string]*ItemList{},
+		keys:      map[string]ItemList{},
 	}
 }
