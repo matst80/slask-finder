@@ -241,32 +241,20 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	defer idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	l := len(idx.DecimalFacets) + len(idx.KeyFacets) + len(idx.IntFacets)
+	l := len(idx.Facets)
 	i := 0
 	sortIndex := make(facet.SortIndex, l)
 	sortMap := make(facet.ByValue, l)
+	var base *facet.BaseField
+	for _, item := range idx.Facets {
+		base = item.GetBaseField()
+		if base.HideFacet {
+			continue
+		}
+		sortMap[i] = getFieldLookupValue(*base, overrides[base.Id])
+		i++
+	}
 
-	for _, item := range idx.DecimalFacets {
-		if item.HideFacet {
-			continue
-		}
-		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
-		i++
-	}
-	for _, item := range idx.KeyFacets {
-		if item.HideFacet {
-			continue
-		}
-		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
-		i++
-	}
-	for _, item := range idx.IntFacets {
-		if item.HideFacet {
-			continue
-		}
-		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
-		i++
-	}
 	sortMap = sortMap[:i]
 	sort.Sort(sort.Reverse(sortMap))
 	for idx, item := range sortMap {
@@ -334,26 +322,30 @@ func (s *Sorting) makeItemSortMaps() {
 	createdMap := make(facet.ByValue, l)
 	popularSearchMap := make(map[uint]float64)
 	i := 0
-	itemData := &SortingData{}
-	for _, item := range s.idx.Items {
+	var item facet.Item
+
+	for id, pitem := range s.idx.Items {
+		item = *pitem
+
 		j += 0.0000000000001
-		getSortingData(item, itemData)
-		popular := getPopularValue(itemData, overrides[item.Id])
+		popular := item.GetPopularity() + (overrides[item.GetId()] * 1000)
+		//getSortingData(item, itemData)
+		//popular := getPopularValue(itemData, overrides[item.Id])
 		partPopular := popular / 1000.0
-		if item.LastUpdate == 0 {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: j}
+		if item.GetLastUpdated() == 0 {
+			updatedMap[i] = facet.Lookup{Id: id, Value: j}
 		} else {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.LastUpdate/1000) + j}
+			updatedMap[i] = facet.Lookup{Id: id, Value: float64(ts-item.GetLastUpdated()/1000) + j}
 		}
-		if item.Created == 0 {
-			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
+		if item.GetCreated() == 0 {
+			createdMap[i] = facet.Lookup{Id: id, Value: partPopular + j}
 		} else {
-			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + float64(ts-item.Created/1000) + j}
+			createdMap[i] = facet.Lookup{Id: id, Value: partPopular + float64(ts-item.GetCreated()/1000) + j}
 		}
 
-		priceMap[i] = facet.Lookup{Id: item.Id, Value: float64(itemData.price) + j}
-		popularMap[i] = facet.Lookup{Id: item.Id, Value: popular + j}
-		popularSearchMap[item.Id] = popular / 1000.0
+		priceMap[i] = facet.Lookup{Id: id, Value: float64(item.GetPrice()) + j}
+		popularMap[i] = facet.Lookup{Id: id, Value: popular + j}
+		popularSearchMap[id] = popular / 1000.0
 		i++
 	}
 	if s.idx != nil {

@@ -30,18 +30,13 @@ type ItemProp struct {
 	BuyableInStore  bool         `json:"buyableInStore"`
 }
 
-type LocationStock []struct {
-	Id    string `json:"id"`
-	Level string `json:"level"`
-}
-
 type BaseItem struct {
 	ItemProp
-	StockLevel string        `json:"stockLevel,omitempty"`
-	Stock      LocationStock `json:"stock"`
-	Id         uint          `json:"id"`
-	Sku        string        `json:"sku"`
-	Title      string        `json:"title"`
+	StockLevel string              `json:"stockLevel,omitempty"`
+	Stock      facet.LocationStock `json:"stock"`
+	Id         uint                `json:"id"`
+	Sku        string              `json:"sku"`
+	Title      string              `json:"title"`
 }
 
 type DataItem struct {
@@ -80,35 +75,39 @@ func MakeResultItem(item *DataItem) ResultItem {
 	}
 }
 
-func (item *DataItem) GetPrice() int {
-
-	if item.IntegerFields != nil {
-		for _, field := range item.IntegerFields {
-			if field.Id == 4 {
-				return field.Value
-			}
-		}
-	}
-	return 0
-
+func (item DataItem) GetId() uint {
+	return item.Id
 }
 
-func (item *DataItem) MergeKeyFields(updates []CategoryUpdate) {
-	for _, update := range updates {
-		found := false
-		for idx, f := range item.Fields {
-			if f.Id == update.Id {
-				item.Fields[idx].Value = update.Value
-				found = true
-			}
-		}
-		if !found {
-			item.Fields = append(item.Fields, facet.KeyFieldValue{
-				Value: update.Value,
-				Id:    update.Id,
-			})
-		}
-	}
+// func (item *DataItem) GetPrice() int {
+
+// 	if item.Fields != nil {
+// 		for id, field := range item.Fields {
+// 			if id == 4 {
+// 				return field.(int)
+// 			}
+// 		}
+// 	}
+// 	return 0
+
+// }
+
+// func (item *DataItem) MergeKeyFields(updates []CategoryUpdate) {
+// 	for _, update := range updates {
+// 		item.Fields[update.Id] = update.Value
+// 	}
+// }
+
+func (item DataItem) IsDeleted() bool {
+	return item.SaleStatus == "MDD"
+}
+
+func (item DataItem) GetPrice() int {
+	return item.Fields[4].(int)
+}
+
+func (item DataItem) GetStock() facet.LocationStock {
+	return item.Stock
 }
 
 func ToResultItem(item *DataItem, resultItem *ResultItem) {
@@ -117,26 +116,79 @@ func ToResultItem(item *DataItem, resultItem *ResultItem) {
 }
 
 func (item *DataItem) getFieldValues() FieldValues {
-	//if item.fieldValues == nil {
+	return item.Fields
 
-	fields := FieldValues{}
-	if item.Fields != nil {
-		for _, value := range item.Fields {
-			fields[value.Id] = value.Value
-		}
-	}
-	if item.DecimalFields != nil {
-		for _, value := range item.DecimalFields {
-			fields[value.Id] = value.Value
-		}
-	}
-	if item.IntegerFields != nil {
-		for _, value := range item.IntegerFields {
-			fields[value.Id] = value.Value
-		}
-	}
-	return fields
-	//}
-	//return item.fieldValues
+}
 
+func (item DataItem) GetFields() map[uint]interface{} {
+	return item.ItemFields.Fields
+}
+
+func (item DataItem) GetLastUpdated() int64 {
+	return item.LastUpdate
+}
+
+func (item DataItem) GetCreated() int64 {
+	return item.Created
+}
+
+func (item DataItem) GetPopularity() float64 {
+	v := 0.0
+	price := 0
+	orgPrice := 0
+	grade := 0
+	noGrades := 0
+
+	for id, f := range item.Fields {
+		if id == 4 {
+			price = f.(int)
+		}
+		if id == 5 {
+			orgPrice = f.(int)
+		}
+		if id == 6 {
+			grade = f.(int)
+		}
+		if id == 7 {
+			noGrades = f.(int)
+		}
+	}
+
+	if orgPrice > 0 && orgPrice-price > 0 {
+		discount := orgPrice - price
+		v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
+	}
+	if item.Buyable || item.BuyableInStore {
+		v += 5000
+	}
+	if price > 99999900 {
+		v -= 2500
+	}
+	if price < 10000 {
+		v -= 800
+	}
+	if price%900 == 0 {
+		v += 700
+	}
+	v += item.MarginPercent * 400
+	return v + float64(grade*min(noGrades, 500))
+
+}
+
+func (item DataItem) GetTitle() string {
+	return item.Title
+}
+
+func (item DataItem) ToString() string {
+	return item.Title
+}
+
+func (item DataItem) GetBaseItem() facet.BaseItem {
+	return facet.BaseItem{
+		Id:    item.Id,
+		Sku:   item.Sku,
+		Title: item.Title,
+		Price: item.GetPrice(),
+		Img:   item.Img,
+	}
 }

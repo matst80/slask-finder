@@ -9,9 +9,8 @@ import (
 )
 
 type NumberSearch[K float64 | int] struct {
-	Id  uint `json:"id"`
-	Min K    `json:"min"`
-	Max K    `json:"max"`
+	facet.NumberRange[K]
+	Id uint `json:"id"`
 }
 
 type StringSearch struct {
@@ -25,42 +24,37 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer" schema:"-"`
 }
 
-func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *facet.IdList) {
+func (i *Index) Match(search *Filters, initialIds *facet.ItemList, idList chan<- *facet.ItemList) {
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	results := make(chan *facet.IdList)
+	results := make(chan *facet.ItemList)
 
-	parseKeys := func(field StringSearch, fld *facet.KeyField) {
-		results <- fld.Matches(field.Value)
+	parseKeys := func(field StringSearch, fld facet.Facet) {
+		results <- fld.Match(field.Value)
 	}
-	parseInts := func(field NumberSearch[int], fld *facet.NumberField[int]) {
-		results <- fld.MatchesRange(field.Min, field.Max)
+	parseInts := func(field NumberSearch[int], fld facet.Facet) {
+		results <- fld.Match(field.NumberRange)
 	}
-	parseNumber := func(field NumberSearch[float64], fld *facet.NumberField[float64]) {
-		results <- fld.MatchesRange(field.Min, field.Max)
+	parseNumber := func(field NumberSearch[float64], fld facet.Facet) {
+		results <- fld.Match(field.NumberRange)
 	}
 	for _, fld := range search.StringFilter {
-		if f, ok := i.KeyFacets[fld.Id]; ok {
+		if f, ok := i.Facets[fld.Id]; ok {
 			cnt++
 			go parseKeys(fld, f)
 		}
 	}
 	for _, fld := range search.IntegerFilter {
-		if f, ok := i.IntFacets[fld.Id]; ok {
-			if (f.Max == fld.Max && f.Min == fld.Min) || (f.Max == 0 && f.Min == 0) || (fld.Min == fld.Max) {
-				continue
-			}
+		if f, ok := i.Facets[fld.Id]; ok {
 			cnt++
 			go parseInts(fld, f)
 		}
 	}
 
 	for _, fld := range search.NumberFilter {
-		if f, ok := i.DecimalFacets[fld.Id]; ok {
-			if (f.Max == fld.Max && f.Min == fld.Min) || (f.Max == 0 && f.Min == 0) || (fld.Min == fld.Max) {
-				continue
-			}
+		if f, ok := i.Facets[fld.Id]; ok {
+
 			cnt++
 			go parseNumber(fld, f)
 		}
@@ -81,11 +75,11 @@ func (i *Index) Match(search *Filters, initialIds *facet.IdList, idList chan<- *
 }
 
 type KeyFieldWithValue struct {
-	*facet.KeyField
-	Value string
+	facet.Facet
+	Value interface{}
 }
 
-func (i *Index) Related(id uint) (*facet.IdList, error) {
+func (i *Index) Related(id uint) (*facet.ItemList, error) {
 	i.Lock()
 	defer i.Unlock()
 	item, ok := i.Items[uint(id)]
@@ -93,31 +87,35 @@ func (i *Index) Related(id uint) (*facet.IdList, error) {
 		return nil, fmt.Errorf("Item with id %d not found", id)
 	}
 	fields := make([]KeyFieldWithValue, 0)
-	result := facet.IdList{}
-
-	for _, itemField := range item.Fields {
-		field, ok := i.KeyFacets[itemField.Id]
-		if ok && field.CategoryLevel != 1 {
+	result := facet.ItemList{}
+	var base *facet.BaseField
+	for id, itemField := range (*item).GetFields() {
+		field, ok := i.Facets[id]
+		if !ok {
+			continue
+		}
+		base = field.GetBaseField()
+		if ok && base.CategoryLevel != 1 {
 			fields = append(fields, KeyFieldWithValue{
-				KeyField: field,
-				Value:    itemField.Value,
+				Facet: field,
+				Value: itemField,
 			})
 		}
 	}
 	slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-		return cmp.Compare(b.Priority, a.Priority)
+		return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
 	})
 	if len(fields) == 0 {
 		return &result, nil
 	}
 
 	first := fields[0]
-	result = *first.Matches(first.Value)
+	result = *first.Match(first.Value)
 	for _, field := range fields[1:] {
 		if len(result) < 500 {
 			return &result, nil
 		}
-		next := field.Matches(field.Value)
+		next := field.Match(field.Value)
 		result.Intersect(*next)
 	}
 	return &result, nil

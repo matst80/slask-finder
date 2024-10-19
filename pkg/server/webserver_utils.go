@@ -43,9 +43,9 @@ func removeEmptyStrings(s []string) []string {
 	return r
 }
 
-func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *facet.IdList {
+func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *facet.ItemList {
 
-	ch := make(chan *facet.IdList)
+	ch := make(chan *facet.ItemList)
 	sortChan := make(chan *facet.SortIndex)
 	defer close(sortChan)
 	defer close(ch)
@@ -59,7 +59,7 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 	return <-ch
 }
 
-func getFacetsForIds(matching *facet.IdList, index *index.Index, filters *index.Filters, fieldSort *facet.SortIndex, facetChan chan<- index.Facets) {
+func getFacetsForIds(matching *facet.ItemList, index *index.Index, filters *index.Filters, fieldSort *facet.SortIndex, facetChan chan<- []index.JsonFacet) {
 	facetChan <- index.GetFacetsFromResult(matching, filters, fieldSort)
 }
 

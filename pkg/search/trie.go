@@ -9,7 +9,7 @@ type Trie struct {
 type Node struct {
 	Children map[rune]*Node
 	IsLeaf   bool
-	Items    facet.IdList
+	Items    facet.ItemList
 }
 
 func NewTrie() *Trie {
@@ -20,7 +20,7 @@ func NewTrie() *Trie {
 	}
 }
 
-func (t *Trie) Insert(word string, id uint) {
+func (t *Trie) Insert(word string, item *facet.Item) {
 	node := t.Root
 	for _, r := range word {
 		if _, ok := node.Children[r]; !ok {
@@ -30,11 +30,12 @@ func (t *Trie) Insert(word string, id uint) {
 		}
 		node = node.Children[r]
 	}
+	id := (*item).GetId()
 	node.IsLeaf = true
 	if node.Items == nil {
-		node.Items = facet.IdList{id: struct{}{}}
+		node.Items = facet.ItemList{id: item}
 	}
-	node.Items[id] = struct{}{}
+	node.Items[id] = item
 }
 
 func (t *Trie) Search(word string) bool {
@@ -49,8 +50,8 @@ func (t *Trie) Search(word string) bool {
 }
 
 type Match struct {
-	Word string        `json:"word"`
-	Ids  *facet.IdList `json:"ids"`
+	Word  string          `json:"word"`
+	Items *facet.ItemList `json:"ids"`
 }
 
 func (t *Trie) FindMatches(prefix string) []Match {
@@ -68,8 +69,8 @@ func (t *Trie) findMatches(node *Node, prefix string) []Match {
 	var matches []Match
 	if node.IsLeaf {
 		matches = append(matches, Match{
-			Word: prefix,
-			Ids:  &node.Items,
+			Word:  prefix,
+			Items: &node.Items,
 		})
 	}
 	for r, child := range node.Children {

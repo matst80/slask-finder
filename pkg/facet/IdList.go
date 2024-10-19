@@ -12,15 +12,15 @@ func (r *IdList) Add(id uint) {
 	(*r)[id] = empty
 }
 
-func (r *IdList) SortedIds(srt *SortIndex, maxItems int) []uint {
+func (r *ItemList) SortedIds(srt *SortIndex, maxItems int) []*Item {
 	return srt.SortMap(*r, maxItems)
 }
 
-func (r *IdList) SortedIdsWithStaticPositions(srt *SortIndex, sp map[int]uint, maxItems int) []uint {
+func (r *ItemList) SortedIdsWithStaticPositions(srt *SortIndex, sp map[int]uint, maxItems int) []*Item {
 	return srt.SortMapWithStaticPositions(*r, sp, maxItems)
 }
 
-func (a IdList) Intersect(b IdList) {
+func (a ItemList) Intersect(b ItemList) {
 	for id := range a {
 		_, ok := b[id]
 		if !ok {
@@ -29,11 +29,11 @@ func (a IdList) Intersect(b IdList) {
 	}
 }
 
-func (i IdList) Merge(other *IdList) {
+func (i ItemList) Merge(other *ItemList) {
 	maps.Copy(i, *other)
 }
 
-func (i IdList) HasIntersection(other *IdList) bool {
+func (i ItemList) HasIntersection(other *ItemList) bool {
 	for id := range i {
 		_, ok := (*other)[id]
 		if ok {
@@ -43,15 +43,15 @@ func (i IdList) HasIntersection(other *IdList) bool {
 	return false
 }
 
-func MakeIntersectResult(r chan *IdList, len int) *IdList {
+func MakeIntersectResult(r chan *ItemList, len int) *ItemList {
 
 	if len == 0 {
-		return &IdList{}
+		return &ItemList{}
 	}
 	if len == 1 {
 		return <-r
 	}
-	first := IdList{}
+	first := ItemList{}
 	first.Merge(<-r)
 	//first := <-r
 	for i := 1; i < len; i++ {

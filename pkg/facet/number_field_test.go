@@ -5,14 +5,26 @@ import (
 	"testing"
 )
 
+type TestItem struct {
+	Id uint
+}
+
+func makeItem(id uint) *TestItem {
+	return &TestItem{Id: id}
+}
+
+func (i TestItem) GetId() uint {
+	return i.Id
+}
+
 var total = 20000
 
 func makeNumberField[K float64 | int]() *NumberField[K] {
 	r := EmptyNumberField[K](&BaseField{Id: 1, Name: "number", Description: "number field"})
 	for i := 0; i < total; i++ {
 		for j := 0; j < 100; j++ {
-			r.AddValueLink(K(i), uint((total*100)+j))
-			r.AddValueLink(K(i), uint((total*100)+total+i+j))
+			r.AddValueLink(K(i), makeItem(uint((total*100)+j)))
+			r.AddValueLink(K(i), makeItem(uint((total*100)+total+i+j)))
 		}
 	}
 	return r

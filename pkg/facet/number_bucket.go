@@ -1,22 +1,18 @@
 package facet
 
-type NumberBucket struct {
-	IdList
-}
-
 type Bucket[V FieldNumberValue] struct {
-	values map[V]IdList
+	values map[V]ItemList
 	//	all    *MatchList
 }
 
-func (b *Bucket[V]) AddValueLink(value V, id uint) {
+func (b *Bucket[V]) AddValueLink(value V, item Item) {
 	idList, ok := b.values[value]
 
 	if !ok {
-		b.values[value] = IdList{id: struct{}{}}
+		b.values[value] = ItemList{item.GetId(): &item}
 
 	} else {
-		idList.Add(id)
+		idList.Add(item)
 	}
 	//maps.Copy(*b.all, lst)
 	//b.all.Merge(&lst)
@@ -31,17 +27,10 @@ func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
 	//delete(*b.all, id)
 }
 
-func MakeBucket[V FieldNumberValue](value V, id uint) Bucket[V] {
+func MakeBucket[V FieldNumberValue](value V, item Item) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]IdList{value: {id: struct{}{}}},
+		values: map[V]ItemList{value: {item.GetId(): &item}},
 		//		all:    &MatchList{id: fields},
-	}
-}
-
-func MakeBucketList[V FieldNumberValue](value V, ids *IdList) Bucket[V] {
-	return Bucket[V]{
-		values: map[V]IdList{value: *ids},
-		//all:    ids,
 	}
 }
 

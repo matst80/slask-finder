@@ -4,25 +4,10 @@ import (
 	"maps"
 )
 
-type KeyFieldValue struct {
-	Value string `json:"value"`
-	Id    uint   `json:"id"`
-}
-
-type DecimalFieldValue struct {
-	Value float64 `json:"value"`
-	Id    uint    `json:"id"`
-}
-
-type IntegerFieldValue struct {
-	Value int  `json:"value"`
-	Id    uint `json:"id"`
-}
-
 type ItemFields struct {
-	Fields        []KeyFieldValue     `json:"values"`
-	DecimalFields []DecimalFieldValue `json:"numberValues"`
-	IntegerFields []IntegerFieldValue `json:"integerValues"`
+	Fields map[uint]interface{} `json:"values"`
+	//DecimalFields []DecimalFieldValue `json:"numberValues"`
+	//IntegerFields []IntegerFieldValue `json:"integerValues"`
 }
 
 type MatchList map[uint]*ItemFields

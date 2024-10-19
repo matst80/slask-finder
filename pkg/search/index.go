@@ -206,7 +206,7 @@ func (d *DocumentResult) ToSortIndex() *facet.SortIndex {
 	return &sortIndex
 }
 
-func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *facet.IdList, baseMap map[uint]float64) *facet.SortIndex {
+func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *facet.ItemList, baseMap map[uint]float64) *facet.SortIndex {
 
 	l := len(*d)
 
@@ -260,11 +260,13 @@ type ResultWithSort struct {
 	SortIndex facet.SortIndex
 }
 
-func (d *DocumentResult) ToResult() *facet.IdList {
-	res := facet.IdList{}
+func (d *DocumentResult) ToResult(items map[uint]*facet.Item) *facet.ItemList {
+	res := facet.ItemList{}
 
 	for id := range *d {
-		res[id] = struct{}{}
+		if item, ok := items[id]; ok {
+			res[id] = item
+		}
 		//res.AddId(id)
 	}
 	return &res
@@ -281,6 +283,6 @@ func (d *DocumentResult) GetSorting(sortChan chan<- *facet.SortIndex) {
 	sortChan <- d.ToSortIndex()
 }
 
-func (d *DocumentResult) GetSortingWithAdditionalItems(idList *facet.IdList, sortMap map[uint]float64, sortChan chan<- *facet.SortIndex) {
+func (d *DocumentResult) GetSortingWithAdditionalItems(idList *facet.ItemList, sortMap map[uint]float64, sortChan chan<- *facet.SortIndex) {
 	sortChan <- d.ToSortIndexWithAdditionalItems(idList, sortMap)
 }

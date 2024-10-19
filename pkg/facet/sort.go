@@ -52,14 +52,14 @@ func (s *SortIndex) ToString() string {
 	return buffer.String()
 }
 
-func (s *SortIndex) SortMapWithStaticPositions(ids IdList, staticPositions map[int]uint, breakAt int) []uint {
+func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map[int]uint, breakAt int) []*Item {
 	if s == nil {
 		log.Printf("SortIndex is nil")
-		return []uint{}
+		return []*Item{}
 	}
 
 	l := min(len(ids), breakAt)
-	sortedIds := make([]uint, l)
+	sortedIds := make([]*Item, l)
 	idx := 0
 
 	for _, id := range *s {
@@ -67,16 +67,16 @@ func (s *SortIndex) SortMapWithStaticPositions(ids IdList, staticPositions map[i
 			break
 		}
 		if sp, ok := staticPositions[idx]; ok {
-			_, ok := ids[sp]
+			item, ok := ids[sp]
 			if ok {
-				sortedIds[idx] = sp
+				sortedIds[idx] = item
 				idx++
 			}
 		}
 
-		_, ok := ids[id]
+		item, ok := ids[id]
 		if ok {
-			sortedIds[idx] = id
+			sortedIds[idx] = item
 
 			idx++
 
@@ -86,24 +86,24 @@ func (s *SortIndex) SortMapWithStaticPositions(ids IdList, staticPositions map[i
 	return sortedIds
 }
 
-func (s *SortIndex) SortMap(ids IdList, breakAt int) []uint {
+func (s *SortIndex) SortMap(ids ItemList, breakAt int) []*Item {
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
-		return []uint{}
+		return []*Item{}
 	}
 
 	l := min(len(ids), breakAt)
-	sortedIds := make([]uint, l)
+	sortedIds := make([]*Item, l)
 	idx := 0
 
 	for _, id := range *s {
 		if idx >= l {
 			break
 		}
-		_, ok := ids[id]
+		item, ok := ids[id]
 		if ok {
-			sortedIds[idx] = id
+			sortedIds[idx] = item
 
 			idx++
 

@@ -8,6 +8,7 @@ import (
 
 	"tornberg.me/facet-search/pkg/common"
 	"tornberg.me/facet-search/pkg/index"
+
 	"tornberg.me/facet-search/pkg/promotions"
 	"tornberg.me/facet-search/pkg/tracking"
 )
@@ -92,26 +93,21 @@ func (s *CartServer) GetSessionCart(w http.ResponseWriter, req *http.Request) {
 
 func (s *CartServer) GetCartItem(item *CartInputItem) (*CartItem, error) {
 	s.Index.Lock()
-	dataItem, ok := s.Index.Items[item.ItemId]
+	iItem, ok := s.Index.Items[item.ItemId]
 	s.Index.Unlock()
 	if !ok {
 		return nil, errors.New("item not found")
 	}
+	dataItem := (*iItem).GetBaseItem()
 	cartItem := CartItem{
 		PromotionInput: &promotions.PromotionInput{},
 		Title:          dataItem.Title,
 		ImageUrl:       dataItem.Img,
+		Id:             item.ItemId,
 	}
 	cartItem.Sku = dataItem.Sku
 	cartItem.Quantity = item.Quantity
-
-	for _, field := range dataItem.IntegerFields {
-		if field.Id == 4 {
-			cartItem.Price = field.Value
-		} else if field.Id == 5 {
-			cartItem.OriginalPrice = field.Value
-		}
-	}
+	cartItem.Price = dataItem.Price
 
 	return &cartItem, nil
 }

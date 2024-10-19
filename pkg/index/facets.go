@@ -1,134 +1,154 @@
 package index
 
 import (
-	"log"
-
 	"tornberg.me/facet-search/pkg/facet"
 )
 
-type KeyResult struct {
-	values map[string]int
+type Facets map[uint]FieldResult
+
+type FieldResult interface {
+	AddValue(value interface{})
+	HasValues() bool
 }
 
-type JsonKeyResult struct {
-	*facet.BaseField
-	Values *map[string]uint `json:"values"`
+type KeyFieldResult struct {
+	Values map[string]uint `json:"values,omitempty"`
 }
 
-func (k *KeyResult) GetValues() map[string]int {
-	return k.values
+func (k *KeyFieldResult) AddValue(input interface{}) {
+	value, ok := input.(string)
+	if !ok {
+		return
+	}
+	k.Values[value]++
 }
 
-type NumberResult[V float64 | int] struct {
-	//*facet.BaseField
-	Count uint
-	Min   V
-	Max   V
+func (k *KeyFieldResult) HasValues() bool {
+	return len(k.Values) > 0
 }
 
-type JsonNumberResult struct {
-	*facet.BaseField
-	Count uint        `json:"count"`
-	Min   interface{} `json:"min"`
-	Max   interface{} `json:"max"`
+type IntegerFieldResult struct {
+	Count uint `json:"count,omitempty"`
+	Min   int  `json:"min"`
+	Max   int  `json:"max"`
 }
 
-func (k *NumberResult[V]) AddValue(value V) {
-	if value < k.Min {
-		k.Min = value
-	} else if value > k.Max {
-		k.Max = value
+func (k *IntegerFieldResult) HasValues() bool {
+	return k.Count > 0
+}
+
+func (k *IntegerFieldResult) AddValue(value interface{}) {
+	v, ok := value.(int)
+	if !ok {
+		return
+	}
+	if v < k.Min {
+		k.Min = v
+	} else if v > k.Max {
+		k.Max = v
 	}
 	k.Count++
 }
 
-type Facets struct {
-	Fields       []JsonKeyResult    `json:"fields"`
-	NumberFields []JsonNumberResult `json:"numberFields"`
-	IntFields    []JsonNumberResult `json:"integerFields"`
+type decimalFieldResult struct {
+	Count uint    `json:"count,omitempty"`
+	Min   float64 `json:"min"`
+	Max   float64 `json:"max"`
 }
 
-func (i *Index) GetFacetsFromResult(ids *facet.IdList, filters *Filters, sortIndex *facet.SortIndex) Facets {
+func (k *decimalFieldResult) AddValue(value interface{}) {
+	v, ok := value.(float64)
+	if !ok {
+		return
+	}
+	if v < k.Min {
+		k.Min = v
+	} else if v > k.Max {
+		k.Max = v
+	}
+	k.Count++
+}
+
+func (k *decimalFieldResult) HasValues() bool {
+	return k.Count > 0
+}
+
+func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortIndex *facet.SortIndex) []JsonFacet {
 	l := uint(len(*ids))
 	needsTruncation := l > 6144
-	if sortIndex == nil {
-		log.Println("no sort index for fields")
-		return Facets{
-			Fields:       []JsonKeyResult{},
-			NumberFields: []JsonNumberResult{},
-			IntFields:    []JsonNumberResult{},
-		}
-	}
-	// Preallocate slices for fields, numberFields, and intFields to avoid repeated allocations
-	fields := make(map[uint]map[string]uint, len(i.KeyFacets))
-	numberFields := make(map[uint]*NumberResult[float64], len(i.DecimalFacets))
-	intFields := make(map[uint]*NumberResult[int], len(i.IntFacets))
+	fields := make(map[uint]FieldResult)
 
-	// Use a single loop to initialize ignored fields and prepopulate maps
-	for key, facet := range i.KeyFacets {
-		if facet.HideFacet || (facet.Priority < 256 && needsTruncation) || (facet.CategoryLevel > 0) {
-			//	ignoredKeyFields[key] = struct{}{}
+	var base *facet.BaseField
+
+	for key, field := range i.Facets {
+		base = field.GetBaseField()
+		if base.HideFacet || (base.Type == "" && needsTruncation) {
+
 		} else {
-			fields[key] = make(map[string]uint)
+			switch field.GetType() {
+			case facet.FacetKeyType:
+				fields[key] = &KeyFieldResult{
+					Values: make(map[string]uint)}
+			case facet.FacetIntegerType:
+				fields[key] = &IntegerFieldResult{}
+			case facet.FacetNumberType:
+				fields[key] = &decimalFieldResult{}
+			}
 		}
 
 	}
 
-	for key, facet := range i.IntFacets {
-		if facet.HideFacet || (facet.Priority < 29176 && needsTruncation) {
-		} else {
-			intFields[key] = &NumberResult[int]{}
-		}
+	var f FieldResult
 
-	}
-
-	for key, facet := range i.DecimalFacets {
-		if facet.HideFacet || (facet.Priority < 29176 && needsTruncation) {
-		} else {
-			numberFields[key] = &NumberResult[float64]{}
-		}
-
-	}
-
-	var fi *NumberResult[int]
-	var fd *NumberResult[float64]
-	var fk map[string]uint
 	var ok bool
-	var item *DataItem
+	var item *facet.Item
+	var field interface{}
+	var id uint
 
-	for id := range *ids {
+	for _, item = range *ids {
 
-		item, ok = i.Items[id]
-		if !ok {
-			continue
-		}
-		if item.Fields != nil {
-			for _, field := range item.Fields {
-				if fk, ok = fields[field.Id]; ok {
-					fk[field.Value]++
-					//f.AddValue(&field.Value) // TODO optimize
-				}
+		for id, field = range (*item).GetFields() {
+			if f, ok = fields[id]; ok {
+				f.AddValue(field)
+
 			}
 		}
-		if item.DecimalFields != nil {
-			for _, field := range item.DecimalFields {
-				if fd, ok = numberFields[field.Id]; ok {
-					fd.AddValue(field.Value)
-				}
+
+	}
+
+	return i.mapToSlice(fields, sortIndex)
+}
+
+type JsonFacet struct {
+	facet.BaseField
+	FieldResult
+}
+
+func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *facet.SortIndex) []JsonFacet {
+	l := min(len(fields), 20)
+	sorted := make([]JsonFacet, len(fields))
+	idx := 0
+	var base *facet.BaseField
+	for _, id := range *sortIndex {
+		f, ok := fields[id]
+		if ok {
+			indexField, baseOk := i.Facets[id]
+			if !baseOk {
+				continue
 			}
-		}
-		if item.IntegerFields != nil {
-			for _, field := range item.IntegerFields {
-				if fi, ok = intFields[field.Id]; ok {
-					fi.AddValue(field.Value)
+			base = indexField.GetBaseField()
+			if !base.HideFacet || !f.HasValues() {
+
+				sorted[idx] = JsonFacet{
+					*base,
+					f,
+				}
+				idx++
+				if idx >= l {
+					break
 				}
 			}
 		}
 	}
-
-	return Facets{
-		Fields:       i.mapToSlice(fields, sortIndex),
-		NumberFields: mapToSliceNumber(i.DecimalFacets, numberFields, sortIndex),
-		IntFields:    mapToSliceNumber(i.IntFacets, intFields, sortIndex),
-	}
+	return sorted[:idx]
 }

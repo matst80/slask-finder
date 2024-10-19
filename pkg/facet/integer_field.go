@@ -1,22 +1,16 @@
 package facet
 
-import (
-	"maps"
-)
+import "maps"
 
-type FieldNumberValue interface {
-	int | float64
-}
-
-type DecimalField struct {
+type IntegerField struct {
 	*BaseField
-	*NumberRange[float64]
-	buckets map[int]Bucket[float64]
+	*NumberRange[int]
+	buckets map[int]Bucket[int]
 	all     *ItemList
 	Count   int `json:"count"`
 }
 
-func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *ItemList {
+func (f *IntegerField) MatchesRange(minValue int, maxValue int) *ItemList {
 	if minValue > maxValue {
 		return &ItemList{}
 	}
@@ -55,33 +49,29 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *ItemLis
 	return &found
 }
 
-func (f DecimalField) Match(input interface{}) *ItemList {
-	value, ok := input.(NumberRange[float64])
+func (f IntegerField) Match(input interface{}) *ItemList {
+	value, ok := input.(NumberRange[int])
 	if ok {
 		return f.MatchesRange(value.Min, value.Max)
 	}
 	return &ItemList{}
 }
 
-func (f DecimalField) GetBaseField() *BaseField {
+func (f IntegerField) GetBaseField() *BaseField {
 	return f.BaseField
 }
 
-type NumberRange[V FieldNumberValue] struct {
-	Min V `json:"min"`
-	Max V `json:"max"`
-}
+func (f *IntegerField) Bounds() NumberRange[int] {
 
-func (f *DecimalField) Bounds() NumberRange[float64] {
 	return *f.NumberRange
 }
 
-func (f DecimalField) GetValues() interface{} {
+func (f IntegerField) GetValues() interface{} {
 	return f
 }
 
-func (f DecimalField) AddValueLink(data interface{}, item Item) bool {
-	value, ok := data.(float64)
+func (f IntegerField) AddValueLink(data interface{}, item Item) bool {
+	value, ok := data.(int)
 	if !ok {
 		return false
 	}
@@ -100,8 +90,8 @@ func (f DecimalField) AddValueLink(data interface{}, item Item) bool {
 	return true
 }
 
-func (f DecimalField) RemoveValueLink(data interface{}, id uint) {
-	value, ok := data.(float64)
+func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
+	value, ok := data.(int)
 	if !ok {
 		return
 	}
@@ -110,28 +100,28 @@ func (f DecimalField) RemoveValueLink(data interface{}, id uint) {
 	bucketValues, ok := f.buckets[bucket]
 	delete(*f.all, id)
 	if ok {
-		(&f).Count--
+		f.Count--
 		bucketValues.RemoveValueLink(value, id)
 	}
 }
 
-func (f *DecimalField) TotalCount() int {
+func (f *IntegerField) TotalCount() int {
 	return f.Count
 }
 
-func (f *DecimalField) GetRangeForIds(ids *IdList) NumberRange[float64] {
-	return NumberRange[float64]{Min: f.Min, Max: f.Max}
+func (f *IntegerField) GetRangeForIds(ids *IdList) NumberRange[int] {
+	return NumberRange[int]{Min: f.Min, Max: f.Max}
 }
 
-func (DecimalField) GetType() uint {
-	return FacetNumberType
+func (IntegerField) GetType() uint {
+	return FacetIntegerType
 }
 
-func EmptyDecimalField(field *BaseField) DecimalField {
-	return DecimalField{
+func EmptyIntegerField(field *BaseField) IntegerField {
+	return IntegerField{
 		BaseField:   field,
-		NumberRange: &NumberRange[float64]{Min: 0, Max: 0},
+		NumberRange: &NumberRange[int]{Min: 0, Max: 0},
 		all:         &ItemList{},
-		buckets:     map[int]Bucket[float64]{},
+		buckets:     map[int]Bucket[int]{},
 	}
 }

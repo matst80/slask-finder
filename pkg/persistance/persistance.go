@@ -18,6 +18,31 @@ func NewPersistance() *Persistance {
 	}
 }
 
+type KeyFieldValue struct {
+	Value string `json:"value"`
+	Id    uint   `json:"id"`
+}
+
+type DecimalFieldValue struct {
+	Value float64 `json:"value"`
+	Id    uint    `json:"id"`
+}
+
+type IntegerFieldValue struct {
+	Value int  `json:"value"`
+	Id    uint `json:"id"`
+}
+
+type ItemFields struct {
+	Fields        []KeyFieldValue     `json:"values"`
+	DecimalFields []DecimalFieldValue `json:"numberValues"`
+	IntegerFields []IntegerFieldValue `json:"integerValues"`
+}
+type StoredItem struct {
+	index.BaseItem
+	ItemFields
+}
+
 func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 	file, err := os.Open(p.File)

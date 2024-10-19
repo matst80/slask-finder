@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/schema"
+	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 )
 
@@ -72,9 +73,11 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 			continue
 		}
 		result.NumberFilter = append(result.NumberFilter, index.NumberSearch[float64]{
-			Id:  uint(id),
-			Min: min,
-			Max: max,
+			Id: uint(id),
+			NumberRange: facet.NumberRange[float64]{
+				Min: min,
+				Max: max,
+			},
 		})
 	}
 
@@ -88,9 +91,11 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 			continue
 		}
 		result.IntegerFilter = append(result.IntegerFilter, index.NumberSearch[int]{
-			Id:  uint(id),
-			Min: min,
-			Max: max,
+			Id: uint(id),
+			NumberRange: facet.NumberRange[int]{
+				Min: min,
+				Max: max,
+			},
 		})
 	}
 

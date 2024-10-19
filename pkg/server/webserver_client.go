@@ -19,7 +19,7 @@ import (
 )
 
 type searchResult struct {
-	matching *facet.IdList
+	matching *facet.ItemList
 	sort     *facet.SortIndex
 }
 
@@ -47,19 +47,19 @@ var (
 )
 
 func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
-	matchingChan := make(chan *facet.IdList)
+	matchingChan := make(chan *facet.ItemList)
 	sortChan := make(chan *facet.SortIndex)
 	go noSearches.Inc()
 
 	defer close(matchingChan)
 	defer close(sortChan)
 
-	var initialIds *facet.IdList = nil
+	var initialIds *facet.ItemList = nil
 
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
 
-		initialIds = queryResult.ToResult()
+		initialIds = queryResult.ToResult(ws.Index.Items)
 		if sr.Sort == "popular" || sr.Sort == "" {
 			go queryResult.GetSorting(sortChan)
 		} else {
@@ -70,7 +70,7 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	}
 
 	if len(sr.Stock) > 0 {
-		resultStockIds := facet.IdList{}
+		resultStockIds := facet.ItemList{}
 		for _, stockId := range sr.Stock {
 			stockIds, ok := ws.Index.ItemsInStock[stockId]
 			if ok {
@@ -148,7 +148,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	facetsChan := make(chan index.Facets)
+	facetsChan := make(chan []index.JsonFacet)
 	resultChan := make(chan searchResult)
 
 	defer close(facetsChan)
@@ -245,22 +245,20 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	end := start + sr.PageSize
 	result := <-resultChan
 
-	ritem := &index.ResultItem{}
-	var sortedIds []uint
+	//ritem := &index.ResultItem{}
+	var sortedIds []*facet.Item
 	if sr.Sort == "popular" || sr.Sort == "" {
 		sortedIds = (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
 	} else {
 		sortedIds = (*result.matching).SortedIds(result.sort, end)
 	}
-	for idx, id := range sortedIds {
+	for idx, item := range sortedIds {
 		if idx < start {
 			continue
 		}
-		item, ok := ws.Index.Items[id]
-		if ok {
-			index.ToResultItem(item, ritem)
-			enc.Encode(ritem)
-		}
+
+		enc.Encode(item)
+
 	}
 	//w.Write([]byte("\n"))
 }
@@ -269,7 +267,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	words := strings.Split(query, " ")
-	results := facet.IdList{}
+	results := facet.ItemList{}
 	lastWord := words[len(words)-1]
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
@@ -282,7 +280,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	var docResult *search.DocumentResult = nil
 	if hasMoreWords {
 		docResult = ws.Index.Search.Search(query)
-		results = *docResult.ToResult()
+		results = *docResult.ToResult(ws.Index.Items)
 	}
 
 	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
@@ -297,10 +295,10 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	for _, s := range <-wordMatchesChan {
 
 		sitem.Word = s.Word
-		sitem.Hits = len(*s.Ids)
-		if !hasMoreWords || results.HasIntersection(s.Ids) {
+		sitem.Hits = len(*s.Items)
+		if !hasMoreWords || results.HasIntersection(s.Items) {
 			json.NewEncoder(w).Encode(sitem)
-			results.Merge(s.Ids)
+			results.Merge(s.Items)
 		}
 	}
 	if hasMoreWords && docResult != nil {
@@ -310,14 +308,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		go ws.Sorting.GetSorting("popular", sortChan)
 	}
 	w.Write([]byte("\n"))
-	ritem := &index.ResultItem{}
+	//ritem := &index.ResultItem{}
 
-	for _, id := range results.SortedIds(<-sortChan, 40) {
-		item, ok := ws.Index.Items[id]
-		if ok {
-			index.ToResultItem(item, ritem)
-			enc.Encode(ritem)
-		}
+	for item, _ := range results.SortedIds(<-sortChan, 40) {
+
+		enc.Encode(item)
+
 	}
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
@@ -326,53 +322,53 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(facets)
 }
 
-func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
-	fieldStrings := strings.Split(r.URL.Query().Get("fields"), ",")
-	fields := make([]int, len(fieldStrings))
-	for i, fieldString := range fieldStrings {
-		field, fieldError := strconv.Atoi(fieldString)
-		if fieldError != nil {
-			http.Error(w, fieldError.Error(), http.StatusBadRequest)
-			return
-		}
-		fields[i] = field
-	}
+// func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
+// 	fieldStrings := strings.Split(r.URL.Query().Get("fields"), ",")
+// 	fields := make([]int, len(fieldStrings))
+// 	for i, fieldString := range fieldStrings {
+// 		field, fieldError := strconv.Atoi(fieldString)
+// 		if fieldError != nil {
+// 			http.Error(w, fieldError.Error(), http.StatusBadRequest)
+// 			return
+// 		}
+// 		fields[i] = field
+// 	}
 
-	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
-	w.WriteHeader(http.StatusOK)
-	baseSearch := SearchRequest{
-		PageSize: 10000,
-		Page:     0,
-	}
-	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
+// 	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
+// 	w.WriteHeader(http.StatusOK)
+// 	baseSearch := SearchRequest{
+// 		PageSize: 10000,
+// 		Page:     0,
+// 	}
+// 	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
 
-	for id := range *resultIds {
-		item, ok := ws.Index.Items[id]
-		if ok {
-			parts := make([]string, len(fields)+1)
-			parts[0] = item.Sku
-			for i, field := range fields {
+// 	for id := range *resultIds {
+// 		item, ok := ws.Index.Items[id]
+// 		if ok {
+// 			parts := make([]string, len(fields)+1)
+// 			parts[0] = item.Sku
+// 			for i, field := range fields {
 
-				for _, itemField := range item.IntegerFields {
-					if itemField.Id == uint(field) {
-						parts[i+1] = strconv.Itoa(itemField.Value)
-						break
-					}
-				}
-				if parts[i+1] == "" {
-					for _, itemField := range item.DecimalFields {
-						if itemField.Id == uint(field) {
-							parts[i+1] = fmt.Sprintf("%v", itemField.Value)
-							break
-						}
-					}
-				}
-			}
+// 				for _, itemField := range item.IntegerFields {
+// 					if itemField.Id == uint(field) {
+// 						parts[i+1] = strconv.Itoa(itemField.Value)
+// 						break
+// 					}
+// 				}
+// 				if parts[i+1] == "" {
+// 					for _, itemField := range item.DecimalFields {
+// 						if itemField.Id == uint(field) {
+// 							parts[i+1] = fmt.Sprintf("%v", itemField.Value)
+// 							break
+// 						}
+// 					}
+// 				}
+// 			}
 
-			fmt.Fprintln(w, strings.Join(parts, ";"))
-		}
-	}
-}
+// 			fmt.Fprintln(w, strings.Join(parts, ";"))
+// 		}
+// 	}
+// }
 
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
@@ -383,8 +379,10 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	for _, field := range ws.Index.KeyFacets {
-		if field.BaseField.Id == uint(id) {
+	var base *facet.BaseField
+	for _, field := range ws.Index.Facets {
+		base = field.GetBaseField()
+		if base.Id == uint(id) {
 			defaultHeaders(w, true, "120")
 			w.WriteHeader(http.StatusOK)
 			err := json.NewEncoder(w).Encode(field.GetValues())
@@ -402,31 +400,10 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	res := make([]FacetItem, len(ws.Index.KeyFacets)+len(ws.Index.DecimalFacets)+len(ws.Index.IntFacets))
-	i := 0
-	for _, f := range ws.Index.KeyFacets {
-		res[i] = FacetItem{
-			BaseField: f.BaseField,
-			FieldType: "key",
-			Count:     f.UniqueCount(),
-		}
-		i++
-	}
-	for _, f := range ws.Index.DecimalFacets {
-		res[i] = FacetItem{
-			BaseField: f.BaseField,
-			FieldType: "decimal",
-			Count:     int(f.Max - f.Min),
-		}
-		i++
-	}
-	for _, f := range ws.Index.IntFacets {
-		res[i] = FacetItem{
-			BaseField: f.BaseField,
-			FieldType: "int",
-			Count:     int(f.Max - f.Min),
-		}
-		i++
+	res := make([]facet.BaseField, len(ws.Index.Facets))
+
+	for i, f := range ws.Index.Facets {
+		res[i] = *f.GetBaseField()
 	}
 
 	err := json.NewEncoder(w).Encode(res)
@@ -452,17 +429,17 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	}
 	sort := ws.Index.Sorting.GetSort("popular")
 
-	ritem := &index.ResultItem{}
+	//ritem := &index.ResultItem{}
 	i := 0
 	enc := json.NewEncoder(w)
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	for _, relatedId := range (*related).SortedIds(sort, len(*related)) {
+	for _, item := range (*related).SortedIds(sort, len(*related)) {
 
-		item, ok := ws.Index.Items[relatedId]
-		if ok && i < 20 && item.Id != uint(id) {
-			index.ToResultItem(item, ritem)
-			enc.Encode(ritem)
+		//item, ok := ws.Index.Items[relatedId]
+		if i < 20 && (*item).GetId() != uint(id) {
+			//index.ToResultItem(item, ritem)
+			enc.Encode(item)
 			i++
 		}
 	}
@@ -589,18 +566,18 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, true, "600")
-	items := make([]index.DataItem, 0)
+	items := make([]uint, 0)
 	err := json.NewDecoder(r.Body).Decode(&items)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	result := make([]index.DataItem, len(items))
+	result := make([]interface{}, len(items))
 	i := 0
-	for _, item := range items {
-		item, ok := ws.Index.Items[item.Id]
+	for _, id := range items {
+		item, ok := ws.Index.Items[id]
 		if ok {
-			result[i] = *item
+			result[i] = item
 			i++
 		}
 	}
@@ -622,7 +599,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	})
 
 	srv.HandleFunc("/filter", ws.Search)
-	srv.HandleFunc("/learn/", ws.Learn)
+	//srv.HandleFunc("/learn/", ws.Learn)
 	srv.HandleFunc("/related/{id}", ws.Related)
 	srv.HandleFunc("/facet-list", ws.Facets)
 	srv.HandleFunc("/suggest", ws.Suggest)

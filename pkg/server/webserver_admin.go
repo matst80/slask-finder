@@ -5,9 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -132,22 +130,22 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-type CategoryUpdateRequest struct {
-	Ids     []uint                 `json:"ids"`
-	Updates []index.CategoryUpdate `json:"updates"`
-}
+// type CategoryUpdateRequest struct {
+// 	Ids     []uint                 `json:"ids"`
+// 	Updates []index.CategoryUpdate `json:"updates"`
+// }
 
-func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
-	update := CategoryUpdateRequest{}
-	err := json.NewDecoder(r.Body).Decode(&update)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+// func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
+// 	update := CategoryUpdateRequest{}
+// 	err := json.NewDecoder(r.Body).Decode(&update)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusBadRequest)
+// 		return
+// 	}
 
-	ws.Index.UpdateCategoryValues(update.Ids, update.Updates)
-	w.WriteHeader(http.StatusAccepted)
-}
+// 	ws.Index.UpdateCategoryValues(update.Ids, update.Updates)
+// 	w.WriteHeader(http.StatusAccepted)
+// }
 
 func generateStateOauthCookie() string {
 	b := make([]byte, 16)
@@ -306,32 +304,34 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, false, "240")
-	w.WriteHeader(http.StatusOK)
-	ws.Index.Lock()
-	defer ws.Index.Unlock()
-	sorting := ws.Index.Sorting.GetSort("popular")
-	for i, id := range *sorting {
-		item, ok := ws.Index.Items[id]
-		if !ok {
-			continue
-		}
-		fmt.Fprintf(w, "%d;%s, %s, pris %d (%s)", item.Id, item.Title, strings.ReplaceAll(item.BulletPoints, "\n", ", "), item.GetPrice()/100, item.Url)
+// func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
+// 	defaultHeaders(w, false, "240")
+// 	w.WriteHeader(http.StatusOK)
+// 	ws.Index.Lock()
+// 	defer ws.Index.Unlock()
+// 	sorting := ws.Index.Sorting.GetSort("popular")
+// 	var base *facet.BaseField
+// 	for i, id := range *sorting {
+// 		item, ok := ws.Index.Items[id]
+// 		if !ok {
+// 			continue
+// 		}
+// 		fmt.Fprintf(w, "%d;%s, %s, pris %d (%s)", item.Id, item.Title, strings.ReplaceAll(item.BulletPoints, "\n", ", "), item.GetPrice()/100, item.Url)
 
-		for _, field := range item.Fields {
-			base, ok := ws.Index.KeyFacets[field.Id]
-			if ok && !base.HideFacet {
-				fmt.Fprintf(w, "%s %s, ", base.Name, strings.ReplaceAll(field.Value, "\n", "\\n"))
-			}
-		}
-		w.Write([]byte("\n"))
-		if i > 500 {
-			break
-		}
-	}
+// 		for id, field := range item.Fields {
+// 			f, ok := ws.Index.Facets[id]
+// 			base = f.GetBaseField()
+// 			if ok && !base.HideFacet {
+// 				fmt.Fprintf(w, "%s %v, ", base.Name, field)
+// 			}
+// 		}
+// 		w.Write([]byte("\n"))
+// 		if i > 500 {
+// 			break
+// 		}
+// 	}
 
-}
+// }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
@@ -344,11 +344,11 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
 	srv.HandleFunc("/user", ws.User)
-	srv.HandleFunc("GET /rag", ws.RagData)
+	//srv.HandleFunc("GET /rag", ws.RagData)
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
 	//srv.HandleFunc("/get/{id}", ws.AuthMiddleware(ws.GetItem))
-	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
+	//srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
