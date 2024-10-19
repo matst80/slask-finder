@@ -2,6 +2,7 @@ package facet
 
 import (
 	"maps"
+	"unsafe"
 )
 
 type FieldNumberValue interface {
@@ -53,6 +54,10 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *ItemLis
 
 	}
 	return &found
+}
+
+func (f DecimalField) Size() int {
+	return int(unsafe.Sizeof(f.buckets)) + int(unsafe.Sizeof(f.all))
 }
 
 func (f DecimalField) Match(input interface{}) *ItemList {

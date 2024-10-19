@@ -401,9 +401,35 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	res := make([]facet.BaseField, len(ws.Index.Facets))
+	idx := 0
+	for _, f := range ws.Index.Facets {
+		res[idx] = *f.GetBaseField()
+	}
 
-	for i, f := range ws.Index.Facets {
-		res[i] = *f.GetBaseField()
+	err := json.NewEncoder(w).Encode(res)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+type FieldSize struct {
+	Id   uint `json:"id"`
+	Size int  `json:"size"`
+}
+
+func (ws *WebServer) FacetSize(w http.ResponseWriter, r *http.Request) {
+	publicHeaders(w, true, "1200")
+
+	w.WriteHeader(http.StatusOK)
+
+	res := make([]FieldSize, len(ws.Index.Facets))
+	idx := 0
+	for _, f := range ws.Index.Facets {
+		res[idx] = FieldSize{
+			Id:   f.GetBaseField().Id,
+			Size: f.Size(),
+		}
+		idx++
 	}
 
 	err := json.NewEncoder(w).Encode(res)
@@ -602,6 +628,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	//srv.HandleFunc("/learn/", ws.Learn)
 	srv.HandleFunc("/related/{id}", ws.Related)
 	srv.HandleFunc("/facet-list", ws.Facets)
+	srv.HandleFunc("/facet-size", ws.FacetSize)
 	srv.HandleFunc("/suggest", ws.Suggest)
 	srv.HandleFunc("/categories", ws.Categories)
 	//srv.HandleFunc("/search", ws.QueryIndex)
@@ -609,7 +636,6 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/ids", ws.GetIds)
 	srv.HandleFunc("GET /get/{id}", ws.GetItem)
 	srv.HandleFunc("POST /get", ws.GetItems)
-	//srv.HandleFunc("/stream/facets", ws.FacetsStreamed)
 	srv.HandleFunc("/values/{id}", ws.GetValues)
 	srv.HandleFunc("/track/click", ws.TrackClick)
 	srv.HandleFunc("/track/impressions", ws.TrackImpression)

@@ -1,5 +1,7 @@
 package facet
 
+import "unsafe"
+
 type BaseField struct {
 	Id               uint    `json:"id"`
 	Name             string  `json:"name"`
@@ -52,6 +54,7 @@ type Facet interface {
 	AddValueLink(value interface{}, item Item) bool
 	RemoveValueLink(value interface{}, id uint)
 	GetValues() interface{}
+	Size() int
 }
 
 type ItemList map[uint]*Item
@@ -67,6 +70,14 @@ type KeyField struct {
 
 func (f KeyField) GetType() uint {
 	return FacetKeyType
+}
+
+func (f KeyField) Size() int {
+	sum := 0
+	for key, ids := range f.keys {
+		sum += int(unsafe.Sizeof(ids)) + len(key.(string))
+	}
+	return sum
 }
 
 func (f KeyField) GetValues() interface{} {

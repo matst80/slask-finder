@@ -1,6 +1,9 @@
 package facet
 
-import "maps"
+import (
+	"maps"
+	"unsafe"
+)
 
 type IntegerField struct {
 	*BaseField
@@ -47,6 +50,14 @@ func (f *IntegerField) MatchesRange(minValue int, maxValue int) *ItemList {
 
 	}
 	return &found
+}
+
+func (f IntegerField) Size() int {
+	sum := int(unsafe.Sizeof(*f.all))
+	for _, bucket := range f.buckets {
+		sum += int(unsafe.Sizeof(bucket.values))
+	}
+	return sum
 }
 
 func (f IntegerField) Match(input interface{}) *ItemList {

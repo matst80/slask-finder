@@ -50,13 +50,13 @@ type Field struct {
 	Value interface{}
 }
 
-func decodeNormal(enc *gob.Decoder) (*index.DataItem, error) {
-	tmp := &index.DataItem{}
-	err := enc.Decode(tmp)
-	return tmp, err
+func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
+
+	err := enc.Decode(item)
+	return err
 }
 
-func decodeOld(enc *gob.Decoder) (*index.DataItem, error) {
+func decodeOld(enc *gob.Decoder, item *index.DataItem) error {
 	tmp := &StoredItem{}
 	err := enc.Decode(tmp)
 	if err == nil {
@@ -70,12 +70,10 @@ func decodeOld(enc *gob.Decoder) (*index.DataItem, error) {
 		for _, field := range tmp.IntegerFields {
 			fields[field.Id] = field.Value
 		}
-		return &index.DataItem{
-			BaseItem: tmp.BaseItem,
-			Fields:   fields,
-		}, nil
+		item.BaseItem = &tmp.BaseItem
+		item.Fields = &fields
 	}
-	return nil, err
+	return err
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {
@@ -100,13 +98,13 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	tmp := &index.DataItem{}
 	for err == nil {
 
-		if tmp, err = decodeNormal(enc); err == nil {
+		if err = decodeNormal(enc, tmp); err == nil {
 			idx.UpsertItemUnsafe(tmp)
+			tmp = &index.DataItem{}
 		}
 	}
 	enc = nil
 
-	tmp = nil
 	if err.Error() == "EOF" {
 		return nil
 	}
@@ -130,7 +128,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer idx.Unlock()
 
 	for _, item := range idx.Items {
-		store, ok := (*item).(index.DataItem)
+		store, ok := (*item).(*index.DataItem)
 		if !ok {
 			log.Fatalf("Could not convert item to DataItem")
 		}

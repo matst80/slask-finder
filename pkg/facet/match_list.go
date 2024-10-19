@@ -52,32 +52,41 @@ func MustWrite(w io.Writer, data interface{}) {
 }
 
 func (s *ItemFields) UnmarshalBinary(data []byte) error {
-	d := &ItemFields{}
-
-	len := binary.BigEndian.Uint64(data[:8])
-	data = data[8:]
+	b := bytes.NewBuffer(data)
+	var len uint64
+	err := binary.Read(b, binary.BigEndian, &len)
+	if err != nil {
+		return err
+	}
+	d := make(ItemFields, len)
+	//data = data[8:]
 	for i := 0; i < int(len); i++ {
-		key := uint(binary.BigEndian.Uint64(data[:8]))
-		data = data[8:]
-		typ := data[0]
-		data = data[1:]
+		var key uint64
+		var typ uint8
+		binary.Read(b, binary.BigEndian, &key)
+		binary.Read(b, binary.BigEndian, &typ)
+
 		switch typ {
 		case 0:
-			strLen := data[0]
-			data = data[1:]
-			str := string(data[:strLen])
-			(*d)[key] = str
-			data = data[strLen:]
+			var strLen uint8
+			binary.Read(b, binary.BigEndian, &strLen)
+			stringBytes := make([]byte, strLen)
+			binary.Read(b, binary.BigEndian, &stringBytes)
+
+			d[uint(key)] = string(stringBytes)
+
 		case 1:
-			i := int64(binary.BigEndian.Uint64(data[:8]))
-			data = data[8:]
-			(*d)[key] = int(i)
+			var i int64
+			binary.Read(b, binary.BigEndian, &i)
+			//i := int64(binary.BigEndian.Uint64(data[:8]))
+			//data = data[8:]
+			d[uint(key)] = int(i)
 		case 2:
-			f := binary.LittleEndian.Uint64(data[:8])
-			data = data[8:]
-			(*d)[key] = math.Float64frombits(f)
+			var fbits uint64
+			binary.Read(b, binary.LittleEndian, &fbits)
+			d[uint(key)] = math.Float64frombits(fbits)
 		}
 	}
-	*s = *d
+	*s = d
 	return nil
 }

@@ -40,8 +40,8 @@ type BaseItem struct {
 }
 
 type DataItem struct {
-	BaseItem
-	Fields facet.ItemFields `json:"facets"`
+	*BaseItem
+	Fields *facet.ItemFields `json:"values"`
 }
 
 func (item DataItem) GetId() uint {
@@ -53,7 +53,7 @@ func (item DataItem) IsDeleted() bool {
 }
 
 func (item DataItem) GetPrice() int {
-	priceField, ok := item.Fields[4]
+	priceField, ok := (*item.Fields)[4]
 	if !ok {
 		return 0
 	}
@@ -69,7 +69,7 @@ func (item DataItem) GetStock() facet.LocationStock {
 }
 
 func (item DataItem) GetFields() map[uint]interface{} {
-	return item.Fields
+	return *item.Fields
 }
 
 func (item DataItem) GetLastUpdated() int64 {
@@ -87,7 +87,7 @@ func (item DataItem) GetPopularity() float64 {
 	grade := 0
 	noGrades := 0
 
-	for id, f := range item.Fields {
+	for id, f := range *item.Fields {
 		if id == 4 {
 			price = f.(int)
 		}
