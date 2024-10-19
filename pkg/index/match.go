@@ -89,7 +89,7 @@ func (i *Index) Related(id uint) (*facet.ItemList, error) {
 	fields := make([]KeyFieldWithValue, 0)
 	result := facet.ItemList{}
 	var base *facet.BaseField
-	for id, itemField := range item.GetFields() {
+	for id, itemField := range (*item).GetFields() {
 		field, ok := i.Facets[id]
 		if !ok {
 			continue

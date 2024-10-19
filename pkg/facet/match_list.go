@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"strings"
+	"math"
 )
 
 type ItemFields map[uint]interface{}
@@ -36,7 +36,7 @@ func (b ItemFields) MarshalBinary() ([]byte, error) {
 		f, ok := v.(float64)
 		if ok {
 			MustWrite(buf, uint8(2))
-			MustWrite(buf, f)
+			binary.Write(buf, binary.LittleEndian, math.Float64bits(f))
 			continue
 		}
 
@@ -51,9 +51,9 @@ func MustWrite(w io.Writer, data interface{}) {
 	}
 }
 
-// implement encoding.BinaryUnmarshaler interface for DemoStruct
 func (s *ItemFields) UnmarshalBinary(data []byte) error {
 	d := &ItemFields{}
+
 	len := binary.BigEndian.Uint64(data[:8])
 	data = data[8:]
 	for i := 0; i < int(len); i++ {
@@ -66,50 +66,18 @@ func (s *ItemFields) UnmarshalBinary(data []byte) error {
 			strLen := data[0]
 			data = data[1:]
 			str := string(data[:strLen])
-			(*d)[key] = strings.Trim(str, "\x00")
+			(*d)[key] = str
 			data = data[strLen:]
 		case 1:
 			i := int64(binary.BigEndian.Uint64(data[:8]))
 			data = data[8:]
 			(*d)[key] = int(i)
 		case 2:
-			f := binary.BigEndian.Uint64(data[:8])
+			f := binary.LittleEndian.Uint64(data[:8])
 			data = data[8:]
-			(*d)[key] = float64(f)
+			(*d)[key] = math.Float64frombits(f)
 		}
 	}
 	*s = *d
 	return nil
 }
-
-//type MatchList map[uint]*ItemFields[FieldValue]
-
-// func (r *MatchList) SortedIds(srt *SortIndex, maxItems int) []uint {
-// 	return srt.SortMatch(*r, maxItems)
-// }
-
-// func (a MatchList) Intersect(b MatchList) {
-// 	for id := range a {
-// 		_, ok := b[id]
-// 		if !ok {
-// 			delete(a, id)
-// 		}
-// 	}
-// }
-
-// func (i MatchList) Merge(other *MatchList) {
-// 	maps.Copy(i, *other)
-// }
-
-// func MakeIntersectResult(r chan MatchList, len int) *MatchList {
-
-// 	if len == 0 {
-// 		return &MatchList{}
-// 	}
-// 	first := <-r
-// 	for i := 1; i < len; i++ {
-// 		first.Intersect(<-r)
-// 	}
-// 	close(r)
-// 	return &first
-// }

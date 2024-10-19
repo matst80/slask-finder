@@ -323,9 +323,10 @@ func (s *Sorting) makeItemSortMaps() {
 	popularSearchMap := make(map[uint]float64)
 	i := 0
 	var item facet.Item
+	var itm *facet.Item
 	var id uint
-	for id, item = range s.idx.Items {
-
+	for id, itm = range s.idx.Items {
+		item = *itm
 		j += 0.0000000000001
 		popular := item.GetPopularity() + (overrides[item.GetId()] * 1000)
 		//getSortingData(item, itemData)

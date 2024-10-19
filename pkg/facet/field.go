@@ -62,9 +62,7 @@ func (i *ItemList) Add(item Item) {
 
 type KeyField struct {
 	*BaseField
-	keys map[string]ItemList
-	//values []IdList
-	//len    uint
+	keys map[interface{}]ItemList
 }
 
 func (f KeyField) GetType() uint {
@@ -72,7 +70,7 @@ func (f KeyField) GetType() uint {
 }
 
 func (f KeyField) GetValues() interface{} {
-	ret := make([]string, len(f.keys))
+	ret := make([]interface{}, len(f.keys))
 	idx := 0
 	for value := range f.keys {
 		ret[idx] = value
@@ -82,14 +80,14 @@ func (f KeyField) GetValues() interface{} {
 }
 
 func (f KeyField) Match(input interface{}) *ItemList {
-	value, ok := input.(string)
-	if ok {
+	//value, ok := input.(string)
+	//if ok {
 
-		list, found := f.keys[value]
-		if found {
-			return &list
-		}
+	list, found := f.keys[input]
+	if found {
+		return &list
 	}
+	//}
 	return &ItemList{}
 }
 
@@ -103,11 +101,11 @@ func (f KeyField) AddValueLink(data interface{}, item Item) bool {
 		return false
 	}
 	if len(str) > 64 {
-		str = str[:61] + "..."
+		data = str[:61] + "..."
 	}
-	list, found := f.keys[str]
+	list, found := f.keys[data]
 	if !found {
-		f.keys[str] = ItemList{item.GetId(): &item}
+		f.keys[data] = ItemList{item.GetId(): &item}
 	} else {
 		list.Add(item)
 	}
@@ -115,11 +113,8 @@ func (f KeyField) AddValueLink(data interface{}, item Item) bool {
 }
 
 func (f KeyField) RemoveValueLink(data interface{}, id uint) {
-	str, ok := data.(string)
-	if !ok {
-		return
-	}
-	key, found := f.keys[str]
+
+	key, found := f.keys[data]
 	if found {
 		delete(key, id)
 	}
@@ -141,6 +136,6 @@ func (f *KeyField) UniqueCount() int {
 func EmptyKeyValueField(field *BaseField) KeyField {
 	return KeyField{
 		BaseField: field,
-		keys:      map[string]ItemList{},
+		keys:      map[interface{}]ItemList{},
 	}
 }

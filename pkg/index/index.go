@@ -43,20 +43,20 @@ type UpdateHandler interface {
 type Category struct {
 	level    int
 	id       uint
-	Value    string `json:"value"`
+	Value    *string `json:"value"`
 	parent   *Category
-	Children map[string]*Category `json:"children"`
+	Children map[uint]*Category `json:"children"`
 }
 
 type Index struct {
 	mu         sync.RWMutex
-	categories map[string]*Category
+	categories map[uint]*Category
 	Facets     map[uint]facet.Facet
 	// KeyFacets     map[uint]*KeyFacet
 	// DecimalFacets map[uint]*DecimalFacet
 	// IntFacets     map[uint]*IntFacet
 	DefaultFacets Facets
-	Items         map[uint]facet.Item
+	Items         map[uint]*facet.Item
 	ItemsInStock  map[string]facet.ItemList
 	//AllItems      facet.MatchList
 	AutoSuggest   AutoSuggest
@@ -68,12 +68,12 @@ type Index struct {
 func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
 		mu:         sync.RWMutex{},
-		categories: make(map[string]*Category),
+		categories: make(map[uint]*Category),
 		Facets:     make(map[uint]facet.Facet),
 		// KeyFacets:     make(map[uint]*KeyFacet),
 		// DecimalFacets: make(map[uint]*DecimalFacet),
 		// IntFacets:     make(map[uint]*IntFacet),
-		Items:        make(map[uint]facet.Item),
+		Items:        make(map[uint]*facet.Item),
 		ItemsInStock: make(map[string]facet.ItemList),
 		// AllItems:      facet.MatchList{},
 		AutoSuggest: AutoSuggest{Trie: search.NewTrie()},
@@ -108,6 +108,10 @@ func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
 	}
 }
 
+func makeCategoryId(level int, value string) uint {
+	return facet.HashString(fmt.Sprintf("%d%s", level, value))
+}
+
 func (i *Index) addItemValues(item facet.Item) {
 	for _, stock := range i.ItemsInStock {
 		delete(stock, item.GetId())
@@ -132,9 +136,9 @@ func (i *Index) addItemValues(item facet.Item) {
 				value, ok := fieldValue.(string)
 				if ok {
 
-					cid := fmt.Sprintf("%d%s", base.CategoryLevel, value)
+					cid := makeCategoryId(base.CategoryLevel, value)
 					if i.categories[cid] == nil {
-						i.categories[cid] = &Category{Value: value, level: base.CategoryLevel, id: id}
+						i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}
 					}
 					tree = append(tree, i.categories[cid])
 				}
@@ -159,9 +163,9 @@ func (i *Index) addItemValues(item facet.Item) {
 		for i := 0; i < len(tree)-1; i++ {
 
 			if tree[i].Children == nil {
-				tree[i].Children = make(map[string]*Category, 0)
+				tree[i].Children = make(map[uint]*Category, 0)
 			}
-			id := fmt.Sprintf("%d%s", tree[i+1].level, tree[i+1].Value)
+			id := makeCategoryId(tree[i+1].level, *tree[i+1].Value)
 			tree[i].Children[id] = tree[i+1]
 			tree[i+1].parent = tree[i]
 		}
@@ -280,18 +284,18 @@ func (i *Index) UpsertItemUnsafe(item facet.Item) bool {
 		return price_lowered
 	}
 	if isUpdate {
-		old_price := current.GetPrice()
+		old_price := (*current).GetPrice()
 		new_price := item.GetPrice()
 		if new_price < old_price {
 			price_lowered = true
 		}
-		i.removeItemValues(current)
+		i.removeItemValues(*current)
 	}
 	go noUpdates.Inc()
 	//	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
-	i.Items[item.GetId()] = item
+	i.Items[item.GetId()] = &item
 	if i.ChangeHandler != nil {
 		return price_lowered
 	}
@@ -315,7 +319,7 @@ func (i *Index) deleteItemUnsafe(id uint) {
 	item, ok := i.Items[id]
 	if ok {
 		noDeletes.Inc()
-		i.removeItemValues(item)
+		i.removeItemValues(*item)
 		delete(i.Items, id)
 		// delete(i.AllItems, id)
 		if i.ChangeHandler != nil {

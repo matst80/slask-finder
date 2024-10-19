@@ -260,12 +260,12 @@ type ResultWithSort struct {
 	SortIndex facet.SortIndex
 }
 
-func (d *DocumentResult) ToResult(items map[uint]facet.Item) *facet.ItemList {
+func (d *DocumentResult) ToResult(items map[uint]*facet.Item) *facet.ItemList {
 	res := facet.ItemList{}
 
 	for id := range *d {
 		if item, ok := items[id]; ok {
-			res[id] = &item
+			res[id] = item
 		}
 		//res.AddId(id)
 	}

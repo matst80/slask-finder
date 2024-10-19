@@ -3,6 +3,7 @@ package persistance
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"log"
 	"os"
 	"runtime"
 
@@ -19,44 +20,62 @@ func NewPersistance() *Persistance {
 	}
 }
 
-// type KeyFieldValue struct {
-// 	Value string `json:"value"`
-// 	Id    uint   `json:"id"`
-// }
+type KeyFieldValue struct {
+	Value string `json:"value"`
+	Id    uint   `json:"id"`
+}
 
-// type DecimalFieldValue struct {
-// 	Value float64 `json:"value"`
-// 	Id    uint    `json:"id"`
-// }
+type DecimalFieldValue struct {
+	Value float64 `json:"value"`
+	Id    uint    `json:"id"`
+}
 
-// type IntegerFieldValue struct {
-// 	Value int  `json:"value"`
-// 	Id    uint `json:"id"`
-// }
+type IntegerFieldValue struct {
+	Value int  `json:"value"`
+	Id    uint `json:"id"`
+}
 
-// type ItemFields struct {
-// 	Fields        []KeyFieldValue     `json:"values"`
-// 	DecimalFields []DecimalFieldValue `json:"numberValues"`
-// 	IntegerFields []IntegerFieldValue `json:"integerValues"`
-// }
-// type StoredItem struct {
-// 	index.BaseItem
-// 	ItemFields
-// }
+type ItemFields struct {
+	Fields        []KeyFieldValue     `json:"values"`
+	DecimalFields []DecimalFieldValue `json:"numberValues"`
+	IntegerFields []IntegerFieldValue `json:"integerValues"`
+}
+type StoredItem struct {
+	index.BaseItem
+	ItemFields
+}
 
 type Field struct {
 	Id    uint
 	Value interface{}
 }
 
-type PersistanceItem struct {
-	Data   index.BaseItem
-	Fields []Field
+func decodeNormal(enc *gob.Decoder) (*index.DataItem, error) {
+	tmp := &index.DataItem{}
+	err := enc.Decode(tmp)
+	return tmp, err
 }
 
-type PersistanceItem2 struct {
-	Data   index.BaseItem
-	Fields facet.ItemFields
+func decodeOld(enc *gob.Decoder) (*index.DataItem, error) {
+	tmp := &StoredItem{}
+	err := enc.Decode(tmp)
+	if err == nil {
+		fields := make(facet.ItemFields)
+		for _, field := range tmp.Fields {
+			fields[field.Id] = field.Value
+		}
+		for _, field := range tmp.DecimalFields {
+			fields[field.Id] = field.Value
+		}
+		for _, field := range tmp.IntegerFields {
+			fields[field.Id] = field.Value
+		}
+		return &index.DataItem{
+			BaseItem: tmp.BaseItem,
+			Fields:   fields,
+		}, nil
+	}
+	return nil, err
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {
@@ -78,17 +97,16 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 	idx.Lock()
 	defer idx.Unlock()
-	tmp := index.DataItem{}
+	tmp := &index.DataItem{}
 	for err == nil {
 
-		if err = enc.Decode(&tmp); err == nil {
+		if tmp, err = decodeNormal(enc); err == nil {
 			idx.UpsertItemUnsafe(tmp)
-			tmp = index.DataItem{}
 		}
 	}
-	//enc = nil
-	//v = nil
-	//tmp = nil
+	enc = nil
+
+	tmp = nil
 	if err.Error() == "EOF" {
 		return nil
 	}
@@ -103,11 +121,6 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		return err
 	}
 
-	// fields := make(map[uint]facet.KeyField)
-
-	// for _, fld := range idx.KeyFacets {
-	// 	fields[fld.Id] = *fld
-	// }
 	defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
@@ -117,7 +130,10 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer idx.Unlock()
 
 	for _, item := range idx.Items {
-		store := item.(index.DataItem)
+		store, ok := (*item).(index.DataItem)
+		if !ok {
+			log.Fatalf("Could not convert item to DataItem")
+		}
 		err = enc.Encode(store)
 		if err != nil {
 			return err
@@ -129,24 +145,3 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 
 	return err
 }
-
-// func toSlice(fields map[uint]interface{}) []Field {
-// 	slice := make([]Field, len(fields))
-// 	i := 0
-// 	for id, value := range fields {
-// 		slice[i] = Field{
-// 			Id:    id,
-// 			Value: value,
-// 		}
-// 		i++
-// 	}
-// 	return slice
-// }
-
-// func toMap(fields []Field) *facet.ItemFields {
-// 	m := make(facet.ItemFields, len(fields))
-// 	for _, f := range fields {
-// 		m[f.Id] = f.Value
-// 	}
-// 	return &m
-// }

@@ -1,9 +1,5 @@
 package index
 
-import (
-	"hash/fnv"
-)
-
 // func (i *Index) mapToSlice(fields map[uint]map[string]uint, sortIndex *facet.SortIndex) []JsonKeyResult {
 // 	l := min(len(fields), 10)
 // 	sorted := make([]JsonKeyResult, len(fields))
@@ -56,12 +52,6 @@ import (
 // 	}
 // 	return sorted[:idx]
 // }
-
-func HashString(s string) uint {
-	h := fnv.New32a()
-	h.Write([]byte(s))
-	return uint(h.Sum32())
-}
 
 // type Sort struct {
 // 	FieldId int `json:"fieldId"`

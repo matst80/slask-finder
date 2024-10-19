@@ -98,7 +98,7 @@ func (s *CartServer) GetCartItem(item *CartInputItem) (*CartItem, error) {
 	if !ok {
 		return nil, errors.New("item not found")
 	}
-	dataItem := idxItem.GetBaseItem()
+	dataItem := (*idxItem).GetBaseItem()
 	cartItem := CartItem{
 		PromotionInput: &promotions.PromotionInput{},
 		Title:          dataItem.Title,

@@ -514,7 +514,7 @@ type CategoryResult struct {
 
 func CategoryResultFrom(c *index.Category) *CategoryResult {
 	ret := &CategoryResult{}
-	ret.Value = c.Value
+	ret.Value = *c.Value
 	ret.Children = make([]*CategoryResult, 0)
 	if c.Children != nil {
 		for _, child := range c.Children {

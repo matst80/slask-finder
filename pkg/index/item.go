@@ -53,7 +53,15 @@ func (item DataItem) IsDeleted() bool {
 }
 
 func (item DataItem) GetPrice() int {
-	return item.Fields[4].(int)
+	priceField, ok := item.Fields[4]
+	if !ok {
+		return 0
+	}
+	price, ok := priceField.(int)
+	if !ok {
+		return 0
+	}
+	return price
 }
 
 func (item DataItem) GetStock() facet.LocationStock {
