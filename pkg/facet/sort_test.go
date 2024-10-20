@@ -15,7 +15,7 @@ func TestPresortedSorting(t *testing.T) {
 		4,
 		5,
 	}
-	ids := map[uint]types.Item{4: types.MakeMockItem(4), 2: types.MakeMockItem(2), 1: types.MakeMockItem(1), 3: types.MakeMockItem(3)}
+	ids := map[uint]struct{}{4: {}, 2: {}, 1: {}, 3: {}}
 
 	sortedIds := sortIndex.SortMap(ids, 10)
 

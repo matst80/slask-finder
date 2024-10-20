@@ -59,7 +59,7 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	}
 	list, found := f.keys[data]
 	if !found {
-		f.keys[data] = types.ItemList{item.GetId(): item}
+		f.keys[data] = types.ItemList{item.GetId(): struct{}{}}
 	} else {
 		list.Add(item)
 	}

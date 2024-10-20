@@ -59,7 +59,7 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
 
-		initialIds = queryResult.ToResult(ws.Index.Items)
+		initialIds = queryResult.ToResult()
 		if sr.Sort == "popular" || sr.Sort == "" {
 			go queryResult.GetSorting(sortChan)
 		} else {
@@ -246,17 +246,17 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	result := <-resultChan
 
 	//ritem := &index.ResultItem{}
-	var sortedIds []*types.Item
+	var sortedIds []uint
 	if sr.Sort == "popular" || sr.Sort == "" {
 		sortedIds = (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
 	} else {
 		sortedIds = (*result.matching).SortedIds(result.sort, end)
 	}
-	for idx, item := range sortedIds {
+	for idx, id := range sortedIds {
 		if idx < start {
 			continue
 		}
-
+		item := ws.Index.Items[id]
 		enc.Encode(item)
 
 	}
@@ -280,7 +280,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	var docResult *search.DocumentResult = nil
 	if hasMoreWords {
 		docResult = ws.Index.Search.Search(query)
-		results = *docResult.ToResult(ws.Index.Items)
+		results = *docResult.ToResult()
 	}
 
 	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
@@ -460,10 +460,10 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	for _, item := range (*related).SortedIds(sort, len(*related)) {
+	for _, relatedId := range (*related).SortedIds(sort, len(*related)) {
 
-		//item, ok := ws.Index.Items[relatedId]
-		if i < 20 && (*item).GetId() != uint(id) {
+		item, ok := ws.Index.Items[relatedId]
+		if ok && i < 20 && (*item).GetId() != uint(id) {
 			//index.ToResultItem(item, ritem)
 			enc.Encode(item)
 			i++

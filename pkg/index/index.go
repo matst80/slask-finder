@@ -103,9 +103,9 @@ func (i *Index) addItemValues(item types.Item) {
 	for _, stock := range item.GetStock() {
 		stockLocation, ok := i.ItemsInStock[stock.Id]
 		if !ok {
-			i.ItemsInStock[stock.Id] = types.ItemList{item.GetId(): item}
+			i.ItemsInStock[stock.Id] = types.ItemList{item.GetId(): struct{}{}}
 		} else {
-			stockLocation[item.GetId()] = item
+			stockLocation[item.GetId()] = struct{}{}
 		}
 	}
 

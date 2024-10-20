@@ -260,13 +260,13 @@ type ResultWithSort struct {
 	SortIndex types.SortIndex
 }
 
-func (d *DocumentResult) ToResult(items map[uint]*types.Item) *types.ItemList {
+func (d *DocumentResult) ToResult() *types.ItemList {
 	res := types.ItemList{}
 
 	for id := range *d {
-		if item, ok := items[id]; ok {
-			res[id] = *item
-		}
+
+		res[id] = struct{}{}
+
 	}
 	return &res
 }

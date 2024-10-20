@@ -2,17 +2,17 @@ package types
 
 import "maps"
 
-type ItemList map[uint]Item
+type ItemList map[uint]struct{}
 
 func (i *ItemList) Add(item Item) {
-	(*i)[item.GetId()] = item
+	(*i)[item.GetId()] = struct{}{}
 }
 
-func (r *ItemList) SortedIds(srt *SortIndex, maxItems int) []*Item {
+func (r *ItemList) SortedIds(srt *SortIndex, maxItems int) []uint {
 	return srt.SortMap(*r, maxItems)
 }
 
-func (r *ItemList) SortedIdsWithStaticPositions(srt *SortIndex, sp map[int]uint, maxItems int) []*Item {
+func (r *ItemList) SortedIdsWithStaticPositions(srt *SortIndex, sp map[int]uint, maxItems int) []uint {
 	return srt.SortMapWithStaticPositions(*r, sp, maxItems)
 }
 

@@ -33,9 +33,9 @@ func (t *Trie) Insert(word string, item types.Item) {
 	id := item.GetId()
 	node.IsLeaf = true
 	if node.Items == nil {
-		node.Items = types.ItemList{id: item}
+		node.Items = types.ItemList{id: struct{}{}}
 	}
-	node.Items[id] = item
+	node.Items[id] = struct{}{}
 }
 
 func (t *Trie) Search(word string) bool {

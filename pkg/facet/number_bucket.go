@@ -10,7 +10,7 @@ func (b *Bucket[V]) AddValueLink(value V, item types.Item) {
 	idList, ok := b.values[value]
 
 	if !ok {
-		b.values[value] = types.ItemList{item.GetId(): item}
+		b.values[value] = types.ItemList{item.GetId(): struct{}{}}
 
 	} else {
 		idList.Add(item)
@@ -28,7 +28,7 @@ func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
 
 func MakeBucket[V FieldNumberValue](value V, item types.Item) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]types.ItemList{value: {item.GetId(): item}},
+		values: map[V]types.ItemList{value: {item.GetId(): struct{}{}}},
 	}
 }
 

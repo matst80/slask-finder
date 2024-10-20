@@ -101,13 +101,16 @@ func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIn
 	var f FieldResult
 
 	var ok bool
-	var item types.Item
+	var item *types.Item
 	var field interface{}
 	var id uint
 
-	for _, item = range ids {
-
-		for id, field = range item.GetFields() {
+	for id = range ids {
+		item, ok = i.Items[id]
+		if !ok {
+			continue
+		}
+		for id, field = range (*item).GetFields() {
 			if f, ok = fields[id]; ok {
 				f.AddValue(field)
 
