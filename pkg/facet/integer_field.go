@@ -3,26 +3,28 @@ package facet
 import (
 	"maps"
 	"unsafe"
+
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type IntegerField struct {
-	*BaseField
+	*types.BaseField
 	*NumberRange[int]
 	buckets map[int]Bucket[int]
-	all     *ItemList
+	all     *types.ItemList
 	Count   int `json:"count"`
 }
 
-func (f *IntegerField) MatchesRange(minValue int, maxValue int) *ItemList {
+func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList {
 	if minValue > maxValue {
-		return &ItemList{}
+		return &types.ItemList{}
 	}
 	if minValue <= f.Min && maxValue >= f.Max {
 		return f.all
 	}
 	minBucket := GetBucket(max(minValue, f.Min))
 	maxBucket := GetBucket(min(maxValue, f.Max))
-	found := make(ItemList, f.Count)
+	found := make(types.ItemList, f.Count)
 
 	for v, ids := range f.buckets[minBucket].values {
 		if v >= minValue && v <= maxValue {
@@ -60,15 +62,15 @@ func (f IntegerField) Size() int {
 	return sum
 }
 
-func (f IntegerField) Match(input interface{}) *ItemList {
+func (f IntegerField) Match(input interface{}) *types.ItemList {
 	value, ok := input.(NumberRange[int])
 	if ok {
 		return f.MatchesRange(value.Min, value.Max)
 	}
-	return &ItemList{}
+	return &types.ItemList{}
 }
 
-func (f IntegerField) GetBaseField() *BaseField {
+func (f IntegerField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
@@ -81,7 +83,7 @@ func (f IntegerField) GetValues() interface{} {
 	return f
 }
 
-func (f IntegerField) AddValueLink(data interface{}, item Item) bool {
+func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
 	value, ok := data.(int)
 	if !ok {
 		return false
@@ -120,19 +122,19 @@ func (f *IntegerField) TotalCount() int {
 	return f.Count
 }
 
-func (f *IntegerField) GetRangeForIds(ids *IdList) NumberRange[int] {
-	return NumberRange[int]{Min: f.Min, Max: f.Max}
-}
+// func (f *IntegerField) GetRangeForIds(ids *IdList) NumberRange[int] {
+// 	return NumberRange[int]{Min: f.Min, Max: f.Max}
+// }
 
 func (IntegerField) GetType() uint {
-	return FacetIntegerType
+	return types.FacetIntegerType
 }
 
-func EmptyIntegerField(field *BaseField) IntegerField {
+func EmptyIntegerField(field *types.BaseField) IntegerField {
 	return IntegerField{
 		BaseField:   field,
 		NumberRange: &NumberRange[int]{Min: 0, Max: 0},
-		all:         &ItemList{},
+		all:         &types.ItemList{},
 		buckets:     map[int]Bucket[int]{},
 	}
 }

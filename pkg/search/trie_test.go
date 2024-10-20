@@ -1,19 +1,30 @@
 package search
 
-import "testing"
+import (
+	"testing"
+
+	"tornberg.me/facet-search/pkg/types"
+)
+
+func mockItem(id uint) types.Item {
+	return &types.MockItem{
+		Id: id,
+	}
+
+}
 
 func TestTrie(t *testing.T) {
 	trie := NewTrie()
-	trie.Insert("hello", 1)
-	trie.Insert("world", 1)
-	trie.Insert("hell", 2)
-	trie.Insert("cat", 2)
-	trie.Insert("dog", 3)
-	trie.Insert("doggo", 4)
-	trie.Insert("doggy", 1)
-	trie.Insert("dogger", 2)
-	trie.Insert("dogging", 4)
-	trie.Insert("dogged", 2)
+	trie.Insert("hello", mockItem(1))
+	trie.Insert("world", mockItem(1))
+	trie.Insert("hell", mockItem(2))
+	trie.Insert("cat", mockItem(2))
+	trie.Insert("dog", mockItem(3))
+	trie.Insert("doggo", mockItem(4))
+	trie.Insert("doggy", mockItem(1))
+	trie.Insert("dogger", mockItem(2))
+	trie.Insert("dogging", mockItem(4))
+	trie.Insert("dogged", mockItem(2))
 
 	if !trie.Search("hello") {
 		t.Error("Expected to find hello")

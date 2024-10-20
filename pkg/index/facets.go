@@ -1,7 +1,7 @@
 package index
 
 import (
-	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type Facets map[uint]FieldResult
@@ -73,12 +73,12 @@ func (k *decimalFieldResult) HasValues() bool {
 	return k.Count > 0
 }
 
-func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortIndex *facet.SortIndex) []JsonFacet {
-	l := uint(len(*ids))
+func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIndex *types.SortIndex) []JsonFacet {
+	l := uint(len(ids))
 	needsTruncation := l > 6144
 	fields := make(map[uint]FieldResult)
 
-	var base *facet.BaseField
+	var base *types.BaseField
 
 	for key, field := range i.Facets {
 		base = field.GetBaseField()
@@ -86,12 +86,12 @@ func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortI
 
 		} else {
 			switch field.GetType() {
-			case facet.FacetKeyType:
+			case types.FacetKeyType:
 				fields[key] = &KeyFieldResult{
 					Values: make(map[string]uint)}
-			case facet.FacetIntegerType:
+			case types.FacetIntegerType:
 				fields[key] = &IntegerFieldResult{}
-			case facet.FacetNumberType:
+			case types.FacetNumberType:
 				fields[key] = &decimalFieldResult{}
 			}
 		}
@@ -101,13 +101,13 @@ func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortI
 	var f FieldResult
 
 	var ok bool
-	var item *facet.Item
+	var item types.Item
 	var field interface{}
 	var id uint
 
-	for _, item = range *ids {
+	for _, item = range ids {
 
-		for id, field = range (*item).GetFields() {
+		for id, field = range item.GetFields() {
 			if f, ok = fields[id]; ok {
 				f.AddValue(field)
 
@@ -120,15 +120,15 @@ func (i *Index) GetFacetsFromResult(ids *facet.ItemList, filters *Filters, sortI
 }
 
 type JsonFacet struct {
-	*facet.BaseField
+	*types.BaseField
 	Result FieldResult `json:"result,omitempty"`
 }
 
-func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *facet.SortIndex) []JsonFacet {
+func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *types.SortIndex) []JsonFacet {
 	l := min(len(fields), 20)
 	sorted := make([]JsonFacet, len(fields))
 	idx := 0
-	var base *facet.BaseField
+	var base *types.BaseField
 	for _, id := range *sortIndex {
 		f, ok := fields[id]
 		if ok {

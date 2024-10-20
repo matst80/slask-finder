@@ -1,15 +1,11 @@
-package facet
+package types
 
-import (
-	"maps"
-)
+import "maps"
 
-type IdList map[uint]struct{}
+type ItemList map[uint]Item
 
-var empty = struct{}{}
-
-func (r *IdList) Add(id uint) {
-	(*r)[id] = empty
+func (i *ItemList) Add(item Item) {
+	(*i)[item.GetId()] = item
 }
 
 func (r *ItemList) SortedIds(srt *SortIndex, maxItems int) []*Item {

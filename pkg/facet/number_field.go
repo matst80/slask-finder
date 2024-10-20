@@ -3,6 +3,8 @@ package facet
 import (
 	"maps"
 	"unsafe"
+
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type FieldNumberValue interface {
@@ -10,23 +12,23 @@ type FieldNumberValue interface {
 }
 
 type DecimalField struct {
-	*BaseField
+	*types.BaseField
 	*NumberRange[float64]
 	buckets map[int]Bucket[float64]
-	all     *ItemList
+	all     *types.ItemList
 	Count   int `json:"count"`
 }
 
-func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *ItemList {
+func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
 	if minValue > maxValue {
-		return &ItemList{}
+		return &types.ItemList{}
 	}
 	if minValue <= f.Min && maxValue >= f.Max {
 		return f.all
 	}
 	minBucket := GetBucket(max(minValue, f.Min))
 	maxBucket := GetBucket(min(maxValue, f.Max))
-	found := make(ItemList, f.Count)
+	found := make(types.ItemList, f.Count)
 
 	for v, ids := range f.buckets[minBucket].values {
 		if v >= minValue && v <= maxValue {
@@ -60,15 +62,15 @@ func (f DecimalField) Size() int {
 	return int(unsafe.Sizeof(f.buckets)) + int(unsafe.Sizeof(f.all))
 }
 
-func (f DecimalField) Match(input interface{}) *ItemList {
+func (f DecimalField) Match(input interface{}) *types.ItemList {
 	value, ok := input.(NumberRange[float64])
 	if ok {
 		return f.MatchesRange(value.Min, value.Max)
 	}
-	return &ItemList{}
+	return &types.ItemList{}
 }
 
-func (f DecimalField) GetBaseField() *BaseField {
+func (f DecimalField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
@@ -85,7 +87,7 @@ func (f DecimalField) GetValues() interface{} {
 	return f
 }
 
-func (f DecimalField) AddValueLink(data interface{}, item Item) bool {
+func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
 	value, ok := data.(float64)
 	if !ok {
 		return false
@@ -124,19 +126,19 @@ func (f *DecimalField) TotalCount() int {
 	return f.Count
 }
 
-func (f *DecimalField) GetRangeForIds(ids *IdList) NumberRange[float64] {
+func (f *DecimalField) GetRangeForIds(ids *types.IdList) NumberRange[float64] {
 	return NumberRange[float64]{Min: f.Min, Max: f.Max}
 }
 
 func (DecimalField) GetType() uint {
-	return FacetNumberType
+	return types.FacetNumberType
 }
 
-func EmptyDecimalField(field *BaseField) DecimalField {
+func EmptyDecimalField(field *types.BaseField) DecimalField {
 	return DecimalField{
 		BaseField:   field,
 		NumberRange: &NumberRange[float64]{Min: 0, Max: 0},
-		all:         &ItemList{},
+		all:         &types.ItemList{},
 		buckets:     map[int]Bucket[float64]{},
 	}
 }

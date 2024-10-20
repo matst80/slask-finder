@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/search"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 var (
@@ -23,10 +24,6 @@ var (
 		Help: "The total number of item deletions",
 	})
 )
-
-type KeyFacet = facet.KeyField
-type DecimalFacet = facet.DecimalField
-type IntFacet = facet.IntegerField
 
 type ChangeHandler interface {
 	//ItemChanged(item *DataItem)
@@ -51,14 +48,12 @@ type Category struct {
 type Index struct {
 	mu         sync.RWMutex
 	categories map[uint]*Category
-	Facets     map[uint]facet.Facet
-	// KeyFacets     map[uint]*KeyFacet
-	// DecimalFacets map[uint]*DecimalFacet
-	// IntFacets     map[uint]*IntFacet
+	Facets     map[uint]types.Facet
+
 	DefaultFacets Facets
-	Items         map[uint]*facet.Item
-	ItemsInStock  map[string]facet.ItemList
-	//AllItems      facet.MatchList
+	Items         map[uint]*types.Item
+	ItemsInStock  map[string]types.ItemList
+
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
 	Sorting       *Sorting
@@ -67,38 +62,26 @@ type Index struct {
 
 func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
-		mu:         sync.RWMutex{},
-		categories: make(map[uint]*Category),
-		Facets:     make(map[uint]facet.Facet),
-		// KeyFacets:     make(map[uint]*KeyFacet),
-		// DecimalFacets: make(map[uint]*DecimalFacet),
-		// IntFacets:     make(map[uint]*IntFacet),
-		Items:        make(map[uint]*facet.Item),
-		ItemsInStock: make(map[string]facet.ItemList),
-		// AllItems:      facet.MatchList{},
-		AutoSuggest: AutoSuggest{Trie: search.NewTrie()},
-		Search:      freeText,
+		mu:           sync.RWMutex{},
+		categories:   make(map[uint]*Category),
+		Facets:       make(map[uint]types.Facet),
+		Items:        make(map[uint]*types.Item),
+		ItemsInStock: make(map[string]types.ItemList),
+		AutoSuggest:  AutoSuggest{Trie: search.NewTrie()},
+		Search:       freeText,
 	}
 }
 
-// func (i *Index) CreateDefaultFacets(sort *facet.SortIndex) {
-// 	ids := facet.IdList{}
-// 	for id := range i.AllItems {
-// 		ids[id] = struct{}{}
-// 	}
-// 	i.DefaultFacets = i.GetFacetsFromResult(&ids, &Filters{}, sort)
-// }
-
-func (i *Index) AddKeyField(field *facet.BaseField) {
+func (i *Index) AddKeyField(field *types.BaseField) {
 	facet := facet.EmptyKeyValueField(field)
 	i.Facets[field.Id] = facet
 }
 
-func (i *Index) AddDecimalField(field *facet.BaseField) {
+func (i *Index) AddDecimalField(field *types.BaseField) {
 	i.Facets[field.Id] = facet.EmptyDecimalField(field)
 }
 
-func (i *Index) AddIntegerField(field *facet.BaseField) {
+func (i *Index) AddIntegerField(field *types.BaseField) {
 	i.Facets[field.Id] = facet.EmptyIntegerField(field)
 }
 
@@ -112,7 +95,7 @@ func makeCategoryId(level int, value string) uint {
 	return facet.HashString(fmt.Sprintf("%d%s", level, value))
 }
 
-func (i *Index) addItemValues(item facet.Item) {
+func (i *Index) addItemValues(item types.Item) {
 	for _, stock := range i.ItemsInStock {
 		delete(stock, item.GetId())
 	}
@@ -120,14 +103,14 @@ func (i *Index) addItemValues(item facet.Item) {
 	for _, stock := range item.GetStock() {
 		stockLocation, ok := i.ItemsInStock[stock.Id]
 		if !ok {
-			i.ItemsInStock[stock.Id] = facet.ItemList{item.GetId(): &item}
+			i.ItemsInStock[stock.Id] = types.ItemList{item.GetId(): item}
 		} else {
-			stockLocation[item.GetId()] = &item
+			stockLocation[item.GetId()] = item
 		}
 	}
 
 	tree := make([]*Category, 0)
-	var base *facet.BaseField
+	var base *types.BaseField
 
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
@@ -205,7 +188,7 @@ func (i *Index) GetCategories() []*Category {
 	return categories
 }
 
-func (i *Index) removeItemValues(item facet.Item) {
+func (i *Index) removeItemValues(item types.Item) {
 	iid := item.GetId()
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
@@ -215,8 +198,8 @@ func (i *Index) removeItemValues(item facet.Item) {
 
 }
 
-func (i *Index) UpsertItem(item *DataItem) {
-	log.Printf("Upserting item %d", item.Id)
+func (i *Index) UpsertItem(item types.Item) {
+	log.Printf("Upserting item %d", item.GetId())
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.UpsertItemUnsafe(item)
@@ -274,7 +257,7 @@ func (i *Index) Unlock() {
 	i.mu.RUnlock()
 }
 
-func (i *Index) UpsertItemUnsafe(item facet.Item) bool {
+func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	price_lowered := false
 	current, isUpdate := i.Items[item.GetId()]
 	if item.IsDeleted() {
@@ -342,16 +325,3 @@ func (i *Index) GetItemIds(ids []uint, page int, pageSize int) []uint {
 	}
 	return ids[start:end]
 }
-
-// func (i *Index) GetItems(ids []uint, page int, pageSize int) []ResultItem {
-// 	items := make([]ResultItem, min(len(ids), pageSize))
-// 	idx := 0
-// 	for _, id := range i.GetItemIds(ids, page, pageSize) {
-// 		item, ok := i.Items[id]
-// 		if ok {
-// 			items[idx] = MakeResultItem(item)
-// 			idx++
-// 		}
-// 	}
-// 	return items[0:idx]
-// }

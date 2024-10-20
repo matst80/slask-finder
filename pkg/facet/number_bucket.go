@@ -1,21 +1,20 @@
 package facet
 
+import "tornberg.me/facet-search/pkg/types"
+
 type Bucket[V FieldNumberValue] struct {
-	values map[V]ItemList
-	//	all    *MatchList
+	values map[V]types.ItemList
 }
 
-func (b *Bucket[V]) AddValueLink(value V, item Item) {
+func (b *Bucket[V]) AddValueLink(value V, item types.Item) {
 	idList, ok := b.values[value]
 
 	if !ok {
-		b.values[value] = ItemList{item.GetId(): &item}
+		b.values[value] = types.ItemList{item.GetId(): item}
 
 	} else {
 		idList.Add(item)
 	}
-	//maps.Copy(*b.all, lst)
-	//b.all.Merge(&lst)
 }
 
 func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
@@ -27,10 +26,9 @@ func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
 	//delete(*b.all, id)
 }
 
-func MakeBucket[V FieldNumberValue](value V, item Item) Bucket[V] {
+func MakeBucket[V FieldNumberValue](value V, item types.Item) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]ItemList{value: {item.GetId(): &item}},
-		//		all:    &MatchList{id: fields},
+		values: map[V]types.ItemList{value: {item.GetId(): item}},
 	}
 }
 

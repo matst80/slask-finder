@@ -1,6 +1,6 @@
 package search
 
-import "tornberg.me/facet-search/pkg/facet"
+import "tornberg.me/facet-search/pkg/types"
 
 type Trie struct {
 	Root *Node
@@ -9,7 +9,7 @@ type Trie struct {
 type Node struct {
 	Children map[rune]*Node
 	IsLeaf   bool
-	Items    facet.ItemList
+	Items    types.ItemList
 }
 
 func NewTrie() *Trie {
@@ -20,7 +20,7 @@ func NewTrie() *Trie {
 	}
 }
 
-func (t *Trie) Insert(word string, item *facet.Item) {
+func (t *Trie) Insert(word string, item types.Item) {
 	node := t.Root
 	for _, r := range word {
 		if _, ok := node.Children[r]; !ok {
@@ -30,10 +30,10 @@ func (t *Trie) Insert(word string, item *facet.Item) {
 		}
 		node = node.Children[r]
 	}
-	id := (*item).GetId()
+	id := item.GetId()
 	node.IsLeaf = true
 	if node.Items == nil {
-		node.Items = facet.ItemList{id: item}
+		node.Items = types.ItemList{id: item}
 	}
 	node.Items[id] = item
 }
@@ -51,7 +51,7 @@ func (t *Trie) Search(word string) bool {
 
 type Match struct {
 	Word  string          `json:"word"`
-	Items *facet.ItemList `json:"ids"`
+	Items *types.ItemList `json:"ids"`
 }
 
 func (t *Trie) FindMatches(prefix string) []Match {

@@ -7,7 +7,6 @@ import (
 	"os"
 	"runtime"
 
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 )
 
@@ -20,31 +19,6 @@ func NewPersistance() *Persistance {
 	}
 }
 
-type KeyFieldValue struct {
-	Value string `json:"value"`
-	Id    uint   `json:"id"`
-}
-
-type DecimalFieldValue struct {
-	Value float64 `json:"value"`
-	Id    uint    `json:"id"`
-}
-
-type IntegerFieldValue struct {
-	Value int  `json:"value"`
-	Id    uint `json:"id"`
-}
-
-type ItemFields struct {
-	Fields        []KeyFieldValue     `json:"values"`
-	DecimalFields []DecimalFieldValue `json:"numberValues"`
-	IntegerFields []IntegerFieldValue `json:"integerValues"`
-}
-type StoredItem struct {
-	index.BaseItem
-	ItemFields
-}
-
 type Field struct {
 	Id    uint
 	Value interface{}
@@ -53,26 +27,6 @@ type Field struct {
 func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
 
 	err := enc.Decode(item)
-	return err
-}
-
-func decodeOld(enc *gob.Decoder, item *index.DataItem) error {
-	tmp := &StoredItem{}
-	err := enc.Decode(tmp)
-	if err == nil {
-		fields := make(facet.ItemFields)
-		for _, field := range tmp.Fields {
-			fields[field.Id] = field.Value
-		}
-		for _, field := range tmp.DecimalFields {
-			fields[field.Id] = field.Value
-		}
-		for _, field := range tmp.IntegerFields {
-			fields[field.Id] = field.Value
-		}
-		item.BaseItem = &tmp.BaseItem
-		item.Fields = &fields
-	}
 	return err
 }
 

@@ -1,4 +1,4 @@
-package facet
+package types
 
 import (
 	"log"
@@ -69,14 +69,14 @@ func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map
 		if sp, ok := staticPositions[idx]; ok {
 			item, ok := ids[sp]
 			if ok {
-				sortedIds[idx] = item
+				sortedIds[idx] = &item
 				idx++
 			}
 		}
 
 		item, ok := ids[id]
 		if ok {
-			sortedIds[idx] = item
+			sortedIds[idx] = &item
 
 			idx++
 
@@ -103,7 +103,7 @@ func (s *SortIndex) SortMap(ids ItemList, breakAt int) []*Item {
 		}
 		item, ok := ids[id]
 		if ok {
-			sortedIds[idx] = item
+			sortedIds[idx] = &item
 
 			idx++
 

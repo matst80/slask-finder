@@ -1,7 +1,7 @@
 package index
 
 import (
-	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type EnergyRating struct {
@@ -33,7 +33,7 @@ type ItemProp struct {
 type BaseItem struct {
 	ItemProp
 	StockLevel string              `json:"stockLevel,omitempty"`
-	Stock      facet.LocationStock `json:"stock"`
+	Stock      types.LocationStock `json:"stock"`
 	Id         uint                `json:"id"`
 	Sku        string              `json:"sku"`
 	Title      string              `json:"title"`
@@ -41,7 +41,7 @@ type BaseItem struct {
 
 type DataItem struct {
 	*BaseItem
-	Fields *facet.ItemFields `json:"values"`
+	Fields *types.ItemFields `json:"values"`
 }
 
 func (item DataItem) GetId() uint {
@@ -64,7 +64,7 @@ func (item DataItem) GetPrice() int {
 	return price
 }
 
-func (item DataItem) GetStock() facet.LocationStock {
+func (item DataItem) GetStock() types.LocationStock {
 	return item.Stock
 }
 
@@ -131,8 +131,8 @@ func (item DataItem) ToString() string {
 	return item.Title
 }
 
-func (item DataItem) GetBaseItem() facet.BaseItem {
-	return facet.BaseItem{
+func (item DataItem) GetBaseItem() types.BaseItem {
+	return types.BaseItem{
 		Id:    item.Id,
 		Sku:   item.Sku,
 		Title: item.Title,

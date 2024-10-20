@@ -6,6 +6,7 @@ import (
 	"slices"
 
 	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type NumberSearch[K float64 | int] struct {
@@ -24,19 +25,19 @@ type Filters struct {
 	IntegerFilter []NumberSearch[int]     `json:"integer" schema:"-"`
 }
 
-func (i *Index) Match(search *Filters, initialIds *facet.ItemList, idList chan<- *facet.ItemList) {
+func (i *Index) Match(search *Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	results := make(chan *facet.ItemList)
+	results := make(chan *types.ItemList)
 
-	parseKeys := func(field StringSearch, fld facet.Facet) {
+	parseKeys := func(field StringSearch, fld types.Facet) {
 		results <- fld.Match(field.Value)
 	}
-	parseInts := func(field NumberSearch[int], fld facet.Facet) {
+	parseInts := func(field NumberSearch[int], fld types.Facet) {
 		results <- fld.Match(field.NumberRange)
 	}
-	parseNumber := func(field NumberSearch[float64], fld facet.Facet) {
+	parseNumber := func(field NumberSearch[float64], fld types.Facet) {
 		results <- fld.Match(field.NumberRange)
 	}
 	for _, fld := range search.StringFilter {
@@ -70,16 +71,16 @@ func (i *Index) Match(search *Filters, initialIds *facet.ItemList, idList chan<-
 		}()
 	}
 
-	idList <- facet.MakeIntersectResult(results, cnt)
+	idList <- types.MakeIntersectResult(results, cnt)
 
 }
 
 type KeyFieldWithValue struct {
-	facet.Facet
+	types.Facet
 	Value interface{}
 }
 
-func (i *Index) Related(id uint) (*facet.ItemList, error) {
+func (i *Index) Related(id uint) (*types.ItemList, error) {
 	i.Lock()
 	defer i.Unlock()
 	item, ok := i.Items[uint(id)]
@@ -87,8 +88,8 @@ func (i *Index) Related(id uint) (*facet.ItemList, error) {
 		return nil, fmt.Errorf("Item with id %d not found", id)
 	}
 	fields := make([]KeyFieldWithValue, 0)
-	result := facet.ItemList{}
-	var base *facet.BaseField
+	result := types.ItemList{}
+	var base *types.BaseField
 	for id, itemField := range (*item).GetFields() {
 		field, ok := i.Facets[id]
 		if !ok {

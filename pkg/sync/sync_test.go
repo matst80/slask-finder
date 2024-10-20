@@ -6,9 +6,9 @@ import (
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 var rabbitConfig = RabbitConfig{
@@ -68,15 +68,12 @@ func TestSendChanges(t *testing.T) {
 		t.Error(err)
 	}
 	item := &index.DataItem{
-		BaseItem: index.BaseItem{
+		BaseItem: &index.BaseItem{
 			Id:    3,
 			Title: "Test",
 		},
-		ItemFields: facet.ItemFields{
-
-			Fields: []facet.KeyFieldValue{
-				{Value: "Test", Id: 1},
-			},
+		Fields: &types.ItemFields{
+			1: "test",
 		},
 	}
 	items := make([]index.DataItem, 0)
@@ -112,15 +109,13 @@ func TestSync(t *testing.T) {
 	defer clientTransport1.Close()
 
 	item := &index.DataItem{
-		BaseItem: index.BaseItem{
+
+		BaseItem: &index.BaseItem{
 			Id:    1,
 			Title: "Test",
 		},
-		ItemFields: facet.ItemFields{
-
-			Fields: []facet.KeyFieldValue{
-				{Value: "Test", Id: 1},
-			},
+		Fields: &types.ItemFields{
+			1: "test",
 		},
 	}
 
@@ -137,7 +132,7 @@ func TestSync(t *testing.T) {
 		t.Error("Item not added to client 1")
 	}
 
-	item.Fields[0].Value = "Test2"
+	(*item.Fields)[0] = "Test2"
 	items = make([]index.DataItem, 0)
 	items = append(items, *item)
 	err = masterTransport.ItemsUpserted(items)
@@ -153,7 +148,7 @@ func TestSync(t *testing.T) {
 		return
 	}
 
-	if firstItem1.Fields[0].Value != "Test2" {
+	if (*firstItem1).GetFields()[0] != "Test2" {
 		t.Error("Item not updated on client 1")
 	}
 

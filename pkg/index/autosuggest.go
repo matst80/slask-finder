@@ -4,8 +4,8 @@ import (
 	"strings"
 	"sync"
 
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/search"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type AutoSuggest struct {
@@ -13,19 +13,19 @@ type AutoSuggest struct {
 	Trie *search.Trie
 }
 
-func (a *AutoSuggest) Insert(word string, item facet.Item) {
+func (a *AutoSuggest) Insert(word string, item types.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	a.insertUnsafe(word, item)
 }
 
-func (a *AutoSuggest) insertUnsafe(word string, item facet.Item) {
+func (a *AutoSuggest) insertUnsafe(word string, item types.Item) {
 	if len(word) > 1 {
-		a.Trie.Insert(word, &item)
+		a.Trie.Insert(word, item)
 	}
 }
 
-func (a *AutoSuggest) InsertItem(item facet.Item) {
+func (a *AutoSuggest) InsertItem(item types.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 

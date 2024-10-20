@@ -2,10 +2,10 @@ package server
 
 import (
 	"golang.org/x/oauth2"
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
 	"tornberg.me/facet-search/pkg/tracking"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type WebServer struct {
@@ -33,7 +33,7 @@ type FieldValueAndItemId struct {
 }
 
 type FacetItem struct {
-	*facet.BaseField
+	*types.BaseField
 	FieldType string `json:"fieldType"`
 	Count     int    `json:"count"`
 }

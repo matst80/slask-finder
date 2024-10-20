@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/redis/go-redis/v9"
-	"tornberg.me/facet-search/pkg/facet"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type Sorting struct {
@@ -22,9 +22,9 @@ type Sorting struct {
 	ctx              context.Context
 	fieldOverride    *SortOverride
 	popularOverrides *SortOverride
-	sortMethods      map[string]*facet.SortIndex
+	sortMethods      map[string]*types.SortIndex
 	staticPositions  *StaticPositions
-	FieldSort        *facet.SortIndex
+	FieldSort        *types.SortIndex
 	hasItemChanges   bool
 }
 
@@ -62,8 +62,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 		ctx:              ctx,
 		client:           rdb,
-		sortMethods:      make(map[string]*facet.SortIndex),
-		FieldSort:        &facet.SortIndex{},
+		sortMethods:      make(map[string]*types.SortIndex),
+		FieldSort:        &types.SortIndex{},
 		popularOverrides: &SortOverride{},
 		fieldOverride:    &SortOverride{},
 		staticPositions:  &StaticPositions{},
@@ -228,12 +228,12 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	}()
 }
 
-func getFieldLookupValue(field facet.BaseField, overrideValue float64) facet.Lookup {
+func getFieldLookupValue(field types.BaseField, overrideValue float64) types.Lookup {
 	if field.HideFacet {
-		return facet.Lookup{Id: field.Id, Value: 0}
+		return types.Lookup{Id: field.Id, Value: 0}
 	}
 
-	return facet.Lookup{Id: field.Id, Value: field.Priority + overrideValue}
+	return types.Lookup{Id: field.Id, Value: field.Priority + overrideValue}
 }
 
 func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
@@ -243,9 +243,9 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	defer s.mu.Unlock()
 	l := len(idx.Facets)
 	i := 0
-	sortIndex := make(facet.SortIndex, l)
-	sortMap := make(facet.ByValue, l)
-	var base *facet.BaseField
+	sortIndex := make(types.SortIndex, l)
+	sortMap := make(types.ByValue, l)
+	var base *types.BaseField
 	for _, item := range idx.Facets {
 		base = item.GetBaseField()
 		if base.HideFacet {
@@ -286,11 +286,11 @@ func (s *Sorting) GetPopularOverrides() *SortOverride {
 	return s.popularOverrides
 }
 
-func (s *Sorting) GetSorting(id string, sortChan chan *facet.SortIndex) {
+func (s *Sorting) GetSorting(id string, sortChan chan *types.SortIndex) {
 	sortChan <- s.GetSort(id)
 }
 
-func (s *Sorting) GetSort(id string) *facet.SortIndex {
+func (s *Sorting) GetSort(id string) *types.SortIndex {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if sort, ok := s.sortMethods[id]; ok {
@@ -299,7 +299,7 @@ func (s *Sorting) GetSort(id string) *facet.SortIndex {
 	for _, sort := range s.sortMethods {
 		return sort
 	}
-	return &facet.SortIndex{}
+	return &types.SortIndex{}
 }
 
 func (s *Sorting) makeItemSortMaps() {
@@ -316,14 +316,14 @@ func (s *Sorting) makeItemSortMaps() {
 	j := 0.0
 	now := time.Now()
 	ts := now.Unix() / 1000
-	popularMap := make(facet.ByValue, l)
-	priceMap := make(facet.ByValue, l)
-	updatedMap := make(facet.ByValue, l)
-	createdMap := make(facet.ByValue, l)
+	popularMap := make(types.ByValue, l)
+	priceMap := make(types.ByValue, l)
+	updatedMap := make(types.ByValue, l)
+	createdMap := make(types.ByValue, l)
 	popularSearchMap := make(map[uint]float64)
 	i := 0
-	var item facet.Item
-	var itm *facet.Item
+	var item types.Item
+	var itm *types.Item
 	var id uint
 	for id, itm = range s.idx.Items {
 		item = *itm
@@ -333,18 +333,18 @@ func (s *Sorting) makeItemSortMaps() {
 		//popular := getPopularValue(itemData, overrides[item.Id])
 		partPopular := popular / 1000.0
 		if item.GetLastUpdated() == 0 {
-			updatedMap[i] = facet.Lookup{Id: id, Value: j}
+			updatedMap[i] = types.Lookup{Id: id, Value: j}
 		} else {
-			updatedMap[i] = facet.Lookup{Id: id, Value: float64(ts-item.GetLastUpdated()/1000) + j}
+			updatedMap[i] = types.Lookup{Id: id, Value: float64(ts-item.GetLastUpdated()/1000) + j}
 		}
 		if item.GetCreated() == 0 {
-			createdMap[i] = facet.Lookup{Id: id, Value: partPopular + j}
+			createdMap[i] = types.Lookup{Id: id, Value: partPopular + j}
 		} else {
-			createdMap[i] = facet.Lookup{Id: id, Value: partPopular + float64(ts-item.GetCreated()/1000) + j}
+			createdMap[i] = types.Lookup{Id: id, Value: partPopular + float64(ts-item.GetCreated()/1000) + j}
 		}
 
-		priceMap[i] = facet.Lookup{Id: id, Value: float64(item.GetPrice()) + j}
-		popularMap[i] = facet.Lookup{Id: id, Value: popular + j}
+		priceMap[i] = types.Lookup{Id: id, Value: float64(item.GetPrice()) + j}
+		popularMap[i] = types.Lookup{Id: id, Value: popular + j}
 		popularSearchMap[id] = popular / 1000.0
 		i++
 	}

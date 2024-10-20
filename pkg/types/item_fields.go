@@ -1,4 +1,4 @@
-package facet
+package types
 
 import (
 	"bytes"

@@ -12,15 +12,15 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"tornberg.me/facet-search/pkg/common"
-	"tornberg.me/facet-search/pkg/facet"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 	"tornberg.me/facet-search/pkg/tracking"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type searchResult struct {
-	matching *facet.ItemList
-	sort     *facet.SortIndex
+	matching *types.ItemList
+	sort     *types.SortIndex
 }
 
 var (
@@ -47,14 +47,14 @@ var (
 )
 
 func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
-	matchingChan := make(chan *facet.ItemList)
-	sortChan := make(chan *facet.SortIndex)
+	matchingChan := make(chan *types.ItemList)
+	sortChan := make(chan *types.SortIndex)
 	go noSearches.Inc()
 
 	defer close(matchingChan)
 	defer close(sortChan)
 
-	var initialIds *facet.ItemList = nil
+	var initialIds *types.ItemList = nil
 
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
@@ -70,7 +70,7 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	}
 
 	if len(sr.Stock) > 0 {
-		resultStockIds := facet.ItemList{}
+		resultStockIds := types.ItemList{}
 		for _, stockId := range sr.Stock {
 			stockIds, ok := ws.Index.ItemsInStock[stockId]
 			if ok {
@@ -170,7 +170,7 @@ func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 		writer = MakeCacheWriter(writer, key, ws.Cache.SetRaw)
 	}
 
-	go getFacetsForIds(result.matching, ws.Index, sr.Filters, ws.Sorting.FieldSort, facetsChan)
+	go getFacetsForIds(*result.matching, ws.Index, sr.Filters, ws.Sorting.FieldSort, facetsChan)
 	go facetSearches.Inc()
 
 	enc := json.NewEncoder(writer)
@@ -246,7 +246,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	result := <-resultChan
 
 	//ritem := &index.ResultItem{}
-	var sortedIds []*facet.Item
+	var sortedIds []*types.Item
 	if sr.Sort == "popular" || sr.Sort == "" {
 		sortedIds = (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
 	} else {
@@ -267,14 +267,14 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	words := strings.Split(query, " ")
-	results := facet.ItemList{}
+	results := types.ItemList{}
 	lastWord := words[len(words)-1]
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
 	go noSuggests.Inc()
 
 	wordMatchesChan := make(chan []search.Match)
-	sortChan := make(chan *facet.SortIndex)
+	sortChan := make(chan *types.SortIndex)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
 	var docResult *search.DocumentResult = nil
@@ -317,7 +317,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	facets := ws.Index.GetFacetsFromResult(&results, &index.Filters{}, ws.Sorting.FieldSort)
+	facets := ws.Index.GetFacetsFromResult(results, &index.Filters{}, ws.Sorting.FieldSort)
 	w.Write([]byte("\n"))
 	enc.Encode(facets)
 }
@@ -379,7 +379,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	var base *facet.BaseField
+	var base *types.BaseField
 	for _, field := range ws.Index.Facets {
 		base = field.GetBaseField()
 		if base.Id == uint(id) {
@@ -400,7 +400,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	res := make([]facet.BaseField, len(ws.Index.Facets))
+	res := make([]types.BaseField, len(ws.Index.Facets))
 	idx := 0
 	for _, f := range ws.Index.Facets {
 		res[idx] = *f.GetBaseField()
