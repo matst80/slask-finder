@@ -1,6 +1,8 @@
 package index
 
 import (
+	"fmt"
+
 	"tornberg.me/facet-search/pkg/types"
 )
 
@@ -128,7 +130,7 @@ func (item DataItem) GetTitle() string {
 }
 
 func (item DataItem) ToString() string {
-	return item.Title
+	return fmt.Sprintf("%s %s %s", item.Sku, item.Title, item.BulletPoints)
 }
 
 func (item DataItem) GetBaseItem() types.BaseItem {

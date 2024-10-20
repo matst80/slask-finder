@@ -13,6 +13,7 @@ import (
 	"golang.org/x/oauth2/google"
 
 	"tornberg.me/facet-search/pkg/cart"
+	"tornberg.me/facet-search/pkg/embeddings"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/persistance"
 	"tornberg.me/facet-search/pkg/promotions"
@@ -59,12 +60,15 @@ var promotionServer = promotions.PromotionServer{
 	Storage: &promotionStorage,
 }
 
+var embeddingsIndex = embeddings.NewEmbeddingsIndex()
+
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
 	FacetLimit:       10280,
 	SearchFacetLimit: 10280,
 	Cache:            nil,
+	Embeddings:       embeddingsIndex,
 }
 
 var done = false
@@ -104,6 +108,15 @@ func Init() {
 	go func() {
 
 		err := db.LoadIndex(idx)
+		go func() {
+
+			for _, item := range idx.Items {
+				embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
+			}
+
+			log.Printf("Embeddings index loaded")
+		}()
+
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
 		} else {

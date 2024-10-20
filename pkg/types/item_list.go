@@ -8,6 +8,10 @@ func (i *ItemList) Add(item Item) {
 	(*i)[item.GetId()] = struct{}{}
 }
 
+func (i *ItemList) AddId(id uint) {
+	(*i)[id] = struct{}{}
+}
+
 func (r *ItemList) SortedIds(srt *SortIndex, maxItems int) []uint {
 	return srt.SortMap(*r, maxItems)
 }

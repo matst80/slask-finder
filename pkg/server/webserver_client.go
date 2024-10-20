@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"tornberg.me/facet-search/pkg/common"
+	"tornberg.me/facet-search/pkg/embeddings"
 	"tornberg.me/facet-search/pkg/index"
 	"tornberg.me/facet-search/pkg/search"
 	"tornberg.me/facet-search/pkg/tracking"
@@ -614,6 +615,34 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	query = strings.TrimSpace(query)
+	typeField, ok := ws.Index.Facets[31158]
+	if !ok {
+		http.Error(w, "no type", http.StatusNotImplemented)
+		return
+	}
+	toMatch := typeField.Match("Stationär gamingdator")
+	embeddings := embeddings.GetEmbedding(query)
+	if ws.Embeddings == nil {
+		http.Error(w, "Embeddings not enabled", http.StatusNotImplemented)
+		return
+	}
+	results := ws.Embeddings.FindMatches(embeddings)
+	toMatch.Intersect(results)
+	defaultHeaders(w, true, "120")
+	w.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(w)
+	for id := range *toMatch {
+		item, ok := ws.Index.Items[id]
+		if ok {
+			enc.Encode(item)
+		}
+	}
+
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -632,6 +661,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/suggest", ws.Suggest)
 	srv.HandleFunc("/categories", ws.Categories)
 	//srv.HandleFunc("/search", ws.QueryIndex)
+	srv.HandleFunc("/ai", ws.SearchEmbeddings)
 	srv.HandleFunc("/stream", ws.SearchStreamed)
 	srv.HandleFunc("/ids", ws.GetIds)
 	srv.HandleFunc("GET /get/{id}", ws.GetItem)
