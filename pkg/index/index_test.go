@@ -42,7 +42,7 @@ func TestIndexMatch(t *testing.T) {
 		BaseItem: &BaseItem{
 			Id: 1,
 		},
-		Fields: &types.ItemFields{1: "test", 2: "hej", 3: 1.0},
+		Fields: types.ItemFields{1: "test", 2: "hej", 3: 1.0},
 	}
 	i.UpsertItem(item)
 	query := Filters{
@@ -74,14 +74,14 @@ func CreateIndex() *Index {
 			Id:    1,
 			Title: "item1",
 		},
-		Fields: &types.ItemFields{1: "test", 2: "hej", 3: 1.0},
+		Fields: types.ItemFields{1: "test", 2: "hej", 3: 1.0},
 	})
 	i.UpsertItem(&DataItem{
 		BaseItem: &BaseItem{
 			Id:    2,
 			Title: "item2",
 		},
-		Fields: &types.ItemFields{1: "test", 2: "slask", 3: 2.0},
+		Fields: types.ItemFields{1: "test", 2: "slask", 3: 2.0},
 	})
 	return i
 }
@@ -174,7 +174,7 @@ func TestUpdateItem(t *testing.T) {
 		BaseItem: &BaseItem{
 			Id: 1,
 		},
-		Fields: &types.ItemFields{
+		Fields: types.ItemFields{
 			1: "test",
 			2: "hej",
 			3: 999.0,

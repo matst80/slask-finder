@@ -72,7 +72,7 @@ func TestSendChanges(t *testing.T) {
 			Id:    3,
 			Title: "Test",
 		},
-		Fields: &types.ItemFields{
+		Fields: types.ItemFields{
 			1: "test",
 		},
 	}
@@ -114,7 +114,7 @@ func TestSync(t *testing.T) {
 			Id:    1,
 			Title: "Test",
 		},
-		Fields: &types.ItemFields{
+		Fields: types.ItemFields{
 			1: "test",
 		},
 	}
@@ -132,7 +132,7 @@ func TestSync(t *testing.T) {
 		t.Error("Item not added to client 1")
 	}
 
-	(*item.Fields)[0] = "Test2"
+	item.Fields.SetValue(1, "Test2")
 	items = make([]index.DataItem, 0)
 	items = append(items, *item)
 	err = masterTransport.ItemsUpserted(items)

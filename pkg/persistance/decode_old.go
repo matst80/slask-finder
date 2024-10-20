@@ -47,7 +47,7 @@ func decodeOld(enc *gob.Decoder, item *index.DataItem) error {
 			fields[field.Id] = field.Value
 		}
 		item.BaseItem = &tmp.BaseItem
-		item.Fields = &fields
+		item.Fields = fields
 	}
 	return err
 }

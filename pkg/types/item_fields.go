@@ -8,6 +8,12 @@ import (
 	"math"
 )
 
+type ItemFacets interface {
+	SetValue(id uint, value interface{})
+	GetFacetValue(facetId uint) (interface{}, bool)
+	GetFacets() map[uint]interface{}
+}
+
 type ItemFields map[uint]interface{}
 
 func (b ItemFields) MarshalBinary() ([]byte, error) {
@@ -45,6 +51,19 @@ func (b ItemFields) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+func (b ItemFields) GetFacetValue(id uint) (interface{}, bool) {
+	v, ok := b[id]
+	return v, ok
+}
+
+func (b ItemFields) GetFacets() map[uint]interface{} {
+	return b
+}
+
+func (b ItemFields) SetValue(id uint, value interface{}) {
+	b[id] = value
+}
+
 func MustWrite(w io.Writer, data interface{}) {
 	if err := binary.Write(w, binary.BigEndian, data); err != nil {
 		panic(fmt.Errorf("failed to write binary data: %v", data).Error())
@@ -58,7 +77,7 @@ func (s *ItemFields) UnmarshalBinary(data []byte) error {
 	if err != nil {
 		return err
 	}
-	d := make(ItemFields, len)
+	d := ItemFields{}
 	//data = data[8:]
 	for i := 0; i < int(len); i++ {
 		var key uint64
