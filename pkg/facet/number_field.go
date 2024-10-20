@@ -83,8 +83,8 @@ func (f *DecimalField) Bounds() NumberRange[float64] {
 	return *f.NumberRange
 }
 
-func (f DecimalField) GetValues() interface{} {
-	return f
+func (f DecimalField) GetValues() []interface{} {
+	return []interface{}{f.NumberRange}
 }
 
 func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {

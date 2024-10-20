@@ -23,7 +23,7 @@ func (f KeyField) Size() int {
 	return sum
 }
 
-func (f KeyField) GetValues() interface{} {
+func (f KeyField) GetValues() []interface{} {
 	ret := make([]interface{}, len(f.keys))
 	idx := 0
 	for value := range f.keys {

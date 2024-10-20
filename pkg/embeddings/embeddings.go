@@ -75,14 +75,14 @@ func (i *EmbeddingsIndex) FindMatches(embeddings []float64) MatchResult {
 	sortMap := make(types.ByValue, 0)
 	for _, doc := range i.Documents {
 		similarity := CosineSimilarity(embeddings, doc.Embeddings)
-		if similarity > 0.5 {
+		if similarity > 0.2 {
 			ret.AddId(doc.Id)
 			sortMap = append(sortMap, types.Lookup{Id: doc.Id, Value: similarity})
 			//ret = append(ret, doc)
 		}
 	}
 	sort.Sort(sort.Reverse(sortMap))
-	sortIndex := make(types.SortIndex, l)
+	sortIndex := make(types.SortIndex, len(sortMap))
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
@@ -111,7 +111,12 @@ func GetEmbedding(word string) []float64 {
 			ret[Price] -= 0.2
 		case "billig":
 			ret[Price] += 0.8
+		case "billigt":
+			ret[Price] += 0.8
 		case "prisvärd":
+			ret[Price] += 0.8
+			ret[Features] += 0.3
+		case "prisvärt":
 			ret[Price] += 0.8
 			ret[Features] += 0.3
 		case "snabb":
@@ -120,7 +125,11 @@ func GetEmbedding(word string) []float64 {
 			ret[Portable] += 0.8
 		case "ny":
 			ret[New] += 0.8
+		case "nytt":
+			ret[New] += 0.8
 		case "begagnad":
+			ret[Used] += 0.8
+		case "begagnat":
 			ret[Used] += 0.8
 		case "effektiv":
 			ret[Effective] += 0.8
@@ -173,6 +182,10 @@ func GetEmbeddingsForItem(item types.Item) []float64 {
 	ret[Price] -= float64(price) / 10000000.0
 	fields := item.GetFields()
 	ret[Features] += (float64(len(fields)) / 50.0) - float64(0.5)
+	if strings.Contains(item.GetTitle(), "MacBook") {
+		ret[Price] += 0.8
+		ret[Features] += 0.7
+	}
 	for id, value := range fields {
 		if id == 10 {
 			category := value.(string)
@@ -180,6 +193,9 @@ func GetEmbeddingsForItem(item types.Item) []float64 {
 				ret[Price] += 0.1
 				ret[Used] += 0.8
 				ret[New] -= 0.8
+			} else {
+				ret[New] += 0.8
+				ret[Used] -= 0.8
 			}
 			if category == "Gaming" {
 				ret[Gaming] += 0.7

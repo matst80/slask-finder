@@ -623,18 +623,33 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "no type", http.StatusNotImplemented)
 		return
 	}
-	toMatch := typeField.Match("Stationär gamingdator")
+	values := typeField.GetValues()
+	//parts := strings.Split(strings.ToLower(query), " ")
+	var productType string
+	for _, ivalue := range values {
+		value := ivalue.(string)
+
+		if strings.Contains(query, strings.ToLower(value)) {
+			productType = value
+			break
+		}
+
+	}
+
 	embeddings := embeddings.GetEmbedding(query)
 	if ws.Embeddings == nil {
 		http.Error(w, "Embeddings not enabled", http.StatusNotImplemented)
 		return
 	}
 	results := ws.Embeddings.FindMatches(embeddings)
-	toMatch.Intersect(results)
+	toMatch := typeField.Match(productType)
+	results.Ids.Intersect(*toMatch)
 	defaultHeaders(w, true, "120")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
-	for id := range *toMatch {
+	//s := ws.Index.Sorting.GetSort("popular")
+
+	for _, id := range toMatch.SortedIds(&results.SortIndex, 40) {
 		item, ok := ws.Index.Items[id]
 		if ok {
 			enc.Encode(item)

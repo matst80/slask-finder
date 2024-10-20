@@ -79,8 +79,8 @@ func (f *IntegerField) Bounds() NumberRange[int] {
 	return *f.NumberRange
 }
 
-func (f IntegerField) GetValues() interface{} {
-	return f
+func (f IntegerField) GetValues() []interface{} {
+	return []interface{}{f.NumberRange}
 }
 
 func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
