@@ -142,6 +142,7 @@ func Init() {
 				log.Println("Starting as standalone")
 			}
 			srv.Sorting.InitializeWithIndex(idx)
+			srv.Sorting.StartListeningForChanges()
 
 		}
 		runtime.GC()
