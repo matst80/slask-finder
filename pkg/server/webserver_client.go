@@ -311,9 +311,10 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("\n"))
 	//ritem := &index.ResultItem{}
 
-	for item, _ := range results.SortedIds(<-sortChan, 40) {
-
-		enc.Encode(item)
+	for _, id := range results.SortedIds(<-sortChan, 40) {
+		if item, ok := ws.Index.Items[id]; ok {
+			enc.Encode(item)
+		}
 
 	}
 	ws.Index.Lock()
