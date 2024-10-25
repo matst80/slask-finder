@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"strconv"
 	"strings"
@@ -246,21 +247,27 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	result := <-resultChan
 
 	ritem := &index.ResultItem{}
-	var sortedIds []uint
+	var sortedIds iter.Seq[uint]
 	if sr.Sort == "popular" || sr.Sort == "" {
-		sortedIds = (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
+		sortedIds = result.sort.SortMapWithStaticPositions(*result.matching, ws.Sorting.GetStaticPositions()) // (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
 	} else {
-		sortedIds = (*result.matching).SortedIds(result.sort, end)
+		sortedIds = result.sort.SortMap(*result.matching)
 	}
-	for idx, id := range sortedIds {
+	idx := 0
+	for id := range sortedIds {
 		if idx < start {
 			continue
+		}
+		if idx >= end {
+			break
 		}
 		item, ok := ws.Index.Items[id]
 		if ok {
 			index.ToResultItem(item, ritem)
 			enc.Encode(ritem)
+			idx++
 		}
+
 	}
 	//w.Write([]byte("\n"))
 }
@@ -311,12 +318,17 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write([]byte("\n"))
 	ritem := &index.ResultItem{}
-
-	for _, id := range results.SortedIds(<-sortChan, 40) {
+	idx := 0
+	sort := <-sortChan
+	for id := range sort.SortMap(results) {
 		item, ok := ws.Index.Items[id]
 		if ok {
 			index.ToResultItem(item, ritem)
 			enc.Encode(ritem)
+			idx++
+			if idx > 20 {
+				break
+			}
 		}
 	}
 	ws.Index.Lock()
@@ -457,13 +469,16 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	for _, relatedId := range (*related).SortedIds(sort, len(*related)) {
+	for relatedId := range sort.SortMap(*related) {
 
 		item, ok := ws.Index.Items[relatedId]
-		if ok && i < 20 && item.Id != uint(id) {
+		if ok && item.Id != uint(id) {
 			index.ToResultItem(item, ritem)
 			enc.Encode(ritem)
 			i++
+		}
+		if i > 20 {
+			break
 		}
 	}
 
