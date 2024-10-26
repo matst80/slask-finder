@@ -46,15 +46,23 @@ type DataItem struct {
 	Fields types.ItemFields `json:"values"`
 }
 
-func (item DataItem) GetId() uint {
+func ToItemArray(items []DataItem) []types.Item {
+	baseItems := make([]types.Item, 0, len(items))
+	for _, item := range items {
+		baseItems = append(baseItems, &item)
+	}
+	return baseItems
+}
+
+func (item *DataItem) GetId() uint {
 	return item.Id
 }
 
-func (item DataItem) IsDeleted() bool {
+func (item *DataItem) IsDeleted() bool {
 	return item.SaleStatus == "MDD"
 }
 
-func (item DataItem) GetPrice() int {
+func (item *DataItem) GetPrice() int {
 	priceField, ok := item.Fields.GetFacetValue(4)
 	if !ok {
 		return 0
@@ -66,23 +74,23 @@ func (item DataItem) GetPrice() int {
 	return price
 }
 
-func (item DataItem) GetStock() types.LocationStock {
+func (item *DataItem) GetStock() types.LocationStock {
 	return item.Stock
 }
 
-func (item DataItem) GetFields() map[uint]interface{} {
+func (item *DataItem) GetFields() map[uint]interface{} {
 	return item.Fields.GetFacets()
 }
 
-func (item DataItem) GetLastUpdated() int64 {
+func (item *DataItem) GetLastUpdated() int64 {
 	return item.LastUpdate
 }
 
-func (item DataItem) GetCreated() int64 {
+func (item *DataItem) GetCreated() int64 {
 	return item.Created
 }
 
-func (item DataItem) GetPopularity() float64 {
+func (item *DataItem) GetPopularity() float64 {
 	v := 0.0
 	price := 0
 	orgPrice := 0
@@ -125,15 +133,15 @@ func (item DataItem) GetPopularity() float64 {
 
 }
 
-func (item DataItem) GetTitle() string {
+func (item *DataItem) GetTitle() string {
 	return item.Title
 }
 
-func (item DataItem) ToString() string {
+func (item *DataItem) ToString() string {
 	return fmt.Sprintf("%s %s %s", item.Sku, item.Title, item.BulletPoints)
 }
 
-func (item DataItem) GetBaseItem() types.BaseItem {
+func (item *DataItem) GetBaseItem() types.BaseItem {
 	return types.BaseItem{
 		Id:    item.Id,
 		Sku:   item.Sku,
@@ -142,6 +150,25 @@ func (item DataItem) GetBaseItem() types.BaseItem {
 		Img:   item.Img,
 	}
 }
-func (item DataItem) GetItem() interface{} {
+func (item *DataItem) GetItem() interface{} {
 	return item.BaseItem
+}
+
+func (item *DataItem) GetStockLevel() string {
+	return item.StockLevel
+}
+
+func (item *DataItem) MergeKeyFields(updates []types.CategoryUpdate) bool {
+	changed := false
+	for _, update := range updates {
+		field, ok := item.Fields[update.Id]
+		if !ok {
+			item.Fields[update.Id] = update.Value
+			changed = true
+		} else if field != update.Value {
+			field = update.Value
+			changed = true
+		}
+	}
+	return changed
 }

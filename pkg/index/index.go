@@ -28,12 +28,12 @@ var (
 type ChangeHandler interface {
 	//ItemChanged(item *DataItem)
 	ItemDeleted(id uint)
-	ItemsUpserted(item []DataItem)
-	PriceLowered(item []DataItem)
+	ItemsUpserted(item []types.Item)
+	PriceLowered(item []types.Item)
 }
 
 type UpdateHandler interface {
-	UpsertItems(item []DataItem)
+	UpsertItems(item []types.Item)
 	DeleteItem(id uint)
 }
 
@@ -153,27 +153,6 @@ func (i *Index) addItemValues(item types.Item) {
 			tree[i+1].parent = tree[i]
 		}
 	}
-	// if item.DecimalFields != nil {
-	// 	for _, field := range item.DecimalFields {
-	// 		if field.Value == 0.0 {
-	// 			continue
-	// 		}
-	// 		if f, ok := i.DecimalFacets[field.Id]; ok {
-	// 			f.AddValueLink(field.Value, item.Id)
-	// 		}
-	// 	}
-	// }
-	// if item.IntegerFields != nil {
-
-	// 	for _, field := range item.IntegerFields {
-	// 		if field.Value == 0 {
-	// 			continue
-	// 		}
-	// 		if f, ok := i.IntFacets[field.Id]; ok {
-	// 			f.AddValueLink(field.Value, item.Id)
-	// 		}
-	// 	}
-	// }
 }
 
 func (i *Index) GetCategories() []*Category {
@@ -205,29 +184,25 @@ func (i *Index) UpsertItem(item types.Item) {
 	i.UpsertItemUnsafe(item)
 }
 
-// type CategoryUpdate struct {
-// 	Id    uint   `json:"id"`
-// 	Value string `json:"value"`
-// }
+func (i *Index) UpdateCategoryValues(ids []uint, updates []types.CategoryUpdate) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	items := make([]types.Item, 0)
+	for _, id := range ids {
+		item, ok := i.Items[id]
+		if ok {
+			if (*item).MergeKeyFields(updates) {
+				i.UpsertItemUnsafe(*item)
+				items = append(items, *item)
+			}
+		}
+	}
+	if i.ChangeHandler != nil {
+		i.ChangeHandler.ItemsUpserted(items)
+	}
+}
 
-// func (i *Index) UpdateCategoryValues(ids []uint, updates []CategoryUpdate) {
-// 	i.mu.Lock()
-// 	defer i.mu.Unlock()
-// 	items := make([]DataItem, 0)
-// 	for _, id := range ids {
-// 		item, ok := i.Items[id]
-// 		if ok {
-// 			item.MergeKeyFields(updates)
-// 			i.UpsertItemUnsafe(item)
-// 			items = append(items, *item)
-// 		}
-// 	}
-// 	if i.ChangeHandler != nil {
-// 		i.ChangeHandler.ItemsUpserted(items)
-// 	}
-// }
-
-func (i *Index) UpsertItems(items []DataItem) {
+func (i *Index) UpsertItems(items []types.Item) {
 	l := len(items)
 	if l == 0 {
 		return
@@ -235,17 +210,19 @@ func (i *Index) UpsertItems(items []DataItem) {
 	log.Printf("Upserting items %d", l)
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	price_lowered := make([]DataItem, l)
-	j := 0
+	changed := make([]types.Item, 0)
+	price_lowered := make([]types.Item, 0)
+
 	for _, it := range items {
-		if i.UpsertItemUnsafe(&it) {
-			price_lowered[j] = it
-			j++
+		if i.UpsertItemUnsafe(it) {
+			price_lowered = append(price_lowered, it)
+
 		}
+		changed = append(changed, it)
 	}
 	if i.ChangeHandler != nil {
-		i.ChangeHandler.ItemsUpserted(items)
-		i.ChangeHandler.PriceLowered(price_lowered[0:j])
+		i.ChangeHandler.ItemsUpserted(changed)
+		i.ChangeHandler.PriceLowered(price_lowered)
 	}
 }
 

@@ -327,8 +327,7 @@ func (s *Sorting) makeItemSortMaps() {
 		item = *itm
 		j += 0.0000000000001
 		popular := item.GetPopularity() + (overrides[item.GetId()] * 1000)
-		//getSortingData(item, itemData)
-		//popular := getPopularValue(itemData, overrides[item.Id])
+
 		partPopular := popular / 1000.0
 		if item.GetLastUpdated() == 0 {
 			updatedMap[i] = types.Lookup{Id: id, Value: j}

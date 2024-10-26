@@ -1,6 +1,7 @@
 package types
 
 import (
+	"iter"
 	"log"
 	"strconv"
 	"strings"
@@ -52,95 +53,70 @@ func (s *SortIndex) ToString() string {
 	return buffer.String()
 }
 
-func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map[int]uint, breakAt int) []uint {
+func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map[int]uint) iter.Seq[uint] {
+
 	if s == nil {
 		log.Printf("SortIndex is nil")
-		return []uint{}
+		return func(yield func(uint) bool) {
+			for id := range ids {
+				if !yield(id) {
+					break
+				}
+
+			}
+		}
 	}
 
-	l := min(len(ids), breakAt)
-	sortedIds := make([]uint, l)
-	idx := 0
+	return func(yield func(uint) bool) {
+		idx := 0
+		for _, id := range *s {
 
-	for _, id := range *s {
-		if idx >= l {
-			break
-		}
-		if sp, ok := staticPositions[idx]; ok {
-			//item, ok := ids[sp]
+			if sp, ok := staticPositions[idx]; ok {
+				_, ok := ids[sp]
+				if ok {
+					if !yield(sp) {
+						break
+					}
+					idx++
+				}
+			}
+
+			_, ok := ids[id]
 			if ok {
-				sortedIds[idx] = sp
+				if !yield(id) {
+					break
+				}
 				idx++
 			}
 		}
-
-		_, ok := ids[id]
-		if ok {
-			sortedIds[idx] = id
-
-			idx++
-
-		}
 	}
-
-	return sortedIds
+	//return sortedIds
 }
 
-func (s *SortIndex) SortMap(ids ItemList, breakAt int) []uint {
+func (s *SortIndex) SortMap(ids ItemList) iter.Seq[uint] {
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
-		return []uint{}
-	}
-
-	l := min(len(ids), breakAt)
-	sortedIds := make([]uint, l)
-	idx := 0
-
-	for _, id := range *s {
-		if idx >= l {
-			break
-		}
-		_, ok := ids[id]
-		if ok {
-			sortedIds[idx] = id
-
-			idx++
-
+		return func(yield func(uint) bool) {
+			for id := range ids {
+				if !yield(id) {
+					break
+				}
+			}
 		}
 	}
 
-	return sortedIds
-
+	return func(yield func(uint) bool) {
+		for _, id := range *s {
+			_, ok := ids[id]
+			if ok {
+				if !yield(id) {
+					break
+				}
+			}
+		}
+	}
 }
-
-// func (s *SortIndex) SortMatch(ids MatchList, breakAt int) []uint {
-
-// 	if s == nil {
-// 		log.Printf("SortIndex is nil")
-// 		return []uint{}
-// 	}
-
-// 	l := min(len(ids), breakAt)
-// 	sortedIds := make([]uint, l)
-// 	idx := 0
-
-// 	for _, id := range *s {
-// 		if idx >= l {
-// 			break
-// 		}
-// 		_, ok := ids[id]
-// 		if ok {
-// 			sortedIds[idx] = id
-
-// 			idx++
-
-// 		}
-// 	}
-
-// 	return sortedIds
-
-// }
 
 type Lookup struct {
 	Id    uint

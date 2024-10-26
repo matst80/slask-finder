@@ -22,6 +22,10 @@ type SearchRequest struct {
 	PageSize int      `json:"pageSize" schema:"size,default:40"`
 }
 
+func (s *SearchRequest) UseStaticPosition() bool {
+	return s.Sort == "popular" || s.Sort == ""
+}
+
 func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
 	if r.Method == http.MethodGet {
 		return queryFromRequestQuery(r.URL.Query(), searchRequest)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"iter"
 	"net/http"
 	"strconv"
 	"strings"
@@ -112,21 +113,15 @@ func makeBaseSearchRequest() *SearchRequest {
 }
 
 type cacheWriter struct {
-	key string
-	//buff     []byte
+	key      string
 	duration time.Duration
 	store    func(string, []byte, time.Duration) error
 }
 
 func (cw *cacheWriter) Write(p []byte) (n int, err error) {
-	//cw.buff = append(cw.buff, p...)
 	cw.store(cw.key, p, cw.duration)
 	return len(p), nil
 }
-
-// func (cw *cacheWriter) Close() error {
-// 	return cw.store(cw.key, cw.buff, cw.duration)
-// }
 
 func MakeCacheWriter(w io.Writer, key string, setRaw func(string, []byte, time.Duration) error) io.Writer {
 
@@ -246,22 +241,28 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	end := start + sr.PageSize
 	result := <-resultChan
 
-	//ritem := &index.ResultItem{}
-	var sortedIds []uint
-	if sr.Sort == "popular" || sr.Sort == "" {
-		sortedIds = (*result.matching).SortedIdsWithStaticPositions(result.sort, ws.Sorting.GetStaticPositions(), end)
+	var sortedIds iter.Seq[uint]
+	if sr.UseStaticPosition() {
+		sortedIds = result.sort.SortMapWithStaticPositions(*result.matching, ws.Sorting.GetStaticPositions())
 	} else {
-		sortedIds = (*result.matching).SortedIds(result.sort, end)
+		sortedIds = result.sort.SortMap(*result.matching)
 	}
-	for idx, id := range sortedIds {
+	idx := 0
+	for id := range sortedIds {
+		idx++
 		if idx < start {
 			continue
 		}
-		item := ws.Index.Items[id]
-		enc.Encode(item)
+
+		if item, ok := ws.Index.Items[id]; ok {
+			enc.Encode(item)
+		}
+
+		if idx >= end {
+			break
+		}
 
 	}
-	//w.Write([]byte("\n"))
 }
 
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
@@ -309,11 +310,18 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		go ws.Sorting.GetSorting("popular", sortChan)
 	}
 	w.Write([]byte("\n"))
-	//ritem := &index.ResultItem{}
 
-	for _, id := range results.SortedIds(<-sortChan, 40) {
-		if item, ok := ws.Index.Items[id]; ok {
+	idx := 0
+	sort := <-sortChan
+	for id := range sort.SortMap(results) {
+		item, ok := ws.Index.Items[id]
+		if ok {
+
 			enc.Encode(item)
+			idx++
+			if idx > 20 {
+				break
+			}
 		}
 
 	}
@@ -323,54 +331,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("\n"))
 	enc.Encode(facets)
 }
-
-// func (ws *WebServer) Learn(w http.ResponseWriter, r *http.Request) {
-// 	fieldStrings := strings.Split(r.URL.Query().Get("fields"), ",")
-// 	fields := make([]int, len(fieldStrings))
-// 	for i, fieldString := range fieldStrings {
-// 		field, fieldError := strconv.Atoi(fieldString)
-// 		if fieldError != nil {
-// 			http.Error(w, fieldError.Error(), http.StatusBadRequest)
-// 			return
-// 		}
-// 		fields[i] = field
-// 	}
-
-// 	categories := removeEmptyStrings(strings.Split(strings.TrimPrefix(r.URL.Path, "/api/learn/"), "/"))
-// 	w.WriteHeader(http.StatusOK)
-// 	baseSearch := SearchRequest{
-// 		PageSize: 10000,
-// 		Page:     0,
-// 	}
-// 	resultIds := ws.getCategoryItemIds(categories, &baseSearch, 10)
-
-// 	for id := range *resultIds {
-// 		item, ok := ws.Index.Items[id]
-// 		if ok {
-// 			parts := make([]string, len(fields)+1)
-// 			parts[0] = item.Sku
-// 			for i, field := range fields {
-
-// 				for _, itemField := range item.IntegerFields {
-// 					if itemField.Id == uint(field) {
-// 						parts[i+1] = strconv.Itoa(itemField.Value)
-// 						break
-// 					}
-// 				}
-// 				if parts[i+1] == "" {
-// 					for _, itemField := range item.DecimalFields {
-// 						if itemField.Id == uint(field) {
-// 							parts[i+1] = fmt.Sprintf("%v", itemField.Value)
-// 							break
-// 						}
-// 					}
-// 				}
-// 			}
-
-// 			fmt.Fprintln(w, strings.Join(parts, ";"))
-// 		}
-// 	}
-// }
 
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
@@ -457,18 +417,21 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	}
 	sort := ws.Index.Sorting.GetSort("popular")
 
-	//ritem := &index.ResultItem{}
 	i := 0
 	enc := json.NewEncoder(w)
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	for _, relatedId := range (*related).SortedIds(sort, len(*related)) {
+	for relatedId := range sort.SortMap(*related) {
 
 		item, ok := ws.Index.Items[relatedId]
-		if ok && i < 20 && (*item).GetId() != uint(id) {
-			//index.ToResultItem(item, ritem)
+		if ok && (*item).GetId() != uint(id) {
+
 			enc.Encode(item)
+
 			i++
+		}
+		if i > 20 {
+			break
 		}
 	}
 
@@ -625,7 +588,7 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	values := typeField.GetValues()
-	//parts := strings.Split(strings.ToLower(query), " ")
+
 	var productType string
 	for _, ivalue := range values {
 		value := ivalue.(string)
@@ -648,12 +611,15 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, true, "120")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
-	//s := ws.Index.Sorting.GetSort("popular")
-
-	for _, id := range toMatch.SortedIds(&results.SortIndex, 40) {
+	idx := 0
+	for id := range results.SortIndex.SortMap(*toMatch) {
 		item, ok := ws.Index.Items[id]
 		if ok {
 			enc.Encode(item)
+		}
+		idx++
+		if idx > 40 {
+			break
 		}
 	}
 
@@ -669,16 +635,15 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 		w.Write([]byte("ok"))
 	})
 
-	srv.HandleFunc("/filter", ws.Search)
-	//srv.HandleFunc("/learn/", ws.Learn)
-	srv.HandleFunc("/related/{id}", ws.Related)
-	srv.HandleFunc("/facet-list", ws.Facets)
-	srv.HandleFunc("/facet-size", ws.FacetSize)
-	srv.HandleFunc("/suggest", ws.Suggest)
+	srv.HandleFunc("/filter", ws.AuthMiddleware(ws.Search))
+	//	srv.HandleFunc("/learn/", ws.Learn)
+	srv.HandleFunc("/related/{id}", ws.AuthMiddleware(ws.Related))
+	srv.HandleFunc("/facet-list", ws.AuthMiddleware(ws.Facets))
+	srv.HandleFunc("/suggest", ws.AuthMiddleware(ws.Suggest))
 	srv.HandleFunc("/categories", ws.Categories)
 	//srv.HandleFunc("/search", ws.QueryIndex)
-	srv.HandleFunc("/ai", ws.SearchEmbeddings)
-	srv.HandleFunc("/stream", ws.SearchStreamed)
+	srv.HandleFunc("/stream", ws.AuthMiddleware(ws.SearchStreamed))
+
 	srv.HandleFunc("/ids", ws.GetIds)
 	srv.HandleFunc("GET /get/{id}", ws.GetItem)
 	srv.HandleFunc("POST /get", ws.GetItems)

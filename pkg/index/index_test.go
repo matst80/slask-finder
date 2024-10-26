@@ -21,7 +21,7 @@ type LoggingChangeHandler struct {
 	Printf func(format string, v ...interface{})
 }
 
-func (l *LoggingChangeHandler) ItemsUpserted(item []DataItem) {
+func (l *LoggingChangeHandler) ItemsUpserted(item []types.Item) {
 	l.Printf("Items added %v", len(item))
 }
 
@@ -29,7 +29,7 @@ func (l *LoggingChangeHandler) ItemDeleted(id uint) {
 	l.Printf("Item deleted %v", id)
 }
 
-func (l *LoggingChangeHandler) PriceLowered(item []DataItem) {
+func (l *LoggingChangeHandler) PriceLowered(item []types.Item) {
 	l.Printf("Prices lowered %v", len(item))
 }
 
@@ -44,7 +44,7 @@ func TestIndexMatch(t *testing.T) {
 		},
 		Fields: types.ItemFields{1: "test", 2: "hej", 3: 1.0},
 	}
-	i.UpsertItem(item)
+	i.UpsertItem(&item)
 	query := Filters{
 		StringFilter:  []StringSearch{{Id: 1, Value: "test"}},
 		NumberFilter:  []NumberSearch[float64]{{Id: 3, NumberRange: facet.NumberRange[float64]{Min: 1, Max: 2}}},
@@ -180,7 +180,7 @@ func TestUpdateItem(t *testing.T) {
 			3: 999.0,
 		},
 	}
-	i.UpsertItem(item)
+	i.UpsertItem(&item)
 	// if i.Items[1].Facets[0].Value != "test" {
 	// 	t.Errorf("Expected field 1 to be test")
 	// }

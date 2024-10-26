@@ -12,14 +12,6 @@ func (i *ItemList) AddId(id uint) {
 	(*i)[id] = struct{}{}
 }
 
-func (r *ItemList) SortedIds(srt *SortIndex, maxItems int) []uint {
-	return srt.SortMap(*r, maxItems)
-}
-
-func (r *ItemList) SortedIdsWithStaticPositions(srt *SortIndex, sp map[int]uint, maxItems int) []uint {
-	return srt.SortMapWithStaticPositions(*r, sp, maxItems)
-}
-
 func (a ItemList) Intersect(b ItemList) {
 	for id := range a {
 		_, ok := b[id]
