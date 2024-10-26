@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type FreeTextIndex struct {

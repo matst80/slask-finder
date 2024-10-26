@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/common"
+	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"tornberg.me/facet-search/pkg/common"
-	"tornberg.me/facet-search/pkg/embeddings"
-	"tornberg.me/facet-search/pkg/index"
-	"tornberg.me/facet-search/pkg/search"
-	"tornberg.me/facet-search/pkg/tracking"
-	"tornberg.me/facet-search/pkg/types"
 )
 
 type searchResult struct {

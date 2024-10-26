@@ -7,11 +7,11 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/matst80/slask-finder/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"tornberg.me/facet-search/pkg/facet"
-	"tornberg.me/facet-search/pkg/search"
-	"tornberg.me/facet-search/pkg/types"
 )
 
 var (

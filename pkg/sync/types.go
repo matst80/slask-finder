@@ -1,6 +1,6 @@
 package sync
 
-import "tornberg.me/facet-search/pkg/index"
+import "github.com/matst80/slask-finder/pkg/index"
 
 type BaseClient struct {
 	Server    *BaseMaster

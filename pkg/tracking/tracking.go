@@ -3,7 +3,7 @@ package tracking
 import (
 	"net/http"
 
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 type Impression struct {

@@ -12,16 +12,16 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"tornberg.me/facet-search/pkg/cart"
-	"tornberg.me/facet-search/pkg/embeddings"
-	"tornberg.me/facet-search/pkg/index"
-	"tornberg.me/facet-search/pkg/persistance"
-	"tornberg.me/facet-search/pkg/promotions"
-	"tornberg.me/facet-search/pkg/search"
-	"tornberg.me/facet-search/pkg/server"
-	"tornberg.me/facet-search/pkg/sync"
-	"tornberg.me/facet-search/pkg/tracking"
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/cart"
+	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/persistance"
+	"github.com/matst80/slask-finder/pkg/promotions"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/server"
+	"github.com/matst80/slask-finder/pkg/sync"
+	"github.com/matst80/slask-finder/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")

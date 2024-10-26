@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func TestPresortedSorting(t *testing.T) {

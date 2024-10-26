@@ -1,7 +1,7 @@
 package index
 
 import (
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type Facets map[uint]FieldResult

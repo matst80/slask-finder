@@ -11,11 +11,11 @@
 `go tool pprof "http://localhost:8080/debug/pprof/allocs"`
 
 
-`go tool pprof "https://slask-finder.tornberg.me/debug/pprof/profile?seconds=5"`
+`go tool pprof "https://slask-finder.github.com/matst80/slask-finder/debug/pprof/profile?seconds=5"`
 
-`go tool pprof "https://slask-finder.tornberg.me/debug/pprof/heap"`
+`go tool pprof "https://slask-finder.github.com/matst80/slask-finder/debug/pprof/heap"`
 
-`go tool pprof "https://slask-finder.tornberg.me/debug/pprof/allocs"`
+`go tool pprof "https://slask-finder.github.com/matst80/slask-finder/debug/pprof/allocs"`
 
 ## Table of Contents
 
@@ -44,13 +44,13 @@ Information about the license under which your project is distributed.
 
 Exchanges topics
 
-item_added	
-item_changed	
-item_deleted	
+item_added
+item_changed
+item_deleted
 
 ## Clickhouse database
 
-CREATE TABLE IF NOT EXISTS user_session 
+CREATE TABLE IF NOT EXISTS user_session
 (
     session_id UInt32,
 		timestamp DateTime DEFAULT now(),
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS user_session
 ) ENGINE = MergeTree
 ORDER BY timestamp;
 
-CREATE TABLE IF NOT EXISTS user_action 
+CREATE TABLE IF NOT EXISTS user_action
 (
     session_id UInt32,
 		evt UInt32,

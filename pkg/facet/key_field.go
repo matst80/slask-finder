@@ -3,7 +3,7 @@ package facet
 import (
 	"unsafe"
 
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type KeyField struct {

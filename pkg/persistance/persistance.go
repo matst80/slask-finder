@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime"
 
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 func NewPersistance() *Persistance {

@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/schema"
-	"tornberg.me/facet-search/pkg/facet"
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 type SearchRequest struct {

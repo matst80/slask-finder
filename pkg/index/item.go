@@ -3,7 +3,7 @@ package index
 import (
 	"fmt"
 
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type EnergyRating struct {

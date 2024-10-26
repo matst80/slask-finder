@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 const (

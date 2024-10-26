@@ -1,6 +1,6 @@
 package search
 
-import "tornberg.me/facet-search/pkg/types"
+import "github.com/matst80/slask-finder/pkg/types"
 
 type Trie struct {
 	Root *Node

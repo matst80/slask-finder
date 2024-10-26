@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"slices"
 
-	"tornberg.me/facet-search/pkg/facet"
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type NumberSearch[K float64 | int] struct {

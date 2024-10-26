@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 func TestParseQueryValues(t *testing.T) {

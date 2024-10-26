@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"tornberg.me/facet-search/pkg/promotions"
+	"github.com/matst80/slask-finder/pkg/promotions"
 )
 
 type CartInputItem struct {

@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/redis/go-redis/v9"
-	"tornberg.me/facet-search/pkg/types"
 )
 
 type Sorting struct {

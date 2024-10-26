@@ -3,9 +3,9 @@ package index
 import (
 	"testing"
 
-	"tornberg.me/facet-search/pkg/facet"
-	"tornberg.me/facet-search/pkg/search"
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func matchAll(list types.ItemList, ids ...uint) bool {

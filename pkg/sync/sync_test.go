@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"tornberg.me/facet-search/pkg/index"
-	"tornberg.me/facet-search/pkg/search"
-	"tornberg.me/facet-search/pkg/types"
 )
 
 var rabbitConfig = RabbitConfig{

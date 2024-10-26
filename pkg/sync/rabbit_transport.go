@@ -3,8 +3,8 @@ package sync
 import (
 	"encoding/json"
 
+	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"tornberg.me/facet-search/pkg/types"
 )
 
 type RabbitTransportMaster struct {

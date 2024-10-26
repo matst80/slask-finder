@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"tornberg.me/facet-search/pkg/common"
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/common"
+	"github.com/matst80/slask-finder/pkg/index"
 
-	"tornberg.me/facet-search/pkg/promotions"
-	"tornberg.me/facet-search/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/promotions"
+	"github.com/matst80/slask-finder/pkg/tracking"
 )
 
 type CartServer struct {

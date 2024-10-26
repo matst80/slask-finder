@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	"tornberg.me/facet-search/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/tracking"
 )
 
 func generateSessionId() int {

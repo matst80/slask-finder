@@ -3,8 +3,8 @@ package persistance
 import (
 	"encoding/gob"
 
-	"tornberg.me/facet-search/pkg/index"
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type KeyFieldValue struct {

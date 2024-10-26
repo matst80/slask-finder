@@ -4,8 +4,8 @@ import (
 	"strings"
 	"sync"
 
-	"tornberg.me/facet-search/pkg/search"
-	"tornberg.me/facet-search/pkg/types"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type AutoSuggest struct {

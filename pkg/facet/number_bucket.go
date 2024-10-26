@@ -1,6 +1,6 @@
 package facet
 
-import "tornberg.me/facet-search/pkg/types"
+import "github.com/matst80/slask-finder/pkg/types"
 
 type Bucket[V FieldNumberValue] struct {
 	values map[V]types.ItemList
