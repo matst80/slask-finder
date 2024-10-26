@@ -348,7 +348,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
 	//srv.HandleFunc("/get/{id}", ws.AuthMiddleware(ws.GetItem))
-	srv.HandleFunc("PUT /key-values", ws.UpdateCategories)
+	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
