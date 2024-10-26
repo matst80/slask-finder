@@ -85,6 +85,7 @@ func (s *CartServer) GetSessionCart(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "private, max-age:0, stale-if-error=86400")
 	err = json.NewEncoder(w).Encode(cart)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
