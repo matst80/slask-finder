@@ -86,7 +86,11 @@ func (f IntegerField) GetValues() []interface{} {
 func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
 	value, ok := data.(int)
 	if !ok {
-		return false
+		if floatValue, ok := data.(float64); ok {
+			value = int(floatValue)
+		} else {
+			return false
+		}
 	}
 
 	f.Min = min(f.Min, value)
