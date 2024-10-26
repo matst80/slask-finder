@@ -160,6 +160,7 @@ func Init() {
 		}
 		runtime.GC()
 		done = true
+		// db.SaveIndex(idx)
 	}()
 
 }

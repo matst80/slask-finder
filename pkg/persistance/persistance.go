@@ -52,7 +52,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	tmp := &index.DataItem{}
 	for err == nil {
 
-		if err = decodeOld(enc, tmp); err == nil {
+		if err = decodeNormal(enc, tmp); err == nil {
 			idx.UpsertItemUnsafe(tmp)
 			tmp = &index.DataItem{}
 		}
@@ -94,6 +94,6 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
-
+	log.Println("Saved index")
 	return err
 }
