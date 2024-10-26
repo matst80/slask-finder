@@ -92,11 +92,11 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 	var base *types.BaseField
 	for id, itemField := range (*item).GetFields() {
 		field, ok := i.Facets[id]
-		if !ok {
+		if !ok || field.GetType() != types.FacetKeyType {
 			continue
 		}
 		base = field.GetBaseField()
-		if ok && base.CategoryLevel != 1 {
+		if base.CategoryLevel != 1 {
 			fields = append(fields, KeyFieldWithValue{
 				Facet: field,
 				Value: itemField,
