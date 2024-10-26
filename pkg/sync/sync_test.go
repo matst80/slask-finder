@@ -76,8 +76,8 @@ func TestSendChanges(t *testing.T) {
 			1: "test",
 		},
 	}
-	items := make([]index.DataItem, 0)
-	items = append(items, *item)
+	items := make([]types.Item, 0)
+	items = append(items, item)
 	err = masterTransport.ItemsUpserted(items)
 
 	if err != nil {
@@ -119,8 +119,8 @@ func TestSync(t *testing.T) {
 		},
 	}
 
-	items := make([]index.DataItem, 0)
-	items = append(items, *item)
+	items := make([]types.Item, 0)
+	items = append(items, item)
 	err = masterTransport.ItemsUpserted(items)
 
 	if err != nil {
@@ -133,8 +133,8 @@ func TestSync(t *testing.T) {
 	}
 
 	item.Fields.SetValue(1, "Test2")
-	items = make([]index.DataItem, 0)
-	items = append(items, *item)
+	items = make([]types.Item, 0)
+	items = append(items, item)
 	err = masterTransport.ItemsUpserted(items)
 	if err != nil {
 		t.Error(err)

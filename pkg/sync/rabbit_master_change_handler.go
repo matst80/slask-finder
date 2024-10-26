@@ -3,14 +3,14 @@ package sync
 import (
 	"log"
 
-	"tornberg.me/facet-search/pkg/index"
+	"tornberg.me/facet-search/pkg/types"
 )
 
 type RabbitMasterChangeHandler struct {
 	Master RabbitTransportMaster
 }
 
-func (r *RabbitMasterChangeHandler) ItemsUpserted(items []index.DataItem) {
+func (r *RabbitMasterChangeHandler) ItemsUpserted(items []types.Item) {
 	if len(items) == 0 {
 		return
 	}
@@ -21,7 +21,7 @@ func (r *RabbitMasterChangeHandler) ItemsUpserted(items []index.DataItem) {
 	log.Printf("Items changed %d", len(items))
 }
 
-func (r *RabbitMasterChangeHandler) PriceLowered(items []index.DataItem) {
+func (r *RabbitMasterChangeHandler) PriceLowered(items []types.Item) {
 
 	err := r.Master.SendPriceLowered(items)
 	if err != nil {

@@ -77,6 +77,10 @@ func (m *MockItem) GetBaseItem() BaseItem {
 	}
 }
 
+func (item *MockItem) MergeKeyFields(updates []CategoryUpdate) bool {
+	return false
+}
+
 func (m *MockItem) GetItem() interface{} {
 
 	return m

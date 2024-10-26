@@ -26,6 +26,11 @@ type BaseItem struct {
 	Img   string
 }
 
+type CategoryUpdate struct {
+	Id    uint   `json:"id"`
+	Value string `json:"value"`
+}
+
 type Item interface {
 	GetId() uint
 	GetStock() LocationStock
@@ -38,6 +43,7 @@ type Item interface {
 	GetTitle() string
 	ToString() string
 	GetBaseItem() BaseItem
+	MergeKeyFields(updates []CategoryUpdate) bool
 	GetItem() interface{}
 }
 
