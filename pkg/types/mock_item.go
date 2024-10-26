@@ -12,21 +12,6 @@ type MockItem struct {
 	Title         string
 }
 
-/*
-GetId() uint
-	GetStock() LocationStock
-	GetFields() map[uint]interface{}
-	IsDeleted() bool
-	GetPrice() int
-	GetLastUpdated() int64
-	GetCreated() int64
-	GetPopularity() float64
-	GetTitle() string
-	ToString() string
-	GetBaseItem() BaseItem
-	GetItem() interface{}
-*/
-
 func (m *MockItem) GetId() uint {
 	return m.Id
 }
@@ -82,7 +67,6 @@ func (item *MockItem) MergeKeyFields(updates []CategoryUpdate) bool {
 }
 
 func (m *MockItem) GetItem() interface{} {
-
 	return m
 }
 

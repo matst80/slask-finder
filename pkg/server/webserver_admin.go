@@ -117,8 +117,11 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	ws.Index.UpsertItems(items)
+	toUpdate := make([]types.Item, len(items))
+	for i, item := range items {
+		toUpdate[i] = &item
+	}
+	ws.Index.UpsertItems(toUpdate)
 	totalItems.Set(float64(len(ws.Index.Items)))
 	w.WriteHeader(http.StatusOK)
 }

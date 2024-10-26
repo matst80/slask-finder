@@ -33,7 +33,7 @@ type ChangeHandler interface {
 }
 
 type UpdateHandler interface {
-	UpsertItems(item []DataItem)
+	UpsertItems(item []types.Item)
 	DeleteItem(id uint)
 }
 
@@ -202,7 +202,7 @@ func (i *Index) UpdateCategoryValues(ids []uint, updates []types.CategoryUpdate)
 	}
 }
 
-func (i *Index) UpsertItems(items []DataItem) {
+func (i *Index) UpsertItems(items []types.Item) {
 	l := len(items)
 	if l == 0 {
 		return
@@ -214,11 +214,11 @@ func (i *Index) UpsertItems(items []DataItem) {
 	price_lowered := make([]types.Item, 0)
 
 	for _, it := range items {
-		if i.UpsertItemUnsafe(&it) {
-			price_lowered = append(price_lowered, &it)
+		if i.UpsertItemUnsafe(it) {
+			price_lowered = append(price_lowered, it)
 
 		}
-		changed = append(changed, &it)
+		changed = append(changed, it)
 	}
 	if i.ChangeHandler != nil {
 		i.ChangeHandler.ItemsUpserted(changed)
