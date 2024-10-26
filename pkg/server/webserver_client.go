@@ -366,6 +366,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	idx := 0
 	for _, f := range ws.Index.Facets {
 		res[idx] = *f.GetBaseField()
+		idx++
 	}
 
 	err := json.NewEncoder(w).Encode(res)
