@@ -46,6 +46,14 @@ type DataItem struct {
 	Fields types.ItemFields `json:"values"`
 }
 
+func ToItemArray(items []DataItem) []types.Item {
+	baseItems := make([]types.Item, 0, len(items))
+	for _, item := range items {
+		baseItems = append(baseItems, &item)
+	}
+	return baseItems
+}
+
 func (item *DataItem) GetId() uint {
 	return item.Id
 }
