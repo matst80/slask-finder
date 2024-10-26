@@ -83,7 +83,7 @@ type KeyFieldWithValue struct {
 func (i *Index) Related(id uint) (*types.ItemList, error) {
 	i.Lock()
 	defer i.Unlock()
-	item, ok := i.Items[uint(id)]
+	item, ok := i.Items[id]
 	if !ok {
 		return nil, fmt.Errorf("Item with id %d not found", id)
 	}
