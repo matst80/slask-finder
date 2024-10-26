@@ -96,19 +96,30 @@ func (item *DataItem) GetPopularity() float64 {
 	orgPrice := 0
 	grade := 0
 	noGrades := 0
-
+	ok := false
 	for id, f := range item.Fields.GetFacets() {
 		if id == 4 {
-			price = f.(int)
+			if price, ok = f.(int); !ok {
+				fmt.Println("Price is not an int")
+			}
 		}
 		if id == 5 {
-			orgPrice = f.(int)
+			if orgPrice, ok = f.(int); !ok {
+				fmt.Println("orgprice is not an int")
+				return 0
+			}
 		}
 		if id == 6 {
-			grade = f.(int)
+			if grade, ok = f.(int); !ok {
+				fmt.Println("graid is not an int")
+				return 0
+			}
 		}
 		if id == 7 {
-			noGrades = f.(int)
+			if noGrades, ok = f.(int); !ok {
+				fmt.Println("number of grades is not an int")
+				return 0
+			}
 		}
 	}
 
