@@ -3,8 +3,8 @@ package sync
 import (
 	"encoding/json"
 
+	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"tornberg.me/facet-search/pkg/index"
 )
 
 type RabbitTransportMaster struct {
@@ -51,7 +51,7 @@ func (t *RabbitTransportMaster) send(topic string, data any) error {
 	)
 }
 
-func (t *RabbitTransportMaster) ItemsUpserted(items []index.DataItem) error {
+func (t *RabbitTransportMaster) ItemsUpserted(items []types.Item) error {
 	return t.send(t.ItemsUpsertedTopic, items)
 }
 
@@ -59,6 +59,6 @@ func (t *RabbitTransportMaster) SendItemDeleted(id uint) error {
 	return t.send(t.ItemDeletedTopic, id)
 }
 
-func (t *RabbitTransportMaster) SendPriceLowered(items []index.DataItem) error {
+func (t *RabbitTransportMaster) SendPriceLowered(items []types.Item) error {
 	return t.send(t.PriceLoweredTopic, items)
 }

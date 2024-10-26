@@ -1,11 +1,12 @@
 package server
 
 import (
+	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/persistance"
+	"github.com/matst80/slask-finder/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/types"
 	"golang.org/x/oauth2"
-	"tornberg.me/facet-search/pkg/facet"
-	"tornberg.me/facet-search/pkg/index"
-	"tornberg.me/facet-search/pkg/persistance"
-	"tornberg.me/facet-search/pkg/tracking"
 )
 
 type WebServer struct {
@@ -14,6 +15,7 @@ type WebServer struct {
 	Db               *persistance.Persistance
 	Sorting          *index.Sorting
 	Cache            *Cache
+	Embeddings       embeddings.Embeddings
 	Tracking         tracking.Tracking
 	FacetLimit       int
 	SearchFacetLimit int
@@ -33,7 +35,7 @@ type FieldValueAndItemId struct {
 }
 
 type FacetItem struct {
-	*facet.BaseField
+	*types.BaseField
 	FieldType string `json:"fieldType"`
 	Count     int    `json:"count"`
 }

@@ -1,4 +1,4 @@
-package facet
+package types
 
 import (
 	"iter"
@@ -53,7 +53,7 @@ func (s *SortIndex) ToString() string {
 	return buffer.String()
 }
 
-func (s *SortIndex) SortMapWithStaticPositions(ids IdList, staticPositions map[int]uint) iter.Seq[uint] {
+func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map[int]uint) iter.Seq[uint] {
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
@@ -93,7 +93,7 @@ func (s *SortIndex) SortMapWithStaticPositions(ids IdList, staticPositions map[i
 	//return sortedIds
 }
 
-func (s *SortIndex) SortMap(ids IdList) iter.Seq[uint] {
+func (s *SortIndex) SortMap(ids ItemList) iter.Seq[uint] {
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
@@ -108,7 +108,6 @@ func (s *SortIndex) SortMap(ids IdList) iter.Seq[uint] {
 
 	return func(yield func(uint) bool) {
 		for _, id := range *s {
-
 			_, ok := ids[id]
 			if ok {
 				if !yield(id) {
@@ -117,35 +116,6 @@ func (s *SortIndex) SortMap(ids IdList) iter.Seq[uint] {
 			}
 		}
 	}
-
-}
-
-func (s *SortIndex) SortMatch(ids MatchList, breakAt int) []uint {
-
-	if s == nil {
-		log.Printf("SortIndex is nil")
-		return []uint{}
-	}
-
-	l := min(len(ids), breakAt)
-	sortedIds := make([]uint, l)
-	idx := 0
-
-	for _, id := range *s {
-		if idx >= l {
-			break
-		}
-		_, ok := ids[id]
-		if ok {
-			sortedIds[idx] = id
-
-			idx++
-
-		}
-	}
-
-	return sortedIds
-
 }
 
 type Lookup struct {

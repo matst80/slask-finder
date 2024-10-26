@@ -7,14 +7,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/oauth2"
-	"tornberg.me/facet-search/pkg/index"
 )
 
 var (
@@ -117,8 +117,11 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
-	ws.Index.UpsertItems(items)
+	toUpdate := make([]types.Item, len(items))
+	for i, item := range items {
+		toUpdate[i] = &item
+	}
+	ws.Index.UpsertItems(toUpdate)
 	totalItems.Set(float64(len(ws.Index.Items)))
 	w.WriteHeader(http.StatusOK)
 }
@@ -134,7 +137,7 @@ func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
 
 type CategoryUpdateRequest struct {
 	Ids     []uint                 `json:"ids"`
-	Updates []index.CategoryUpdate `json:"updates"`
+	Updates []types.CategoryUpdate `json:"updates"`
 }
 
 func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
@@ -312,19 +315,14 @@ func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
 	sorting := ws.Index.Sorting.GetSort("popular")
+
 	for i, id := range *sorting {
 		item, ok := ws.Index.Items[id]
 		if !ok {
 			continue
 		}
-		fmt.Fprintf(w, "%d;%s, %s, pris %d (%s)", item.Id, item.Title, strings.ReplaceAll(item.BulletPoints, "\n", ", "), item.GetPrice()/100, item.Url)
+		fmt.Fprintf(w, (*item).ToString())
 
-		for _, field := range item.Fields {
-			base, ok := ws.Index.KeyFacets[field.Id]
-			if ok && !base.HideFacet {
-				fmt.Fprintf(w, "%s %s, ", base.Name, strings.ReplaceAll(field.Value, "\n", "\\n"))
-			}
-		}
 		w.Write([]byte("\n"))
 		if i > 500 {
 			break
@@ -347,12 +345,11 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /rag", ws.RagData)
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
-	//srv.HandleFunc("/get/{id}", ws.AuthMiddleware(ws.GetItem))
+
 	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
-	//srv.HandleFunc("/sort/{id}/partial", ws.ReOrderSort)
 	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
 }

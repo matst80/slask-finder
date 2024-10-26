@@ -5,7 +5,7 @@ import (
 	"log"
 	"net"
 
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 type UdpListener struct {

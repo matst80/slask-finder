@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/redis/go-redis/v9"
-	"tornberg.me/facet-search/pkg/facet"
 )
 
 type Sorting struct {
@@ -19,12 +19,11 @@ type Sorting struct {
 	muStaticPos      sync.RWMutex
 	muOverride       sync.RWMutex
 	client           *redis.Client
-	ctx              context.Context
 	fieldOverride    *SortOverride
 	popularOverrides *SortOverride
-	sortMethods      map[string]*facet.SortIndex
+	sortMethods      map[string]*types.SortIndex
 	staticPositions  *StaticPositions
-	FieldSort        *facet.SortIndex
+	FieldSort        *types.SortIndex
 	hasItemChanges   bool
 }
 
@@ -44,7 +43,6 @@ const REDIS_STATIC_KEY = "_staticPositions"
 const REDIS_STATIC_CHANGE = "staticPositionsChange"
 
 func NewSorting(addr, password string, db int) *Sorting {
-	ctx := context.Background()
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
@@ -52,31 +50,31 @@ func NewSorting(addr, password string, db int) *Sorting {
 		DB:       db,
 	})
 
-	// rdbPubSub := redis.NewClient(&redis.Options{
-	// 	Addr:     addr,
-	// 	Password: password,
-	// 	DB:       db,
-	// })
-
 	instance := &Sorting{
 
-		ctx:              ctx,
 		client:           rdb,
-		sortMethods:      make(map[string]*facet.SortIndex),
-		FieldSort:        &facet.SortIndex{},
+		sortMethods:      make(map[string]*types.SortIndex),
+		FieldSort:        &types.SortIndex{},
 		popularOverrides: &SortOverride{},
 		fieldOverride:    &SortOverride{},
 		staticPositions:  &StaticPositions{},
 		idx:              nil,
 	}
 
+	return instance
+
+}
+
+func (s *Sorting) StartListeningForChanges() {
+	rdb := s.client
+	ctx := context.Background()
 	pubsub := rdb.Subscribe(ctx, REDIS_POPULAR_CHANGE)
 	fieldsub := rdb.Subscribe(ctx, REDIS_FIELD_CHANGE)
 	staticsub := rdb.Subscribe(ctx, REDIS_STATIC_CHANGE)
 
 	go func(ch <-chan *redis.Message) {
-		for msg := range ch {
-			fmt.Println("Received popular override change", msg.Channel, msg.Payload)
+		for range ch {
+			// fmt.Println("Received popular override change", msg.Channel, msg.Payload)
 			sort_data, err := rdb.Get(ctx, REDIS_POPULAR_KEY).Result()
 			if err != nil {
 				fmt.Println(err)
@@ -88,18 +86,18 @@ func NewSorting(addr, password string, db int) *Sorting {
 				fmt.Println(err)
 				continue
 			}
-			instance.muOverride.Lock()
-			instance.popularOverrides = &sort
-			instance.muOverride.Unlock()
+			s.muOverride.Lock()
+			s.popularOverrides = &sort
+			s.muOverride.Unlock()
 
-			instance.hasItemChanges = true
+			s.hasItemChanges = true
 
 		}
 	}(pubsub.Channel())
 
 	go func(ch <-chan *redis.Message) {
-		for msg := range ch {
-			fmt.Println("Received static positions change", msg.Channel, msg.Payload)
+		for range ch {
+			//fmt.Println("Received static positions change", msg.Channel, msg.Payload)
 			sort_data, err := rdb.Get(ctx, REDIS_STATIC_KEY).Result()
 			if err != nil {
 				fmt.Println(err)
@@ -111,14 +109,14 @@ func NewSorting(addr, password string, db int) *Sorting {
 				fmt.Println(err)
 				continue
 			}
-			instance.setStaticPositions(sort)
+			s.setStaticPositions(sort)
 
 		}
 	}(staticsub.Channel())
 
 	go func(ch <-chan *redis.Message) {
-		for msg := range ch {
-			fmt.Println("Received field sort", msg.Channel, msg.Payload)
+		for range ch {
+			//fmt.Println("Received field sort", msg.Channel, msg.Payload)
 			sort_data, err := rdb.Get(ctx, REDIS_FIELD_KEY).Result()
 			if err != nil {
 				fmt.Println(err)
@@ -130,18 +128,15 @@ func NewSorting(addr, password string, db int) *Sorting {
 				fmt.Println(err)
 				continue
 			}
-			instance.muOverride.Lock()
-			instance.fieldOverride = &sort
-			instance.muOverride.Unlock()
+			s.muOverride.Lock()
+			s.fieldOverride = &sort
+			s.muOverride.Unlock()
 
-			if instance.idx != nil {
-				instance.makeItemSortMaps()
+			if s.idx != nil {
+				s.makeItemSortMaps()
 			}
 		}
 	}(fieldsub.Channel())
-
-	return instance
-
 }
 
 func (s *Sorting) IndexChanged(idx *Index) {
@@ -157,9 +152,10 @@ func (s *Sorting) GetStaticPositions() StaticPositions {
 
 func (s *Sorting) SetStaticPositions(positions StaticPositions) error {
 	s.setStaticPositions(positions)
+	ctx := context.Background()
 	data := positions.ToString()
-	s.client.Set(s.ctx, REDIS_STATIC_KEY, data, 0)
-	_, err := s.client.Publish(s.ctx, REDIS_STATIC_CHANGE, "external").Result()
+	s.client.Set(ctx, REDIS_STATIC_KEY, data, 0)
+	_, err := s.client.Publish(ctx, REDIS_STATIC_CHANGE, "external").Result()
 	return err
 }
 
@@ -170,7 +166,8 @@ func (s *Sorting) setStaticPositions(positions StaticPositions) {
 }
 
 func (s *Sorting) InitializeWithIndex(idx *Index) {
-	popularData, err := s.client.Get(s.ctx, REDIS_POPULAR_KEY).Result()
+	ctx := context.Background()
+	popularData, err := s.client.Get(ctx, REDIS_POPULAR_KEY).Result()
 	s.idx = idx
 	if err == nil {
 		sort := SortOverride{}
@@ -182,7 +179,7 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 		}
 	}
 
-	fieldData, err := s.client.Get(s.ctx, REDIS_FIELD_KEY).Result()
+	fieldData, err := s.client.Get(ctx, REDIS_FIELD_KEY).Result()
 	if err == nil {
 		sort := SortOverride{}
 		err = sort.FromString(fieldData)
@@ -193,7 +190,7 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 		}
 	}
 
-	staticData, err := s.client.Get(s.ctx, REDIS_STATIC_KEY).Result()
+	staticData, err := s.client.Get(ctx, REDIS_STATIC_KEY).Result()
 	if err == nil {
 		sort := StaticPositions{}
 		err = sort.FromString(staticData)
@@ -228,12 +225,12 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	}()
 }
 
-func getFieldLookupValue(field facet.BaseField, overrideValue float64) facet.Lookup {
+func getFieldLookupValue(field types.BaseField, overrideValue float64) types.Lookup {
 	if field.HideFacet {
-		return facet.Lookup{Id: field.Id, Value: 0}
+		return types.Lookup{Id: field.Id, Value: 0}
 	}
 
-	return facet.Lookup{Id: field.Id, Value: field.Priority + overrideValue}
+	return types.Lookup{Id: field.Id, Value: field.Priority + overrideValue}
 }
 
 func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
@@ -241,32 +238,20 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	defer idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	l := len(idx.DecimalFacets) + len(idx.KeyFacets) + len(idx.IntFacets)
+	l := len(idx.Facets)
 	i := 0
-	sortIndex := make(facet.SortIndex, l)
-	sortMap := make(facet.ByValue, l)
+	sortIndex := make(types.SortIndex, l)
+	sortMap := make(types.ByValue, l)
+	var base *types.BaseField
+	for _, item := range idx.Facets {
+		base = item.GetBaseField()
+		if base.HideFacet {
+			continue
+		}
+		sortMap[i] = getFieldLookupValue(*base, overrides[base.Id])
+		i++
+	}
 
-	for _, item := range idx.DecimalFacets {
-		if item.HideFacet {
-			continue
-		}
-		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
-		i++
-	}
-	for _, item := range idx.KeyFacets {
-		if item.HideFacet {
-			continue
-		}
-		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
-		i++
-	}
-	for _, item := range idx.IntFacets {
-		if item.HideFacet {
-			continue
-		}
-		sortMap[i] = getFieldLookupValue(*item.BaseField, overrides[item.Id])
-		i++
-	}
 	sortMap = sortMap[:i]
 	sort.Sort(sort.Reverse(sortMap))
 	for idx, item := range sortMap {
@@ -282,8 +267,9 @@ func (s *Sorting) Close() {
 
 func (s *Sorting) AddPopularOverride(sort *SortOverride) {
 	data := sort.ToString()
-	s.client.Set(s.ctx, REDIS_POPULAR_KEY, data, 0)
-	_, err := s.client.Publish(s.ctx, REDIS_POPULAR_CHANGE, "external").Result()
+	ctx := context.Background()
+	s.client.Set(ctx, REDIS_POPULAR_KEY, data, 0)
+	_, err := s.client.Publish(ctx, REDIS_POPULAR_CHANGE, "external").Result()
 	if err != nil {
 		s.muOverride.Lock()
 		defer s.muOverride.Unlock()
@@ -298,11 +284,11 @@ func (s *Sorting) GetPopularOverrides() *SortOverride {
 	return s.popularOverrides
 }
 
-func (s *Sorting) GetSorting(id string, sortChan chan *facet.SortIndex) {
+func (s *Sorting) GetSorting(id string, sortChan chan *types.SortIndex) {
 	sortChan <- s.GetSort(id)
 }
 
-func (s *Sorting) GetSort(id string) *facet.SortIndex {
+func (s *Sorting) GetSort(id string) *types.SortIndex {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if sort, ok := s.sortMethods[id]; ok {
@@ -311,7 +297,7 @@ func (s *Sorting) GetSort(id string) *facet.SortIndex {
 	for _, sort := range s.sortMethods {
 		return sort
 	}
-	return &facet.SortIndex{}
+	return &types.SortIndex{}
 }
 
 func (s *Sorting) makeItemSortMaps() {
@@ -328,32 +314,35 @@ func (s *Sorting) makeItemSortMaps() {
 	j := 0.0
 	now := time.Now()
 	ts := now.Unix() / 1000
-	popularMap := make(facet.ByValue, l)
-	priceMap := make(facet.ByValue, l)
-	updatedMap := make(facet.ByValue, l)
-	createdMap := make(facet.ByValue, l)
+	popularMap := make(types.ByValue, l)
+	priceMap := make(types.ByValue, l)
+	updatedMap := make(types.ByValue, l)
+	createdMap := make(types.ByValue, l)
 	popularSearchMap := make(map[uint]float64)
 	i := 0
-	itemData := &SortingData{}
-	for _, item := range s.idx.Items {
+	var item types.Item
+	var itm *types.Item
+	var id uint
+	for id, itm = range s.idx.Items {
+		item = *itm
 		j += 0.0000000000001
-		getSortingData(item, itemData)
-		popular := getPopularValue(itemData, overrides[item.Id])
+		popular := item.GetPopularity() + (overrides[item.GetId()] * 1000)
+
 		partPopular := popular / 1000.0
-		if item.LastUpdate == 0 {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: j}
+		if item.GetLastUpdated() == 0 {
+			updatedMap[i] = types.Lookup{Id: id, Value: j}
 		} else {
-			updatedMap[i] = facet.Lookup{Id: item.Id, Value: float64(ts-item.LastUpdate/1000) + j}
+			updatedMap[i] = types.Lookup{Id: id, Value: float64(ts-item.GetLastUpdated()/1000) + j}
 		}
-		if item.Created == 0 {
-			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + j}
+		if item.GetCreated() == 0 {
+			createdMap[i] = types.Lookup{Id: id, Value: partPopular + j}
 		} else {
-			createdMap[i] = facet.Lookup{Id: item.Id, Value: partPopular + float64(ts-item.Created/1000) + j}
+			createdMap[i] = types.Lookup{Id: id, Value: partPopular + float64(ts-item.GetCreated()/1000) + j}
 		}
 
-		priceMap[i] = facet.Lookup{Id: item.Id, Value: float64(itemData.price) + j}
-		popularMap[i] = facet.Lookup{Id: item.Id, Value: popular + j}
-		popularSearchMap[item.Id] = popular / 1000.0
+		priceMap[i] = types.Lookup{Id: id, Value: float64(item.GetPrice()) + j}
+		popularMap[i] = types.Lookup{Id: id, Value: popular + j}
+		popularSearchMap[id] = popular / 1000.0
 		i++
 	}
 	if s.idx != nil {
@@ -370,11 +359,11 @@ func (s *Sorting) makeItemSortMaps() {
 }
 
 func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {
-
+	ctx := context.Background()
 	data := sort.ToString()
 	log.Printf("Setting field sort %d", len(data))
-	s.client.Set(s.ctx, REDIS_FIELD_KEY, data, 0)
-	err := s.client.Publish(s.ctx, REDIS_FIELD_CHANGE, "fieldSort")
+	s.client.Set(ctx, REDIS_FIELD_KEY, data, 0)
+	err := s.client.Publish(ctx, REDIS_FIELD_CHANGE, "fieldSort")
 	if err != nil {
 		if s.idx != nil {
 			go s.makeFieldSort(s.idx, *sort)

@@ -9,7 +9,8 @@ import (
 	"strings"
 
 	"github.com/gorilla/schema"
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 type SearchRequest struct {
@@ -19,6 +20,10 @@ type SearchRequest struct {
 	Sort     string   `json:"sort" schema:"sort,default:popular"`
 	Page     int      `json:"page" schema:"page"`
 	PageSize int      `json:"pageSize" schema:"size,default:40"`
+}
+
+func (s *SearchRequest) UseStaticPosition() bool {
+	return s.Sort == "popular" || s.Sort == ""
 }
 
 func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
@@ -72,9 +77,11 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 			continue
 		}
 		result.NumberFilter = append(result.NumberFilter, index.NumberSearch[float64]{
-			Id:  uint(id),
-			Min: min,
-			Max: max,
+			Id: uint(id),
+			NumberRange: facet.NumberRange[float64]{
+				Min: min,
+				Max: max,
+			},
 		})
 	}
 
@@ -88,9 +95,11 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 			continue
 		}
 		result.IntegerFilter = append(result.IntegerFilter, index.NumberSearch[int]{
-			Id:  uint(id),
-			Min: min,
-			Max: max,
+			Id: uint(id),
+			NumberRange: facet.NumberRange[int]{
+				Min: min,
+				Max: max,
+			},
 		})
 	}
 

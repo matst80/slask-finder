@@ -3,19 +3,31 @@ package persistance
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"log"
 	"os"
 	"runtime"
 
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/index"
 )
 
 func NewPersistance() *Persistance {
-	// gob.Register(map[string]interface{}{})
+	gob.Register(index.DataItem{})
 	// gob.Register([]interface{}(nil))
 	return &Persistance{
 		File:         "data/index-v2.dbz",
 		FreeTextFile: "data/freetext.dbz",
 	}
+}
+
+type Field struct {
+	Id    uint
+	Value interface{}
+}
+
+func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
+
+	err := enc.Decode(item)
+	return err
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {
@@ -34,20 +46,19 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 	enc := gob.NewDecoder(zipReader)
 	defer zipReader.Close()
+
 	idx.Lock()
 	defer idx.Unlock()
-	//var tmp = &index.DataItem{}
+	tmp := &index.DataItem{}
 	for err == nil {
-		tmp := &index.DataItem{}
-		if err = enc.Decode(tmp); err == nil {
 
+		if err = decodeOld(enc, tmp); err == nil {
 			idx.UpsertItemUnsafe(tmp)
-
+			tmp = &index.DataItem{}
 		}
 	}
 	enc = nil
-	//v = nil
-	//tmp = nil
+
 	if err.Error() == "EOF" {
 		return nil
 	}
@@ -57,16 +68,11 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
 
-	file, err := os.Create(p.File)
+	file, err := os.Create(p.File + ".tmp")
 	if err != nil {
 		return err
 	}
 
-	// fields := make(map[uint]facet.KeyField)
-
-	// for _, fld := range idx.KeyFacets {
-	// 	fields[fld.Id] = *fld
-	// }
 	defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
@@ -74,14 +80,20 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer zipWriter.Close()
 	idx.Lock()
 	defer idx.Unlock()
+
 	for _, item := range idx.Items {
-		err = enc.Encode(*item)
+		store, ok := (*item).(*index.DataItem)
+		if !ok {
+			log.Fatalf("Could not convert item to DataItem")
+		}
+		err = enc.Encode(store)
 		if err != nil {
 			return err
 		}
 	}
 
 	enc = nil
+	err = os.Rename(p.File+".tmp", p.File)
 
-	return nil
+	return err
 }

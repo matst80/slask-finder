@@ -1,4 +1,4 @@
-module tornberg.me/facet-search
+module github.com/matst80/slask-finder
 
 go 1.23.0
 

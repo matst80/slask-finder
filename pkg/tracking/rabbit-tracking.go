@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/matst80/slask-finder/pkg/index"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"tornberg.me/facet-search/pkg/index"
 )
 
 type RabbitTrackingConfig struct {

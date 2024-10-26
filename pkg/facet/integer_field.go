@@ -7,19 +7,15 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-type FieldNumberValue interface {
-	int | float64
-}
-
-type DecimalField struct {
+type IntegerField struct {
 	*types.BaseField
-	*NumberRange[float64]
-	buckets map[int]Bucket[float64]
+	*NumberRange[int]
+	buckets map[int]Bucket[int]
 	all     *types.ItemList
 	Count   int `json:"count"`
 }
 
-func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
+func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList {
 	if minValue > maxValue {
 		return &types.ItemList{}
 	}
@@ -58,37 +54,37 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 	return &found
 }
 
-func (f DecimalField) Size() int {
-	return int(unsafe.Sizeof(f.buckets)) + int(unsafe.Sizeof(f.all))
+func (f IntegerField) Size() int {
+	sum := int(unsafe.Sizeof(*f.all))
+	for _, bucket := range f.buckets {
+		sum += int(unsafe.Sizeof(bucket.values))
+	}
+	return sum
 }
 
-func (f DecimalField) Match(input interface{}) *types.ItemList {
-	value, ok := input.(NumberRange[float64])
+func (f IntegerField) Match(input interface{}) *types.ItemList {
+	value, ok := input.(NumberRange[int])
 	if ok {
 		return f.MatchesRange(value.Min, value.Max)
 	}
 	return &types.ItemList{}
 }
 
-func (f DecimalField) GetBaseField() *types.BaseField {
+func (f IntegerField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
-type NumberRange[V FieldNumberValue] struct {
-	Min V `json:"min"`
-	Max V `json:"max"`
-}
+func (f *IntegerField) Bounds() NumberRange[int] {
 
-func (f *DecimalField) Bounds() NumberRange[float64] {
 	return *f.NumberRange
 }
 
-func (f DecimalField) GetValues() []interface{} {
+func (f IntegerField) GetValues() []interface{} {
 	return []interface{}{f.NumberRange}
 }
 
-func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
-	value, ok := data.(float64)
+func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
+	value, ok := data.(int)
 	if !ok {
 		return false
 	}
@@ -107,8 +103,8 @@ func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
 	return true
 }
 
-func (f DecimalField) RemoveValueLink(data interface{}, id uint) {
-	value, ok := data.(float64)
+func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
+	value, ok := data.(int)
 	if !ok {
 		return
 	}
@@ -117,28 +113,28 @@ func (f DecimalField) RemoveValueLink(data interface{}, id uint) {
 	bucketValues, ok := f.buckets[bucket]
 	delete(*f.all, id)
 	if ok {
-		(&f).Count--
+		f.Count--
 		bucketValues.RemoveValueLink(value, id)
 	}
 }
 
-func (f *DecimalField) TotalCount() int {
+func (f *IntegerField) TotalCount() int {
 	return f.Count
 }
 
-func (f *DecimalField) GetRangeForIds(ids *types.IdList) NumberRange[float64] {
-	return NumberRange[float64]{Min: f.Min, Max: f.Max}
+// func (f *IntegerField) GetRangeForIds(ids *IdList) NumberRange[int] {
+// 	return NumberRange[int]{Min: f.Min, Max: f.Max}
+// }
+
+func (IntegerField) GetType() uint {
+	return types.FacetIntegerType
 }
 
-func (DecimalField) GetType() uint {
-	return types.FacetNumberType
-}
-
-func EmptyDecimalField(field *types.BaseField) DecimalField {
-	return DecimalField{
+func EmptyIntegerField(field *types.BaseField) IntegerField {
+	return IntegerField{
 		BaseField:   field,
-		NumberRange: &NumberRange[float64]{Min: 0, Max: 0},
+		NumberRange: &NumberRange[int]{Min: 0, Max: 0},
 		all:         &types.ItemList{},
-		buckets:     map[int]Bucket[float64]{},
+		buckets:     map[int]Bucket[int]{},
 	}
 }

@@ -1,6 +1,6 @@
 package search
 
-import "tornberg.me/facet-search/pkg/facet"
+import "github.com/matst80/slask-finder/pkg/types"
 
 type Trie struct {
 	Root *Node
@@ -9,7 +9,7 @@ type Trie struct {
 type Node struct {
 	Children map[rune]*Node
 	IsLeaf   bool
-	Items    facet.IdList
+	Items    types.ItemList
 }
 
 func NewTrie() *Trie {
@@ -20,7 +20,7 @@ func NewTrie() *Trie {
 	}
 }
 
-func (t *Trie) Insert(word string, id uint) {
+func (t *Trie) Insert(word string, item types.Item) {
 	node := t.Root
 	for _, r := range word {
 		if _, ok := node.Children[r]; !ok {
@@ -30,9 +30,10 @@ func (t *Trie) Insert(word string, id uint) {
 		}
 		node = node.Children[r]
 	}
+	id := item.GetId()
 	node.IsLeaf = true
 	if node.Items == nil {
-		node.Items = facet.IdList{id: struct{}{}}
+		node.Items = types.ItemList{id: struct{}{}}
 	}
 	node.Items[id] = struct{}{}
 }
@@ -49,8 +50,8 @@ func (t *Trie) Search(word string) bool {
 }
 
 type Match struct {
-	Word string        `json:"word"`
-	Ids  *facet.IdList `json:"ids"`
+	Word  string          `json:"word"`
+	Items *types.ItemList `json:"ids"`
 }
 
 func (t *Trie) FindMatches(prefix string) []Match {
@@ -68,8 +69,8 @@ func (t *Trie) findMatches(node *Node, prefix string) []Match {
 	var matches []Match
 	if node.IsLeaf {
 		matches = append(matches, Match{
-			Word: prefix,
-			Ids:  &node.Items,
+			Word:  prefix,
+			Items: &node.Items,
 		})
 	}
 	for r, child := range node.Children {

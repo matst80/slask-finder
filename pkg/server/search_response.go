@@ -1,8 +1,8 @@
 package server
 
-import "tornberg.me/facet-search/pkg/index"
+import "github.com/matst80/slask-finder/pkg/index"
 
 type SearchResponse struct {
-	Facets    index.Facets `json:"facets,omitempty"`
-	TotalHits int          `json:"totalHits"`
+	Facets    []index.JsonFacet `json:"facets,omitempty"`
+	TotalHits int               `json:"totalHits"`
 }

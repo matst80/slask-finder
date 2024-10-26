@@ -4,7 +4,8 @@ import (
 	"strings"
 	"sync"
 
-	"tornberg.me/facet-search/pkg/search"
+	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type AutoSuggest struct {
@@ -12,27 +13,28 @@ type AutoSuggest struct {
 	Trie *search.Trie
 }
 
-func (a *AutoSuggest) Insert(word string, id uint) {
+func (a *AutoSuggest) Insert(word string, item types.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	a.insertUnsafe(word, id)
+	a.insertUnsafe(word, item)
 }
 
-func (a *AutoSuggest) insertUnsafe(word string, id uint) {
+func (a *AutoSuggest) insertUnsafe(word string, item types.Item) {
 	if len(word) > 1 {
-		a.Trie.Insert(word, id)
+		a.Trie.Insert(word, item)
 	}
 }
 
-func (a *AutoSuggest) InsertItem(item *DataItem) {
+func (a *AutoSuggest) InsertItem(item types.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
 	addItem := func(word string, count int) bool {
-		a.insertUnsafe(word, item.Id)
+		a.insertUnsafe(word, item)
 		return true
 	}
-	search.SplitWords(strings.ToLower(item.Title), addItem)
+	title := strings.ToLower(item.GetTitle())
+	search.SplitWords(strings.ToLower(title), addItem)
 }
 
 func (a *AutoSuggest) FindMatches(text string) []search.Match {

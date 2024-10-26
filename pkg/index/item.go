@@ -1,7 +1,9 @@
 package index
 
 import (
-	"tornberg.me/facet-search/pkg/facet"
+	"fmt"
+
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type EnergyRating struct {
@@ -30,113 +32,143 @@ type ItemProp struct {
 	BuyableInStore  bool         `json:"buyableInStore"`
 }
 
-type LocationStock []struct {
-	Id    string `json:"id"`
-	Level string `json:"level"`
-}
-
 type BaseItem struct {
 	ItemProp
-	StockLevel string        `json:"stockLevel,omitempty"`
-	Stock      LocationStock `json:"stock"`
-	Id         uint          `json:"id"`
-	Sku        string        `json:"sku"`
-	Title      string        `json:"title"`
+	StockLevel string              `json:"stockLevel,omitempty"`
+	Stock      types.LocationStock `json:"stock"`
+	Id         uint                `json:"id"`
+	Sku        string              `json:"sku"`
+	Title      string              `json:"title"`
 }
 
 type DataItem struct {
-	BaseItem
-	facet.ItemFields
-	//fieldValues   *FieldValues
-}
-
-type ItemKeyField struct {
-	Value *string `json:"value"`
-}
-
-type ItemNumberField[K facet.FieldNumberValue] struct {
-	Value K `json:"value"`
-}
-
-// type Item struct {
-// 	*BaseItem
-// 	Fields        map[uint]ItemKeyField
-// 	DecimalFields map[uint]ItemNumberField[float64]
-// 	IntegerFields map[uint]ItemNumberField[int]
-// 	fieldValues   *FieldValues
-// }
-
-type FieldValues map[uint]interface{}
-
-type ResultItem struct {
 	*BaseItem
-	Fields FieldValues `json:"values"`
+	Fields types.ItemFields `json:"values"`
 }
 
-func MakeResultItem(item *DataItem) ResultItem {
-	return ResultItem{
-		BaseItem: &item.BaseItem,
-		Fields:   item.getFieldValues(),
+func ToItemArray(items []DataItem) []types.Item {
+	baseItems := make([]types.Item, 0, len(items))
+	for _, item := range items {
+		baseItems = append(baseItems, &item)
 	}
+	return baseItems
+}
+
+func (item *DataItem) GetId() uint {
+	return item.Id
+}
+
+func (item *DataItem) IsDeleted() bool {
+	return item.SaleStatus == "MDD"
 }
 
 func (item *DataItem) GetPrice() int {
+	priceField, ok := item.Fields.GetFacetValue(4)
+	if !ok {
+		return 0
+	}
+	price, ok := priceField.(int)
+	if !ok {
+		return 0
+	}
+	return price
+}
 
-	if item.IntegerFields != nil {
-		for _, field := range item.IntegerFields {
-			if field.Id == 4 {
-				return field.Value
-			}
+func (item *DataItem) GetStock() types.LocationStock {
+	return item.Stock
+}
+
+func (item *DataItem) GetFields() map[uint]interface{} {
+	return item.Fields.GetFacets()
+}
+
+func (item *DataItem) GetLastUpdated() int64 {
+	return item.LastUpdate
+}
+
+func (item *DataItem) GetCreated() int64 {
+	return item.Created
+}
+
+func (item *DataItem) GetPopularity() float64 {
+	v := 0.0
+	price := 0
+	orgPrice := 0
+	grade := 0
+	noGrades := 0
+
+	for id, f := range item.Fields.GetFacets() {
+		if id == 4 {
+			price = f.(int)
+		}
+		if id == 5 {
+			orgPrice = f.(int)
+		}
+		if id == 6 {
+			grade = f.(int)
+		}
+		if id == 7 {
+			noGrades = f.(int)
 		}
 	}
-	return 0
+
+	if orgPrice > 0 && orgPrice-price > 0 {
+		discount := orgPrice - price
+		v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
+	}
+	if item.Buyable || item.BuyableInStore {
+		v += 5000
+	}
+	if price > 99999900 {
+		v -= 2500
+	}
+	if price < 10000 {
+		v -= 800
+	}
+	if price%900 == 0 {
+		v += 700
+	}
+	v += item.MarginPercent * 400
+	return v + float64(grade*min(noGrades, 500))
 
 }
 
-func (item *DataItem) MergeKeyFields(updates []CategoryUpdate) {
+func (item *DataItem) GetTitle() string {
+	return item.Title
+}
+
+func (item *DataItem) ToString() string {
+	return fmt.Sprintf("%s %s %s", item.Sku, item.Title, item.BulletPoints)
+}
+
+func (item *DataItem) GetBaseItem() types.BaseItem {
+	return types.BaseItem{
+		Id:    item.Id,
+		Sku:   item.Sku,
+		Title: item.Title,
+		Price: item.GetPrice(),
+		Img:   item.Img,
+	}
+}
+func (item *DataItem) GetItem() interface{} {
+	return item.BaseItem
+}
+
+func (item *DataItem) GetStockLevel() string {
+	return item.StockLevel
+}
+
+func (item *DataItem) MergeKeyFields(updates []types.CategoryUpdate) bool {
+	changed := false
 	for _, update := range updates {
-		found := false
-		for idx, f := range item.Fields {
-			if f.Id == update.Id {
-				item.Fields[idx].Value = update.Value
-				found = true
-			}
-		}
-		if !found {
-			item.Fields = append(item.Fields, facet.KeyFieldValue{
-				Value: update.Value,
-				Id:    update.Id,
-			})
+		field, ok := item.Fields[update.Id]
+		if !ok {
+			item.Fields[update.Id] = update.Value
+			changed = true
+		} else if field != update.Value {
+			field = update.Value
+			changed = true
 		}
 	}
-}
-
-func ToResultItem(item *DataItem, resultItem *ResultItem) {
-	resultItem.BaseItem = &item.BaseItem
-	resultItem.Fields = item.getFieldValues()
-}
-
-func (item *DataItem) getFieldValues() FieldValues {
-	//if item.fieldValues == nil {
-
-	fields := FieldValues{}
-	if item.Fields != nil {
-		for _, value := range item.Fields {
-			fields[value.Id] = value.Value
-		}
-	}
-	if item.DecimalFields != nil {
-		for _, value := range item.DecimalFields {
-			fields[value.Id] = value.Value
-		}
-	}
-	if item.IntegerFields != nil {
-		for _, value := range item.IntegerFields {
-			fields[value.Id] = value.Value
-		}
-	}
-	return fields
-	//}
-	//return item.fieldValues
-
+	return changed
 }

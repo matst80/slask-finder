@@ -6,7 +6,7 @@ import (
 	"sort"
 	"sync"
 
-	"tornberg.me/facet-search/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type FreeTextIndex struct {
@@ -189,24 +189,24 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 	return &res
 }
 
-func (d *DocumentResult) ToSortIndex() *facet.SortIndex {
+func (d *DocumentResult) ToSortIndex() *types.SortIndex {
 	l := len(*d)
 
-	sortMap := make(facet.ByValue, l)
+	sortMap := make(types.ByValue, l)
 	idx := 0
 	for id, score := range *d {
-		sortMap[idx] = facet.Lookup{Id: id, Value: score}
+		sortMap[idx] = types.Lookup{Id: id, Value: score}
 		idx++
 	}
 	sort.Sort(sort.Reverse(sortMap))
-	sortIndex := make(facet.SortIndex, l)
+	sortIndex := make(types.SortIndex, l)
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
 	return &sortIndex
 }
 
-func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *facet.IdList, baseMap map[uint]float64) *facet.SortIndex {
+func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *types.ItemList, baseMap map[uint]float64) *types.SortIndex {
 
 	l := len(*d)
 
@@ -214,41 +214,41 @@ func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *facet.IdL
 		l += len(*additionalIds)
 	}
 
-	sortMap := make(facet.ByValue, l)
+	sortMap := make(types.ByValue, l)
 	idx := 0
 	for id, score := range *d {
-		sortMap[idx] = facet.Lookup{Id: id, Value: score}
+		sortMap[idx] = types.Lookup{Id: id, Value: score}
 		idx++
 	}
 	if additionalIds != nil {
 		for id := range *additionalIds {
 			if _, ok := (*d)[id]; !ok {
-				sortMap[idx] = facet.Lookup{Id: id, Value: baseMap[id]}
+				sortMap[idx] = types.Lookup{Id: id, Value: baseMap[id]}
 				idx++
 			}
 
 		}
 	}
 	sort.Sort(sort.Reverse(sortMap[:idx]))
-	sortIndex := make(facet.SortIndex, l)
+	sortIndex := make(types.SortIndex, l)
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
 	return &sortIndex
 }
 
-func (d *DocumentResult) ToSortIndexAll(inputMap map[uint]float64) *facet.SortIndex {
+func (d *DocumentResult) ToSortIndexAll(inputMap map[uint]float64) *types.SortIndex {
 	l := len(inputMap)
 
-	sortMap := make(facet.ByValue, l)
-	copy(sortMap, facet.ByValue{})
+	sortMap := make(types.ByValue, l)
+	copy(sortMap, types.ByValue{})
 	idx := 0
 	for id, score := range *d {
-		sortMap[idx] = facet.Lookup{Id: id, Value: score + inputMap[id]}
+		sortMap[idx] = types.Lookup{Id: id, Value: score + inputMap[id]}
 		idx++
 	}
 	sort.Sort(sort.Reverse(sortMap))
-	sortIndex := make(facet.SortIndex, l)
+	sortIndex := make(types.SortIndex, l)
 	for idx, item := range sortMap {
 		sortIndex[idx] = item.Id
 	}
@@ -256,31 +256,25 @@ func (d *DocumentResult) ToSortIndexAll(inputMap map[uint]float64) *facet.SortIn
 }
 
 type ResultWithSort struct {
-	*facet.IdList
-	SortIndex facet.SortIndex
+	*types.IdList
+	SortIndex types.SortIndex
 }
 
-func (d *DocumentResult) ToResult() *facet.IdList {
-	res := facet.IdList{}
+func (d *DocumentResult) ToResult() *types.ItemList {
+	res := types.ItemList{}
 
 	for id := range *d {
+
 		res[id] = struct{}{}
-		//res.AddId(id)
+
 	}
 	return &res
 }
 
-// func (d *DocumentResult) ToResultWithSort() ResultWithSort {
-// 	return ResultWithSort{
-// 		IdList:    d.ToResult(),
-// 		SortIndex: d.ToSortIndex(),
-// 	}
-// }
-
-func (d *DocumentResult) GetSorting(sortChan chan<- *facet.SortIndex) {
+func (d *DocumentResult) GetSorting(sortChan chan<- *types.SortIndex) {
 	sortChan <- d.ToSortIndex()
 }
 
-func (d *DocumentResult) GetSortingWithAdditionalItems(idList *facet.IdList, sortMap map[uint]float64, sortChan chan<- *facet.SortIndex) {
+func (d *DocumentResult) GetSortingWithAdditionalItems(idList *types.ItemList, sortMap map[uint]float64, sortChan chan<- *types.SortIndex) {
 	sortChan <- d.ToSortIndexWithAdditionalItems(idList, sortMap)
 }

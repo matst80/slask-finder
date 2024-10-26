@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"tornberg.me/facet-search/pkg/facet"
-	"tornberg.me/facet-search/pkg/index"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 const Origin = "*"
@@ -43,10 +43,10 @@ func removeEmptyStrings(s []string) []string {
 	return r
 }
 
-func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *facet.IdList {
+func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *types.ItemList {
 
-	ch := make(chan *facet.IdList)
-	sortChan := make(chan *facet.SortIndex)
+	ch := make(chan *types.ItemList)
+	sortChan := make(chan *types.SortIndex)
 	defer close(sortChan)
 	defer close(ch)
 	for i := 0; i < len(categories); i++ {
@@ -59,7 +59,7 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 	return <-ch
 }
 
-func getFacetsForIds(matching *facet.IdList, index *index.Index, filters *index.Filters, fieldSort *facet.SortIndex, facetChan chan<- index.Facets) {
+func getFacetsForIds(matching types.ItemList, index *index.Index, filters *index.Filters, fieldSort *types.SortIndex, facetChan chan<- []index.JsonFacet) {
 	facetChan <- index.GetFacetsFromResult(matching, filters, fieldSort)
 }
 

@@ -3,10 +3,12 @@ package facet
 import (
 	"reflect"
 	"testing"
+
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func TestPresortedSorting(t *testing.T) {
-	sortIndex := SortIndex{
+	sortIndex := types.SortIndex{
 		1,
 		3,
 		2,
@@ -15,7 +17,7 @@ func TestPresortedSorting(t *testing.T) {
 	}
 	ids := map[uint]struct{}{4: {}, 2: {}, 1: {}, 3: {}}
 
-	sortedIds := sortIndex.SortMap(ids, 10)
+	sortedIds := sortIndex.SortMap(ids)
 
 	expected := []uint{1, 3, 2, 4}
 	if !reflect.DeepEqual(sortedIds, expected) {
