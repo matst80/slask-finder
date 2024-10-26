@@ -408,27 +408,34 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	relatedChan := make(chan *types.ItemList)
+	defer close(relatedChan)
+	sortChan := make(chan *types.SortIndex)
+	defer close(sortChan)
 
 	publicHeaders(w, false, "600")
 	w.WriteHeader(http.StatusOK)
-	related, err := ws.Index.Related(uint(id))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
-		return
-	}
-	sort := ws.Index.Sorting.GetSort("popular")
+	go func(ch chan *types.ItemList) {
+		related, err := ws.Index.Related(uint(id))
+		if err != nil {
+			ch <- &types.ItemList{}
+			return
+		}
+		ch <- related
+	}(relatedChan)
+	go ws.Sorting.GetSorting("popular", sortChan)
 
 	i := 0
 	enc := json.NewEncoder(w)
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
+	related := <-relatedChan
+	sort := <-sortChan
 	for relatedId := range sort.SortMap(*related) {
 
 		item, ok := ws.Index.Items[relatedId]
 		if ok && (*item).GetId() != uint(id) {
-
 			enc.Encode(item)
-
 			i++
 		}
 		if i > 20 {
