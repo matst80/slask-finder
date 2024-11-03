@@ -154,10 +154,10 @@ func (item *DataItem) GetPopularity() float64 {
 	if len(item.Stock) == 0 && item.StockLevel == "0" {
 		v -= 6000
 	}
-	if item.MarginPercent < 99 {
-		v += item.MarginPercent * 400
+	if item.MarginPercent < 99 && item.MarginPercent >= 0 {
+		v += (100 - item.MarginPercent) * 100
 	}
-	return v + float64(grade*min(noGrades, 500))
+	return v + float64(grade*min(noGrades, 100))
 
 }
 

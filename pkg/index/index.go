@@ -241,7 +241,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 		if isUpdate {
 			i.deleteItemUnsafe(item.GetId())
 		}
-		return price_lowered
+		return false
 	}
 	if isUpdate {
 		old_price := (*current).GetPrice()
