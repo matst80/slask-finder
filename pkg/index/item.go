@@ -26,23 +26,23 @@ type OutletItem struct {
 type ItemProp struct {
 	Url string `json:"url"`
 	//Tree            []string      `json:"tree"`
-	Disclaimer      string       `json:"disclaimer,omitempty"`
-	ReleaseDate     string       `json:"releaseDate,omitempty"`
-	SaleStatus      string       `json:"saleStatus"`
-	MarginPercent   float64      `json:"mp,omitempty"`
-	PresaleDate     string       `json:"presaleDate,omitempty"`
-	Restock         string       `json:"restock,omitempty"`
-	AdvertisingText string       `json:"advertisingText,omitempty"`
-	Img             string       `json:"img,omitempty"`
-	BadgeUrl        string       `json:"badgeUrl,omitempty"`
-	EnergyRating    EnergyRating `json:"energyRating,omitempty"`
-	BulletPoints    string       `json:"bp,omitempty"`
-	LastUpdate      int64        `json:"lastUpdate,omitempty"`
-	Created         int64        `json:"created,omitempty"`
-	Buyable         bool         `json:"buyable"`
-	BuyableInStore  bool         `json:"buyableInStore"`
-	CheapestBItem   *OutletItem  `json:"bItem,omitempty"`
-	AItem           *OutletItem  `json:"aItem,omitempty"`
+	Disclaimer      string        `json:"disclaimer,omitempty"`
+	ReleaseDate     string        `json:"releaseDate,omitempty"`
+	SaleStatus      string        `json:"saleStatus"`
+	MarginPercent   float64       `json:"mp,omitempty"`
+	PresaleDate     string        `json:"presaleDate,omitempty"`
+	Restock         string        `json:"restock,omitempty"`
+	AdvertisingText string        `json:"advertisingText,omitempty"`
+	Img             string        `json:"img,omitempty"`
+	BadgeUrl        string        `json:"badgeUrl,omitempty"`
+	EnergyRating    *EnergyRating `json:"energyRating,omitempty"`
+	BulletPoints    string        `json:"bp,omitempty"`
+	LastUpdate      int64         `json:"lastUpdate,omitempty"`
+	Created         int64         `json:"created,omitempty"`
+	Buyable         bool          `json:"buyable"`
+	BuyableInStore  bool          `json:"buyableInStore"`
+	CheapestBItem   *OutletItem   `json:"bItem,omitempty"`
+	AItem           *OutletItem   `json:"aItem,omitempty"`
 }
 
 type BaseItem struct {
