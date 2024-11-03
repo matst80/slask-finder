@@ -112,6 +112,7 @@ func (item *DataItem) GetPopularity() float64 {
 	grade := 0
 	noGrades := 0
 	ok := false
+	isOwnBrand := false
 	for id, f := range item.Fields.GetFacets() {
 		if id == 4 {
 			if price, ok = f.(int); !ok {
@@ -131,6 +132,13 @@ func (item *DataItem) GetPopularity() float64 {
 		if id == 7 {
 			if noGrades, ok = f.(int); !ok {
 				return 0
+			}
+		}
+		if id == 9 {
+			if soldby, ok := f.(string); ok {
+				if soldby == "Elgiganten" {
+					isOwnBrand = true
+				}
 			}
 		}
 	}
@@ -154,9 +162,13 @@ func (item *DataItem) GetPopularity() float64 {
 	if len(item.Stock) == 0 && item.StockLevel == "0" {
 		v -= 6000
 	}
-	if item.MarginPercent < 99 && item.MarginPercent >= 0 {
-		v += (100 - item.MarginPercent) * 100
+	if isOwnBrand {
+		v += 4000
+		if item.MarginPercent < 99 && item.MarginPercent >= 0 {
+			v += (100 - item.MarginPercent) * 100
+		}
 	}
+
 	return v + float64(grade*min(noGrades, 100))
 
 }
