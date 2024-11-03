@@ -41,6 +41,7 @@ type ItemProp struct {
 	Created         int64         `json:"created,omitempty"`
 	Buyable         bool          `json:"buyable"`
 	BuyableInStore  bool          `json:"buyableInStore"`
+	BoxSize         string        `json:"boxSize,omitempty"`
 	CheapestBItem   *OutletItem   `json:"bItem,omitempty"`
 	AItem           *OutletItem   `json:"aItem,omitempty"`
 }
