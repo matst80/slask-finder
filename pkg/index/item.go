@@ -12,6 +12,17 @@ type EnergyRating struct {
 	Max   string `json:"max,omitempty"`
 }
 
+type PriceTuple struct {
+	IncVat int `json:"inc"`
+	ExVat  int `json:"exl"`
+}
+
+type OutletItem struct {
+	ArticleNumber string     `json:"sku,opmitempty"`
+	Price         PriceTuple `json:"price,omitempty"`
+	Title         string     `json:"title"`
+}
+
 type ItemProp struct {
 	Url string `json:"url"`
 	//Tree            []string      `json:"tree"`
@@ -30,6 +41,8 @@ type ItemProp struct {
 	Created         int64        `json:"created,omitempty"`
 	Buyable         bool         `json:"buyable"`
 	BuyableInStore  bool         `json:"buyableInStore"`
+	CheapestBItem   *OutletItem  `json:"bItem,omitempty"`
+	AItem           *OutletItem  `json:"aItem,omitempty"`
 }
 
 type BaseItem struct {
