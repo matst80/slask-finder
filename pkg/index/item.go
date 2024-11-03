@@ -139,7 +139,7 @@ func (item *DataItem) GetPopularity() float64 {
 		discount := orgPrice - price
 		v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
 	}
-	if item.Buyable || item.BuyableInStore {
+	if item.Buyable {
 		v += 5000
 	}
 	if price > 99999900 {
@@ -150,6 +150,9 @@ func (item *DataItem) GetPopularity() float64 {
 	}
 	if price%900 == 0 {
 		v += 700
+	}
+	if len(item.Stock) == 0 && item.StockLevel == "0" {
+		v -= 50000
 	}
 	v += item.MarginPercent * 400
 	return v + float64(grade*min(noGrades, 500))
