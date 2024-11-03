@@ -2,6 +2,7 @@ package sync
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -52,6 +53,20 @@ func (t *RabbitTransportMaster) send(topic string, data any) error {
 }
 
 func (t *RabbitTransportMaster) ItemsUpserted(items []types.Item) error {
+	for _, item := range items {
+		bytes, err := json.Marshal(item)
+		if err != nil {
+			log.Printf("could not marshal item: %v", err)
+		}
+		err = t.channel.Publish("", "static-generation", false, false, amqp.Publishing{
+			ContentType:  "application/json",
+			DeliveryMode: amqp.Persistent,
+			Body:         bytes,
+		})
+		if err != nil {
+			log.Printf("could not send static-generation: %v", err)
+		}
+	}
 	return t.send(t.ItemsUpsertedTopic, items)
 }
 
