@@ -268,7 +268,7 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		Name:     tokenCookieName,
 		Value:    ownToken,
 		Path:     "/",
-		MaxAge:   3600,
+		MaxAge:   7 * 86400,
 		SameSite: http.SameSiteStrictMode,
 	})
 
