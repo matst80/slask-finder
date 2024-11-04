@@ -168,6 +168,9 @@ func (item *DataItem) GetPopularity() float64 {
 			v += (100 - item.MarginPercent) * 100
 		}
 	}
+	if item.BadgeUrl != "" {
+		v += 2500
+	}
 
 	return v + float64(grade*min(noGrades, 100))
 
