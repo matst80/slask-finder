@@ -645,9 +645,9 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv.HandleFunc("/filter", ws.AuthMiddleware(ws.Search))
 	//	srv.HandleFunc("/learn/", ws.Learn)
-	srv.HandleFunc("/related/{id}", ws.AuthMiddleware(ws.Related))
+	srv.HandleFunc("/related/{id}", ws.Related)
 	srv.HandleFunc("/facet-list", ws.AuthMiddleware(ws.Facets))
-	srv.HandleFunc("/suggest", ws.AuthMiddleware(ws.Suggest))
+	srv.HandleFunc("/suggest", ws.Suggest)
 	srv.HandleFunc("/categories", ws.Categories)
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", ws.AuthMiddleware(ws.SearchStreamed))
