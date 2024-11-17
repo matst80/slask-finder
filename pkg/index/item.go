@@ -162,10 +162,13 @@ func (item *DataItem) GetPopularity() float64 {
 	if len(item.Stock) == 0 && item.StockLevel == "0" {
 		v -= 6000
 	}
+	if item.BadgeUrl != "" {
+		v += 3500
+	}
 	if isOwnBrand {
 		v += 4000
 		if item.MarginPercent < 99 && item.MarginPercent >= 0 {
-			v += (100 - item.MarginPercent) * 100
+			v -= item.MarginPercent * 100
 		}
 	}
 	if item.BadgeUrl != "" {
