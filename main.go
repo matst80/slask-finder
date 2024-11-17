@@ -92,7 +92,7 @@ func Init() {
 	idx.AddKeyField(&types.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 3999999999.0, IgnoreIfInSearch: true, CategoryLevel: 1})
 	idx.AddKeyField(&types.BaseField{Id: 11, Name: "Underkaterori", Description: "Sub category", Priority: 2999999997.0, IgnoreIfInSearch: true, CategoryLevel: 2})
 	idx.AddKeyField(&types.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 1999999996.0, IgnoreIfInSearch: true, CategoryLevel: 3})
-	idx.AddKeyField(&types.BaseField{Id: 12, Name: "Kategori", Description: "Extra kategori", Priority: 1999999995.0, IgnoreIfInSearch: true, CategoryLevel: 4})
+	idx.AddKeyField(&types.BaseField{Id: 13, Name: "Kategori", Description: "Extra kategori", Priority: 1999999995.0, IgnoreIfInSearch: true, CategoryLevel: 4})
 	idx.AddKeyField(&types.BaseField{Id: 20, Name: "Skick", Description: "Outlet rating", Priority: 111999.0, Type: "bgrade"})
 	idx.AddKeyField(&types.BaseField{Id: 21, Name: "Promotion", Description: "", Priority: 999999999.0, Type: "virtual"})
 	idx.AddKeyField(&types.BaseField{Id: 22, Name: "Virtual category", Description: "", Priority: 99.0, Type: "virtual"})
@@ -102,6 +102,7 @@ func Init() {
 	idx.AddIntegerField(&types.BaseField{Id: 6, Name: "Betyg", Description: "Average rating", Priority: 9999999.0, Type: "rating"})
 	idx.AddIntegerField(&types.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 9999998.0})
 	idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
+	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", Priority: 1299999995.4, Type: "currency"})
 	addDbFields(idx)
 	//srv.Sorting.LoadAll()
 
@@ -206,7 +207,7 @@ func main() {
 		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 	}
 
-	mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
+	//mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
 	mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
 	mux.Handle("/metrics", promhttp.Handler())
 
