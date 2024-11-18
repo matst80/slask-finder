@@ -144,8 +144,9 @@ func (item *DataItem) GetPopularity() float64 {
 	}
 
 	if orgPrice > 0 && orgPrice-price > 0 {
-		discount := orgPrice - price
-		v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
+		//sdiscount := orgPrice - price
+		//v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
+		v += 3500
 	}
 	if item.Buyable {
 		v += 5000
