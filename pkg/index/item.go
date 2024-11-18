@@ -145,7 +145,7 @@ func (item *DataItem) GetPopularity() float64 {
 	if orgPrice > 0 && orgPrice-price > 0 {
 		//sdiscount := orgPrice - price
 		//v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
-		v += 3500
+		v += 7500
 	}
 	if item.Buyable {
 		v += 5000
@@ -160,7 +160,7 @@ func (item *DataItem) GetPopularity() float64 {
 		v -= 6000
 	}
 	if item.BadgeUrl != "" {
-		v += 3500
+		v += 4500
 	}
 	if isOwnBrand {
 		v += 4000
@@ -172,7 +172,7 @@ func (item *DataItem) GetPopularity() float64 {
 		v += 2500
 	}
 
-	return v + float64(grade*min(noGrades, 100))
+	return v + (float64(grade*min(noGrades, 100)) / 10)
 
 }
 
