@@ -82,11 +82,7 @@ func (item *DataItem) GetPrice() int {
 	if !ok {
 		return 0
 	}
-	price, ok := priceField.(int)
-	if !ok {
-		return 0
-	}
-	return price
+	return int(getPrice(priceField))
 }
 
 func (item *DataItem) GetStock() types.LocationStock {
@@ -105,34 +101,37 @@ func (item *DataItem) GetCreated() int64 {
 	return item.Created
 }
 
+func getPrice(priceField interface{}) float64 {
+
+	switch priceField := priceField.(type) {
+	case int64:
+		return float64(priceField)
+	case float64:
+		return priceField
+	}
+	return 0
+}
+
 func (item *DataItem) GetPopularity() float64 {
 	v := 0.0
-	price := 0
-	orgPrice := 0
+	price := float64(0)
+	orgPrice := float64(0)
 	grade := 0
 	noGrades := 0
-	ok := false
+
 	isOwnBrand := false
 	for id, f := range item.Fields.GetFacets() {
 		if id == 4 {
-			if price, ok = f.(int); !ok {
-				return 0
-			}
+			price = getPrice(f)
 		}
 		if id == 5 {
-			if orgPrice, ok = f.(int); !ok {
-				return 0
-			}
+			orgPrice = getPrice(f)
 		}
 		if id == 6 {
-			if grade, ok = f.(int); !ok {
-				return 0
-			}
+			grade = int(getPrice(f))
 		}
 		if id == 7 {
-			if noGrades, ok = f.(int); !ok {
-				return 0
-			}
+			noGrades = int(getPrice(f))
 		}
 		if id == 9 {
 			if soldby, ok := f.(string); ok {
@@ -156,9 +155,6 @@ func (item *DataItem) GetPopularity() float64 {
 	}
 	if price < 10000 {
 		v -= 800
-	}
-	if price%900 == 0 {
-		v += 700
 	}
 	if len(item.Stock) == 0 && item.StockLevel == "0" {
 		v -= 6000
