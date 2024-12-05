@@ -1,6 +1,7 @@
 package index
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -62,10 +63,10 @@ const (
 )
 
 type CmsContentItem struct {
-	Id          uint
-	Name        string
-	Description string
-	Image       string
+	Id          uint        `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Picture     interface{} `json:"picture"`
 }
 
 func (i CmsContentItem) GetId() uint {
@@ -77,12 +78,12 @@ func (i CmsContentItem) IndexData() string {
 }
 
 type StoreContentItem struct {
-	Id          uint
-	Name        string
-	Description string
-	Image       string
-	Lat         string
-	Lng         string
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Image       string `json:"image"`
+	Lat         string `json:"lat"`
+	Lng         string `json:"lng"`
 }
 
 func (i StoreContentItem) GetId() uint {
@@ -101,11 +102,13 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		if err != nil {
 			return nil, err
 		}
+		var picture interface{}
+		json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
 		return CmsContentItem{
 			Id:          uint(id),
 			Name:        record[PageTitle],
 			Description: record[PageDetailText],
-			Image:       record[PagePictureUrl],
+			Picture:     picture,
 		}, nil
 	} else {
 		id, err := strconv.Atoi(record[StoreID])
