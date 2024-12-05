@@ -135,6 +135,16 @@ func MakeCacheWriter(w io.Writer, key string, setRaw func(string, []byte, time.D
 
 }
 
+func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	query = strings.TrimSpace(query)
+	res := ws.ContentIndex.MatchQuery(query)
+	defaultHeaders(w, true, "120")
+	w.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(w)
+	enc.Encode(res)
+}
+
 func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
 	sr := makeBaseSearchRequest()
 	err := GetQueryFromRequest(r, sr)
@@ -642,7 +652,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-
+	srv.HandleFunc("/content", ws.ContentSearch)
 	srv.HandleFunc("/filter", ws.Search)
 	srv.HandleFunc("/ai-search", ws.SearchEmbeddings)
 	srv.HandleFunc("/related/{id}", ws.Related)
