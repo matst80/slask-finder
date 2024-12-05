@@ -62,12 +62,22 @@ const (
 	ValidTo
 )
 
+type CmsComponent struct {
+	DetailTest string      `json:"detailText"`
+	TeaserText string      `json:"teaserText"`
+	Tiles      interface{} `json:"tiles"`
+	Pictures   interface{} `json:"pictures"`
+}
+
 type CmsContentItem struct {
-	Id          uint        `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Picture     interface{} `json:"picture"`
-	Url         string      `json:"url"`
+	Id          uint          `json:"id"`
+	Name        string        `json:"name"`
+	Description string        `json:"description"`
+	Picture     interface{}   `json:"picture"`
+	Features    string        `json:"features"`
+	PhoneNumber string        `json:"phoneNumber"`
+	Component   *CmsComponent `json:"component,omitempty"`
+	Url         string        `json:"url"`
 }
 
 func (i CmsContentItem) GetId() uint {
@@ -105,12 +115,26 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		}
 		var picture interface{}
 		json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
+		var component *CmsComponent
+		if record[ComponentsPictures] != "" {
+			var tiles interface{}
+			var pictures interface{}
+			json.Unmarshal([]byte(record[ComponentTitles]), &tiles)
+			json.Unmarshal([]byte(record[ComponentsPictures]), &pictures)
+			component = &CmsComponent{
+				DetailTest: record[ComponentDetailText],
+				TeaserText: record[ComponentTeaserTexts],
+				Tiles:      tiles,
+				Pictures:   tiles,
+			}
+		}
 		return CmsContentItem{
 			Id:          uint(id),
 			Name:        record[PageTitle],
 			Description: record[PageDetailText],
 			Url:         record[PageUrl],
 			Picture:     picture,
+			Component:   component,
 		}, nil
 	} else {
 		id, err := strconv.Atoi(record[StoreID])
