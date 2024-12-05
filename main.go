@@ -71,6 +71,8 @@ var srv = server.WebServer{
 	Embeddings:       embeddingsIndex,
 }
 
+var contentIdx = index.NewContentIndex()
+
 var done = false
 
 func Init() {
@@ -105,6 +107,8 @@ func Init() {
 	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", Priority: 1299999995.4, Type: "currency"})
 	addDbFields(idx)
 	//srv.Sorting.LoadAll()
+
+	go populateContentFromCsv(contentIdx)
 
 	go func() {
 
