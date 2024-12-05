@@ -1,6 +1,8 @@
 package index
 
 import (
+	"strconv"
+
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -8,6 +10,112 @@ import (
 type ContentItem interface {
 	GetId() uint
 	IndexData() string
+}
+
+const (
+	Rank = iota
+	Score
+	DQAttributes
+	FFCheckoutCount
+	StoreAddress
+	StoreCapabilities
+	StoreCity
+	StoreFeatures
+	StoreID
+	StoreOpeningHours
+	StorePhonenumber
+	StoreShortName
+	StoreEMailAddress
+	StoreLatitude
+	StoreLongitude
+	ComponentDetailText
+	ComponentKeywordTags
+	ComponentSeoDescriptions
+	ComponentSeoKeywords
+	ComponentSubjectTags
+	ComponentTeaserTexts
+	ComponentTeaserTitles
+	ComponentTitles
+	ComponentsPictures
+	CreationDate
+	FeederState
+	FeederTime
+	Id
+	IsDeleted
+	KeywordTags
+	ModificationDate
+	PageDetailText
+	PageDisplayDate
+	PageLocale
+	PagePictureUrl
+	PageTargetGroup
+	PageTeaserTitle
+	PageTitle
+	PageType
+	PageUrl
+	SeoDescription
+	SeoKeywords
+	SeoTitle
+	SubjectTags
+	ValidFrom
+	ValidTo
+)
+
+type CmsContentItem struct {
+	Id          uint
+	Name        string
+	Description string
+	Image       string
+}
+
+func (i CmsContentItem) GetId() uint {
+	return i.Id
+}
+
+func (i CmsContentItem) IndexData() string {
+	return i.Name + " " + i.Description
+}
+
+type StoreContentItem struct {
+	Id          uint
+	Name        string
+	Description string
+	Image       string
+}
+
+func (i StoreContentItem) GetId() uint {
+	return i.Id
+}
+
+func (i StoreContentItem) IndexData() string {
+	return i.Name + " " + i.Description
+}
+
+func ContentItemFromLine(record []string) (ContentItem, error) {
+	if record[StoreID] == "" {
+		id, err := strconv.Atoi(record[Id])
+		if err != nil {
+			return nil, err
+		}
+		return CmsContentItem{
+			Id:          uint(id),
+			Name:        record[PageTitle],
+			Description: record[PageDetailText],
+			Image:       record[PagePictureUrl],
+		}, nil
+	} else {
+		id, err := strconv.Atoi(record[StoreID])
+		if err != nil {
+			return nil, err
+		}
+		return StoreContentItem{
+			Id:          uint(id),
+			Name:        record[StoreShortName],
+			Description: record[StoreAddress],
+			Image:       record[ComponentsPictures],
+		}, nil
+	}
+	//return nil, errors.New("Unknown content type")
 }
 
 type ContentIndex struct {
