@@ -67,6 +67,7 @@ type CmsContentItem struct {
 	Name        string      `json:"name"`
 	Description string      `json:"description"`
 	Picture     interface{} `json:"picture"`
+	Url         string      `json:"url"`
 }
 
 func (i CmsContentItem) GetId() uint {
@@ -108,6 +109,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 			Id:          uint(id),
 			Name:        record[PageTitle],
 			Description: record[PageDetailText],
+			Url:         record[PageUrl],
 			Picture:     picture,
 		}, nil
 	} else {
@@ -117,7 +119,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		}
 		return StoreContentItem{
 			Id:          uint(id),
-			Name:        record[StoreShortName],
+			Name:        record[PageTitle],
 			Description: record[StoreAddress],
 			Image:       record[ComponentsPictures],
 			Lat:         record[StoreLatitude],
