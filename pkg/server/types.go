@@ -12,6 +12,7 @@ import (
 type WebServer struct {
 	OAuthConfig      *oauth2.Config
 	Index            *index.Index
+	ContentIndex     *index.ContentIndex
 	Db               *persistance.Persistance
 	Sorting          *index.Sorting
 	Cache            *Cache

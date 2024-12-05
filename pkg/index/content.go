@@ -2,9 +2,9 @@ package index
 
 import (
 	"strconv"
+	"strings"
 
 	"github.com/matst80/slask-finder/pkg/search"
-	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type ContentItem interface {
@@ -81,6 +81,8 @@ type StoreContentItem struct {
 	Name        string
 	Description string
 	Image       string
+	Lat         string
+	Lng         string
 }
 
 func (i StoreContentItem) GetId() uint {
@@ -93,7 +95,9 @@ func (i StoreContentItem) IndexData() string {
 
 func ContentItemFromLine(record []string) (ContentItem, error) {
 	if record[StoreID] == "" {
-		id, err := strconv.Atoi(record[Id])
+		idString := record[Id]
+		cleanId := strings.Replace(idString, "contentbean:", "", -1)
+		id, err := strconv.Atoi(cleanId)
 		if err != nil {
 			return nil, err
 		}
@@ -113,6 +117,8 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 			Name:        record[StoreShortName],
 			Description: record[StoreAddress],
 			Image:       record[ComponentsPictures],
+			Lat:         record[StoreLatitude],
+			Lng:         record[StoreLongitude],
 		}, nil
 	}
 	//return nil, errors.New("Unknown content type")
@@ -137,19 +143,21 @@ func (i *ContentIndex) AddItem(item ContentItem) {
 
 func (i *ContentIndex) MatchQuery(query string) []ContentItem {
 	result := i.Search.Search(query)
-	sortResult := make(chan *types.SortIndex)
-	result.GetSorting(sortResult)
-	defer close(sortResult)
-	s := <-sortResult
-	resultItems := make([]ContentItem, 0, min(20, len(i.Items)))
-	j := 0
-	for id := range s.SortMap(*result.ToResult()) {
+	//sortResult := make(chan *types.SortIndex)
+	//result.GetSorting(sortResult)
+	//defer close(sortResult)
+	//s := <-sortResult
+	itemIds := *result.ToResult()
+	j := min(30, len(itemIds))
+	resultItems := make([]ContentItem, 0, j)
+
+	for id := range *result.ToResult() {
 		item, ok := i.Items[id]
 		if ok {
-			resultItems[j] = item
-			j++
+			resultItems = append(resultItems, item)
+			j--
 		}
-		if j >= 20 {
+		if j == 0 {
 			break
 		}
 	}

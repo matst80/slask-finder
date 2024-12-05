@@ -61,17 +61,17 @@ var promotionServer = promotions.PromotionServer{
 }
 
 var embeddingsIndex = embeddings.NewEmbeddingsIndex()
+var contentIdx = index.NewContentIndex()
 
 var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
+	ContentIndex:     contentIdx,
 	FacetLimit:       10280,
 	SearchFacetLimit: 10280,
 	Cache:            nil,
 	Embeddings:       embeddingsIndex,
 }
-
-var contentIdx = index.NewContentIndex()
 
 var done = false
 
@@ -108,7 +108,7 @@ func Init() {
 	addDbFields(idx)
 	//srv.Sorting.LoadAll()
 
-	go populateContentFromCsv(contentIdx)
+	go populateContentFromCsv(contentIdx, "data/content.csv")
 
 	go func() {
 
@@ -186,8 +186,6 @@ func main() {
 		Endpoint: google.Endpoint,
 	}
 
-	log.Printf("Starting server %v", listenAddress)
-
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		if !done {
@@ -224,5 +222,6 @@ func main() {
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		//mux.Handle("/debug/pprof/", )
 	}
+	log.Printf("Starting server %v", listenAddress)
 	log.Fatal(http.ListenAndServe(listenAddress, mux))
 }

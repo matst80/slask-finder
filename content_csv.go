@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"log"
 	"os"
 
@@ -16,6 +17,7 @@ func readCsvFile(filePath string) [][]string {
 	defer f.Close()
 
 	csvReader := csv.NewReader(f)
+	csvReader.Comma = ';'
 	records, err := csvReader.ReadAll()
 	if err != nil {
 		log.Fatal("Unable to parse file as CSV for "+filePath, err)
@@ -24,12 +26,15 @@ func readCsvFile(filePath string) [][]string {
 	return records
 }
 
-func populateContentFromCsv(idx *index.ContentIndex) {
-	records := readCsvFile("content.csv")
-	for _, record := range records {
-
+func populateContentFromCsv(idx *index.ContentIndex, file string) {
+	records := readCsvFile(file)
+	for i, record := range records {
+		if i == 0 {
+			fmt.Println("Skipping header", record)
+			continue
+		}
 		itm, err := index.ContentItemFromLine(record)
-		if err != nil {
+		if err == nil {
 			idx.AddItem(itm)
 		}
 	}
