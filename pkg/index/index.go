@@ -38,9 +38,9 @@ type UpdateHandler interface {
 }
 
 type Category struct {
-	level    int
-	id       uint
-	Key      string  `json:"key"`
+	level int
+	id    uint
+	//Key      string  `json:"key"`
 	Value    *string `json:"value"`
 	parent   *Category
 	Children map[uint]*Category `json:"children"`
