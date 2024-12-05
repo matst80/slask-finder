@@ -100,6 +100,9 @@ func Init() {
 	idx.AddKeyField(&types.BaseField{Id: 20, Name: "Skick", Description: "Outlet rating", Priority: 111999.0, Type: "bgrade"})
 	idx.AddKeyField(&types.BaseField{Id: 21, Name: "Promotion", Description: "", Priority: 999999999.0, Type: "virtual"})
 	idx.AddKeyField(&types.BaseField{Id: 22, Name: "Virtual category", Description: "", Priority: 99.0, Type: "virtual"})
+
+	idx.AddKeyField(&types.BaseField{Id: 23, Name: "Assigned taxonomy id", Description: "", Priority: 99.0})
+
 	//idx.AddBoolField(&types.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
 	idx.AddIntegerField(&types.BaseField{Id: 4, Name: "Pris", Priority: 1999999995.5, Type: "currency"})
 	idx.AddIntegerField(&types.BaseField{Id: 5, Name: "Tidigare pris", Priority: 1999999995.4, Type: "currency"})
