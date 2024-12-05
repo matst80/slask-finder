@@ -34,7 +34,7 @@ type IntegerFieldResult struct {
 }
 
 func (k *IntegerFieldResult) HasValues() bool {
-	return k.Count > 0
+	return k.Min < k.Max
 }
 
 func (k *IntegerFieldResult) AddValue(value interface{}) {
@@ -70,7 +70,7 @@ func (k *decimalFieldResult) AddValue(value interface{}) {
 }
 
 func (k *decimalFieldResult) HasValues() bool {
-	return k.Count > 0
+	return k.Min < k.Max
 }
 
 func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIndex *types.SortIndex) []JsonFacet {
@@ -113,10 +113,8 @@ func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIn
 		for id, field = range (*item).GetFields() {
 			if f, ok = fields[id]; ok {
 				f.AddValue(field)
-
 			}
 		}
-
 	}
 
 	return i.mapToSlice(fields, sortIndex)
