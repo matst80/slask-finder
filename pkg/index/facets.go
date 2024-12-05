@@ -75,7 +75,7 @@ func (k *decimalFieldResult) HasValues() bool {
 
 func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIndex *types.SortIndex) []JsonFacet {
 	l := uint(len(ids))
-	needsTruncation := l > 6144
+	needsTruncation := l > 16144
 	fields := make(map[uint]FieldResult)
 
 	var base *types.BaseField
@@ -128,7 +128,7 @@ type JsonFacet struct {
 }
 
 func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *types.SortIndex) []JsonFacet {
-	l := min(len(fields), 20)
+	l := min(len(fields), 35)
 	sorted := make([]JsonFacet, len(fields))
 	idx := 0
 	var base *types.BaseField
@@ -141,7 +141,6 @@ func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *types.SortInd
 			}
 			base = indexField.GetBaseField()
 			if !base.HideFacet || !f.HasValues() {
-
 				sorted[idx] = JsonFacet{
 					base,
 					f,
