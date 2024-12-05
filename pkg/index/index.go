@@ -40,6 +40,7 @@ type UpdateHandler interface {
 type Category struct {
 	level    int
 	id       uint
+	Key      string  `json:"key"`
 	Value    *string `json:"value"`
 	parent   *Category
 	Children map[uint]*Category `json:"children"`
@@ -118,7 +119,6 @@ func (i *Index) addItemValues(item types.Item) {
 			if base.CategoryLevel > 0 {
 				value, ok := fieldValue.(string)
 				if ok {
-
 					cid := makeCategoryId(base.CategoryLevel, value)
 					if i.categories[cid] == nil {
 						i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}

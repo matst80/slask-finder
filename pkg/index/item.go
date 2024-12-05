@@ -58,7 +58,8 @@ type BaseItem struct {
 
 type DataItem struct {
 	*BaseItem
-	Fields types.ItemFields `json:"values"`
+	Taxonomy []string         `json:"taxonomy"`
+	Fields   types.ItemFields `json:"values"`
 }
 
 func ToItemArray(items []DataItem) []types.Item {

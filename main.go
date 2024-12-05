@@ -91,10 +91,12 @@ func Init() {
 	idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 1199999999.0, Type: "brand"})
 	idx.AddKeyField(&types.BaseField{Id: 3, Name: "Lager", Description: "Lagerstatus", Priority: 99999.0})
 	idx.AddKeyField(&types.BaseField{Id: 9, Name: "Säljs av", Description: "", Priority: 199999.0})
+
 	idx.AddKeyField(&types.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 3999999999.0, IgnoreIfInSearch: true, CategoryLevel: 1})
 	idx.AddKeyField(&types.BaseField{Id: 11, Name: "Underkaterori", Description: "Sub category", Priority: 2999999997.0, IgnoreIfInSearch: true, CategoryLevel: 2})
 	idx.AddKeyField(&types.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 1999999996.0, IgnoreIfInSearch: true, CategoryLevel: 3})
 	idx.AddKeyField(&types.BaseField{Id: 13, Name: "Kategori", Description: "Extra kategori", Priority: 1999999995.0, IgnoreIfInSearch: true, CategoryLevel: 4})
+
 	idx.AddKeyField(&types.BaseField{Id: 20, Name: "Skick", Description: "Outlet rating", Priority: 111999.0, Type: "bgrade"})
 	idx.AddKeyField(&types.BaseField{Id: 21, Name: "Promotion", Description: "", Priority: 999999999.0, Type: "virtual"})
 	idx.AddKeyField(&types.BaseField{Id: 22, Name: "Virtual category", Description: "", Priority: 99.0, Type: "virtual"})
@@ -105,6 +107,12 @@ func Init() {
 	idx.AddIntegerField(&types.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 9999998.0})
 	idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
 	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", Priority: 1299999995.4, Type: "currency"})
+
+	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, CategoryLevel: 1})
+	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, CategoryLevel: 2})
+	idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, CategoryLevel: 3})
+	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, CategoryLevel: 4})
+
 	addDbFields(idx)
 	//srv.Sorting.LoadAll()
 
