@@ -138,7 +138,7 @@ func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *types.SortInd
 				continue
 			}
 			base = indexField.GetBaseField()
-			if !base.HideFacet || !f.HasValues() {
+			if !base.HideFacet && f.HasValues() {
 				sorted[idx] = JsonFacet{
 					base,
 					f,
