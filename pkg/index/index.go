@@ -128,10 +128,10 @@ func (i *Index) addItemValues(item types.Item) {
 			}
 			if !base.HideFacet {
 
-				ok := f.AddValueLink(fieldValue, item)
-				if !ok {
-					delete(i.Facets, id)
-				}
+				f.AddValueLink(fieldValue, item)
+				// if !ok {
+				// 	delete(i.Facets, id)
+				// }
 			}
 
 		} else {

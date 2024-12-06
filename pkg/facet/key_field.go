@@ -51,7 +51,7 @@ func (f KeyField) GetBaseField() *types.BaseField {
 
 func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	str, ok := data.(string)
-	if !ok {
+	if !ok || str == "" {
 		return false
 	}
 	if len(str) > 64 {
