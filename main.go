@@ -104,12 +104,12 @@ func Init() {
 	idx.AddKeyField(&types.BaseField{Id: 23, Name: "Assigned taxonomy id", Description: "", Priority: 99.0})
 
 	//idx.AddBoolField(&types.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
-	idx.AddIntegerField(&types.BaseField{Id: 4, Name: "Pris", Priority: 1999999995.5, Type: "currency"})
-	idx.AddIntegerField(&types.BaseField{Id: 5, Name: "Tidigare pris", Priority: 1999999995.4, Type: "currency"})
+	idx.AddIntegerField(&types.BaseField{Id: 4, Name: "Pris", Priority: 1099999995.5, Type: "currency"})
+	idx.AddIntegerField(&types.BaseField{Id: 5, Name: "Tidigare pris", HideFacet: true, Priority: 1999, Type: "currency"})
 	idx.AddIntegerField(&types.BaseField{Id: 6, Name: "Betyg", Description: "Average rating", Priority: 9999999.0, Type: "rating"})
 	idx.AddIntegerField(&types.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 9999998.0})
 	idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
-	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", Priority: 1299999995.4, Type: "currency"})
+	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", HideFacet: true, Priority: 1299999995.4, Type: "currency"})
 
 	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, CategoryLevel: 1})
 	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, CategoryLevel: 2})
