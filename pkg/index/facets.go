@@ -17,7 +17,7 @@ type KeyFieldResult struct {
 
 func (k *KeyFieldResult) AddValue(input interface{}) {
 	value, ok := input.(string)
-	if !ok {
+	if !ok || value == "" {
 		return
 	}
 	k.Values[value]++
