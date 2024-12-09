@@ -233,6 +233,9 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	price_lowered := false
 	current, isUpdate := i.Items[item.GetId()]
 	if item.IsDeleted() {
+		if item.IsSoftDeleted() {
+			return false
+		}
 		if isUpdate {
 			i.deleteItemUnsafe(item.GetId())
 		}

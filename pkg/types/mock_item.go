@@ -16,6 +16,10 @@ func (m *MockItem) GetId() uint {
 	return m.Id
 }
 
+func (m *MockItem) IsSoftDeleted() bool {
+	return false
+}
+
 func (m *MockItem) GetStock() LocationStock {
 	return m.LocationStock
 }

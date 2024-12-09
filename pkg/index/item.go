@@ -75,7 +75,27 @@ func (item *DataItem) GetId() uint {
 }
 
 func (item *DataItem) IsDeleted() bool {
+	softDeleted := item.IsSoftDeleted()
+
+	if softDeleted {
+		return true
+	}
 	return item.SaleStatus == "MDD"
+}
+
+func (item *DataItem) IsSoftDeleted() bool {
+	p, ok := item.Fields.GetFacetValue(4)
+	if !ok {
+		return true
+	}
+	price := getPrice(p)
+	if price == 0 {
+		return true
+	}
+	if price == 99999900 {
+		return true
+	}
+	return false
 }
 
 func (item *DataItem) GetPrice() int {

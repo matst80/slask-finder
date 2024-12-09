@@ -36,6 +36,7 @@ type Item interface {
 	GetStock() LocationStock
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
+	IsSoftDeleted() bool
 	GetPrice() int
 	GetLastUpdated() int64
 	GetCreated() int64
