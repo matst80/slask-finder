@@ -111,10 +111,10 @@ func Init() {
 	idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
 	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", HideFacet: true, Priority: 1299999995.4, Type: "currency"})
 
-	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: false, Priority: 99990, IgnoreIfInSearch: false, CategoryLevel: 1})
-	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: false, Priority: 99990, IgnoreIfInSearch: false, CategoryLevel: 2})
-	idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: false, Priority: 99990, IgnoreIfInSearch: false, CategoryLevel: 3})
-	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: false, Priority: 99990, IgnoreIfInSearch: false, CategoryLevel: 4})
+	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: false, Priority: 0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: false, Priority: 0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: false, Priority: 0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: false, Priority: 0, IgnoreIfInSearch: true})
 
 	addDbFields(idx)
 	//srv.Sorting.LoadAll()
