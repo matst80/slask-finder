@@ -89,7 +89,7 @@ func (item *DataItem) IsSoftDeleted() bool {
 		return true
 	}
 	price := getPrice(p)
-	if price == 0 {
+	if price <= 200 {
 		return true
 	}
 	if price > 99999000 && price <= 100000000 {
