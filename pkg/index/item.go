@@ -119,7 +119,7 @@ func (item *DataItem) GetPopularity() float64 {
 	orgPrice := float64(0)
 	grade := 0
 	noGrades := 0
-
+	isOutlet := false
 	isOwnBrand := false
 	for id, f := range item.Fields.GetFacets() {
 		if id == 4 {
@@ -141,8 +141,20 @@ func (item *DataItem) GetPopularity() float64 {
 				}
 			}
 		}
+		if id == 10 {
+			if cat, ok := f.(string); ok {
+				if cat == "Outlet" {
+					isOutlet = true
+				}
+			}
+		}
 	}
-
+	if price == 0 {
+		v -= 50000
+	}
+	if isOutlet {
+		v -= 8000
+	}
 	if orgPrice > 0 && orgPrice-price > 0 {
 		//sdiscount := orgPrice - price
 		//v += ((float64(discount) / float64(orgPrice)) * 100000.0) + (float64(discount) / 5.0)
