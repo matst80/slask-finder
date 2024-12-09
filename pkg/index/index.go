@@ -126,13 +126,8 @@ func (i *Index) addItemValues(item types.Item) {
 					tree = append(tree, i.categories[cid])
 				}
 			}
-			if !base.HideFacet {
 
-				f.AddValueLink(fieldValue, item)
-				// if !ok {
-				// 	delete(i.Facets, id)
-				// }
-			}
+			f.AddValueLink(fieldValue, item)
 
 		} else {
 			delete(i.Facets, id)
