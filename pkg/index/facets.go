@@ -50,13 +50,13 @@ func (k *IntegerFieldResult) AddValue(value interface{}) {
 	k.Count++
 }
 
-type decimalFieldResult struct {
+type DecimalFieldResult struct {
 	Count uint    `json:"count,omitempty"`
 	Min   float64 `json:"min"`
 	Max   float64 `json:"max"`
 }
 
-func (k *decimalFieldResult) AddValue(value interface{}) {
+func (k *DecimalFieldResult) AddValue(value interface{}) {
 	v, ok := value.(float64)
 	if !ok {
 		return
@@ -69,7 +69,7 @@ func (k *decimalFieldResult) AddValue(value interface{}) {
 	k.Count++
 }
 
-func (k *decimalFieldResult) HasValues() bool {
+func (k *DecimalFieldResult) HasValues() bool {
 	return k.Min < k.Max
 }
 
@@ -92,7 +92,7 @@ func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIn
 			case types.FacetIntegerType:
 				fields[key] = &IntegerFieldResult{}
 			case types.FacetNumberType:
-				fields[key] = &decimalFieldResult{}
+				fields[key] = &DecimalFieldResult{}
 			}
 		}
 
@@ -122,7 +122,8 @@ func (i *Index) GetFacetsFromResult(ids types.ItemList, filters *Filters, sortIn
 
 type JsonFacet struct {
 	*types.BaseField
-	Result FieldResult `json:"result,omitempty"`
+	Selected interface{} `json:"selected,omitempty"`
+	Result   FieldResult `json:"result,omitempty"`
 }
 
 func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *types.SortIndex) []JsonFacet {
@@ -141,6 +142,7 @@ func (i *Index) mapToSlice(fields map[uint]FieldResult, sortIndex *types.SortInd
 			if !base.HideFacet && f.HasValues() {
 				sorted[idx] = JsonFacet{
 					base,
+					nil,
 					f,
 				}
 				idx++

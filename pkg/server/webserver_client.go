@@ -5,13 +5,16 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/tracking"
@@ -48,27 +51,13 @@ var (
 	// })
 )
 
-func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
-	matchingChan := make(chan *types.ItemList)
-	sortChan := make(chan *types.SortIndex)
-	go noSearches.Inc()
-
-	defer close(matchingChan)
-	defer close(sortChan)
-
+func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.DocumentResult) {
 	var initialIds *types.ItemList = nil
-
+	var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
-
 		initialIds = queryResult.ToResult()
-		if sr.Sort == "popular" || sr.Sort == "" {
-			go queryResult.GetSorting(sortChan)
-		} else {
-			go ws.Sorting.GetSorting(sr.Sort, sortChan)
-		}
-	} else {
-		go ws.Sorting.GetSorting(sr.Sort, sortChan)
+		documentResult = queryResult
 	}
 
 	if len(sr.Stock) > 0 {
@@ -85,7 +74,29 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 		} else {
 			initialIds.Intersect(resultStockIds)
 		}
+	}
 
+	return initialIds, documentResult
+}
+
+func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
+	matchingChan := make(chan *types.ItemList)
+	sortChan := make(chan *types.SortIndex)
+	go noSearches.Inc()
+
+	defer close(matchingChan)
+	defer close(sortChan)
+
+	initialIds, documentResult := ws.getInitialIds(sr.FacetRequest)
+
+	if sr.Query != "" {
+		if sr.Sort == "popular" || sr.Sort == "" {
+			go documentResult.GetSorting(sortChan)
+		} else {
+			go ws.Sorting.GetSorting(sr.Sort, sortChan)
+		}
+	} else {
+		go ws.Sorting.GetSorting(sr.Sort, sortChan)
 	}
 
 	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
@@ -97,18 +108,23 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 
 }
 
+func makeBaseFacetRequest() *FacetRequest {
+	return &FacetRequest{
+		Filters: &index.Filters{
+			StringFilter: []facet.StringSearch{},
+			RangeFilter:  []facet.NumberSearch{},
+		},
+		Stock: []string{},
+		Query: "",
+	}
+}
+
 func makeBaseSearchRequest() *SearchRequest {
 	return &SearchRequest{
-		Filters: &index.Filters{
-			StringFilter:  []index.StringSearch{},
-			NumberFilter:  []index.NumberSearch[float64]{},
-			IntegerFilter: []index.NumberSearch[int]{},
-		},
-		Stock:    []string{},
-		Query:    "",
-		Sort:     "popular",
-		Page:     0,
-		PageSize: 40,
+		FacetRequest: makeBaseFacetRequest(),
+		Sort:         "popular",
+		Page:         0,
+		PageSize:     40,
 	}
 }
 
@@ -145,48 +161,241 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(res)
 }
 
-func (ws *WebServer) Search(w http.ResponseWriter, r *http.Request) {
-	sr := makeBaseSearchRequest()
-	err := GetQueryFromRequest(r, sr)
+func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFacet, wg *sync.WaitGroup, modifyResult func(*index.JsonFacet) *index.JsonFacet) {
+	defer wg.Done()
+	if baseIds == nil || len(*baseIds) == 0 {
+		baseField := f.GetBaseField()
+		if baseField.HideFacet {
+			c <- nil
+			return
+		}
+		ret := &index.JsonFacet{
+			BaseField: baseField,
+		}
+		switch field := f.(type) {
+		case facet.KeyField:
+			r := &index.KeyFieldResult{
+				Values: make(map[string]uint),
+			}
+			for keyId, idList := range field.Keys {
+				r.Values[string(keyId)] = uint(len(idList))
+			}
+			ret.Result = r
+		case facet.IntegerField:
+			ret.Result = &index.IntegerFieldResult{
+				Count: uint(field.Count),
+				Min:   field.Min,
+				Max:   field.Max,
+			}
+		case facet.DecimalField:
+			ret.Result = &index.DecimalFieldResult{
+				Count: uint(field.Count),
+				Min:   field.Min,
+				Max:   field.Max,
+			}
+		}
+		c <- modifyResult(ret)
+		return
+	}
+	matchIds := *baseIds
+	baseField := f.GetBaseField()
+	if baseField.HideFacet {
+		c <- nil
+		return
+	}
+	ret := &index.JsonFacet{
+		BaseField: baseField,
+	}
+	switch field := f.(type) {
+	case facet.KeyField:
+		hasValues := false
+		r := make(map[string]uint, len(field.Keys))
+
+		for keyId, sourceIds := range field.Keys {
+			count := uint(0)
+			for id := range sourceIds {
+				if _, ok := matchIds[id]; ok {
+					count++
+				}
+			}
+			if count > 0 {
+				hasValues = true
+				r[string(keyId)] = count
+			}
+		}
+		if !hasValues {
+			c <- nil
+			return
+		}
+		ret.Result = &index.KeyFieldResult{
+			Values: r,
+		}
+	case facet.IntegerField:
+		fieldResult := index.IntegerFieldResult{
+			Count: 0,
+			Min:   9999999999999999,
+			Max:   -9999999999999999,
+		}
+		hasValues := false
+		for id := range matchIds {
+			if value := field.ValueForItemId(id); value != nil {
+				fieldResult.Count++
+				hasValues = true
+				if *value < fieldResult.Min {
+					fieldResult.Min = *value
+				}
+				if *value > fieldResult.Max {
+					fieldResult.Max = *value
+				}
+			}
+		}
+		if !hasValues {
+			c <- nil
+			return
+		}
+		ret.Result = &fieldResult
+	case facet.DecimalField:
+		fieldResult := index.DecimalFieldResult{
+			Count: 0,
+			Min:   9999999999999999,
+			Max:   -9999999999999999,
+		}
+		hasResults := false
+
+		for id := range matchIds {
+			if value := field.ValueForItemId(id); value != nil {
+				fieldResult.Count++
+				hasResults = true
+				if *value < fieldResult.Min {
+					fieldResult.Min = *value
+				}
+				if *value > fieldResult.Max {
+					fieldResult.Max = *value
+				}
+			}
+		}
+		if !hasResults {
+			c <- nil
+			return
+		}
+		ret.Result = &fieldResult
+	}
+	c <- modifyResult(ret)
+}
+
+func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+	for _, s := range filters.StringFilter {
+		if f, ok := ws.Index.Facets[s.Id]; ok {
+			if ok {
+				wg.Add(1)
+				go func(otherFilters *index.Filters) {
+					matchIds := make(chan *types.ItemList)
+					defer close(matchIds)
+
+					go ws.Index.Match(otherFilters, baseIds, matchIds)
+
+					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+						if facet == nil {
+							return nil
+						}
+						facet.Selected = s.Value
+						return facet
+					})
+				}(filters.WithOut(s.Id))
+			}
+		}
+	}
+	for _, r := range filters.RangeFilter {
+		if f, ok := ws.Index.Facets[r.Id]; ok {
+			if ok {
+				wg.Add(1)
+				go func(otherFilters *index.Filters) {
+					matchIds := make(chan *types.ItemList)
+					defer close(matchIds)
+					go ws.Index.Match(otherFilters, baseIds, matchIds)
+					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+						if facet == nil {
+							return nil
+						}
+						facet.Selected = r
+						return facet
+					})
+				}(filters.WithOut(r.Id))
+			}
+		}
+	}
+}
+
+func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+
+	fieldIds := make(map[uint]struct{})
+	if len(*baseIds) > 65535 {
+		for id := range ws.Index.Facets {
+			fieldIds[id] = struct{}{}
+		}
+	} else {
+		for id := range *baseIds {
+			itemFieldIds, ok := ws.Index.ItemFieldIds[id]
+			if ok {
+				maps.Copy(fieldIds, itemFieldIds)
+			}
+		}
+	}
+	count := 0
+	for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
+		if count > 40 {
+			break
+		}
+
+		if !filters.HasField(id) {
+			if f, ok := ws.Index.Facets[id]; ok {
+				wg.Add(1)
+				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+					return facet
+				})
+				count++
+			}
+		}
+	}
+
+}
+
+func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
+	sr := makeBaseFacetRequest()
+	err := GetFacetQueryFromRequest(r, sr)
 	writer := io.Writer(w)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	facetsChan := make(chan []index.JsonFacet)
-	resultChan := make(chan searchResult)
+	matchIds := make(chan *types.ItemList)
+	defer close(matchIds)
+	baseIds, _ := ws.getInitialIds(sr)
+	go ws.Index.Match(sr.Filters, baseIds, matchIds)
 
-	defer close(facetsChan)
-	defer close(resultChan)
+	ch := make(chan *index.JsonFacet)
+	wg := &sync.WaitGroup{}
 
-	go ws.getMatchAndSort(sr, resultChan)
+	ids := <-matchIds
+	go ws.getOtherFacets(ids, sr.Filters, ch, wg)
+	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
 
-	result := <-resultChan
-	totalHits := len(*result.matching)
-	publicHeaders(w, true, "3600")
-	w.WriteHeader(http.StatusOK)
-	if totalHits > ws.FacetLimit {
-		key := getCacheKey(sr)
-		result, err := ws.Cache.GetRaw(key)
-		if err == nil && len(result) > 0 {
-			w.Write(result)
-			return
+	ret := make([]*index.JsonFacet, 0, 50)
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+	for facet := range ch {
+		if facet != nil {
+			ret = append(ret, facet)
 		}
-		writer = MakeCacheWriter(writer, key, ws.Cache.SetRaw)
 	}
-
-	go getFacetsForIds(*result.matching, ws.Index, sr.Filters, ws.Sorting.FieldSort, facetsChan)
-	go facetSearches.Inc()
 
 	enc := json.NewEncoder(writer)
-
-	data := SearchResponse{
-		Facets:    <-facetsChan,
-		TotalHits: totalHits,
-	}
-
-	encErr := enc.Encode(data)
+	defaultHeaders(w, true, "60")
+	w.WriteHeader(http.StatusOK)
+	encErr := enc.Encode(ret)
 	if encErr != nil {
 		http.Error(w, encErr.Error(), http.StatusInternalServerError)
 	}
@@ -385,31 +594,31 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-type FieldSize struct {
-	Id   uint `json:"id"`
-	Size int  `json:"size"`
-}
+// type FieldSize struct {
+// 	Id   uint `json:"id"`
+// 	Size int  `json:"size"`
+// }
 
-func (ws *WebServer) FacetSize(w http.ResponseWriter, r *http.Request) {
-	publicHeaders(w, true, "1200")
+// func (ws *WebServer) FacetSize(w http.ResponseWriter, r *http.Request) {
+// 	publicHeaders(w, true, "1200")
 
-	w.WriteHeader(http.StatusOK)
+// 	w.WriteHeader(http.StatusOK)
 
-	res := make([]FieldSize, len(ws.Index.Facets))
-	idx := 0
-	for _, f := range ws.Index.Facets {
-		res[idx] = FieldSize{
-			Id:   f.GetBaseField().Id,
-			Size: f.Size(),
-		}
-		idx++
-	}
+// 	res := make([]FieldSize, len(ws.Index.Facets))
+// 	idx := 0
+// 	for _, f := range ws.Index.Facets {
+// 		res[idx] = FieldSize{
+// 			Id:   f.GetBaseField().Id,
+// 			Size: f.Size(),
+// 		}
+// 		idx++
+// 	}
 
-	err := json.NewEncoder(w).Encode(res)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+// 	err := json.NewEncoder(w).Encode(res)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
 
 func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
@@ -653,7 +862,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 		w.Write([]byte("ok"))
 	})
 	srv.HandleFunc("/content", ws.ContentSearch)
-	srv.HandleFunc("/filter", ws.Search)
+	srv.HandleFunc("/facets", ws.GetFacets)
 	srv.HandleFunc("/ai-search", ws.SearchEmbeddings)
 	srv.HandleFunc("/related/{id}", ws.Related)
 	srv.HandleFunc("/facet-list", ws.Facets)

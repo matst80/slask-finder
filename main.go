@@ -67,7 +67,7 @@ var srv = server.WebServer{
 	Index:            idx,
 	Db:               db,
 	ContentIndex:     contentIdx,
-	FacetLimit:       10280,
+	FacetLimit:       1024,
 	SearchFacetLimit: 10280,
 	Cache:            nil,
 	Embeddings:       embeddingsIndex,

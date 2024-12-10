@@ -9,20 +9,50 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-type NumberSearch[K float64 | int] struct {
-	facet.NumberRange[K]
-	Id uint `json:"id"`
-}
-
-type StringSearch struct {
-	Id    uint   `json:"id"`
-	Value string `json:"value"`
-}
+type FilterIds map[uint]struct{}
 
 type Filters struct {
-	StringFilter  []StringSearch          `json:"string" schema:"-"`
-	NumberFilter  []NumberSearch[float64] `json:"number" schema:"-"`
-	IntegerFilter []NumberSearch[int]     `json:"integer" schema:"-"`
+	ids          *FilterIds
+	StringFilter []facet.StringSearch `json:"string" schema:"-"`
+	RangeFilter  []facet.NumberSearch `json:"range" schema:"-"`
+}
+
+func (f *Filters) WithOut(id uint) *Filters {
+	result := Filters{
+		StringFilter: make([]facet.StringSearch, 0, len(f.StringFilter)),
+		RangeFilter:  make([]facet.NumberSearch, 0, len(f.RangeFilter)),
+	}
+	for _, filter := range f.StringFilter {
+		if filter.Id != id {
+			result.StringFilter = append(result.StringFilter, filter)
+		}
+	}
+	for _, filter := range f.RangeFilter {
+		if filter.Id != id {
+			result.RangeFilter = append(result.RangeFilter, filter)
+		}
+	}
+	return &result
+}
+
+func (f *Filters) getIds() *FilterIds {
+	if f.ids == nil {
+		ids := make(FilterIds)
+		for _, filter := range f.StringFilter {
+			ids[filter.Id] = struct{}{}
+		}
+		for _, filter := range f.RangeFilter {
+			ids[filter.Id] = struct{}{}
+		}
+		f.ids = &ids
+	}
+	return f.ids
+}
+
+func (f *Filters) HasField(id uint) bool {
+	ids := f.getIds()
+	_, ok := (*ids)[id]
+	return ok
 }
 
 func (i *Index) Match(search *Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
@@ -31,36 +61,27 @@ func (i *Index) Match(search *Filters, initialIds *types.ItemList, idList chan<-
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
 
-	parseKeys := func(field StringSearch, fld types.Facet) {
+	parseKeys := func(field facet.StringSearch, fld types.Facet) {
 		results <- fld.Match(field.Value)
 	}
-	parseInts := func(field NumberSearch[int], fld types.Facet) {
-		results <- fld.Match(field.NumberRange)
+	parseRange := func(field facet.NumberSearch, fld types.Facet) {
+		results <- fld.Match(field)
 	}
-	parseNumber := func(field NumberSearch[float64], fld types.Facet) {
-		results <- fld.Match(field.NumberRange)
-	}
+
 	for _, fld := range search.StringFilter {
 		if f, ok := i.Facets[fld.Id]; ok {
 			cnt++
 			go parseKeys(fld, f)
 		}
 	}
-	for _, fld := range search.IntegerFilter {
+
+	for _, fld := range search.RangeFilter {
 		if f, ok := i.Facets[fld.Id]; ok {
 			cnt++
-			go parseInts(fld, f)
+			go parseRange(fld, f)
 		}
 	}
-
-	for _, fld := range search.NumberFilter {
-		if f, ok := i.Facets[fld.Id]; ok {
-
-			cnt++
-			go parseNumber(fld, f)
-		}
-	}
-	if initialIds != nil && len(*initialIds) > 0 {
+	if initialIds != nil {
 		if cnt == 0 {
 			idList <- initialIds
 			return
