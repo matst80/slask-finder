@@ -38,11 +38,15 @@ func (f *Filters) WithOut(id uint) *Filters {
 func (f *Filters) getIds() *FilterIds {
 	if f.ids == nil {
 		ids := make(FilterIds)
-		for _, filter := range f.StringFilter {
-			ids[filter.Id] = struct{}{}
+		if f.StringFilter != nil {
+			for _, filter := range f.StringFilter {
+				ids[filter.Id] = struct{}{}
+			}
 		}
-		for _, filter := range f.RangeFilter {
-			ids[filter.Id] = struct{}{}
+		if f.RangeFilter != nil {
+			for _, filter := range f.RangeFilter {
+				ids[filter.Id] = struct{}{}
+			}
 		}
 		f.ids = &ids
 	}

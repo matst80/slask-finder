@@ -210,9 +210,9 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 	case facet.KeyField:
 		hasValues := false
 		r := make(map[string]uint, len(field.Keys))
-
+		count := uint(0)
 		for keyId, sourceIds := range field.Keys {
-			count := uint(0)
+			count = 0
 			for id := range sourceIds {
 				if _, ok := matchIds[id]; ok {
 					count++
@@ -286,7 +286,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 	for _, s := range filters.StringFilter {
 		if f, ok := ws.Index.Facets[s.Id]; ok {
-			if ok {
+			if ok && !f.GetBaseField().HideFacet {
 				wg.Add(1)
 				go func(otherFilters *index.Filters) {
 					matchIds := make(chan *types.ItemList)
@@ -295,10 +295,9 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.F
 					go ws.Index.Match(otherFilters, baseIds, matchIds)
 
 					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-						if facet == nil {
-							return nil
+						if facet != nil {
+							facet.Selected = s.Value
 						}
-						facet.Selected = s.Value
 						return facet
 					})
 				}(filters.WithOut(s.Id))
@@ -314,10 +313,9 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.F
 					defer close(matchIds)
 					go ws.Index.Match(otherFilters, baseIds, matchIds)
 					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-						if facet == nil {
-							return nil
+						if facet != nil {
+							facet.Selected = r
 						}
-						facet.Selected = r
 						return facet
 					})
 				}(filters.WithOut(r.Id))
@@ -378,27 +376,28 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 	wg := &sync.WaitGroup{}
 
 	ids := <-matchIds
-	go ws.getOtherFacets(ids, sr.Filters, ch, wg)
+	ws.getOtherFacets(ids, sr.Filters, ch, wg)
 	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
 
-	ret := make([]*index.JsonFacet, 0, 50)
+	ret := make(map[uint]*index.JsonFacet)
 	go func() {
 		wg.Wait()
 		close(ch)
 	}()
 	for facet := range ch {
 		if facet != nil {
-			ret = append(ret, facet)
+			ret[facet.Id] = facet
+		}
+	}
+	defaultHeaders(w, true, "60")
+	w.WriteHeader(http.StatusOK)
+	enc := json.NewEncoder(writer)
+	for _, id := range *ws.Sorting.FieldSort {
+		if d, ok := ret[id]; ok {
+			enc.Encode(d)
 		}
 	}
 
-	enc := json.NewEncoder(writer)
-	defaultHeaders(w, true, "60")
-	w.WriteHeader(http.StatusOK)
-	encErr := enc.Encode(ret)
-	if encErr != nil {
-		http.Error(w, encErr.Error(), http.StatusInternalServerError)
-	}
 }
 
 func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
@@ -546,9 +545,29 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	facets := ws.Index.GetFacetsFromResult(results, &index.Filters{}, ws.Sorting.FieldSort)
+	ch := make(chan *index.JsonFacet)
+	wg := &sync.WaitGroup{}
+
+	ws.getOtherFacets(&results, &index.Filters{}, ch, wg)
+
 	w.Write([]byte("\n"))
-	enc.Encode(facets)
+
+	ret := make(map[uint]*index.JsonFacet)
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+	for facet := range ch {
+		if facet != nil {
+			ret[facet.Id] = facet
+		}
+	}
+
+	for _, id := range *ws.Sorting.FieldSort {
+		if d, ok := ret[id]; ok {
+			enc.Encode(d)
+		}
+	}
 }
 
 func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
