@@ -13,13 +13,17 @@ import (
 	"github.com/matst80/slask-finder/pkg/index"
 )
 
-type SearchRequest struct {
+type FacetRequest struct {
 	*index.Filters
-	Stock    []string `json:"stock" schema:"stock"`
-	Query    string   `json:"query" schema:"query"`
-	Sort     string   `json:"sort" schema:"sort,default:popular"`
-	Page     int      `json:"page" schema:"page"`
-	PageSize int      `json:"pageSize" schema:"size,default:40"`
+	Stock []string `json:"stock" schema:"stock"`
+	Query string   `json:"query" schema:"query"`
+}
+
+type SearchRequest struct {
+	*FacetRequest
+	Sort     string `json:"sort" schema:"sort,default:popular"`
+	Page     int    `json:"page" schema:"page"`
+	PageSize int    `json:"pageSize" schema:"size,default:40"`
 }
 
 func (s *SearchRequest) UseStaticPosition() bool {
@@ -33,13 +37,112 @@ func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
 	return queryFromRequest(r, searchRequest)
 }
 
-func queryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
+func GetFacetQueryFromRequest(r *http.Request, facetRequest *FacetRequest) error {
+	if r.Method == http.MethodGet {
+		return decodeFiltersFromRequest(r.URL.Query(), facetRequest)
+	}
+	return facetsQueryFromRequest(r, facetRequest)
+}
 
+func queryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
 	err := json.NewDecoder(r.Body).Decode(searchRequest)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func facetsQueryFromRequest(r *http.Request, searchRequest *FacetRequest) error {
+	err := json.NewDecoder(r.Body).Decode(searchRequest)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
+	var err error
+	for _, v := range query["str"] {
+		parts := strings.Split(v, ":")
+		if len(parts) != 2 {
+			continue
+		}
+		id, err := strconv.Atoi(parts[0])
+
+		if err != nil {
+			continue
+		}
+		if strings.Contains(parts[1], "||") {
+			result.StringFilter = append(result.StringFilter, facet.StringSearch{
+				Id:    uint(id),
+				Value: strings.Split(parts[1], "||"),
+			})
+		} else {
+			result.StringFilter = append(result.StringFilter, facet.StringSearch{
+				Id:    uint(id),
+				Value: parts[1],
+			})
+		}
+	}
+
+	for _, v := range query["rng"] {
+		var id uint
+		var min float64
+		var max float64
+		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &min, &max)
+
+		if err != nil {
+			continue
+		}
+		result.RangeFilter = append(result.RangeFilter, facet.NumberSearch{
+			Id:  uint(id),
+			Min: min,
+			Max: max,
+		})
+	}
+	return err
+}
+
+func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
+	decoder := schema.NewDecoder()
+	decoder.IgnoreUnknownKeys(true)
+	err := decoder.Decode(result, query)
+	if err != nil {
+		return err
+	}
+
+	for _, v := range query["str"] {
+		parts := strings.Split(v, ":")
+		if len(parts) != 2 {
+			continue
+		}
+		id, err := strconv.Atoi(parts[0])
+
+		if err != nil {
+			continue
+		}
+		result.StringFilter = append(result.StringFilter, facet.StringSearch{
+			Id:    uint(id),
+			Value: parts[1],
+		})
+	}
+
+	for _, v := range query["rng"] {
+		var id uint
+		var min float64
+		var max float64
+		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &min, &max)
+
+		if err != nil {
+			continue
+		}
+		result.RangeFilter = append(result.RangeFilter, facet.NumberSearch{
+			Id:  uint(id),
+			Min: min,
+			Max: max,
+		})
+	}
+	return err
 }
 
 func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
@@ -61,13 +164,13 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 		if err != nil {
 			continue
 		}
-		result.StringFilter = append(result.StringFilter, index.StringSearch{
+		result.StringFilter = append(result.StringFilter, facet.StringSearch{
 			Id:    uint(id),
 			Value: parts[1],
 		})
 	}
 
-	for _, v := range query["num"] {
+	for _, v := range query["rng"] {
 		var id uint
 		var min float64
 		var max float64
@@ -76,32 +179,30 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 		if err != nil {
 			continue
 		}
-		result.NumberFilter = append(result.NumberFilter, index.NumberSearch[float64]{
-			Id: uint(id),
-			NumberRange: facet.NumberRange[float64]{
-				Min: min,
-				Max: max,
-			},
+		result.RangeFilter = append(result.RangeFilter, facet.NumberSearch{
+			Id:  uint(id),
+			Min: min,
+			Max: max,
 		})
 	}
 
-	for _, v := range query["int"] {
-		var id uint
-		var min int
-		var max int
-		_, err := fmt.Sscanf(v, "%d:%d-%d", &id, &min, &max)
+	// for _, v := range query["int"] {
+	// 	var id uint
+	// 	var min int
+	// 	var max int
+	// 	_, err := fmt.Sscanf(v, "%d:%d-%d", &id, &min, &max)
 
-		if err != nil {
-			continue
-		}
-		result.IntegerFilter = append(result.IntegerFilter, index.NumberSearch[int]{
-			Id: uint(id),
-			NumberRange: facet.NumberRange[int]{
-				Min: min,
-				Max: max,
-			},
-		})
-	}
+	// 	if err != nil {
+	// 		continue
+	// 	}
+	// 	result.IntegerFilter = append(result.IntegerFilter, index.NumberSearch[int]{
+	// 		Id: uint(id),
+	// 		NumberRange: facet.NumberRange[int]{
+	// 			Min: min,
+	// 			Max: max,
+	// 		},
+	// 	})
+	// }
 
 	return nil
 }

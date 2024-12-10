@@ -264,9 +264,7 @@ func (d *DocumentResult) ToResult() *types.ItemList {
 	res := types.ItemList{}
 
 	for id := range *d {
-
 		res[id] = struct{}{}
-
 	}
 	return &res
 }

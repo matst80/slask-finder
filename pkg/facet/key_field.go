@@ -1,47 +1,59 @@
 package facet
 
 import (
-	"unsafe"
-
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type KeyField struct {
 	*types.BaseField
-	keys map[interface{}]types.ItemList
+	Keys map[string]types.ItemList
 }
 
 func (f KeyField) GetType() uint {
 	return types.FacetKeyType
 }
 
-func (f KeyField) Size() int {
-	sum := 0
-	for key, ids := range f.keys {
-		sum += int(unsafe.Sizeof(ids)) + len(key.(string))
-	}
-	return sum
+func (f KeyField) Len() int {
+	return len(f.Keys)
 }
 
 func (f KeyField) GetValues() []interface{} {
-	ret := make([]interface{}, len(f.keys))
+	ret := make([]interface{}, len(f.Keys))
 	idx := 0
-	for value := range f.keys {
+	for value := range f.Keys {
 		ret[idx] = value
 		idx++
 	}
 	return ret
 }
 
-func (f KeyField) Match(input interface{}) *types.ItemList {
-	//value, ok := input.(string)
-	//if ok {
+func (f *KeyField) match(value string) *types.ItemList {
 
-	list, found := f.keys[input]
-	if found {
-		return &list
+	ids, ok := f.Keys[value]
+	if ok {
+		return &ids
 	}
-	//}
+
+	return nil
+}
+
+func (f KeyField) Match(input interface{}) *types.ItemList {
+	switch val := input.(type) {
+	case string:
+		return f.match(val)
+	case []string:
+		ret := make(types.ItemList)
+		for _, v := range val {
+			r := f.match(v)
+
+			if r != nil {
+				ret.Merge(r)
+			}
+
+		}
+		return &ret
+	}
+
 	return &types.ItemList{}
 }
 
@@ -55,41 +67,39 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 		return false
 	}
 	if len(str) > 64 {
-		data = str[:61] + "..."
+		str = str[:61] + "..."
 	}
-	list, found := f.keys[data]
-	if !found {
-		f.keys[data] = types.ItemList{item.GetId(): struct{}{}}
+	if k, ok := f.Keys[str]; ok {
+		k.AddId(item.GetId())
 	} else {
-		list.Add(item)
+		f.Keys[str] = types.ItemList{item.GetId(): struct{}{}}
 	}
 	return true
 }
 
 func (f KeyField) RemoveValueLink(data interface{}, id uint) {
-
-	key, found := f.keys[data]
-	if found {
-		delete(key, id)
+	if str, ok := data.(string); ok {
+		if keyId, ok := f.Keys[str]; ok {
+			delete(keyId, id)
+		}
 	}
-
 }
 
 func (f *KeyField) TotalCount() int {
 	total := 0
-	for _, ids := range f.keys {
+	for _, ids := range f.Keys {
 		total += len(ids)
 	}
 	return total
 }
 
 func (f *KeyField) UniqueCount() int {
-	return len(f.keys)
+	return len(f.Keys)
 }
 
 func EmptyKeyValueField(field *types.BaseField) KeyField {
 	return KeyField{
 		BaseField: field,
-		keys:      map[interface{}]types.ItemList{},
+		Keys:      map[string]types.ItemList{},
 	}
 }

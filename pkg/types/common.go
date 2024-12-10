@@ -59,5 +59,4 @@ type Facet interface {
 	AddValueLink(value interface{}, item Item) bool
 	RemoveValueLink(value interface{}, id uint)
 	GetValues() []interface{}
-	Size() int
 }
