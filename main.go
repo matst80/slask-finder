@@ -103,7 +103,6 @@ func Init(wg *sync.WaitGroup) {
 	addDbFields(idx)
 	//srv.Sorting.LoadAll()
 
-	go populateContentFromCsv(contentIdx, "data/content.csv")
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -141,6 +140,9 @@ func Init(wg *sync.WaitGroup) {
 					err := clientTransport.Connect(idx)
 					srv.Sorting.InitializeWithIndex(idx)
 					srv.Sorting.StartListeningForChanges()
+
+					wg.Add(1)
+					go populateContentFromCsv(contentIdx, "data/content.csv", wg)
 
 					go func() {
 

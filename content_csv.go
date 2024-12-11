@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"log"
 	"os"
+	"sync"
 
 	"github.com/matst80/slask-finder/pkg/index"
 )
@@ -25,7 +26,8 @@ func readCsvFile(filePath string) [][]string {
 	return records
 }
 
-func populateContentFromCsv(idx *index.ContentIndex, file string) {
+func populateContentFromCsv(idx *index.ContentIndex, file string, group *sync.WaitGroup) {
+	defer group.Done()
 	records := readCsvFile(file)
 	for i, record := range records {
 		if i == 0 {
@@ -35,6 +37,8 @@ func populateContentFromCsv(idx *index.ContentIndex, file string) {
 		itm, err := index.ContentItemFromLine(record)
 		if err == nil {
 			idx.AddItem(itm)
+		} else {
+			log.Println(err)
 		}
 	}
 }
