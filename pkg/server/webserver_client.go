@@ -355,6 +355,9 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filt
 
 				wg.Add(1)
 				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+					if facet != nil && facet.CategoryLevel == 0 && !facet.Result.HasValues() {
+						return nil
+					}
 					return facet
 				})
 				if base.Type != "fps" {

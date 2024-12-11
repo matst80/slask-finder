@@ -24,7 +24,7 @@ func (k *KeyFieldResult) AddValue(input interface{}) {
 }
 
 func (k *KeyFieldResult) HasValues() bool {
-	return len(k.Values) > 0
+	return len(k.Values) > 1
 }
 
 type IntegerFieldResult struct {
