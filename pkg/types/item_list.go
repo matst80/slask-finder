@@ -36,19 +36,23 @@ func (i ItemList) HasIntersection(other *ItemList) bool {
 }
 
 func MakeIntersectResult(r chan *ItemList, len int) *ItemList {
-
+	defer close(r)
+	first := &ItemList{}
 	if len == 0 {
-		return &ItemList{}
+		return first
 	}
-	if len == 1 {
-		return <-r
+
+	next := <-r
+	if next != nil {
+		first.Merge(next)
 	}
-	first := ItemList{}
-	first.Merge(<-r)
-	//first := <-r
+
 	for i := 1; i < len; i++ {
-		first.Intersect(*<-r)
+		next = <-r
+		if next != nil {
+			first.Intersect(*next)
+		}
 	}
-	close(r)
-	return &first
+
+	return first
 }

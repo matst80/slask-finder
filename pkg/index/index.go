@@ -47,13 +47,12 @@ type Category struct {
 }
 
 type Index struct {
-	mu         sync.RWMutex
-	categories map[uint]*Category
-	Facets     map[uint]types.Facet
-
-	DefaultFacets Facets
-	Items         map[uint]*types.Item
-	ItemsInStock  map[string]types.ItemList
+	mu           sync.RWMutex
+	categories   map[uint]*Category
+	Facets       map[uint]types.Facet
+	ItemFieldIds map[uint]map[uint]struct{}
+	Items        map[uint]*types.Item
+	ItemsInStock map[string]types.ItemList
 
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
@@ -65,6 +64,7 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
 		mu:           sync.RWMutex{},
 		categories:   make(map[uint]*Category),
+		ItemFieldIds: make(map[uint]map[uint]struct{}),
 		Facets:       make(map[uint]types.Facet),
 		Items:        make(map[uint]*types.Item),
 		ItemsInStock: make(map[string]types.ItemList),
@@ -127,7 +127,9 @@ func (i *Index) addItemValues(item types.Item) {
 				}
 			}
 
-			f.AddValueLink(fieldValue, item)
+			if f.AddValueLink(fieldValue, item) && !f.GetBaseField().HideFacet {
+				i.ItemFieldIds[item.GetId()][f.GetBaseField().Id] = struct{}{}
+			}
 
 		} else {
 			delete(i.Facets, id)
@@ -231,13 +233,15 @@ func (i *Index) Unlock() {
 
 func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	price_lowered := false
-	current, isUpdate := i.Items[item.GetId()]
+	id := item.GetId()
+	current, isUpdate := i.Items[id]
 	if item.IsDeleted() {
+		delete(i.ItemFieldIds, id)
 		if item.IsSoftDeleted() {
 			return false
 		}
 		if isUpdate {
-			i.deleteItemUnsafe(item.GetId())
+			i.deleteItemUnsafe(id)
 		}
 		return false
 	}
@@ -250,16 +254,17 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 		i.removeItemValues(*current)
 	}
 	go noUpdates.Inc()
+	i.ItemFieldIds[id] = make(map[uint]struct{})
 	//	i.AllItems[item.Id] = &item.ItemFields
 	i.addItemValues(item)
 
-	i.Items[item.GetId()] = &item
+	i.Items[id] = &item
 	if i.ChangeHandler != nil {
 		return price_lowered
 	}
 	go i.AutoSuggest.InsertItem(item)
 	if i.Search != nil {
-		go i.Search.CreateDocument(item.GetId(), item.ToString())
+		go i.Search.CreateDocument(id, item.ToString())
 	}
 	if i.Sorting != nil {
 		i.Sorting.IndexChanged(i)

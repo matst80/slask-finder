@@ -23,7 +23,6 @@ func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
 		return
 	}
 	delete(idList, id)
-	//delete(*b.all, id)
 }
 
 func MakeBucket[V FieldNumberValue](value V, item types.Item) Bucket[V] {

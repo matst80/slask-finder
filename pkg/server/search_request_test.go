@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 )
 
@@ -15,20 +16,20 @@ func TestParseQueryValues(t *testing.T) {
 		"page":  []string{"1"},
 		"size":  []string{"10"},
 		"str":   []string{"10:tio", "11:elva"},
-		"num":   []string{"12:12-12", "13:13-13"},
-		"int":   []string{"14:14-14", "15:15-15"},
+		"rng":   []string{"12:12-12", "14:14-14"},
 	}
 	sr := &SearchRequest{
 		Page:     0,
 		PageSize: 25,
-		Filters: &index.Filters{
-			StringFilter:  []index.StringSearch{},
-			NumberFilter:  []index.NumberSearch[float64]{},
-			IntegerFilter: []index.NumberSearch[int]{},
+		FacetRequest: &FacetRequest{
+			Filters: &index.Filters{
+				StringFilter: []facet.StringSearch{},
+				RangeFilter:  []facet.NumberSearch{},
+			},
+			Stock: []string{},
+			Query: "",
 		},
-		Stock: []string{},
-		Query: "",
-		Sort:  "popular",
+		Sort: "popular",
 	}
 	err := queryFromRequestQuery(query, sr)
 	if err != nil {
@@ -52,10 +53,10 @@ func TestParseQueryValues(t *testing.T) {
 	if sr.StringFilter[0].Id != 10 || sr.StringFilter[0].Value != "tio" {
 		t.Errorf("Expected string filter to be [10:tio], got %v", sr.StringFilter)
 	}
-	if sr.NumberFilter[0].Id != 12 || sr.NumberFilter[0].Min != 12 || sr.NumberFilter[0].Max != 12 {
-		t.Errorf("Expected string filter to be [12:12-12], got %v", sr.StringFilter)
+	if sr.RangeFilter[0].Id != 12 || sr.RangeFilter[0].Min != 12.0 || sr.RangeFilter[0].Max != 12.0 {
+		t.Errorf("Expected range filter to be [12:12-12], got %v", sr.RangeFilter[0])
 	}
-	if sr.IntegerFilter[0].Id != 14 || sr.IntegerFilter[0].Min != 14 || sr.IntegerFilter[0].Max != 14 {
-		t.Errorf("Expected number filter to be [14:14-14], got %v", sr.IntegerFilter)
+	if sr.RangeFilter[1].Id != 14 || sr.RangeFilter[1].Min != 14.0 || sr.RangeFilter[1].Max != 14.0 {
+		t.Errorf("Expected range filter to be [14:14-14], got %v", sr.RangeFilter[1])
 	}
 }
