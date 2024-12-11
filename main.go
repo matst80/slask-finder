@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"github.com/matst80/slask-finder/pkg/tracking"
 	"log"
 	"net/http"
 	"net/http/pprof"
@@ -19,7 +20,6 @@ import (
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/server"
 	ffSync "github.com/matst80/slask-finder/pkg/sync"
-	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -40,8 +40,8 @@ var rabbitConfig = ffSync.RabbitConfig{
 	Url:                rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}
-var freetext_search = search.NewFreeTextIndex(&token)
-var idx = index.NewIndex(freetext_search)
+var freetextSearch = search.NewFreeTextIndex(&token)
+var idx = index.NewIndex(freetextSearch)
 var db = persistance.NewPersistance()
 
 var embeddingsIndex = embeddings.NewEmbeddingsIndex()
@@ -57,14 +57,46 @@ var srv = server.WebServer{
 	Embeddings:       embeddingsIndex,
 }
 
+const (
+	MODE_STANDALONE = iota
+	MODE_MASTER
+	MODE_CLIENT
+)
+
 var done = false
+var mode = MODE_STANDALONE
+var hasRabbitConfig = false
 
-func Init(wg *sync.WaitGroup) {
-
+func init() {
+	if rabbitUrl != "" {
+		hasRabbitConfig = true
+		mode = MODE_MASTER
+	} else {
+		if clientName != "" {
+			mode = MODE_CLIENT
+		} else {
+			mode = MODE_STANDALONE
+		}
+	}
 	if redisUrl == "" {
 		log.Fatalf("No redis url provided")
-
 	}
+
+	authConfig := &oauth2.Config{
+		ClientID:     "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com",
+		ClientSecret: clientSecret,
+		RedirectURL:  callbackUrl,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+	srv.OAuthConfig = authConfig
+}
+
+func LoadIndex(wg *sync.WaitGroup) {
+
 	srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 
 	srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
@@ -101,7 +133,13 @@ func Init(wg *sync.WaitGroup) {
 	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
 
 	addDbFields(idx)
-	//srv.Sorting.LoadAll()
+
+	if hasRabbitConfig {
+		srv.Tracking = tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
+			TrackingTopic: "tracking",
+			Url:           rabbitUrl,
+		})
+	}
 
 	wg.Add(1)
 	go func() {
@@ -112,58 +150,51 @@ func Init(wg *sync.WaitGroup) {
 			log.Printf("Failed to load index %v", err)
 		} else {
 			log.Println("Index loaded")
-			if rabbitUrl != "" {
-				srv.Tracking = tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
-					TrackingTopic: "tracking",
-					Url:           rabbitUrl,
-				})
-				//cartServer.Tracking = srv.Tracking
-				if clientName == "" {
-					masterTransport := ffSync.RabbitTransportMaster{
-						RabbitConfig: rabbitConfig,
-					}
-					log.Println("Starting as master")
-					err := masterTransport.Connect()
-					if err != nil {
-						log.Printf("Failed to connect to RabbitMQ as master, %v", err)
-					} else {
-						idx.ChangeHandler = &ffSync.RabbitMasterChangeHandler{
-							Master: masterTransport,
-						}
-					}
+
+			//cartServer.Tracking = srv.Tracking
+			if mode == MODE_MASTER {
+				log.Println("Starting as master")
+				masterTransport := ffSync.RabbitTransportMaster{
+					RabbitConfig: rabbitConfig,
+				}
+				err := masterTransport.Connect()
+				if err != nil {
+					log.Printf("Failed to connect to RabbitMQ as master, %v", err)
 				} else {
-					log.Printf("Starting as client: %s", clientName)
+					idx.ChangeHandler = &ffSync.RabbitMasterChangeHandler{
+						Master: masterTransport,
+					}
+				}
+			} else {
+				log.Printf("Starting as client: %s", clientName)
+				if hasRabbitConfig {
 					clientTransport := ffSync.RabbitTransportClient{
 						ClientName:   clientName,
 						RabbitConfig: rabbitConfig,
 					}
 					err := clientTransport.Connect(idx)
-					srv.Sorting.InitializeWithIndex(idx)
-					srv.Sorting.StartListeningForChanges()
-
-					wg.Add(1)
-					go populateContentFromCsv(contentIdx, "data/content.csv", wg)
-
-					go func() {
-
-						for _, item := range idx.Items {
-							embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
-						}
-
-						log.Printf("Embeddings index loaded")
-					}()
 					if err != nil {
-						log.Printf("Failed to connect to RabbitMQ as clinet, %v", err)
+						log.Fatalf("Failed to connect to RabbitMQ as client, %v", err)
 					}
 				}
-			} else {
-				log.Println("Starting as standalone")
-			}
+				srv.Sorting.InitializeWithIndex(idx)
+				srv.Sorting.StartListeningForChanges()
 
+				wg.Add(1)
+				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
+
+				go func() {
+					idx.Lock()
+					for _, item := range idx.Items {
+						embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
+					}
+					idx.Unlock()
+					log.Printf("Embeddings index loaded")
+				}()
+			}
 		}
 		runtime.GC()
 		done = true
-		// db.SaveIndex(idx)
 	}()
 
 }
@@ -171,18 +202,7 @@ func Init(wg *sync.WaitGroup) {
 func main() {
 	flag.Parse()
 	wg := sync.WaitGroup{}
-	Init(&wg)
-
-	authConfig := &oauth2.Config{
-		ClientID:     "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com",
-		ClientSecret: clientSecret,
-		RedirectURL:  callbackUrl,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/userinfo.email",
-			"https://www.googleapis.com/auth/userinfo.profile",
-		},
-		Endpoint: google.Endpoint,
-	}
+	LoadIndex(&wg)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -195,24 +215,19 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	go func() {
-		log.Println("Waiting for index to load")
+		log.Println("Waiting for index to load...")
 		wg.Wait()
 		log.Println("Starting api")
-		if rabbitUrl != "" {
-			if clientName == "" {
-				mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
-				srv.OAuthConfig = authConfig
-			} else {
-				mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
-			}
-		} else {
+
+		if MODE_STANDALONE == mode || MODE_MASTER == mode {
 			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
-			srv.OAuthConfig = authConfig
+		}
+		if MODE_CLIENT == mode {
 			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 		}
+
 	}()
-	//mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
-	//mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
+
 	mux.Handle("/metrics", promhttp.Handler())
 
 	if enableProfiling != nil && *enableProfiling {
