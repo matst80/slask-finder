@@ -128,8 +128,12 @@ func (i *Index) addItemValues(item types.Item) {
 				}
 			}
 
-			if f.AddValueLink(fieldValue, item) && !base.HideFacet {
-				i.ItemFieldIds[id][base.Id] = struct{}{}
+			if f.AddValueLink(fieldValue, item) && base != nil && !base.HideFacet {
+				if fids, ok := i.ItemFieldIds[id]; ok {
+					fids[base.Id] = struct{}{}
+				} else {
+					log.Printf("No field ids for %d", id)
+				}
 			}
 
 		} else {
@@ -237,10 +241,10 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	id := item.GetId()
 	current, isUpdate := i.Items[id]
 	if item.IsDeleted() {
-		delete(i.ItemFieldIds, id)
 		if item.IsSoftDeleted() {
 			return false
 		}
+		delete(i.ItemFieldIds, id)
 		if isUpdate {
 			i.deleteItemUnsafe(id)
 		}
