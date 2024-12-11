@@ -97,17 +97,17 @@ func makeCategoryId(level int, value string) uint {
 }
 
 func (i *Index) addItemValues(item types.Item) {
-	id := item.GetId()
+	itemId := item.GetId()
 	for _, stock := range i.ItemsInStock {
-		delete(stock, id)
+		delete(stock, itemId)
 	}
 
 	for _, stock := range item.GetStock() {
 		stockLocation, ok := i.ItemsInStock[stock.Id]
 		if !ok {
-			i.ItemsInStock[stock.Id] = types.ItemList{id: struct{}{}}
+			i.ItemsInStock[stock.Id] = types.ItemList{itemId: struct{}{}}
 		} else {
-			stockLocation[id] = struct{}{}
+			stockLocation[itemId] = struct{}{}
 		}
 	}
 
@@ -129,7 +129,7 @@ func (i *Index) addItemValues(item types.Item) {
 			}
 
 			if f.AddValueLink(fieldValue, item) && base != nil && !base.HideFacet {
-				if fids, ok := i.ItemFieldIds[id]; ok {
+				if fids, ok := i.ItemFieldIds[itemId]; ok {
 					fids[base.Id] = struct{}{}
 				} else {
 					log.Printf("No field ids for %d", id)
