@@ -39,7 +39,7 @@ func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
 
 func GetFacetQueryFromRequest(r *http.Request, facetRequest *FacetRequest) error {
 	if r.Method == http.MethodGet {
-		return decodeFiltersFromRequest(r.URL.Query(), facetRequest)
+		return facetQueryFromRequestQuery(r.URL.Query(), facetRequest)
 	}
 	return facetsQueryFromRequest(r, facetRequest)
 }
