@@ -220,7 +220,7 @@ func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *types.Ite
 		sortMap[idx] = types.Lookup{Id: id, Value: score}
 		idx++
 	}
-	if additionalIds != nil {
+	if (*additionalIds) != nil {
 		for id := range *additionalIds {
 			if _, ok := (*d)[id]; !ok {
 				sortMap[idx] = types.Lookup{Id: id, Value: baseMap[id]}

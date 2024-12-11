@@ -286,7 +286,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 	for _, s := range filters.StringFilter {
 		if f, ok := ws.Index.Facets[s.Id]; ok {
-			if ok && !f.GetBaseField().HideFacet {
+			if !f.GetBaseField().HideFacet {
 				wg.Add(1)
 				go func(otherFilters *index.Filters) {
 					matchIds := make(chan *types.ItemList)

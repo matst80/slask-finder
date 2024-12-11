@@ -30,7 +30,7 @@ func populateContentFromCsv(idx *index.ContentIndex, file string) {
 	records := readCsvFile(file)
 	for i, record := range records {
 		if i == 0 {
-			fmt.Println("Skipping header", record)
+			fmt.Println("Importing content records")
 			continue
 		}
 		itm, err := index.ContentItemFromLine(record)

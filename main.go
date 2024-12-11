@@ -7,6 +7,7 @@ import (
 	"net/http/pprof"
 	"os"
 	"runtime"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/oauth2"
@@ -15,10 +16,9 @@ import (
 	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/persistance"
-	"github.com/matst80/slask-finder/pkg/promotions"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/server"
-	"github.com/matst80/slask-finder/pkg/sync"
+	ffSync "github.com/matst80/slask-finder/pkg/sync"
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -32,12 +32,7 @@ var listenAddress = ":8080"
 var clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 var callbackUrl = os.Getenv("CALLBACK_URL")
 
-var promotionStorage = promotions.DiskPromotionStorage{
-	Path: "data/promotions.json",
-}
-
-// var cartStorage = cart.NewDiskCartStorage("data/carts", &promotionStorage)
-var rabbitConfig = sync.RabbitConfig{
+var rabbitConfig = ffSync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
 	ItemsUpsertedTopic: "item_added",
 	ItemDeletedTopic:   "item_deleted",
@@ -48,17 +43,6 @@ var token = search.Tokenizer{MaxTokens: 128}
 var freetext_search = search.NewFreeTextIndex(&token)
 var idx = index.NewIndex(freetext_search)
 var db = persistance.NewPersistance()
-
-//var cartServer = cart.CartServer{
-//
-//	Storage:   cartStorage,
-//	IdHandler: cartStorage,
-//	Index:     idx,
-//}
-
-var promotionServer = promotions.PromotionServer{
-	Storage: &promotionStorage,
-}
 
 var embeddingsIndex = embeddings.NewEmbeddingsIndex()
 var contentIdx = index.NewContentIndex()
@@ -75,7 +59,7 @@ var srv = server.WebServer{
 
 var done = false
 
-func Init() {
+func Init(wg *sync.WaitGroup) {
 
 	if redisUrl == "" {
 		log.Fatalf("No redis url provided")
@@ -120,9 +104,9 @@ func Init() {
 	//srv.Sorting.LoadAll()
 
 	go populateContentFromCsv(contentIdx, "data/content.csv")
-
+	wg.Add(1)
 	go func() {
-
+		defer wg.Done()
 		err := db.LoadIndex(idx)
 
 		if err != nil {
@@ -136,7 +120,7 @@ func Init() {
 				})
 				//cartServer.Tracking = srv.Tracking
 				if clientName == "" {
-					masterTransport := sync.RabbitTransportMaster{
+					masterTransport := ffSync.RabbitTransportMaster{
 						RabbitConfig: rabbitConfig,
 					}
 					log.Println("Starting as master")
@@ -144,13 +128,13 @@ func Init() {
 					if err != nil {
 						log.Printf("Failed to connect to RabbitMQ as master, %v", err)
 					} else {
-						idx.ChangeHandler = &sync.RabbitMasterChangeHandler{
+						idx.ChangeHandler = &ffSync.RabbitMasterChangeHandler{
 							Master: masterTransport,
 						}
 					}
 				} else {
 					log.Printf("Starting as client: %s", clientName)
-					clientTransport := sync.RabbitTransportClient{
+					clientTransport := ffSync.RabbitTransportClient{
 						ClientName:   clientName,
 						RabbitConfig: rabbitConfig,
 					}
@@ -184,8 +168,8 @@ func Init() {
 
 func main() {
 	flag.Parse()
-
-	Init()
+	wg := sync.WaitGroup{}
+	Init(&wg)
 
 	authConfig := &oauth2.Config{
 		ClientID:     "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com",
@@ -208,21 +192,25 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
-	if rabbitUrl != "" {
-		if clientName == "" {
+	go func() {
+		log.Println("Waiting for index to load")
+		wg.Wait()
+		log.Println("Starting api")
+		if rabbitUrl != "" {
+			if clientName == "" {
+				mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+				srv.OAuthConfig = authConfig
+			} else {
+				mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+			}
+		} else {
 			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
 			srv.OAuthConfig = authConfig
-		} else {
 			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 		}
-	} else {
-		mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
-		srv.OAuthConfig = authConfig
-		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
-	}
-
+	}()
 	//mux.Handle("/cart/", http.StripPrefix("/cart", cartServer.CartHandler()))
-	mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
+	//mux.Handle("/promotion/", http.StripPrefix("/promotion", promotionServer.PromotionHandler()))
 	mux.Handle("/metrics", promhttp.Handler())
 
 	if enableProfiling != nil && *enableProfiling {
