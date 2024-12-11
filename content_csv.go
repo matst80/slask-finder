@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/csv"
-	"fmt"
 	"log"
 	"os"
 
@@ -30,7 +29,7 @@ func populateContentFromCsv(idx *index.ContentIndex, file string) {
 	records := readCsvFile(file)
 	for i, record := range records {
 		if i == 0 {
-			fmt.Println("Importing content records")
+			log.Println("Importing content records")
 			continue
 		}
 		itm, err := index.ContentItemFromLine(record)
