@@ -479,8 +479,20 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		if idx >= end {
 			break
 		}
-
 	}
+	w.Write([]byte("\n"))
+	sort := "popular"
+	if sr.Sort != "" {
+		sort = sr.Sort
+	}
+	enc.Encode(SearchResponse{
+		Page:      sr.Page,
+		PageSize:  sr.PageSize,
+		Start:     start,
+		End:       end,
+		TotalHits: len(*result.matching),
+		Sort:      sort,
+	})
 }
 
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {

@@ -1,8 +1,10 @@
 package server
 
-import "github.com/matst80/slask-finder/pkg/index"
-
 type SearchResponse struct {
-	Facets    []index.JsonFacet `json:"facets,omitempty"`
-	TotalHits int               `json:"totalHits"`
+	Page      int    `json:"page"`
+	PageSize  int    `json:"pageSize"`
+	Sort      string `json:"sort"`
+	Start     int    `json:"start"`
+	End       int    `json:"end"`
+	TotalHits int    `json:"totalHits"`
 }
