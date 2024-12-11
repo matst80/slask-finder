@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -92,7 +92,10 @@ func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Reques
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		ws.Sorting.SetStaticPositions(sort)
+		err = ws.Sorting.SetStaticPositions(sort)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
 		w.WriteHeader(http.StatusOK)
 		return
 	}
@@ -126,7 +129,7 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) Save(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) Save(w http.ResponseWriter, _ *http.Request) {
 	err := ws.Db.SaveIndex(ws.Index)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -154,7 +157,10 @@ func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
 
 func generateStateOauthCookie() string {
 	b := make([]byte, 16)
-	rand.Read(b)
+	_, err := rand.Read(b)
+	if err != nil {
+		return ""
+	}
 	state := base64.URLEncoding.EncodeToString(b)
 
 	return state
@@ -196,7 +202,7 @@ type UserData struct {
 const tokenCookieName = "sf-admin"
 const apiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
 
-func (ws *WebServer) Logout(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:   tokenCookieName,
 		Value:  "",
@@ -309,27 +315,27 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, false, "240")
-	w.WriteHeader(http.StatusOK)
-	ws.Index.Lock()
-	defer ws.Index.Unlock()
-	sorting := ws.Index.Sorting.GetSort("popular")
-
-	for i, id := range *sorting {
-		item, ok := ws.Index.Items[id]
-		if !ok {
-			continue
-		}
-		fmt.Fprintf(w, (*item).ToString())
-
-		w.Write([]byte("\n"))
-		if i > 500 {
-			break
-		}
-	}
-
-}
+//func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
+//	defaultHeaders(w, false, "240")
+//	w.WriteHeader(http.StatusOK)
+//	ws.Index.Lock()
+//	defer ws.Index.Unlock()
+//	sorting := ws.Index.Sorting.GetSort("popular")
+//
+//	for i, id := range *sorting {
+//		item, ok := ws.Index.Items[id]
+//		if !ok {
+//			continue
+//		}
+//		fmt.Fprintf(w, (*item).ToString())
+//
+//		w.Write([]byte("\n"))
+//		if i > 500 {
+//			break
+//		}
+//	}
+//
+//}
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
@@ -337,12 +343,15 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		defaultHeaders(w, false, "0")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, err := w.Write([]byte("ok"))
+		if err != nil {
+			log.Println("Error writing health check response")
+		}
 	})
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
 	srv.HandleFunc("/user", ws.User)
-	srv.HandleFunc("GET /rag", ws.RagData)
+	//srv.HandleFunc("GET /rag", ws.RagData)
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
 

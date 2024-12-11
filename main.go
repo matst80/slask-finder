@@ -12,7 +12,6 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/matst80/slask-finder/pkg/cart"
 	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/persistance"
@@ -36,7 +35,8 @@ var callbackUrl = os.Getenv("CALLBACK_URL")
 var promotionStorage = promotions.DiskPromotionStorage{
 	Path: "data/promotions.json",
 }
-var cartStorage = cart.NewDiskCartStorage("data/carts", &promotionStorage)
+
+// var cartStorage = cart.NewDiskCartStorage("data/carts", &promotionStorage)
 var rabbitConfig = sync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
 	ItemsUpsertedTopic: "item_added",
@@ -49,12 +49,12 @@ var freetext_search = search.NewFreeTextIndex(&token)
 var idx = index.NewIndex(freetext_search)
 var db = persistance.NewPersistance()
 
-var cartServer = cart.CartServer{
-
-	Storage:   cartStorage,
-	IdHandler: cartStorage,
-	Index:     idx,
-}
+//var cartServer = cart.CartServer{
+//
+//	Storage:   cartStorage,
+//	IdHandler: cartStorage,
+//	Index:     idx,
+//}
 
 var promotionServer = promotions.PromotionServer{
 	Storage: &promotionStorage,
@@ -124,14 +124,6 @@ func Init() {
 	go func() {
 
 		err := db.LoadIndex(idx)
-		go func() {
-
-			for _, item := range idx.Items {
-				embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
-			}
-
-			log.Printf("Embeddings index loaded")
-		}()
 
 		if err != nil {
 			log.Printf("Failed to load index %v", err)
@@ -142,7 +134,7 @@ func Init() {
 					TrackingTopic: "tracking",
 					Url:           rabbitUrl,
 				})
-				cartServer.Tracking = srv.Tracking
+				//cartServer.Tracking = srv.Tracking
 				if clientName == "" {
 					masterTransport := sync.RabbitTransportMaster{
 						RabbitConfig: rabbitConfig,
@@ -163,6 +155,17 @@ func Init() {
 						RabbitConfig: rabbitConfig,
 					}
 					err := clientTransport.Connect(idx)
+					srv.Sorting.InitializeWithIndex(idx)
+					srv.Sorting.StartListeningForChanges()
+
+					go func() {
+
+						for _, item := range idx.Items {
+							embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
+						}
+
+						log.Printf("Embeddings index loaded")
+					}()
 					if err != nil {
 						log.Printf("Failed to connect to RabbitMQ as clinet, %v", err)
 					}
@@ -170,8 +173,6 @@ func Init() {
 			} else {
 				log.Println("Starting as standalone")
 			}
-			srv.Sorting.InitializeWithIndex(idx)
-			srv.Sorting.StartListeningForChanges()
 
 		}
 		runtime.GC()
@@ -201,11 +202,11 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		if !done {
 			w.WriteHeader(http.StatusServiceUnavailable)
-			w.Write([]byte("not ready"))
+			_, _ = w.Write([]byte("not ready"))
 			return
 		}
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 	if rabbitUrl != "" {
 		if clientName == "" {

@@ -26,6 +26,12 @@ type SearchRequest struct {
 	PageSize int    `json:"pageSize" schema:"size,default:40"`
 }
 
+var decoder = schema.NewDecoder()
+
+func init() {
+	decoder.IgnoreUnknownKeys(true)
+}
+
 func (s *SearchRequest) UseStaticPosition() bool {
 	return s.Sort == "popular" || s.Sort == ""
 }
@@ -34,30 +40,34 @@ func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
 	if r.Method == http.MethodGet {
 		return queryFromRequestQuery(r.URL.Query(), searchRequest)
 	}
-	return queryFromRequest(r, searchRequest)
+	return json.NewDecoder(r.Body).Decode(searchRequest)
+}
+
+func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
+
+	err := decoder.Decode(result, query)
+	if err != nil {
+		return err
+	}
+
+	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
 func GetFacetQueryFromRequest(r *http.Request, facetRequest *FacetRequest) error {
 	if r.Method == http.MethodGet {
 		return facetQueryFromRequestQuery(r.URL.Query(), facetRequest)
 	}
-	return facetsQueryFromRequest(r, facetRequest)
+	return json.NewDecoder(r.Body).Decode(facetRequest)
 }
 
-func queryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
-	err := json.NewDecoder(r.Body).Decode(searchRequest)
+func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
+
+	err := decoder.Decode(result, query)
 	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func facetsQueryFromRequest(r *http.Request, searchRequest *FacetRequest) error {
-	err := json.NewDecoder(r.Body).Decode(searchRequest)
-	if err != nil {
-		return err
-	}
-	return nil
+	return decodeFiltersFromRequest(query, result)
 }
 
 func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
@@ -87,41 +97,18 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 
 	for _, v := range query["rng"] {
 		var id uint
-		var min float64
-		var max float64
-		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &min, &max)
+		var _min float64
+		var _max float64
+		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &_min, &_max)
 
 		if err != nil {
 			continue
 		}
 		result.RangeFilter = append(result.RangeFilter, facet.NumberSearch{
-			Id:  uint(id),
-			Min: min,
-			Max: max,
+			Id:  id,
+			Min: _min,
+			Max: _max,
 		})
 	}
 	return err
-}
-
-func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
-	decoder := schema.NewDecoder()
-	decoder.IgnoreUnknownKeys(true)
-	err := decoder.Decode(result, query)
-	if err != nil {
-		return err
-	}
-
-	decodeFiltersFromRequest(query, result)
-	return err
-}
-
-func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
-	decoder := schema.NewDecoder()
-	decoder.IgnoreUnknownKeys(true)
-	err := decoder.Decode(result, query)
-	if err != nil {
-		return err
-	}
-
-	return decodeFiltersFromRequest(query, result.FacetRequest)
 }

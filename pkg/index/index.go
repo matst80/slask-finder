@@ -74,8 +74,8 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 }
 
 func (i *Index) AddKeyField(field *types.BaseField) {
-	facet := facet.EmptyKeyValueField(field)
-	i.Facets[field.Id] = facet
+	f := facet.EmptyKeyValueField(field)
+	i.Facets[field.Id] = f
 }
 
 func (i *Index) AddDecimalField(field *types.BaseField) {
@@ -128,7 +128,7 @@ func (i *Index) addItemValues(item types.Item) {
 				}
 			}
 
-			if f.AddValueLink(fieldValue, item) && base != nil && !base.HideFacet {
+			if f.AddValueLink(fieldValue, item) && i.ItemFieldIds != nil && !base.HideFacet {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
 					fids[base.Id] = struct{}{}
 				} else {
