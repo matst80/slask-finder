@@ -111,37 +111,7 @@ func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
 		return err
 	}
 
-	for _, v := range query["str"] {
-		parts := strings.Split(v, ":")
-		if len(parts) != 2 {
-			continue
-		}
-		id, err := strconv.Atoi(parts[0])
-
-		if err != nil {
-			continue
-		}
-		result.StringFilter = append(result.StringFilter, facet.StringSearch{
-			Id:    uint(id),
-			Value: parts[1],
-		})
-	}
-
-	for _, v := range query["rng"] {
-		var id uint
-		var min float64
-		var max float64
-		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &min, &max)
-
-		if err != nil {
-			continue
-		}
-		result.RangeFilter = append(result.RangeFilter, facet.NumberSearch{
-			Id:  uint(id),
-			Min: min,
-			Max: max,
-		})
-	}
+	decodeFiltersFromRequest(query, result)
 	return err
 }
 
