@@ -69,10 +69,11 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	if len(str) > 64 {
 		str = str[:61] + "..."
 	}
+	itemId := item.GetId()
 	if k, ok := f.Keys[str]; ok {
-		k.AddId(item.GetId())
+		k.AddId(itemId)
 	} else {
-		f.Keys[str] = types.ItemList{item.GetId(): struct{}{}}
+		f.Keys[str] = types.ItemList{itemId: struct{}{}}
 	}
 	return true
 }

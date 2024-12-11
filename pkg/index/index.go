@@ -132,7 +132,7 @@ func (i *Index) addItemValues(item types.Item) {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
 					fids[base.Id] = struct{}{}
 				} else {
-					log.Printf("No field ids for %d", id)
+					log.Printf("No field for item id: %d", itemId)
 				}
 			}
 
@@ -170,10 +170,10 @@ func (i *Index) GetCategories() []*Category {
 }
 
 func (i *Index) removeItemValues(item types.Item) {
-	iid := item.GetId()
-	for id, fieldValue := range item.GetFields() {
-		if f, ok := i.Facets[id]; ok {
-			f.RemoveValueLink(fieldValue, iid)
+	itemId := item.GetId()
+	for fieldId, fieldValue := range item.GetFields() {
+		if f, ok := i.Facets[fieldId]; ok {
+			f.RemoveValueLink(fieldValue, itemId)
 		}
 	}
 
