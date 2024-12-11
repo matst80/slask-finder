@@ -235,17 +235,17 @@ func GetEmbeddingsForItem(item types.Item) []float64 {
 
 func NormalizeEmbeddings(embeddings []float64) []float64 {
 	ret := make([]float64, embeddingsLength)
-	max := 0.0
+	_max := 0.0
 	for _, e := range embeddings {
-		if e > max {
-			max = e
+		if e > _max {
+			_max = e
 		}
 	}
-	if max == 0 {
+	if _max == 0 {
 		return ret
 	}
 	for i, e := range embeddings {
-		ret[i] = e / max
+		ret[i] = e / _max
 	}
 	return ret
 }

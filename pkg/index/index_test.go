@@ -189,9 +189,9 @@ func TestUpdateItem(t *testing.T) {
 	// }
 
 	// search := Filters{
-	// 	StringFilter:  []StringSearch{},
-	// 	NumberFilter:  []NumberSearch[float64]{{Id: 3, Min: 1, Max: 1000}},
-	// 	IntegerFilter: []NumberSearch[int]{},
+	// 	StringFilter:  []StringFilter{},
+	// 	NumberFilter:  []RangeFilter[float64]{{Id: 3, Min: 1, Max: 1000}},
+	// 	IntegerFilter: []RangeFilter[int]{},
 	// }
 	// ch := make(chan *facet.IdList)
 	// defer close(ch)
@@ -208,14 +208,13 @@ func TestDeleteItem(t *testing.T) {
 	if i.HasItem(1) {
 		t.Errorf("Expected to not have item with id 1")
 	}
-	search := Filters{
-		StringFilter:  []StringSearch{},
-		NumberFilter:  []NumberSearch[float64]{{Id: 3, NumberRange: facet.NumberRange[float64]{Min: 1, Max: 1000}}},
-		IntegerFilter: []NumberSearch[int]{},
+	f := Filters{
+		StringFilter: []facet.StringFilter{},
+		RangeFilter:  []facet.RangeFilter{{Id: 3, Min: 1, Max: 1000}},
 	}
 	ch := make(chan *types.ItemList)
 	defer close(ch)
-	i.Match(&search, nil, ch)
+	i.Match(&f, nil, ch)
 	ids := <-ch
 	if matchAll(*ids, 1) {
 		t.Errorf("Expected 1 ids but got %v", ids)

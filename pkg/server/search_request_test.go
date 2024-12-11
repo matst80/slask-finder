@@ -23,8 +23,8 @@ func TestParseQueryValues(t *testing.T) {
 		PageSize: 25,
 		FacetRequest: &FacetRequest{
 			Filters: &index.Filters{
-				StringFilter: []facet.StringSearch{},
-				RangeFilter:  []facet.NumberSearch{},
+				StringFilter: []facet.StringFilter{},
+				RangeFilter:  []facet.RangeFilter{},
 			},
 			Stock: []string{},
 			Query: "",

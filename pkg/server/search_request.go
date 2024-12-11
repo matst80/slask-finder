@@ -83,12 +83,12 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 			continue
 		}
 		if strings.Contains(parts[1], "||") {
-			result.StringFilter = append(result.StringFilter, facet.StringSearch{
+			result.StringFilter = append(result.StringFilter, facet.StringFilter{
 				Id:    uint(id),
 				Value: strings.Split(parts[1], "||"),
 			})
 		} else {
-			result.StringFilter = append(result.StringFilter, facet.StringSearch{
+			result.StringFilter = append(result.StringFilter, facet.StringFilter{
 				Id:    uint(id),
 				Value: parts[1],
 			})
@@ -104,7 +104,7 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 		if err != nil {
 			continue
 		}
-		result.RangeFilter = append(result.RangeFilter, facet.NumberSearch{
+		result.RangeFilter = append(result.RangeFilter, facet.RangeFilter{
 			Id:  id,
 			Min: _min,
 			Max: _max,

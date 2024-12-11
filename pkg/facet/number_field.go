@@ -1,21 +1,20 @@
 package facet
 
 import (
-	"maps"
-
 	"github.com/matst80/slask-finder/pkg/types"
+	"maps"
 )
 
 type FieldNumberValue interface {
 	int | float64
 }
 
-type StringSearch struct {
+type StringFilter struct {
 	Id    uint        `json:"id"`
 	Value interface{} `json:"value"`
 }
 
-type NumberSearch struct {
+type RangeFilter struct {
 	Min interface{} `json:"min"`
 	Max interface{} `json:"max"`
 	Id  uint        `json:"id"`
@@ -77,7 +76,7 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 }
 
 func (f DecimalField) Match(input interface{}) *types.ItemList {
-	value, ok := input.(NumberSearch)
+	value, ok := input.(RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
 		max, maxOk := value.Max.(float64)

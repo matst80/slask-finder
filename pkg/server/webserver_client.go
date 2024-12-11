@@ -111,8 +111,8 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 func makeBaseFacetRequest() *FacetRequest {
 	return &FacetRequest{
 		Filters: &index.Filters{
-			StringFilter: []facet.StringSearch{},
-			RangeFilter:  []facet.NumberSearch{},
+			StringFilter: []facet.StringFilter{},
+			RangeFilter:  []facet.RangeFilter{},
 		},
 		Stock: []string{},
 		Query: "",
@@ -580,15 +580,15 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		wg.Wait()
 		close(ch)
 	}()
-	for facet := range ch {
-		if facet != nil {
-			ret[facet.Id] = facet
+	for jsonFacet := range ch {
+		if jsonFacet != nil {
+			ret[jsonFacet.Id] = jsonFacet
 		}
 	}
 
 	for _, id := range *ws.Sorting.FieldSort {
 		if d, ok := ret[id]; ok {
-			enc.Encode(d)
+			_ = enc.Encode(d)
 		}
 	}
 }

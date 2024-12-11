@@ -50,7 +50,7 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 	defer close(sortChan)
 	defer close(ch)
 	for i := 0; i < len(categories); i++ {
-		sr.Filters.StringFilter = append(sr.Filters.StringFilter, facet.StringSearch{
+		sr.Filters.StringFilter = append(sr.Filters.StringFilter, facet.StringFilter{
 			Id:    categoryStartId + uint(i),
 			Value: categories[i],
 		})

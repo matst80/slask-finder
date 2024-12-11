@@ -78,11 +78,11 @@ func (c *UdpSender) Connect() error {
 	go func() {
 		bytes := make([]byte, 1024)
 		for {
-			len, err := c.conn.Read(bytes)
+			read, err := c.conn.Read(bytes)
 			if err != nil {
 				log.Printf("Error reading from connection %v", err)
 			}
-			log.Printf("Received %v", string(bytes[:len]))
+			log.Printf("Received %v", string(bytes[:read]))
 		}
 	}()
 	return nil

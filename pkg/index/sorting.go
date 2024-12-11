@@ -80,14 +80,14 @@ func (s *Sorting) StartListeningForChanges() {
 				fmt.Println(err)
 				continue
 			}
-			sort := SortOverride{}
-			err = sort.FromString(sort_data)
+			sortOverride := SortOverride{}
+			err = sortOverride.FromString(sort_data)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 			s.muOverride.Lock()
-			s.popularOverrides = &sort
+			s.popularOverrides = &sortOverride
 			s.muOverride.Unlock()
 
 			s.hasItemChanges = true
@@ -103,33 +103,33 @@ func (s *Sorting) StartListeningForChanges() {
 				fmt.Println(err)
 				continue
 			}
-			sort := StaticPositions{}
-			err = sort.FromString(sort_data)
+			staticPositions := StaticPositions{}
+			err = staticPositions.FromString(sort_data)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			s.setStaticPositions(sort)
+			s.setStaticPositions(staticPositions)
 
 		}
 	}(staticsub.Channel())
 
 	go func(ch <-chan *redis.Message) {
 		for range ch {
-			//fmt.Println("Received field sort", msg.Channel, msg.Payload)
+			//fmt.Println("Received field sortOverride", msg.Channel, msg.Payload)
 			sort_data, err := rdb.Get(ctx, REDIS_FIELD_KEY).Result()
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
-			sort := SortOverride{}
-			err = sort.FromString(sort_data)
+			sortOverride := SortOverride{}
+			err = sortOverride.FromString(sort_data)
 			if err != nil {
 				fmt.Println(err)
 				continue
 			}
 			s.muOverride.Lock()
-			s.fieldOverride = &sort
+			s.fieldOverride = &sortOverride
 			s.muOverride.Unlock()
 
 			if s.idx != nil {
@@ -170,32 +170,32 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	popularData, err := s.client.Get(ctx, REDIS_POPULAR_KEY).Result()
 	s.idx = idx
 	if err == nil {
-		sort := SortOverride{}
-		err = sort.FromString(popularData)
+		sortOverride := SortOverride{}
+		err = sortOverride.FromString(popularData)
 		if err == nil {
 			s.muOverride.Lock()
-			s.popularOverrides = &sort
+			s.popularOverrides = &sortOverride
 			s.muOverride.Unlock()
 		}
 	}
 
 	fieldData, err := s.client.Get(ctx, REDIS_FIELD_KEY).Result()
 	if err == nil {
-		sort := SortOverride{}
-		err = sort.FromString(fieldData)
+		sortOverride := SortOverride{}
+		err = sortOverride.FromString(fieldData)
 		if err == nil {
 			s.muOverride.Lock()
-			s.fieldOverride = &sort
+			s.fieldOverride = &sortOverride
 			s.muOverride.Unlock()
 		}
 	}
 
 	staticData, err := s.client.Get(ctx, REDIS_STATIC_KEY).Result()
 	if err == nil {
-		sort := StaticPositions{}
-		err = sort.FromString(staticData)
+		staticPositions := StaticPositions{}
+		err = staticPositions.FromString(staticData)
 		if err == nil {
-			s.setStaticPositions(sort)
+			s.setStaticPositions(staticPositions)
 		}
 	}
 	s.makeFieldSort(idx, *s.fieldOverride)
@@ -261,8 +261,8 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	s.FieldSort = ToSortIndex(&sortMap, true)
 }
 
-func (s *Sorting) Close() {
-	s.client.Close()
+func (s *Sorting) Close() error {
+	return s.client.Close()
 }
 
 func (s *Sorting) AddPopularOverride(sort *SortOverride) {
@@ -291,11 +291,11 @@ func (s *Sorting) GetSorting(id string, sortChan chan *types.SortIndex) {
 func (s *Sorting) GetSort(id string) *types.SortIndex {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	if sort, ok := s.sortMethods[id]; ok {
-		return sort
+	if sortMethod, ok := s.sortMethods[id]; ok {
+		return sortMethod
 	}
-	for _, sort := range s.sortMethods {
-		return sort
+	for _, method := range s.sortMethods {
+		return method
 	}
 	return &types.SortIndex{}
 }

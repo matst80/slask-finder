@@ -58,24 +58,24 @@ var srv = server.WebServer{
 }
 
 const (
-	MODE_STANDALONE = iota
-	MODE_MASTER
-	MODE_CLIENT
+	ModeStandalone = iota
+	ModeMaster
+	ModeClient
 )
 
 var done = false
-var mode = MODE_STANDALONE
+var mode = ModeStandalone
 var hasRabbitConfig = false
 
 func init() {
 	if rabbitUrl != "" {
 		hasRabbitConfig = true
-		mode = MODE_MASTER
+		mode = ModeMaster
 	} else {
 		if clientName != "" {
-			mode = MODE_CLIENT
+			mode = ModeClient
 		} else {
-			mode = MODE_STANDALONE
+			mode = ModeStandalone
 		}
 	}
 	if redisUrl == "" {
@@ -152,7 +152,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 			log.Println("Index loaded")
 
 			//cartServer.Tracking = srv.Tracking
-			if mode == MODE_MASTER {
+			if mode == ModeMaster {
 				log.Println("Starting as master")
 				masterTransport := ffSync.RabbitTransportMaster{
 					RabbitConfig: rabbitConfig,
@@ -219,10 +219,10 @@ func main() {
 		wg.Wait()
 		log.Println("Starting api")
 
-		if MODE_STANDALONE == mode || MODE_MASTER == mode {
+		if ModeStandalone == mode || ModeMaster == mode {
 			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
 		}
-		if MODE_CLIENT == mode {
+		if ModeClient == mode {
 			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 		}
 

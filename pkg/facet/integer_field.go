@@ -61,7 +61,7 @@ func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList 
 }
 
 func (f IntegerField) Match(input interface{}) *types.ItemList {
-	value, ok := input.(NumberSearch)
+	value, ok := input.(RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
 		max, maxOk := value.Max.(float64)

@@ -13,14 +13,14 @@ type FilterIds map[uint]struct{}
 
 type Filters struct {
 	ids          *FilterIds
-	StringFilter []facet.StringSearch `json:"string" schema:"-"`
-	RangeFilter  []facet.NumberSearch `json:"range" schema:"-"`
+	StringFilter []facet.StringFilter `json:"string" schema:"-"`
+	RangeFilter  []facet.RangeFilter  `json:"range" schema:"-"`
 }
 
 func (f *Filters) WithOut(id uint) *Filters {
 	result := Filters{
-		StringFilter: make([]facet.StringSearch, 0, len(f.StringFilter)),
-		RangeFilter:  make([]facet.NumberSearch, 0, len(f.RangeFilter)),
+		StringFilter: make([]facet.StringFilter, 0, len(f.StringFilter)),
+		RangeFilter:  make([]facet.RangeFilter, 0, len(f.RangeFilter)),
 	}
 	for _, filter := range f.StringFilter {
 		if filter.Id != id {
@@ -65,10 +65,10 @@ func (i *Index) Match(search *Filters, initialIds *types.ItemList, idList chan<-
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
 
-	parseKeys := func(field facet.StringSearch, fld types.Facet) {
+	parseKeys := func(field facet.StringFilter, fld types.Facet) {
 		results <- fld.Match(field.Value)
 	}
-	parseRange := func(field facet.NumberSearch, fld types.Facet) {
+	parseRange := func(field facet.RangeFilter, fld types.Facet) {
 		results <- fld.Match(field)
 	}
 
