@@ -17,7 +17,6 @@ import (
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
-	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -703,68 +702,6 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
-
-}
-
-func (ws *WebServer) TrackClick(w http.ResponseWriter, r *http.Request) {
-	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
-	id := r.URL.Query().Get("id")
-	itemId, err := strconv.Atoi(id)
-	pos := r.URL.Query().Get("pos")
-	position, _ := strconv.Atoi(pos)
-
-	if ws.Tracking != nil && err == nil {
-		err := ws.Tracking.TrackClick(uint32(session_id), uint(itemId), float32(position)/100.0)
-		if err != nil {
-			fmt.Printf("Failed to track click %v", err)
-		}
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
-}
-
-func (ws *WebServer) TrackImpression(w http.ResponseWriter, r *http.Request) {
-	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
-	data := make([]tracking.Impression, 0)
-	err := json.NewDecoder(r.Body).Decode(&data)
-
-	if ws.Tracking != nil && err == nil {
-
-		err := ws.Tracking.TrackImpressions(uint32(session_id), data)
-		if err != nil {
-			fmt.Printf("Failed to track click %v", err)
-		}
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
-}
-
-func (ws *WebServer) TrackAction(w http.ResponseWriter, r *http.Request) {
-	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
-	var data tracking.TrackingAction
-	err := json.NewDecoder(r.Body).Decode(&data)
-
-	if ws.Tracking != nil && err == nil {
-
-		err := ws.Tracking.TrackAction(uint32(session_id), data)
-		if err != nil {
-			fmt.Printf("Failed to track click %v", err)
-		}
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.WriteHeader(http.StatusAccepted)
 }
 
 type CategoryResult struct {
@@ -917,9 +854,6 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("GET /get/{id}", ws.GetItem)
 	srv.HandleFunc("POST /get", ws.GetItems)
 	srv.HandleFunc("/values/{id}", ws.GetValues)
-	srv.HandleFunc("/track/click", ws.TrackClick)
-	srv.HandleFunc("/track/impressions", ws.TrackImpression)
-	srv.HandleFunc("/track/action", ws.TrackAction)
 
 	return srv
 }

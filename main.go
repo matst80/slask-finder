@@ -117,7 +117,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 	idx.AddKeyField(&types.BaseField{Id: 21, Name: "Promotion", Description: "", Priority: 999999999.0, Type: "virtual"})
 	idx.AddKeyField(&types.BaseField{Id: 22, Name: "Virtual category", Description: "", Priority: 99.0, Type: "virtual"})
 
-	idx.AddKeyField(&types.BaseField{Id: 23, Name: "Assigned taxonomy id", Description: "", Priority: 99.0})
+	idx.AddKeyField(&types.BaseField{Id: 23, Name: "Assigned taxonomy id", HideFacet: true, Description: "", Priority: 99.0})
 
 	//idx.AddBoolField(&types.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
 	idx.AddIntegerField(&types.BaseField{Id: 4, Name: "Pris", Priority: 1099999995.5, Type: "currency"})
