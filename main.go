@@ -137,10 +137,14 @@ func LoadIndex(wg *sync.WaitGroup) {
 	addDbFields(idx)
 
 	if hasRabbitConfig {
-		srv.Tracking = tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
+		trk, err := tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
 			TrackingTopic: "tracking",
 			Url:           rabbitUrl,
 		})
+		if err != nil {
+			log.Fatalf("Failed to create rabbit tracking")
+		}
+		srv.Tracking = trk
 	}
 
 	wg.Add(1)

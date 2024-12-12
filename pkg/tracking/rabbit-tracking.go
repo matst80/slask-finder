@@ -2,6 +2,7 @@ package tracking
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/matst80/slask-finder/pkg/index"
@@ -19,12 +20,12 @@ type RabbitTracking struct {
 	channel    *amqp.Channel
 }
 
-func NewRabbitTracking(config RabbitTrackingConfig) *RabbitTracking {
+func NewRabbitTracking(config RabbitTrackingConfig) (*RabbitTracking, error) {
 	ret := RabbitTracking{
 		RabbitTrackingConfig: config,
 	}
-	ret.Connect()
-	return &ret
+	err := ret.Connect()
+	return &ret, err
 }
 
 func (t *RabbitTracking) Connect() error {
@@ -87,13 +88,17 @@ func (rt *RabbitTracking) TrackSession(session_id int, r *http.Request) error {
 		ip = r.RemoteAddr
 	}
 
-	return rt.send(Session{
+	err := rt.send(Session{
 		BaseEvent:    &BaseEvent{Event: 0, SessionId: session_id},
 		Language:     r.Header.Get("Accept-Language"),
 		UserAgent:    r.UserAgent(),
 		Ip:           ip,
 		PragmaHeader: r.Header.Get("Pragma"),
 	})
+	if err != nil {
+		log.Println("Error sending session event: ", err)
+	}
+	return err
 }
 
 type Event struct {
@@ -127,13 +132,16 @@ type SearchEventData struct {
 }
 
 func (rt *RabbitTracking) TrackSearch(session_id int, filters *index.Filters, query string, page int) error {
-	return rt.send(&SearchEventData{
+	err := rt.send(&SearchEventData{
 		BaseEvent: &BaseEvent{Event: 1, SessionId: session_id},
 		Filters:   filters,
 		Query:     query,
 		Page:      page,
 	})
-
+	if err != nil {
+		log.Println("Error sending search event: ", err)
+	}
+	return err
 }
 
 //func (rt *RabbitTracking) TrackClick(session_id uint32, item_id uint, position float32) error {
