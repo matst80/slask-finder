@@ -9,28 +9,28 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-const Origin = "*"
+func defaultHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTime string) {
 
-func defaultHeaders(w http.ResponseWriter, isJson bool, cacheTime string) {
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate="+cacheTime)
+	genericHeaders(w, r, isJson)
+}
+
+func genericHeaders(w http.ResponseWriter, r *http.Request, isJson bool) {
 	if isJson {
 		w.Header().Set("Content-Type", "application/json")
 	} else {
 		w.Header().Set("Content-Type", "text/plain")
 	}
-	w.Header().Set("Cache-Control", "private, stale-while-revalidate="+cacheTime)
-	w.Header().Set("Access-Control-Allow-Origin", Origin)
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	}
 	w.Header().Set("Age", "0")
 }
 
-func publicHeaders(w http.ResponseWriter, isJson bool, cacheTime string) {
-	if isJson {
-		w.Header().Set("Content-Type", "application/json")
-	} else {
-		w.Header().Set("Content-Type", "text/plain")
-	}
+func publicHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTime string) {
 	w.Header().Set("Cache-Control", "public, max-age="+cacheTime)
-	w.Header().Set("Access-Control-Allow-Origin", Origin)
-	w.Header().Set("Age", "0")
+	genericHeaders(w, r, isJson)
 }
 
 func removeEmptyStrings(s []string) []string {

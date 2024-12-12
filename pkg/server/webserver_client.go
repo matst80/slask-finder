@@ -154,7 +154,7 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request) {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	res := ws.ContentIndex.MatchQuery(query)
-	defaultHeaders(w, true, "120")
+	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
 	enc.Encode(res)
@@ -399,7 +399,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 			ret[facet.Id] = facet
 		}
 	}
-	defaultHeaders(w, true, "60")
+	defaultHeaders(w, r, true, "60")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(writer)
 	for _, id := range *ws.Sorting.FieldSort {
@@ -426,7 +426,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
 
 	result := <-resultChan
 
-	defaultHeaders(w, false, "20")
+	defaultHeaders(w, r, false, "20")
 	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)
@@ -461,7 +461,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	go ws.getMatchAndSort(sr, resultChan)
 
-	defaultHeaders(w, false, "3600")
+	defaultHeaders(w, r, false, "3600")
 	w.WriteHeader(http.StatusOK)
 
 	enc := json.NewEncoder(w)
@@ -527,7 +527,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 
 	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
 
-	defaultHeaders(w, false, "360")
+	defaultHeaders(w, r, false, "360")
 
 	w.WriteHeader(http.StatusOK)
 
@@ -605,7 +605,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	for _, field := range ws.Index.Facets {
 		base = field.GetBaseField()
 		if base.Id == uint(id) {
-			defaultHeaders(w, true, "120")
+			defaultHeaders(w, r, true, "120")
 			w.WriteHeader(http.StatusOK)
 			err := json.NewEncoder(w).Encode(field.GetValues())
 			if err != nil {
@@ -617,8 +617,8 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func (ws *WebServer) Facets(w http.ResponseWriter, _ *http.Request) {
-	publicHeaders(w, true, "1200")
+func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
+	publicHeaders(w, r, true, "1200")
 
 	w.WriteHeader(http.StatusOK)
 
@@ -673,7 +673,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	sortChan := make(chan *types.SortIndex)
 	defer close(sortChan)
 
-	publicHeaders(w, false, "600")
+	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 	go func(ch chan *types.ItemList) {
 		related, err := ws.Index.Related(uint(id))
@@ -723,8 +723,8 @@ func CategoryResultFrom(c *index.Category) *CategoryResult {
 	return ret
 }
 
-func (ws *WebServer) Categories(w http.ResponseWriter, _ *http.Request) {
-	publicHeaders(w, true, "600")
+func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
+	publicHeaders(w, r, true, "600")
 	w.WriteHeader(http.StatusOK)
 	categories := ws.Index.GetCategories()
 	result := make([]*CategoryResult, 0)
@@ -753,7 +753,7 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Item not found", http.StatusNotFound)
 		return
 	}
-	publicHeaders(w, true, "120")
+	publicHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(item)
 	if err != nil {
@@ -762,7 +762,7 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, true, "600")
+	defaultHeaders(w, r, true, "600")
 	items := make([]uint, 0)
 	err := json.NewDecoder(r.Body).Decode(&items)
 	if err != nil {
@@ -814,7 +814,7 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 	results := ws.Embeddings.FindMatches(embeddings)
 	toMatch := typeField.Match(productType)
 	results.Ids.Intersect(*toMatch)
-	defaultHeaders(w, true, "120")
+	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
 	idx := 0
@@ -836,7 +836,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv := http.NewServeMux()
 
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		defaultHeaders(w, false, "0")
+		defaultHeaders(w, r, false, "0")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
