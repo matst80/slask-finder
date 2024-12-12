@@ -132,6 +132,8 @@ func LoadIndex(wg *sync.WaitGroup) {
 	idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
 	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
 
+	idx.AddKeyField(&types.BaseField{Id: 35, Name: "CGM", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
+
 	addDbFields(idx)
 
 	if hasRabbitConfig {
