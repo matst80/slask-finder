@@ -80,6 +80,23 @@ type CmsContentItem struct {
 	Url string `json:"url"`
 }
 
+type SellerContentItem struct {
+	Id          uint        `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Image       string      `json:"image"`
+	Picture     interface{} `json:"picture"`
+	Url         string      `json:"url"`
+}
+
+func (i SellerContentItem) GetId() uint {
+	return i.Id
+}
+
+func (i SellerContentItem) IndexData() string {
+	return i.Name + " " + i.Description
+}
+
 func (i CmsContentItem) GetId() uint {
 	return i.Id
 }
@@ -108,13 +125,34 @@ func (i StoreContentItem) IndexData() string {
 func ContentItemFromLine(record []string) (ContentItem, error) {
 	if record[StoreID] == "" {
 		idString := record[Id]
+		if strings.HasPrefix(idString, "SELLER:") {
+			cleanId := strings.Replace(idString, "SELLER:", "", -1)
+			id, err := strconv.Atoi(cleanId)
+			if err != nil {
+				return nil, err
+			}
+			var picture interface{}
+			if record[PagePictureUrl] != "" {
+				json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
+			}
+			return SellerContentItem{
+				Id:          uint(id),
+				Name:        record[PageTitle],
+				Description: record[PageDetailText],
+				Url:         record[PageUrl],
+				Picture:     picture,
+				//Component:   component,
+			}, nil
+		}
 		cleanId := strings.Replace(idString, "contentbean:", "", -1)
 		id, err := strconv.Atoi(cleanId)
 		if err != nil {
 			return nil, err
 		}
 		var picture interface{}
-		json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
+		if record[PagePictureUrl] != "" {
+			json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
+		}
 		//var component *CmsComponent
 		// if record[ComponentsPictures] != "" {
 		// 	var tiles interface{}
