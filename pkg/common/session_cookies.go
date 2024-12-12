@@ -33,7 +33,7 @@ func HandleSessionCookie(tracking tracking.Tracking, w http.ResponseWriter, r *h
 	if err != nil {
 		// fmt.Printf("Failed to get cookie %v", err)
 		if tracking != nil {
-			go tracking.TrackSession(uint32(session_id), r)
+			go tracking.TrackSession(session_id, r)
 		}
 		setSessionCookie(w, r, session_id)
 
