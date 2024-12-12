@@ -221,10 +221,11 @@ func main() {
 		if ModeStandalone == mode || ModeMaster == mode {
 			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
 		}
-		if ModeClient == mode {
+		if ModeClient == mode || ModeStandalone == mode {
 			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 		}
-
+		log.Printf("Starting server %v", listenAddress)
+		log.Fatal(http.ListenAndServe(listenAddress, mux))
 	}()
 
 	mux.Handle("/metrics", promhttp.Handler())
@@ -238,6 +239,5 @@ func main() {
 		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		//mux.Handle("/debug/pprof/", )
 	}
-	log.Printf("Starting server %v", listenAddress)
-	log.Fatal(http.ListenAndServe(listenAddress, mux))
+
 }
