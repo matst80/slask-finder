@@ -29,6 +29,7 @@ var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
 var redisPassword = os.Getenv("REDIS_PASSWORD")
 var listenAddress = ":8080"
+var debugAddress = ":8081"
 var clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 var callbackUrl = os.Getenv("CALLBACK_URL")
 
@@ -203,8 +204,8 @@ func main() {
 	wg := sync.WaitGroup{}
 	LoadIndex(&wg)
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		if !done {
 			w.WriteHeader(http.StatusServiceUnavailable)
 			_, _ = w.Write([]byte("not ready"))
@@ -214,6 +215,7 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	go func() {
+		mux := http.NewServeMux()
 		log.Println("Waiting for index to load...")
 		wg.Wait()
 		log.Println("Starting api")
@@ -228,16 +230,17 @@ func main() {
 		log.Fatal(http.ListenAndServe(listenAddress, mux))
 	}()
 
-	mux.Handle("/metrics", promhttp.Handler())
+	debugMux.Handle("/metrics", promhttp.Handler())
 
 	if enableProfiling != nil && *enableProfiling {
 		log.Println("Profiling enabled")
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		debugMux.HandleFunc("/debug/pprof/", pprof.Index)
+		debugMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		debugMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		debugMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+		debugMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 		//mux.Handle("/debug/pprof/", )
 	}
-
+	log.Printf("Starting debug server %v", debugAddress)
+	log.Fatal(http.ListenAndServe(listenAddress, debugMux))
 }
