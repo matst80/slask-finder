@@ -242,5 +242,5 @@ func main() {
 		//mux.Handle("/debug/pprof/", )
 	}
 	log.Printf("Starting debug server %v", debugAddress)
-	log.Fatal(http.ListenAndServe(listenAddress, debugMux))
+	log.Fatal(http.ListenAndServe(debugAddress, debugMux))
 }
