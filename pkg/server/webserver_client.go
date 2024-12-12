@@ -448,7 +448,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 	go func() {
 		if ws.Tracking != nil {
-			err := ws.Tracking.TrackSearch(uint32(session_id), sr.Filters, sr.Query, sr.Page)
+			err := ws.Tracking.TrackSearch(session_id, sr.Filters, sr.Query, sr.Page)
 			if err != nil {
 				fmt.Printf("Failed to track search %v", err)
 			}
@@ -617,7 +617,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotFound)
 }
 
-func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) Facets(w http.ResponseWriter, _ *http.Request) {
 	publicHeaders(w, true, "1200")
 
 	w.WriteHeader(http.StatusOK)
@@ -723,7 +723,7 @@ func CategoryResultFrom(c *index.Category) *CategoryResult {
 	return ret
 }
 
-func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) Categories(w http.ResponseWriter, _ *http.Request) {
 	publicHeaders(w, true, "600")
 	w.WriteHeader(http.StatusOK)
 	categories := ws.Index.GetCategories()

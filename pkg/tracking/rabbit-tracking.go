@@ -66,7 +66,7 @@ func (t *RabbitTracking) send(data any) error {
 }
 
 type BaseEvent struct {
-	SessionId uint32 `json:"session_id"`
+	SessionId int    `json:"session_id"`
 	Event     uint16 `json:"event"`
 }
 
@@ -78,7 +78,7 @@ type Session struct {
 	PragmaHeader string `json:"pragma,omitempty"`
 }
 
-func (rt *RabbitTracking) TrackSession(session_id uint32, r *http.Request) error {
+func (rt *RabbitTracking) TrackSession(session_id int, r *http.Request) error {
 	ip := r.Header.Get("X-Real-Ip")
 	if ip == "" {
 		ip = r.Header.Get("X-Forwarded-For")
@@ -126,7 +126,7 @@ type SearchEventData struct {
 	Page  int    `json:"page"`
 }
 
-func (rt *RabbitTracking) TrackSearch(session_id uint32, filters *index.Filters, query string, page int) error {
+func (rt *RabbitTracking) TrackSearch(session_id int, filters *index.Filters, query string, page int) error {
 	return rt.send(&SearchEventData{
 		BaseEvent: &BaseEvent{Event: 1, SessionId: session_id},
 		Filters:   filters,
