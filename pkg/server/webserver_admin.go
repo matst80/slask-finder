@@ -27,7 +27,7 @@ var (
 func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
-		defaultHeaders(w, true, "0")
+		defaultHeaders(w, r, true, "0")
 		sort := index.SortOverride{}
 		err := json.NewDecoder(r.Body).Decode(&sort)
 		if err != nil {
@@ -45,7 +45,7 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Sort not found", http.StatusNotFound)
 		return
 	}
-	defaultHeaders(w, true, "120")
+	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 
 	err := json.NewEncoder(w).Encode(sort)
@@ -57,7 +57,7 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
-		defaultHeaders(w, true, "0")
+		defaultHeaders(w, r, true, "0")
 		sort := index.SortOverride{}
 		err := json.NewDecoder(r.Body).Decode(&sort)
 		if err != nil {
@@ -74,7 +74,7 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Sort not found", http.StatusNotFound)
 		return
 	}
-	defaultHeaders(w, true, "120")
+	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(sort)
 	if err != nil {
@@ -85,7 +85,7 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
-		defaultHeaders(w, true, "0")
+		defaultHeaders(w, r, true, "0")
 		sort := index.StaticPositions{}
 		err := json.NewDecoder(r.Body).Decode(&sort)
 		if err != nil {
@@ -105,7 +105,7 @@ func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Sort not found", http.StatusNotFound)
 		return
 	}
-	defaultHeaders(w, true, "120")
+	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(sort)
 	if err != nil {
@@ -307,7 +307,7 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	defaultHeaders(w, true, "0")
+	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(claims)
 	if err != nil {
@@ -341,7 +341,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		defaultHeaders(w, false, "0")
+		defaultHeaders(w, r, false, "0")
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("ok"))
 		if err != nil {
