@@ -70,12 +70,11 @@ var hasRabbitConfig = false
 func init() {
 	if rabbitUrl != "" {
 		hasRabbitConfig = true
-		mode = ModeMaster
 	} else {
 		if clientName != "" {
-			mode = ModeClient
+			mode = ModeMaster
 		} else {
-			mode = ModeStandalone
+			mode = ModeClient
 		}
 	}
 	if redisUrl == "" {
