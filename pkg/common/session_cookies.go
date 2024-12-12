@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/tracking"
@@ -13,11 +14,13 @@ func generateSessionId() int {
 	return int(time.Now().UnixNano())
 }
 
-func setSessionCookie(w http.ResponseWriter, session_id int) {
+func setSessionCookie(w http.ResponseWriter, r *http.Request, session_id int) {
 	http.SetCookie(w, &http.Cookie{
-		Name:  "sid",
-		Value: fmt.Sprintf("%d", session_id),
-		Path:  "/", //MaxAge: 7200
+		Name:   "sid",
+		Value:  fmt.Sprintf("%d", session_id),
+		Domain: strings.TrimPrefix(r.Host, "."),
+		MaxAge: 2592000000,
+		Path:   "/", //MaxAge: 7200
 	})
 }
 
@@ -29,12 +32,12 @@ func HandleSessionCookie(tracking tracking.Tracking, w http.ResponseWriter, r *h
 		if tracking != nil {
 			go tracking.TrackSession(uint32(session_id), r)
 		}
-		setSessionCookie(w, session_id)
+		setSessionCookie(w, r, session_id)
 
 	} else {
 		session_id, err = strconv.Atoi(c.Value)
 		if err != nil {
-			setSessionCookie(w, session_id)
+			setSessionCookie(w, r, session_id)
 		}
 	}
 	return session_id
