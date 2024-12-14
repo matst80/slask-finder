@@ -386,7 +386,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-
+	go facetSearches.Inc()
 	matchIds := make(chan *types.ItemList)
 	defer close(matchIds)
 	baseIds, _ := ws.getInitialIds(sr)
@@ -483,7 +483,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	end := start + sr.PageSize
 	result := <-resultChan
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
-	go ws.Sorting.GetSortedItemsIterator(result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
+	go ws.Sorting.GetSortedItemsIterator(session_id, result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
 
 	fn := <-sortedItemsChan
 	idx := 0
@@ -537,6 +537,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
 	go noSuggests.Inc()
+	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 
 	wordMatchesChan := make(chan []search.Match)
 	sortChan := make(chan *types.ByValue)
@@ -577,9 +578,9 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
 	if docResult != nil {
 		o := index.SortOverride(*docResult)
-		go ws.Sorting.GetSortedItemsIterator(nil, &results, 0, sortedItemsChan, o)
+		go ws.Sorting.GetSortedItemsIterator(session_id, nil, &results, 0, sortedItemsChan, o)
 	} else {
-		go ws.Sorting.GetSortedItemsIterator(nil, &results, 0, sortedItemsChan)
+		go ws.Sorting.GetSortedItemsIterator(session_id, nil, &results, 0, sortedItemsChan)
 	}
 
 	fn := <-sortedItemsChan
