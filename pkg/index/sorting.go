@@ -81,7 +81,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionId int, sortOverride *SortOverride)) {
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
-			idx := strings.LastIndex(msg.Channel, "_")
+			idx := strings.LastIndex(msg.Payload, "_")
 			sessionIdString := msg.Payload[idx:]
 			sessionId, err := strconv.Atoi(sessionIdString)
 			if err != nil {
