@@ -371,8 +371,8 @@ func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByV
 		ch := make(chan []types.Lookup)
 
 		if sessionId > 0 {
-			if sort, ok := s.sessionOverrides[uint(sessionId)]; ok {
-				overrides = append(overrides, *sort)
+			if sessionOverride, ok := s.sessionOverrides[uint(sessionId)]; ok {
+				overrides = append(overrides, *sessionOverride)
 			}
 		}
 		go makeSortForItems(*s.popularMap, items, ch, overrides...)
