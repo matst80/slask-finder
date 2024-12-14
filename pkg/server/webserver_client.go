@@ -117,26 +117,6 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	}
 }
 
-func makeBaseFacetRequest() *FacetRequest {
-	return &FacetRequest{
-		Filters: &index.Filters{
-			StringFilter: []facet.StringFilter{},
-			RangeFilter:  []facet.RangeFilter{},
-		},
-		Stock: []string{},
-		Query: "",
-	}
-}
-
-func makeBaseSearchRequest() *SearchRequest {
-	return &SearchRequest{
-		FacetRequest: makeBaseFacetRequest(),
-		Sort:         "popular",
-		Page:         0,
-		PageSize:     40,
-	}
-}
-
 type cacheWriter struct {
 	key      string
 	duration time.Duration
