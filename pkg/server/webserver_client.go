@@ -161,6 +161,10 @@ func MakeCacheWriter(w io.Writer, key string, setRaw func(string, []byte, time.D
 }
 
 func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		RespondToOptions(w, r)
+		return
+	}
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	res := ws.ContentIndex.MatchQuery(query)
