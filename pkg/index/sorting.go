@@ -82,6 +82,10 @@ func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionI
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
 			idx := strings.LastIndex(msg.Payload, "_")
+			if idx == -1 {
+				fmt.Println("Invalid session override change message", msg.Payload)
+				continue
+			}
 			sessionIdString := msg.Payload[idx:]
 			sessionId, err := strconv.Atoi(sessionIdString)
 			if err != nil {
