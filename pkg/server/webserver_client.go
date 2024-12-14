@@ -491,27 +491,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// var sortedIds iter.Seq[uint]
-	// if sr.UseStaticPosition() {
-	// 	sortedIds = result.sort.SortMapWithStaticPositions(*result.matching, ws.Sorting.GetStaticPositions())
-	// } else {
-	// 	sortedIds = result.sort.SortMap(*result.matching)
-	// }
-	// idx := 0
-	// for id := range sortedIds {
-	// 	idx++
-	// 	if idx < start {
-	// 		continue
-	// 	}
-
-	// 	if item, ok := ws.Index.Items[id]; ok {
-	// 		enc.Encode(item)
-	// 	}
-
-	// 	if idx >= end {
-	// 		break
-	// 	}
-	// }
 	w.Write([]byte("\n"))
 
 	enc.Encode(SearchResponse{
@@ -593,20 +572,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// idx := 0
-	// sort := <-sortChan
-	// for id := range sort.SortMap(results) {
-	// 	item, ok := ws.Index.Items[id]
-	// 	if ok {
-
-	// 		enc.Encode(item)
-	// 		idx++
-	// 		if idx > 20 {
-	// 			break
-	// 		}
-	// 	}
-
-	// }
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
 	ch := make(chan *index.JsonFacet)
