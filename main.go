@@ -172,7 +172,11 @@ func LoadIndex(wg *sync.WaitGroup) {
 					}
 				}
 			} else {
-				log.Printf("Starting as client: %s", clientName)
+				if clientName == "" {
+					log.Printf("Starting as standalone")
+				} else {
+					log.Printf("Starting as client: %s", clientName)
+				}
 				if hasRabbitConfig {
 					clientTransport := ffSync.RabbitTransportClient{
 						ClientName:   clientName,
