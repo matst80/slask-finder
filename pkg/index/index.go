@@ -74,8 +74,7 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 }
 
 func (i *Index) AddKeyField(field *types.BaseField) {
-	f := facet.EmptyKeyValueField(field)
-	i.Facets[field.Id] = f
+	i.Facets[field.Id] = facet.EmptyKeyValueField(field)
 }
 
 func (i *Index) AddDecimalField(field *types.BaseField) {
@@ -86,11 +85,11 @@ func (i *Index) AddIntegerField(field *types.BaseField) {
 	i.Facets[field.Id] = facet.EmptyIntegerField(field)
 }
 
-func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
-	if i.Search != nil {
-		i.Search.BaseSortMap = sortMap
-	}
-}
+// func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
+// 	if i.Search != nil {
+// 		i.Search.BaseSortMap = sortMap
+// 	}
+// }
 
 func makeCategoryId(level int, value string) uint {
 	return facet.HashString(fmt.Sprintf("%d%s", level, value))

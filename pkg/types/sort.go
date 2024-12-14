@@ -1,6 +1,7 @@
 package types
 
 import (
+	"cmp"
 	"iter"
 	"log"
 	"strconv"
@@ -93,7 +94,7 @@ func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map
 	//return sortedIds
 }
 
-func (s *SortIndex) SortMap(ids ItemList) iter.Seq[uint] {
+func (s *ByValue) SortMap(ids ItemList) iter.Seq[uint] {
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
@@ -107,10 +108,10 @@ func (s *SortIndex) SortMap(ids ItemList) iter.Seq[uint] {
 	}
 
 	return func(yield func(uint) bool) {
-		for _, id := range *s {
-			_, ok := ids[id]
+		for _, v := range *s {
+			_, ok := ids[v.Id]
 			if ok {
-				if !yield(id) {
+				if !yield(v.Id) {
 					break
 				}
 			}
@@ -128,3 +129,11 @@ type ByValue []Lookup
 func (a ByValue) Len() int           { return len(a) }
 func (a ByValue) Less(i, j int) bool { return a[i].Value < a[j].Value }
 func (a ByValue) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+func LookUpReversed(a, b Lookup) int {
+	return cmp.Compare(b.Value, a.Value)
+}
+
+func LookUpNormal(a, b Lookup) int {
+	return cmp.Compare(a.Value, b.Value)
+}

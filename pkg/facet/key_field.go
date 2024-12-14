@@ -57,6 +57,10 @@ func (f KeyField) Match(input interface{}) *types.ItemList {
 	return &types.ItemList{}
 }
 
+func (f KeyField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+	ch <- f.Match(input)
+}
+
 func (f KeyField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }

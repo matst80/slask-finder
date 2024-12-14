@@ -3,19 +3,18 @@ package search
 import (
 	"cmp"
 	"slices"
-	"sort"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type FreeTextIndex struct {
-	mu          sync.RWMutex
-	Tokenizer   *Tokenizer
-	Documents   map[uint]*Document
-	TokenMap    map[Token][]*Document
-	BaseSortMap map[uint]float64
-	Tokens      []string
+	mu        sync.RWMutex
+	Tokenizer *Tokenizer
+	Documents map[uint]*Document
+	TokenMap  map[Token][]*Document
+	//BaseSortMap map[uint]float64
+	Tokens []string
 }
 
 type DocumentResult map[uint]float64
@@ -152,108 +151,111 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	result := i.getMatchDocs(tokens)
-
+	score := 0.0
+	wordIdx := 0
+	lastIndex := 0
+	var missing int
+	var word Token
 	for _, doc := range result {
-		lastCorrect := 100.0
-		for _, t := range doc.Tokens {
-			for _, token := range tokens {
-
-				if t == token {
-					// Add to result
-					res[doc.Id] += lastCorrect
-					lastCorrect += 1000
+		score = 50.0
+		wordIdx = 0
+		lastIndex = 0
+		missing = len(tokens)
+		word = tokens[wordIdx]
+		for i, t := range doc.Tokens {
+			if word == t {
+				score += max(1, 100.0-(10.0*float64(absDiffInt(i, lastIndex))))
+				lastIndex = i
+				wordIdx++
+				missing--
+				if wordIdx >= len(tokens) {
 					break
-				} else {
-					res[doc.Id] += 1
 				}
-				// else {
-				// 	lastCorrect -= 20
-				// }
+				word = tokens[wordIdx]
 			}
-
 		}
-		if res[doc.Id] > 0 {
-			l := float64(len(tokens))
-			dl := float64(len(doc.Tokens))
-			base := 0.0
-			if i.BaseSortMap != nil {
-				if v, ok := i.BaseSortMap[doc.Id]; ok {
-					base = v
-				}
-			}
-			hits := res[doc.Id]
-			res[doc.Id] = base + ((hits * 10000.0) - ((l - dl) * 100.0))
-		}
+		res[doc.Id] = score - float64(missing*30)
+		// if res[doc.Id] > 0 {
+		// 	//l := float64(len(tokens))
+		// 	//dl := float64(len(doc.Tokens))
+		// 	// base := 0.0
+		// 	// if i.BaseSortMap != nil {
+		// 	// 	if v, ok := i.BaseSortMap[doc.Id]; ok {
+		// 	// 		base = v
+		// 	// 	}
+		// 	// }
+		// 	hits := res[doc.Id]
+		// 	res[doc.Id] = (hits * 1000.0)
+		// }
 	}
 
 	return &res
 }
 
-func (d *DocumentResult) ToSortIndex() *types.SortIndex {
-	l := len(*d)
+func (d *DocumentResult) ToSortIndex() []types.Lookup {
+	// l := len(*d)
 
-	sortMap := make(types.ByValue, l)
-	idx := 0
-	for id, score := range *d {
-		sortMap[idx] = types.Lookup{Id: id, Value: score}
-		idx++
-	}
-	sort.Sort(sort.Reverse(sortMap))
-	sortIndex := make(types.SortIndex, l)
-	for idx, item := range sortMap {
-		sortIndex[idx] = item.Id
-	}
-	return &sortIndex
-}
-
-func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *types.ItemList, baseMap map[uint]float64) *types.SortIndex {
-
-	l := len(*d)
-
-	if (*additionalIds) != nil {
-		l += len(*additionalIds)
-	}
-
-	sortMap := make(types.ByValue, l)
-	idx := 0
-	for id, score := range *d {
-		sortMap[idx] = types.Lookup{Id: id, Value: score}
-		idx++
-	}
-	if (*additionalIds) != nil {
-		for id := range *additionalIds {
-			if _, ok := (*d)[id]; !ok {
-				sortMap[idx] = types.Lookup{Id: id, Value: baseMap[id]}
-				idx++
+	// sortMap := make(types.ByValue, l)
+	// idx := 0
+	// for id, score := range *d {
+	// 	sortMap[idx] = types.Lookup{Id: id, Value: score}
+	// 	idx++
+	// }
+	return slices.SortedFunc(func(yield func(types.Lookup) bool) {
+		for id, score := range *d {
+			if !yield(types.Lookup{Id: id, Value: score}) {
+				break
 			}
-
 		}
-	}
-	sort.Sort(sort.Reverse(sortMap[:idx]))
-	sortIndex := make(types.SortIndex, l)
-	for idx, item := range sortMap {
-		sortIndex[idx] = item.Id
-	}
-	return &sortIndex
+	}, types.LookUpReversed)
+
 }
 
-func (d *DocumentResult) ToSortIndexAll(inputMap map[uint]float64) *types.SortIndex {
-	l := len(inputMap)
+// func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *types.ItemList, baseMap map[uint]float64) *types.ByValue {
 
-	sortMap := make(types.ByValue, l)
-	copy(sortMap, types.ByValue{})
-	idx := 0
-	for id, score := range *d {
-		sortMap[idx] = types.Lookup{Id: id, Value: score + inputMap[id]}
-		idx++
-	}
-	sort.Sort(sort.Reverse(sortMap))
-	sortIndex := make(types.SortIndex, l)
-	for idx, item := range sortMap {
-		sortIndex[idx] = item.Id
-	}
-	return &sortIndex
-}
+// 	l := len(*d)
+
+// 	if (*additionalIds) != nil {
+// 		l += len(*additionalIds)
+// 	}
+
+// 	sortMap := make(types.ByValue, l)
+// 	idx := 0
+// 	for id, score := range *d {
+// 		sortMap[idx] = types.Lookup{Id: id, Value: score}
+// 		idx++
+// 	}
+// 	if (*additionalIds) != nil {
+// 		for id := range *additionalIds {
+// 			if _, ok := (*d)[id]; !ok {
+// 				sortMap[idx] = types.Lookup{Id: id, Value: baseMap[id]}
+// 				idx++
+// 			}
+
+// 		}
+// 	}
+// 	sort.Sort(sort.Reverse(sortMap[:idx]))
+
+// 	return &sortMap
+// }
+
+// func (d *DocumentResult) ToSortIndexAll(inputMap map[uint]float64) *types.SortIndex {
+// 	l := len(inputMap)
+
+// 	sortMap := make(types.ByValue, l)
+// 	copy(sortMap, types.ByValue{})
+// 	idx := 0
+// 	for id, score := range *d {
+// 		sortMap[idx] = types.Lookup{Id: id, Value: score + inputMap[id]}
+// 		idx++
+// 	}
+// 	sort.Sort(sort.Reverse(sortMap))
+// 	sortIndex := make(types.SortIndex, l)
+// 	for idx, item := range sortMap {
+// 		sortIndex[idx] = item.Id
+// 	}
+// 	return &sortIndex
+// }
 
 type ResultWithSort struct {
 	*types.IdList
@@ -269,10 +271,19 @@ func (d *DocumentResult) ToResult() *types.ItemList {
 	return &res
 }
 
-func (d *DocumentResult) GetSorting(sortChan chan<- *types.SortIndex) {
-	sortChan <- d.ToSortIndex()
+func (d *DocumentResult) IntersectTo(items *types.ItemList) {
+	for id := range *items {
+		if _, ok := (*d)[id]; !ok {
+			delete(*items, id)
+		}
+	}
 }
 
-func (d *DocumentResult) GetSortingWithAdditionalItems(idList *types.ItemList, sortMap map[uint]float64, sortChan chan<- *types.SortIndex) {
-	sortChan <- d.ToSortIndexWithAdditionalItems(idList, sortMap)
-}
+// func (d *DocumentResult) GetSorting(sortChan chan<- *types.ByValue) {
+// 	v := types.ByValue(d.ToSortIndex())
+// 	sortChan <- &v
+// }
+
+// func (d *DocumentResult) GetSortingWithAdditionalItems(idList *types.ItemList, sortMap map[uint]float64, sortChan chan<- *types.ByValue) {
+// 	sortChan <- d.ToSortIndexWithAdditionalItems(idList, sortMap)
+// }

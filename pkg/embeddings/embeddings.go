@@ -1,8 +1,9 @@
 package embeddings
 
 import (
+	"cmp"
 	"math"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -26,7 +27,7 @@ const (
 
 type MatchResult struct {
 	Ids       types.ItemList
-	SortIndex types.SortIndex
+	SortIndex types.ByValue
 }
 
 type Embeddings interface {
@@ -81,14 +82,13 @@ func (i *EmbeddingsIndex) FindMatches(embeddings []float64) MatchResult {
 			//ret = append(ret, doc)
 		}
 	}
-	sort.Sort(sort.Reverse(sortMap))
-	sortIndex := make(types.SortIndex, len(sortMap))
-	for idx, item := range sortMap {
-		sortIndex[idx] = item.Id
-	}
+	slices.SortFunc(sortMap, func(a, b types.Lookup) int {
+		return cmp.Compare(b.Value, a.Value)
+	})
+
 	return MatchResult{
 		Ids:       ret,
-		SortIndex: sortIndex,
+		SortIndex: sortMap,
 	}
 }
 

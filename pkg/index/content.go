@@ -2,6 +2,7 @@ package index
 
 import (
 	"encoding/json"
+	"iter"
 	"strconv"
 	"strings"
 
@@ -208,25 +209,35 @@ func (i *ContentIndex) AddItem(item ContentItem) {
 	i.Search.CreateDocument(item.GetId(), item.IndexData())
 }
 
-func (i *ContentIndex) MatchQuery(query string) []ContentItem {
+func (i *ContentIndex) MatchQuery(query string) iter.Seq[ContentItem] {
 	result := i.Search.Search(query)
 	//sortResult := make(chan *types.SortIndex)
 	//result.GetSorting(sortResult)
 	//defer close(sortResult)
 	//s := <-sortResult
-	itemIds := *result.ToResult()
-	j := min(30, len(itemIds))
-	resultItems := make([]ContentItem, 0, j)
+	//itemIds := *result.ToResult()
+	// j := min(30, len(*result))
+	// resultItems := make([]ContentItem, 0, j)
 
-	for id := range *result.ToResult() {
-		item, ok := i.Items[id]
-		if ok {
-			resultItems = append(resultItems, item)
-			j--
-		}
-		if j == 0 {
-			break
+	return func(yield func(ContentItem) bool) {
+		for id := range *result {
+			item, ok := i.Items[id]
+			if ok {
+				if !yield(item) {
+					break
+				}
+			}
 		}
 	}
-	return resultItems
+	// for id := range *result {
+	// 	item, ok := i.Items[id]
+	// 	if ok {
+	// 		resultItems = append(resultItems, item)
+	// 		j--
+	// 	}
+	// 	if j == 0 {
+	// 		break
+	// 	}
+	// }
+	// return resultItems
 }

@@ -1,9 +1,12 @@
 package index
 
 import (
+	"cmp"
 	"context"
 	"fmt"
+	"iter"
 	"log"
+	"slices"
 	"sort"
 	"sync"
 	"time"
@@ -21,9 +24,10 @@ type Sorting struct {
 	client           *redis.Client
 	fieldOverride    *SortOverride
 	popularOverrides *SortOverride
-	sortMethods      map[string]*types.SortIndex
+	popularMap       *SortOverride
+	sortMethods      map[string]*types.ByValue
 	staticPositions  *StaticPositions
-	FieldSort        *types.SortIndex
+	FieldSort        *types.ByValue
 	hasItemChanges   bool
 }
 
@@ -41,6 +45,8 @@ const REDIS_FIELD_KEY = "_field"
 const REDIS_FIELD_CHANGE = "fieldChange"
 const REDIS_STATIC_KEY = "_staticPositions"
 const REDIS_STATIC_CHANGE = "staticPositionsChange"
+const REDIS_SESSION_POPULAR_CHANGE = "sessionChange"
+const REDIS_SESSION_FIELD_CHANGE = "sessionFieldChange"
 
 func NewSorting(addr, password string, db int) *Sorting {
 
@@ -53,11 +59,12 @@ func NewSorting(addr, password string, db int) *Sorting {
 	instance := &Sorting{
 
 		client:           rdb,
-		sortMethods:      make(map[string]*types.SortIndex),
-		FieldSort:        &types.SortIndex{},
+		sortMethods:      make(map[string]*types.ByValue),
+		FieldSort:        &types.ByValue{},
 		popularOverrides: &SortOverride{},
 		fieldOverride:    &SortOverride{},
 		staticPositions:  &StaticPositions{},
+		popularMap:       &SortOverride{},
 		idx:              nil,
 	}
 
@@ -71,6 +78,30 @@ func (s *Sorting) StartListeningForChanges() {
 	pubsub := rdb.Subscribe(ctx, REDIS_POPULAR_CHANGE)
 	fieldsub := rdb.Subscribe(ctx, REDIS_FIELD_CHANGE)
 	staticsub := rdb.Subscribe(ctx, REDIS_STATIC_CHANGE)
+	sessionsub := rdb.Subscribe(ctx, REDIS_SESSION_POPULAR_CHANGE)
+
+	go func(ch <-chan *redis.Message) {
+		for msg := range ch {
+			fmt.Println("Received session popular override change", msg.Channel, msg.Payload)
+			sort_data, err := rdb.Get(ctx, msg.Payload).Result()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			sortOverride := SortOverride{}
+			err = sortOverride.FromString(sort_data)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			s.muOverride.Lock()
+			s.popularOverrides = &sortOverride
+			s.muOverride.Unlock()
+
+			s.hasItemChanges = true
+
+		}
+	}(sessionsub.Channel())
 
 	go func(ch <-chan *redis.Message) {
 		for range ch {
@@ -240,7 +271,7 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	defer s.mu.Unlock()
 	l := len(idx.Facets)
 	i := 0
-	sortIndex := make(types.SortIndex, l)
+
 	sortMap := make(types.ByValue, l)
 	var base *types.BaseField
 	for _, item := range idx.Facets {
@@ -254,11 +285,8 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 
 	sortMap = sortMap[:i]
 	sort.Sort(sort.Reverse(sortMap))
-	for idx, item := range sortMap {
-		sortIndex[idx] = item.Id
-	}
 
-	s.FieldSort = ToSortIndex(&sortMap, true)
+	s.FieldSort = &sortMap
 }
 
 func (s *Sorting) Close() error {
@@ -284,11 +312,11 @@ func (s *Sorting) GetPopularOverrides() *SortOverride {
 	return s.popularOverrides
 }
 
-func (s *Sorting) GetSorting(id string, sortChan chan *types.SortIndex) {
+func (s *Sorting) GetSorting(id string, sortChan chan *types.ByValue) {
 	sortChan <- s.GetSort(id)
 }
 
-func (s *Sorting) GetSort(id string) *types.SortIndex {
+func (s *Sorting) GetSort(id string) *types.ByValue {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if sortMethod, ok := s.sortMethods[id]; ok {
@@ -297,7 +325,86 @@ func (s *Sorting) GetSort(id string) *types.SortIndex {
 	for _, method := range s.sortMethods {
 		return method
 	}
-	return &types.SortIndex{}
+	return &types.ByValue{}
+}
+
+func (s *Sorting) GetSortedItemsIterator(precalculated *types.ByValue, items *types.ItemList, start int, sortedItemsChan chan<- iter.Seq[*types.Item], overrides ...SortOverride) {
+
+	if precalculated != nil {
+
+		c := 0
+		fn := func(yield func(*types.Item) bool) {
+
+			for _, v := range *precalculated {
+				if _, ok := (*items)[v.Id]; !ok {
+					continue
+				}
+				if c < start {
+					c++
+					continue
+				}
+				item, ok := s.idx.Items[v.Id]
+
+				if !ok {
+					continue
+				}
+
+				if !yield(item) {
+					break
+				}
+			}
+
+		}
+		sortedItemsChan <- fn
+		return
+	} else {
+		ch := make(chan []types.Lookup)
+		go makeSortForItems(*s.popularMap, items, ch, overrides...)
+		c := 0
+		fn := func(yield func(*types.Item) bool) {
+			defer close(ch)
+			for _, v := range <-ch {
+				if c < start {
+					c++
+					continue
+				}
+				item, ok := s.idx.Items[v.Id]
+				if !ok {
+					continue
+				}
+				if !yield(item) {
+					break
+				}
+			}
+		}
+		sortedItemsChan <- fn
+	}
+}
+
+func makeSortForItems(m SortOverride, items *types.ItemList, ch chan []types.Lookup, overrides ...SortOverride) {
+
+	ch <- slices.SortedFunc(func(yield func(types.Lookup) bool) {
+		var value float64
+		var ok bool
+		var add float64
+		for id := range *items {
+			value, ok = m[id]
+			if !ok {
+				value = 0
+			}
+			add = 0
+			for _, override := range overrides {
+				if v, ok := override[id]; ok {
+					add += v
+				}
+			}
+			if !yield(types.Lookup{Id: id, Value: value + add}) {
+				break
+			}
+		}
+	}, func(a, b types.Lookup) int {
+		return cmp.Compare(b.Value, a.Value)
+	})
 }
 
 func (s *Sorting) makeItemSortMaps() {
@@ -318,7 +425,7 @@ func (s *Sorting) makeItemSortMaps() {
 	priceMap := make(types.ByValue, l)
 	updatedMap := make(types.ByValue, l)
 	createdMap := make(types.ByValue, l)
-	popularSearchMap := make(map[uint]float64)
+	popularSearchMap := make(SortOverride)
 	i := 0
 	var item types.Item
 	var itm *types.Item
@@ -328,7 +435,7 @@ func (s *Sorting) makeItemSortMaps() {
 		j += 0.0000000000001
 		popular := item.GetPopularity() + (overrides[item.GetId()] * 1000)
 
-		partPopular := popular / 1000.0
+		partPopular := popular / 10000.0
 		if item.GetLastUpdated() == 0 {
 			updatedMap[i] = types.Lookup{Id: id, Value: j}
 		} else {
@@ -345,17 +452,35 @@ func (s *Sorting) makeItemSortMaps() {
 		popularSearchMap[id] = popular / 1000.0
 		i++
 	}
-	if s.idx != nil {
-		s.idx.SetBaseSortMap(popularSearchMap)
-	}
-	s.sortMethods[POPULAR_SORT] = ToSortIndex(&popularMap, true)
-	s.sortMethods[PRICE_SORT] = ToSortIndex(&priceMap, false)
-	s.sortMethods[PRICE_DESC_SORT] = ToSortIndex(&priceMap, true)
-	s.sortMethods[UPDATED_SORT] = ToSortIndex(&updatedMap, false)
-	s.sortMethods[UPDATED_DESC_SORT] = ToSortIndex(&updatedMap, true)
-	s.sortMethods[CREATED_SORT] = ToSortIndex(&createdMap, false)
-	s.sortMethods[CREATED_DESC_SORT] = ToSortIndex(&createdMap, true)
+	// if s.idx != nil {
+	// 	s.idx.SetBaseSortMap(popularSearchMap)
+	// }
+	s.popularMap = &popularSearchMap
+	SortByValues(popularMap)
+	s.sortMethods[POPULAR_SORT] = &popularMap
+	SortByValues(priceMap)
+	s.sortMethods[PRICE_DESC_SORT] = &priceMap
+	s.sortMethods[PRICE_SORT] = cloneReversed(&priceMap)
+	SortByValues(updatedMap)
+	s.sortMethods[UPDATED_DESC_SORT] = &updatedMap
+	s.sortMethods[UPDATED_SORT] = cloneReversed(&updatedMap)
+	SortByValues(createdMap)
+	s.sortMethods[CREATED_SORT] = &createdMap
+	s.sortMethods[CREATED_DESC_SORT] = cloneReversed(&createdMap)
 
+}
+
+func SortByValues(arr types.ByValue) {
+	slices.SortFunc(arr, func(a, b types.Lookup) int {
+		return cmp.Compare(b.Value, a.Value)
+	})
+}
+
+func cloneReversed(arr *types.ByValue) *types.ByValue {
+	n := make(types.ByValue, len(*arr))
+	copy(n, *arr)
+	slices.Reverse(n)
+	return &n
 }
 
 func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {

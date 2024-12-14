@@ -1,8 +1,9 @@
 package facet
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"maps"
+
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type FieldNumberValue interface {
@@ -87,6 +88,10 @@ func (f DecimalField) Match(input interface{}) *types.ItemList {
 	}
 
 	return &types.ItemList{}
+}
+
+func (f DecimalField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+	ch <- f.Match(input)
 }
 
 func (f DecimalField) GetBaseField() *types.BaseField {

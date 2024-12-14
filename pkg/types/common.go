@@ -55,6 +55,7 @@ const FacetIntegerType = 3
 type Facet interface {
 	GetType() uint
 	Match(data interface{}) *ItemList
+	MatchAsync(data interface{}, results chan<- *ItemList)
 	GetBaseField() *BaseField
 	AddValueLink(value interface{}, item Item) bool
 	RemoveValueLink(value interface{}, id uint)

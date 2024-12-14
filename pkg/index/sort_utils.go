@@ -2,7 +2,6 @@ package index
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -14,21 +13,6 @@ func ToMap(f *types.ByValue) map[uint]float64 {
 		m[item.Id] = item.Value
 	}
 	return m
-}
-
-func ToSortIndex(f *types.ByValue, reversed bool) *types.SortIndex {
-	l := len(*f)
-	if reversed {
-		sort.Sort(sort.Reverse(*f))
-	} else {
-		sort.Sort(*f)
-	}
-
-	sortIndex := make(types.SortIndex, l)
-	for idx, item := range *f {
-		sortIndex[idx] = item.Id
-	}
-	return &sortIndex
 }
 
 type StaticPositions map[int]uint

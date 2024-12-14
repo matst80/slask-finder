@@ -23,8 +23,9 @@ import (
 )
 
 type searchResult struct {
-	matching *types.ItemList
-	sort     *types.SortIndex
+	matching      *types.ItemList
+	sort          *types.ByValue
+	sortOverrides []index.SortOverride
 }
 
 var (
@@ -56,6 +57,7 @@ func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.D
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
 		initialIds = queryResult.ToResult()
+		//initialIds = types.Intersect(types.ItemList{}, *queryResult)
 		documentResult = queryResult
 	}
 
@@ -80,31 +82,39 @@ func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.D
 
 func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
 	matchingChan := make(chan *types.ItemList)
-	sortChan := make(chan *types.SortIndex)
+	sortChan := make(chan *types.ByValue)
 	go noSearches.Inc()
 
 	defer close(matchingChan)
 	defer close(sortChan)
 
 	initialIds, documentResult := ws.getInitialIds(sr.FacetRequest)
+	isPopular := sr.Sort == "popular" || sr.Sort == ""
 
-	if sr.Query != "" {
-		if sr.Sort == "popular" || sr.Sort == "" {
-			go documentResult.GetSorting(sortChan)
-		} else {
-			go ws.Sorting.GetSorting(sr.Sort, sortChan)
-		}
+	if sr.Query != "" || isPopular {
+		go func() {
+			sortChan <- nil
+		}()
 	} else {
 		go ws.Sorting.GetSorting(sr.Sort, sortChan)
 	}
 
 	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
 
-	result <- searchResult{
-		matching: <-matchingChan,
-		sort:     <-sortChan,
+	if documentResult != nil {
+		queryOverride := index.SortOverride(*documentResult)
+		result <- searchResult{
+			matching:      <-matchingChan,
+			sortOverrides: []index.SortOverride{queryOverride},
+			sort:          <-sortChan,
+		}
+		return
 	}
-
+	result <- searchResult{
+		matching:      <-matchingChan,
+		sort:          <-sortChan,
+		sortOverrides: []index.SortOverride{},
+	}
 }
 
 func makeBaseFacetRequest() *FacetRequest {
@@ -402,8 +412,8 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "60")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(writer)
-	for _, id := range *ws.Sorting.FieldSort {
-		if d, ok := ret[id]; ok {
+	for _, v := range *ws.Sorting.FieldSort {
+		if d, ok := ret[v.Id]; ok {
 			enc.Encode(d)
 		}
 	}
@@ -445,15 +455,19 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if sr.Sort == "" {
+		sr.Sort = "popular"
+	}
+
 	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
-	go func() {
-		if ws.Tracking != nil {
+	if ws.Tracking != nil {
+		go func() {
 			err := ws.Tracking.TrackSearch(session_id, sr.Filters, sr.Query, sr.Page)
 			if err != nil {
 				fmt.Printf("Failed to track search %v", err)
 			}
-		}
-	}()
+		}()
+	}
 
 	resultChan := make(chan searchResult)
 
@@ -468,40 +482,49 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
 	result := <-resultChan
+	sortedItemsChan := make(chan iter.Seq[*types.Item])
+	go ws.Sorting.GetSortedItemsIterator(result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
 
-	var sortedIds iter.Seq[uint]
-	if sr.UseStaticPosition() {
-		sortedIds = result.sort.SortMapWithStaticPositions(*result.matching, ws.Sorting.GetStaticPositions())
-	} else {
-		sortedIds = result.sort.SortMap(*result.matching)
-	}
+	fn := <-sortedItemsChan
 	idx := 0
-	for id := range sortedIds {
+	for item := range fn {
 		idx++
-		if idx < start {
-			continue
-		}
-
-		if item, ok := ws.Index.Items[id]; ok {
-			enc.Encode(item)
-		}
-
+		enc.Encode(item)
 		if idx >= end {
 			break
 		}
 	}
+
+	// var sortedIds iter.Seq[uint]
+	// if sr.UseStaticPosition() {
+	// 	sortedIds = result.sort.SortMapWithStaticPositions(*result.matching, ws.Sorting.GetStaticPositions())
+	// } else {
+	// 	sortedIds = result.sort.SortMap(*result.matching)
+	// }
+	// idx := 0
+	// for id := range sortedIds {
+	// 	idx++
+	// 	if idx < start {
+	// 		continue
+	// 	}
+
+	// 	if item, ok := ws.Index.Items[id]; ok {
+	// 		enc.Encode(item)
+	// 	}
+
+	// 	if idx >= end {
+	// 		break
+	// 	}
+	// }
 	w.Write([]byte("\n"))
-	sort := "popular"
-	if sr.Sort != "" {
-		sort = sr.Sort
-	}
+
 	enc.Encode(SearchResponse{
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
 		End:       end,
 		TotalHits: len(*result.matching),
-		Sort:      sort,
+		Sort:      sr.Sort,
 	})
 }
 
@@ -516,13 +539,14 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	go noSuggests.Inc()
 
 	wordMatchesChan := make(chan []search.Match)
-	sortChan := make(chan *types.SortIndex)
+	sortChan := make(chan *types.ByValue)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
 	var docResult *search.DocumentResult = nil
 	if hasMoreWords {
 		docResult = ws.Index.Search.Search(query)
-		results = *docResult.ToResult()
+		types.Merge(results, *docResult)
+		//results = *docResult
 	}
 
 	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
@@ -535,7 +559,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	sitem.Other = other
 	enc := json.NewEncoder(w)
 	for _, s := range <-wordMatchesChan {
-
 		sitem.Word = s.Word
 		sitem.Hits = len(*s.Items)
 		if !hasMoreWords || results.HasIntersection(s.Items) {
@@ -543,28 +566,46 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 			results.Merge(s.Items)
 		}
 	}
-	if hasMoreWords && docResult != nil {
-		go docResult.GetSortingWithAdditionalItems(&results, ws.Index.Search.BaseSortMap, sortChan)
+	// if hasMoreWords && docResult != nil {
+	// 	go docResult.GetSortingWithAdditionalItems(&results, nil, sortChan)
 
-	} else {
-		go ws.Sorting.GetSorting("popular", sortChan)
-	}
+	// } else {
+	// 	go ws.Sorting.GetSorting("popular", sortChan)
+	// }
 	w.Write([]byte("\n"))
 
-	idx := 0
-	sort := <-sortChan
-	for id := range sort.SortMap(results) {
-		item, ok := ws.Index.Items[id]
-		if ok {
-
-			enc.Encode(item)
-			idx++
-			if idx > 20 {
-				break
-			}
-		}
-
+	sortedItemsChan := make(chan iter.Seq[*types.Item])
+	if docResult != nil {
+		o := index.SortOverride(*docResult)
+		go ws.Sorting.GetSortedItemsIterator(nil, &results, 0, sortedItemsChan, o)
+	} else {
+		go ws.Sorting.GetSortedItemsIterator(nil, &results, 0, sortedItemsChan)
 	}
+
+	fn := <-sortedItemsChan
+	idx := 0
+	for item := range fn {
+		idx++
+		enc.Encode(item)
+		if idx >= 20 {
+			break
+		}
+	}
+
+	// idx := 0
+	// sort := <-sortChan
+	// for id := range sort.SortMap(results) {
+	// 	item, ok := ws.Index.Items[id]
+	// 	if ok {
+
+	// 		enc.Encode(item)
+	// 		idx++
+	// 		if idx > 20 {
+	// 			break
+	// 		}
+	// 	}
+
+	// }
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
 	ch := make(chan *index.JsonFacet)
@@ -585,8 +626,8 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for _, id := range *ws.Sorting.FieldSort {
-		if d, ok := ret[id]; ok {
+	for _, v := range *ws.Sorting.FieldSort {
+		if d, ok := ret[v.Id]; ok {
 			_ = enc.Encode(d)
 		}
 	}
@@ -670,7 +711,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	}
 	relatedChan := make(chan *types.ItemList)
 	defer close(relatedChan)
-	sortChan := make(chan *types.SortIndex)
+	sortChan := make(chan *types.ByValue)
 	defer close(sortChan)
 
 	publicHeaders(w, r, false, "600")

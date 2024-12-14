@@ -21,6 +21,22 @@ func (a ItemList) Intersect(b ItemList) {
 	}
 }
 
+func Intersect[K any](a ItemList, b map[uint]K) ItemList {
+	result := make(ItemList)
+	for id := range a {
+		if _, ok := b[id]; ok {
+			result[id] = struct{}{}
+		}
+	}
+	return result
+}
+
+func Merge[K any](a ItemList, b map[uint]K) {
+	for id := range b {
+		a[id] = struct{}{}
+	}
+}
+
 func (i ItemList) Merge(other *ItemList) {
 	maps.Copy(i, *other)
 }
