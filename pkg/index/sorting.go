@@ -8,6 +8,7 @@ import (
 	"log"
 	"slices"
 	"sort"
+	"strconv"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ type Sorting struct {
 	fieldOverride    *SortOverride
 	popularOverrides *SortOverride
 	popularMap       *SortOverride
+	sessionOverrides map[uint]*SortOverride
 	sortMethods      map[string]*types.ByValue
 	staticPositions  *StaticPositions
 	FieldSort        *types.ByValue
@@ -62,6 +64,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 		sortMethods:      make(map[string]*types.ByValue),
 		FieldSort:        &types.ByValue{},
 		popularOverrides: &SortOverride{},
+		sessionOverrides: make(map[uint]*SortOverride),
 		fieldOverride:    &SortOverride{},
 		staticPositions:  &StaticPositions{},
 		popularMap:       &SortOverride{},
@@ -82,7 +85,14 @@ func (s *Sorting) StartListeningForChanges() {
 
 	go func(ch <-chan *redis.Message) {
 		for msg := range ch {
-			fmt.Println("Received session popular override change", msg.Channel, msg.Payload)
+			sessionIdString := msg.Payload[6:]
+			sessionId, err := strconv.Atoi(sessionIdString)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			fmt.Printf("Received session popular override change for sessonid: %d", sessionId)
 			sort_data, err := rdb.Get(ctx, msg.Payload).Result()
 			if err != nil {
 				fmt.Println(err)
@@ -95,7 +105,7 @@ func (s *Sorting) StartListeningForChanges() {
 				continue
 			}
 			s.muOverride.Lock()
-			s.popularOverrides = &sortOverride
+			s.sessionOverrides[uint(sessionId)] = &sortOverride
 			s.muOverride.Unlock()
 
 			s.hasItemChanges = true
@@ -328,7 +338,7 @@ func (s *Sorting) GetSort(id string) *types.ByValue {
 	return &types.ByValue{}
 }
 
-func (s *Sorting) GetSortedItemsIterator(precalculated *types.ByValue, items *types.ItemList, start int, sortedItemsChan chan<- iter.Seq[*types.Item], overrides ...SortOverride) {
+func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByValue, items *types.ItemList, start int, sortedItemsChan chan<- iter.Seq[*types.Item], overrides ...SortOverride) {
 
 	if precalculated != nil {
 
@@ -359,6 +369,12 @@ func (s *Sorting) GetSortedItemsIterator(precalculated *types.ByValue, items *ty
 		return
 	} else {
 		ch := make(chan []types.Lookup)
+
+		if sessionId > 0 {
+			if sort, ok := s.sessionOverrides[uint(sessionId)]; ok {
+				overrides = append(overrides, *sort)
+			}
+		}
 		go makeSortForItems(*s.popularMap, items, ch, overrides...)
 		c := 0
 		fn := func(yield func(*types.Item) bool) {
