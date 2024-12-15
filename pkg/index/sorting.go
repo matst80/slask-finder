@@ -7,7 +7,6 @@ import (
 	"iter"
 	"log"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -76,6 +75,20 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 	return instance
 
+}
+
+func (s *Sorting) GetSessionData(id uint) (*SortOverride, *SortOverride) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	itemData, ok := s.sessionOverrides[id]
+	fieldData, fieldOk := s.sessionFieldOverrides[id]
+	if !ok {
+		itemData = s.popularOverrides
+	}
+	if !fieldOk {
+		fieldData = s.fieldOverride
+	}
+	return itemData, fieldData
 }
 
 func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionId int, sortOverride *SortOverride)) {
@@ -249,35 +262,43 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	}()
 }
 
-func getFieldLookupValue(field types.BaseField, overrideValue float64) types.Lookup {
-	//if field.HideFacet {
-	//	return types.Lookup{Id: field.Id, Value: 0}
-	//}
-
-	return types.Lookup{Id: field.Id, Value: field.Priority + overrideValue}
-}
-
 func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	idx.Lock()
 	defer idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	l := len(idx.Facets)
-	i := 0
+	//l := len(idx.Facets)
+	//i := 0
+	//
+	//sortMap := make(types.ByValue, l)
+	//var base *types.BaseField
+	//for _, item := range idx.Facets {
+	//	base = item.GetBaseField()
+	//	if base.HideFacet {
+	//		continue
+	//	}
+	//	sortMap[i] = getFieldLookupValue(*base, overrides[base.Id])
+	//	i++
+	//}
+	//
+	//sortMap = sortMap[:i]
+	//sort.Sort(sort.Reverse(sortMap))
+	//
 
-	sortMap := make(types.ByValue, l)
-	var base *types.BaseField
-	for _, item := range idx.Facets {
-		base = item.GetBaseField()
-		if base.HideFacet {
-			continue
+	sortMap := types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
+		var base *types.BaseField
+		for id, item := range idx.Facets {
+			base = item.GetBaseField()
+			if base.HideFacet {
+				continue
+			}
+			yield(types.Lookup{
+				Id:    id,
+				Value: base.Priority + overrides[base.Id],
+			})
+
 		}
-		sortMap[i] = getFieldLookupValue(*base, overrides[base.Id])
-		i++
-	}
-
-	sortMap = sortMap[:i]
-	sort.Sort(sort.Reverse(sortMap))
+	}, types.LookUpReversed))
 
 	s.FieldSort = &sortMap
 }

@@ -127,7 +127,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	return err
 }
 
-func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	sr, err := GetQueryFromRequest(r)
 	if err != nil {
@@ -148,7 +148,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, session_id i
 	return enc.Encode(result.matching)
 }
 
-func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	sr, err := GetQueryFromRequest(r)
 	if err != nil {
@@ -156,7 +156,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	}
 
 	if ws.Tracking != nil {
-		go ws.Tracking.TrackSearch(session_id, sr.Filters, sr.Query, sr.Page)
+		go ws.Tracking.TrackSearch(sessionId, sr.Filters, sr.Query, sr.Page)
 	}
 
 	resultChan := make(chan searchResult)
@@ -172,7 +172,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	end := start + sr.PageSize
 	result := <-resultChan
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
-	go ws.Sorting.GetSortedItemsIterator(session_id, result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
+	go ws.Sorting.GetSortedItemsIterator(sessionId, result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
 
 	fn := <-sortedItemsChan
 	idx := 0
@@ -206,7 +206,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	})
 }
 
-func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
@@ -259,9 +259,9 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, session_id 
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
 	if docResult != nil {
 		o := index.SortOverride(*docResult)
-		go ws.Sorting.GetSortedItemsIterator(session_id, nil, &results, 0, sortedItemsChan, o)
+		go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan, o)
 	} else {
-		go ws.Sorting.GetSortedItemsIterator(session_id, nil, &results, 0, sortedItemsChan)
+		go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan)
 	}
 
 	fn := <-sortedItemsChan
@@ -305,7 +305,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, session_id 
 	return err
 }
 
-func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
@@ -327,7 +327,7 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request, session_i
 	return nil
 }
 
-func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	publicHeaders(w, r, true, "1200")
 
 	w.WriteHeader(http.StatusOK)
@@ -342,7 +342,26 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, session_id i
 	return enc.Encode(res)
 }
 
-func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) Recommended(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	items, _ := ws.Sorting.GetSessionData(uint(sessionId))
+	sortedItems := items.ToSortedLookup()
+	//sortedFields := fields.ToSortedLookup()
+	defaultHeaders(w, r, true, "60")
+
+	w.WriteHeader(http.StatusOK)
+	for _, v := range sortedItems {
+		item, ok := ws.Index.Items[v.Id]
+		if ok {
+			err := enc.Encode(item)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
@@ -405,7 +424,7 @@ func CategoryResultFrom(c *index.Category) *CategoryResult {
 	return ret
 }
 
-func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	publicHeaders(w, r, true, "600")
 	w.WriteHeader(http.StatusOK)
 	categories := ws.Index.GetCategories()
@@ -420,7 +439,7 @@ func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, session_
 	return enc.Encode(result)
 }
 
-func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	id := r.PathValue("id")
 	itemId, err := strconv.Atoi(id)
 	if err != nil {
@@ -435,7 +454,7 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, session_id 
 	return enc.Encode(item)
 }
 
-func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "600")
 	items := make([]uint, 0)
 	err := json.NewDecoder(r.Body).Decode(&items)
@@ -455,7 +474,7 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, session_id
 	return enc.Encode(result[:i])
 }
 
-func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	typeField, ok := ws.Index.Facets[31158]
@@ -512,6 +531,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
 	srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
+	srv.HandleFunc("/recommended", JsonHandler(ws.Tracking, ws.Recommended))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
 	srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))

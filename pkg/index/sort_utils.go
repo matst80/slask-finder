@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -67,4 +68,16 @@ func (s *SortOverride) FromString(data string) error {
 		(*s)[key] = value
 	}
 	return nil
+}
+
+func (s *SortOverride) ToSortedLookup() types.ByValue {
+
+	return slices.SortedFunc(func(yield func(lookup types.Lookup) bool) {
+		for id, value := range *s {
+			if !yield(types.Lookup{Id: id, Value: value}) {
+				break
+			}
+		}
+	}, types.LookUpReversed)
+
 }
