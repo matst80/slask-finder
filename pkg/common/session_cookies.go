@@ -14,10 +14,10 @@ func generateSessionId() int {
 	return int(time.Now().UnixNano())
 }
 
-func setSessionCookie(w http.ResponseWriter, r *http.Request, session_id int) {
+func setSessionCookie(w http.ResponseWriter, r *http.Request, sessionId int) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "sid",
-		Value:    fmt.Sprintf("%d", session_id),
+		Value:    fmt.Sprintf("%d", sessionId),
 		Domain:   strings.TrimPrefix(r.Host, "."),
 		SameSite: http.SameSiteNoneMode,
 		Secure:   true,
@@ -28,20 +28,20 @@ func setSessionCookie(w http.ResponseWriter, r *http.Request, session_id int) {
 }
 
 func HandleSessionCookie(tracking tracking.Tracking, w http.ResponseWriter, r *http.Request) int {
-	session_id := generateSessionId()
+	sessionId := generateSessionId()
 	c, err := r.Cookie("sid")
 	if err != nil {
 		// fmt.Printf("Failed to get cookie %v", err)
 		if tracking != nil {
-			go tracking.TrackSession(session_id, r)
+			go tracking.TrackSession(sessionId, r)
 		}
-		setSessionCookie(w, r, session_id)
+		setSessionCookie(w, r, sessionId)
 
 	} else {
-		session_id, err = strconv.Atoi(c.Value)
+		sessionId, err = strconv.Atoi(c.Value)
 		if err != nil {
-			setSessionCookie(w, r, session_id)
+			setSessionCookie(w, r, sessionId)
 		}
 	}
-	return session_id
+	return sessionId
 }

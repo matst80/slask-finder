@@ -26,6 +26,7 @@ type Sorting struct {
 	fieldOverride         *SortOverride
 	popularOverrides      *SortOverride
 	popularMap            *SortOverride
+	fieldMap              *SortOverride
 	sessionOverrides      map[uint]*SortOverride
 	sessionFieldOverrides map[uint]*SortOverride
 	sortMethods           map[string]*types.ByValue
@@ -65,6 +66,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 		sortMethods:           make(map[string]*types.ByValue),
 		FieldSort:             &types.ByValue{},
 		popularOverrides:      &SortOverride{},
+		fieldMap:              &SortOverride{},
 		sessionOverrides:      make(map[uint]*SortOverride),
 		sessionFieldOverrides: make(map[uint]*SortOverride),
 		fieldOverride:         &SortOverride{},
@@ -270,6 +272,7 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 	defer idx.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	fieldMap := make(SortOverride)
 	//l := len(idx.Facets)
 	//i := 0
 	//
@@ -295,14 +298,16 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 			if base.HideFacet {
 				continue
 			}
+			v := base.Priority + overrides[base.Id]
+			fieldMap[id] = v
 			yield(types.Lookup{
 				Id:    id,
-				Value: base.Priority + overrides[base.Id],
+				Value: v,
 			})
 
 		}
 	}, types.LookUpReversed))
-
+	s.fieldMap = &fieldMap
 	s.FieldSort = &sortMap
 }
 
@@ -403,6 +408,46 @@ func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByV
 		}
 		sortedItemsChan <- fn
 	}
+}
+
+func (s *Sorting) GetSortedFields(sessionId int, items []*JsonFacet) []*JsonFacet {
+
+	var sessionOverride *SortOverride
+	if sessionId > 0 {
+		if o, ok := s.sessionOverrides[uint(sessionId)]; ok {
+			sessionOverride = o
+		}
+	}
+	base := s.fieldMap
+	slices.SortFunc(items, func(a, b *JsonFacet) int {
+		return cmp.Compare(SumOverrides(a.Id, base, sessionOverride), SumOverrides(b.Id, base, sessionOverride))
+	})
+	return items
+}
+
+func ToSortedMap[K comparable](i map[K]float64) []K {
+	return slices.SortedFunc[K](func(yield func(K) bool) {
+		for key, _ := range i {
+			if !yield(key) {
+				break
+			}
+		}
+	}, func(k K, k2 K) int {
+		return cmp.Compare(i[k], i[k2])
+	})
+}
+
+func SumOverrides(id uint, overrides ...*SortOverride) float64 {
+	sum := 0.0
+	for _, o := range overrides {
+		if o != nil {
+			v, ok := (*o)[id]
+			if ok {
+				sum += v
+			}
+		}
+	}
+	return sum
 }
 
 func makeSortForItems(m SortOverride, items *types.ItemList, ch chan []types.Lookup, overrides ...SortOverride) {

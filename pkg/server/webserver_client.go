@@ -1,7 +1,6 @@
 package server
 
 import (
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"github.com/matst80/slask-finder/pkg/embeddings"
@@ -13,7 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"iter"
 	"net/http"
-	"slices"
+
 	"strconv"
 	"strings"
 	"sync"
@@ -110,27 +109,23 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	ws.getOtherFacets(ids, sr.Filters, ch, wg)
 	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
 
-	ret := make(map[uint]*index.JsonFacet)
 	// todo optimize
 	go func() {
 		wg.Wait()
 		close(ch)
 	}()
 
+	ret := make([]*index.JsonFacet, 0)
 	for item := range ch {
 		if item != nil {
-			ret[item.Id] = item
+			ret = append(ret, item)
 		}
 	}
+
 	defaultHeaders(w, r, true, "60")
 	w.WriteHeader(http.StatusOK)
 
-	for _, v := range *ws.Sorting.FieldSort {
-		if d, ok := ret[v.Id]; ok {
-			err = enc.Encode(d)
-		}
-	}
-	return err
+	return enc.Encode(ws.Sorting.GetSortedFields(sessionId, ret))
 }
 
 func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -374,18 +369,6 @@ type Similar struct {
 	Items       []types.Item `json:"items"`
 }
 
-func ToSortedMap[K comparable](i map[K]float64) []K {
-	return slices.SortedFunc[K](func(yield func(K) bool) {
-		for key, _ := range i {
-			if !yield(key) {
-				break
-			}
-		}
-	}, func(k K, k2 K) int {
-		return cmp.Compare(i[k], i[k2])
-	})
-}
-
 func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	items, fields := ws.Sorting.GetSessionData(uint(sessionId))
 	articleTypes := map[string]float64{}
@@ -435,7 +418,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		ret <- &similar
 	}
 
-	for i, typeValue := range ToSortedMap(articleTypes) {
+	for i, typeValue := range index.ToSortedMap(articleTypes) {
 		if i > 5 {
 			break
 		}
