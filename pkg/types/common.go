@@ -1,16 +1,17 @@
 package types
 
 type BaseField struct {
-	Id               uint    `json:"id"`
-	Name             string  `json:"name"`
-	Description      string  `json:"description,omitempty"`
-	Priority         float64 `json:"prio,omitempty"`
-	Type             string  `json:"type,omitempty"`
-	LinkedId         uint    `json:"linkedId,omitempty"`
-	ValueSorting     uint    `json:"sorting,omitempty"`
-	HideFacet        bool    `json:"-"`
-	CategoryLevel    int     `json:"categoryLevel,omitempty"`
-	IgnoreIfInSearch bool    `json:"-"`
+	Id                       uint    `json:"id"`
+	Name                     string  `json:"name"`
+	Description              string  `json:"description,omitempty"`
+	Priority                 float64 `json:"prio,omitempty"`
+	Type                     string  `json:"type,omitempty"`
+	LinkedId                 uint    `json:"linkedId,omitempty"`
+	ValueSorting             uint    `json:"sorting,omitempty"`
+	HideFacet                bool    `json:"-"`
+	CategoryLevel            int     `json:"categoryLevel,omitempty"`
+	IgnoreCategoryIfSearched bool    `json:"-"`
+	IgnoreIfInSearch         bool    `json:"-"`
 }
 
 type LocationStock []struct {
