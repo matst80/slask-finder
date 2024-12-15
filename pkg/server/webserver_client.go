@@ -368,6 +368,7 @@ func (ws *WebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId i
 type Similar struct {
 	ProductType string       `json:"productType"`
 	Count       int          `json:"count"`
+	Popularity  float64      `json:"popularity"`
 	Items       []types.Item `json:"items"`
 }
 
@@ -386,7 +387,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 			}
 		}
 	}
-	getSimilar := func(articleType string, ret chan *Similar, wg *sync.WaitGroup, sort *types.ByValue) {
+	getSimilar := func(articleType string, ret chan *Similar, wg *sync.WaitGroup, sort *types.ByValue, popularity float64) {
 		ids := make(chan *types.ItemList)
 		defer close(ids)
 		defer wg.Done()
@@ -403,6 +404,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		similar := Similar{
 			ProductType: articleType,
 			Count:       l,
+			Popularity:  popularity,
 			Items:       make([]types.Item, 0, limit),
 		}
 		for id := range sort.SortMap(*resultIds) {
@@ -418,9 +420,9 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		}
 		ret <- &similar
 	}
-	for typeValue := range articleTypes {
+	for typeValue, popularity := range articleTypes {
 		wg.Add(1)
-		go getSimilar(typeValue, itemChan, wg, pop)
+		go getSimilar(typeValue, itemChan, wg, pop, popularity)
 	}
 	go func() {
 		wg.Wait()
