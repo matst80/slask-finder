@@ -417,6 +417,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		ret <- &similar
 	}
 	for typeValue := range articleTypes {
+		wg.Add(1)
 		go getSimilar(typeValue, itemChan, wg, pop)
 	}
 	go func() {
