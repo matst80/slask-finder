@@ -96,21 +96,24 @@ func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionI
 		for msg := range ch {
 			idx := strings.LastIndex(msg.Payload, "_")
 			if idx == -1 {
-				fmt.Println("Invalid session override change message", msg.Payload)
+				log.Println("Invalid session override change message", msg.Payload)
 				continue
 			}
 			sessionIdString := msg.Payload[idx+1:]
 			sessionId, err := strconv.Atoi(sessionIdString)
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
+				continue
+			}
+			if sessionId == 0 {
 				continue
 			}
 
-			fmt.Printf("Received session override change for sessonid: %d", sessionId)
+			log.Printf("Received session override change for sessonid: %d", sessionId)
 			sortOverride, err := GetOverrideFromKey(rdb, msg.Payload)
 
 			if err != nil {
-				fmt.Println(err)
+				log.Println(err)
 				continue
 			}
 			fn(sessionId, sortOverride)
