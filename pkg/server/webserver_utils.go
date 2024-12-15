@@ -25,13 +25,13 @@ func genericHeaders(w http.ResponseWriter, r *http.Request, isJson bool) {
 	} else {
 		w.Header().Set("Content-Type", "text/plain")
 	}
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
+	//origin := r.Header.Get("Origin")
+	//if origin != "" {
+	//	w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+	//	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	//	w.Header().Set("Access-Control-Allow-Headers", "*")
+	//	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	//}
 	w.Header().Set("Age", "0")
 }
 
