@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -204,8 +205,13 @@ func (item *DataItem) GetPopularity() float64 {
 	if item.BadgeUrl != "" {
 		v += 2500
 	}
-
-	return v + (float64(grade*min(noGrades, 100)) / 10)
+	if time.Now().Unix()-item.Created < 60*60*24 {
+		v += 2500
+	}
+	if grade == 0 && noGrades == 0 {
+		return v
+	}
+	return v + (float64((grade-20)*max(noGrades, 700)) / 8)
 
 }
 

@@ -879,7 +879,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 31155, Name: "Varunummer - inomhusenhet", Priority: 6.0})
 	idx.AddKeyField(&types.BaseField{Id: 31156, Name: "Varunummer - utomhusenhet", Priority: 6.0})
 	idx.AddKeyField(&types.BaseField{Id: 31157, Name: "Serie", Priority: 25.0, HideFacet: true})
-	idx.AddKeyField(&types.BaseField{Id: 31158, Name: "Produkttyp", Priority: 949259.0, Type: "type"})
+	idx.AddKeyField(&types.BaseField{Id: 31158, Name: "Produkttyp", Priority: 949259.0, Type: "type", ValueSorting: 1})
 	idx.AddKeyField(&types.BaseField{Id: 31159, Name: "Produktionsår", Priority: 237.0})
 	idx.AddDecimalField(&types.BaseField{Id: 31160, Name: "Avstånd till vägg/tak max (mm)", Priority: 80.0})
 	idx.AddDecimalField(&types.BaseField{Id: 31161, Name: "Avstånd till vägg/tak min (mm)", Priority: 74.0})
