@@ -117,26 +117,6 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	}
 }
 
-func makeBaseFacetRequest() *FacetRequest {
-	return &FacetRequest{
-		Filters: &index.Filters{
-			StringFilter: []facet.StringFilter{},
-			RangeFilter:  []facet.RangeFilter{},
-		},
-		Stock: []string{},
-		Query: "",
-	}
-}
-
-func makeBaseSearchRequest() *SearchRequest {
-	return &SearchRequest{
-		FacetRequest: makeBaseFacetRequest(),
-		Sort:         "popular",
-		Page:         0,
-		PageSize:     40,
-	}
-}
-
 type cacheWriter struct {
 	key      string
 	duration time.Duration
@@ -161,6 +141,10 @@ func MakeCacheWriter(w io.Writer, key string, setRaw func(string, []byte, time.D
 }
 
 func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		RespondToOptions(w, r)
+		return
+	}
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	res := ws.ContentIndex.MatchQuery(query)
@@ -220,10 +204,11 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		hasValues := false
 		r := make(map[string]uint, len(field.Keys))
 		count := uint(0)
+		var ok bool
 		for keyId, sourceIds := range field.Keys {
 			count = 0
 			for id := range sourceIds {
-				if _, ok := matchIds[id]; ok {
+				if _, ok = matchIds[id]; ok {
 					count++
 				}
 			}
@@ -379,6 +364,10 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filt
 }
 
 func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		RespondToOptions(w, r)
+		return
+	}
 	sr := makeBaseFacetRequest()
 	err := GetFacetQueryFromRequest(r, sr)
 	writer := io.Writer(w)
@@ -386,6 +375,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	go facetSearches.Inc()
 
 	matchIds := make(chan *types.ItemList)
 	defer close(matchIds)
@@ -400,18 +390,21 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
 
 	ret := make(map[uint]*index.JsonFacet)
+	// todo optimize
 	go func() {
 		wg.Wait()
 		close(ch)
 	}()
-	for facet := range ch {
-		if facet != nil {
-			ret[facet.Id] = facet
+
+	for item := range ch {
+		if item != nil {
+			ret[item.Id] = item
 		}
 	}
 	defaultHeaders(w, r, true, "60")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(writer)
+
 	for _, v := range *ws.Sorting.FieldSort {
 		if d, ok := ret[v.Id]; ok {
 			enc.Encode(d)
@@ -447,7 +440,10 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
-
+	if r.Method == "OPTIONS" {
+		RespondToOptions(w, r)
+		return
+	}
 	sr := makeBaseSearchRequest()
 	err := GetQueryFromRequest(r, sr)
 	if err != nil {
@@ -483,7 +479,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	end := start + sr.PageSize
 	result := <-resultChan
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
-	go ws.Sorting.GetSortedItemsIterator(result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
+	go ws.Sorting.GetSortedItemsIterator(session_id, result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
 
 	fn := <-sortedItemsChan
 	idx := 0
@@ -495,27 +491,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// var sortedIds iter.Seq[uint]
-	// if sr.UseStaticPosition() {
-	// 	sortedIds = result.sort.SortMapWithStaticPositions(*result.matching, ws.Sorting.GetStaticPositions())
-	// } else {
-	// 	sortedIds = result.sort.SortMap(*result.matching)
-	// }
-	// idx := 0
-	// for id := range sortedIds {
-	// 	idx++
-	// 	if idx < start {
-	// 		continue
-	// 	}
-
-	// 	if item, ok := ws.Index.Items[id]; ok {
-	// 		enc.Encode(item)
-	// 	}
-
-	// 	if idx >= end {
-	// 		break
-	// 	}
-	// }
 	w.Write([]byte("\n"))
 
 	enc.Encode(SearchResponse{
@@ -529,6 +504,10 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		RespondToOptions(w, r)
+		return
+	}
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	words := strings.Split(query, " ")
@@ -537,6 +516,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
 	go noSuggests.Inc()
+	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 
 	wordMatchesChan := make(chan []search.Match)
 	sortChan := make(chan *types.ByValue)
@@ -577,9 +557,9 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
 	if docResult != nil {
 		o := index.SortOverride(*docResult)
-		go ws.Sorting.GetSortedItemsIterator(nil, &results, 0, sortedItemsChan, o)
+		go ws.Sorting.GetSortedItemsIterator(session_id, nil, &results, 0, sortedItemsChan, o)
 	} else {
-		go ws.Sorting.GetSortedItemsIterator(nil, &results, 0, sortedItemsChan)
+		go ws.Sorting.GetSortedItemsIterator(session_id, nil, &results, 0, sortedItemsChan)
 	}
 
 	fn := <-sortedItemsChan
@@ -592,20 +572,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// idx := 0
-	// sort := <-sortChan
-	// for id := range sort.SortMap(results) {
-	// 	item, ok := ws.Index.Items[id]
-	// 	if ok {
-
-	// 		enc.Encode(item)
-	// 		idx++
-	// 		if idx > 20 {
-	// 			break
-	// 		}
-	// 	}
-
-	// }
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
 	ch := make(chan *index.JsonFacet)
@@ -676,33 +642,11 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// type FieldSize struct {
-// 	Id   uint `json:"id"`
-// 	Size int  `json:"size"`
-// }
-
-// func (ws *WebServer) FacetSize(w http.ResponseWriter, r *http.Request) {
-// 	publicHeaders(w, true, "1200")
-
-// 	w.WriteHeader(http.StatusOK)
-
-// 	res := make([]FieldSize, len(ws.Index.Facets))
-// 	idx := 0
-// 	for _, f := range ws.Index.Facets {
-// 		res[idx] = FieldSize{
-// 			Id:   f.GetBaseField().Id,
-// 			Size: f.Size(),
-// 		}
-// 		idx++
-// 	}
-
-// 	err := json.NewEncoder(w).Encode(res)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// }
-
 func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "OPTIONS" {
+		RespondToOptions(w, r)
+		return
+	}
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
@@ -869,7 +813,20 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 	}
+}
 
+func RespondToOptions(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Access-Control-Max-Age", "86400")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+	w.Header().Set("Age", "0")
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func (ws *WebServer) ClientHandler() *http.ServeMux {
