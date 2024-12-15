@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -345,7 +346,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, sessionId in
 	return enc.Encode(res)
 }
 
-func (ws *WebServer) Recommended(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *WebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	items, _ := ws.Sorting.GetSessionData(uint(sessionId))
 	sortedItems := items.ToSortedLookup()
 	//sortedFields := fields.ToSortedLookup()
@@ -359,6 +360,73 @@ func (ws *WebServer) Recommended(w http.ResponseWriter, r *http.Request, session
 			if err != nil {
 				return err
 			}
+		}
+	}
+	return nil
+}
+
+type Similar struct {
+	ProductType string       `json:"productType"`
+	Count       int          `json:"count"`
+	Items       []types.Item `json:"items"`
+}
+
+func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	items, fields := ws.Sorting.GetSessionData(uint(sessionId))
+	articleTypes := map[string]float64{}
+	itemChan := make(chan *Similar)
+	defer close(itemChan)
+
+	wg := &sync.WaitGroup{}
+	pop := ws.Sorting.GetSort("popular")
+	delete(*fields, 31158)
+	for id := range *items {
+		if item, ok := ws.Index.Items[id]; ok {
+			if itemType, typeOk := (*item).GetFields()[31158]; typeOk {
+				articleTypes[itemType.(string)]++
+			}
+		}
+	}
+	getSimilar := func(articleType string, ret chan *Similar, wg *sync.WaitGroup, sort *types.ByValue) {
+		ids := make(chan *types.ItemList)
+		defer close(ids)
+		defer wg.Done()
+		filter := index.Filters{
+			StringFilter: []facet.StringFilter{
+				{Id: 31158, Value: articleType},
+			},
+		}
+
+		go ws.Index.Match(&filter, nil, ids)
+		resultIds := <-ids
+		l := len(*resultIds)
+		limit := min(l, 40)
+		similar := Similar{
+			ProductType: articleType,
+			Count:       l,
+			Items:       make([]types.Item, 0, limit),
+		}
+		for id := range sort.SortMap(*resultIds) {
+			if item, ok := ws.Index.Items[id]; ok {
+				similar.Items = append(similar.Items, *item)
+				if len(similar.Items) >= limit {
+					break
+				}
+			}
+		}
+		ret <- &similar
+	}
+	for typeValue := range articleTypes {
+		go getSimilar(typeValue, itemChan, wg, pop)
+	}
+	go func() {
+		wg.Wait()
+		close(itemChan)
+	}()
+	for similar := range itemChan {
+		err := enc.Encode(similar)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -534,7 +602,8 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
 	srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
-	srv.HandleFunc("/recommended", JsonHandler(ws.Tracking, ws.Recommended))
+	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
+	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
 	srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
