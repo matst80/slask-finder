@@ -420,7 +420,7 @@ func (s *Sorting) GetSortedFields(sessionId int, items []*JsonFacet) []*JsonFace
 	}
 	base := s.fieldMap
 	slices.SortFunc(items, func(a, b *JsonFacet) int {
-		return cmp.Compare(SumOverrides(a.Id, base, sessionOverride), SumOverrides(b.Id, base, sessionOverride))
+		return cmp.Compare(SumOverrides(b.Id, base, sessionOverride), SumOverrides(a.Id, base, sessionOverride))
 	})
 	return items
 }
