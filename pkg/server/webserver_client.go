@@ -80,7 +80,11 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessi
 	res := ws.ContentIndex.MatchQuery(query)
 	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
-	return enc.Encode(res)
+	var err error
+	for content := range res {
+		err = enc.Encode(content)
+	}
+	return err
 }
 
 func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
