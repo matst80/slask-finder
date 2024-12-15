@@ -5,6 +5,7 @@ import (
 	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/tracking"
+	"log"
 	"maps"
 	"net/http"
 	"sync"
@@ -332,6 +333,7 @@ func JsonHandler(trk tracking.Tracking, fn func(w http.ResponseWriter, r *http.R
 
 		err := fn(w, r, sessionId, json.NewEncoder(w))
 		if err != nil {
+			log.Printf("Error handling request: %v", err)
 			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 	}

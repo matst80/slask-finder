@@ -86,7 +86,6 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessi
 func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	sr, err := GetFacetQueryFromRequest(r)
-
 	if err != nil {
 		return err
 	}
