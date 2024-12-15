@@ -3,23 +3,17 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"iter"
-	"maps"
-	"net/http"
-	"strconv"
-	"strings"
-	"sync"
-	"time"
-
-	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/embeddings"
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"iter"
+	"net/http"
+	"strconv"
+	"strings"
+	"sync"
 )
 
 type searchResult struct {
@@ -57,7 +51,7 @@ func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.D
 	if sr.Query != "" {
 		queryResult := ws.Index.Search.Search(sr.Query)
 		initialIds = queryResult.ToResult()
-		//initialIds = types.Intersect(types.ItemList{}, *queryResult)
+
 		documentResult = queryResult
 	}
 
@@ -80,300 +74,21 @@ func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.D
 	return initialIds, documentResult
 }
 
-func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
-	matchingChan := make(chan *types.ItemList)
-	sortChan := make(chan *types.ByValue)
-	go noSearches.Inc()
-
-	defer close(matchingChan)
-	defer close(sortChan)
-
-	initialIds, documentResult := ws.getInitialIds(sr.FacetRequest)
-	isPopular := sr.Sort == "popular" || sr.Sort == ""
-
-	if sr.Query != "" || isPopular {
-		go func() {
-			sortChan <- nil
-		}()
-	} else {
-		go ws.Sorting.GetSorting(sr.Sort, sortChan)
-	}
-
-	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
-
-	if documentResult != nil {
-		queryOverride := index.SortOverride(*documentResult)
-		result <- searchResult{
-			matching:      <-matchingChan,
-			sortOverrides: []index.SortOverride{queryOverride},
-			sort:          <-sortChan,
-		}
-		return
-	}
-	result <- searchResult{
-		matching:      <-matchingChan,
-		sort:          <-sortChan,
-		sortOverrides: []index.SortOverride{},
-	}
-}
-
-type cacheWriter struct {
-	key      string
-	duration time.Duration
-	store    func(string, []byte, time.Duration) error
-}
-
-func (cw *cacheWriter) Write(p []byte) (n int, err error) {
-	cw.store(cw.key, p, cw.duration)
-	return len(p), nil
-}
-
-func MakeCacheWriter(w io.Writer, key string, setRaw func(string, []byte, time.Duration) error) io.Writer {
-
-	cacheWriter := &cacheWriter{
-		key:      key,
-		duration: time.Second * (60 * 5),
-		store:    setRaw,
-	}
-
-	return io.MultiWriter(w, cacheWriter)
-
-}
-
-func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" {
-		RespondToOptions(w, r)
-		return
-	}
+func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	res := ws.ContentIndex.MatchQuery(query)
 	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
-	enc := json.NewEncoder(w)
-	enc.Encode(res)
+	return enc.Encode(res)
 }
 
-func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFacet, wg *sync.WaitGroup, modifyResult func(*index.JsonFacet) *index.JsonFacet) {
-	defer wg.Done()
-	if baseIds == nil || len(*baseIds) == 0 {
-		baseField := f.GetBaseField()
-		if baseField.HideFacet {
-			c <- nil
-			return
-		}
-		ret := &index.JsonFacet{
-			BaseField: baseField,
-		}
-		switch field := f.(type) {
-		case facet.KeyField:
-			r := &index.KeyFieldResult{
-				Values: make(map[string]uint),
-			}
-			for keyId, idList := range field.Keys {
-				r.Values[string(keyId)] = uint(len(idList))
-			}
-			ret.Result = r
-		case facet.IntegerField:
-			ret.Result = &index.IntegerFieldResult{
-				Count: uint(field.Count),
-				Min:   field.Min,
-				Max:   field.Max,
-			}
-		case facet.DecimalField:
-			ret.Result = &index.DecimalFieldResult{
-				Count: uint(field.Count),
-				Min:   field.Min,
-				Max:   field.Max,
-			}
-		}
-		c <- modifyResult(ret)
-		return
-	}
-	matchIds := *baseIds
-	baseField := f.GetBaseField()
-	if baseField.HideFacet {
-		c <- nil
-		return
-	}
-	ret := &index.JsonFacet{
-		BaseField: baseField,
-	}
-	switch field := f.(type) {
-	case facet.KeyField:
-		hasValues := false
-		r := make(map[string]uint, len(field.Keys))
-		count := uint(0)
-		var ok bool
-		for keyId, sourceIds := range field.Keys {
-			count = 0
-			for id := range sourceIds {
-				if _, ok = matchIds[id]; ok {
-					count++
-				}
-			}
-			if count > 0 {
-				hasValues = true
-				r[string(keyId)] = count
-			}
-		}
-		if !hasValues {
-			c <- nil
-			return
-		}
-		ret.Result = &index.KeyFieldResult{
-			Values: r,
-		}
-	case facet.IntegerField:
-		fieldResult := index.IntegerFieldResult{
-			Count: 0,
-			Min:   9999999999999999,
-			Max:   -9999999999999999,
-		}
-		hasValues := false
-		for id := range matchIds {
-			if value := field.ValueForItemId(id); value != nil {
-				fieldResult.Count++
-				hasValues = true
-				if *value < fieldResult.Min {
-					fieldResult.Min = *value
-				}
-				if *value > fieldResult.Max {
-					fieldResult.Max = *value
-				}
-			}
-		}
-		if !hasValues {
-			c <- nil
-			return
-		}
-		ret.Result = &fieldResult
-	case facet.DecimalField:
-		fieldResult := index.DecimalFieldResult{
-			Count: 0,
-			Min:   9999999999999999,
-			Max:   -9999999999999999,
-		}
-		hasResults := false
+func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
-		for id := range matchIds {
-			if value := field.ValueForItemId(id); value != nil {
-				fieldResult.Count++
-				hasResults = true
-				if *value < fieldResult.Min {
-					fieldResult.Min = *value
-				}
-				if *value > fieldResult.Max {
-					fieldResult.Max = *value
-				}
-			}
-		}
-		if !hasResults {
-			c <- nil
-			return
-		}
-		ret.Result = &fieldResult
-	}
-	c <- modifyResult(ret)
-}
+	sr, err := GetFacetQueryFromRequest(r)
 
-func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-	for _, s := range filters.StringFilter {
-		if f, ok := ws.Index.Facets[s.Id]; ok {
-			if !f.GetBaseField().HideFacet {
-				wg.Add(1)
-				go func(otherFilters *index.Filters) {
-					matchIds := make(chan *types.ItemList)
-					defer close(matchIds)
-
-					go ws.Index.Match(otherFilters, baseIds, matchIds)
-
-					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-						if facet != nil {
-							facet.Selected = s.Value
-						}
-						return facet
-					})
-				}(filters.WithOut(s.Id))
-			}
-		}
-	}
-	for _, r := range filters.RangeFilter {
-		if f, ok := ws.Index.Facets[r.Id]; ok {
-			if ok {
-				wg.Add(1)
-				go func(otherFilters *index.Filters) {
-					matchIds := make(chan *types.ItemList)
-					defer close(matchIds)
-					go ws.Index.Match(otherFilters, baseIds, matchIds)
-					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-						if facet != nil {
-							facet.Selected = r
-						}
-						return facet
-					})
-				}(filters.WithOut(r.Id))
-			}
-		}
-	}
-}
-
-func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-
-	fieldIds := make(map[uint]struct{})
-	if len(*baseIds) > 65535 {
-		for id := range ws.Index.Facets {
-			fieldIds[id] = struct{}{}
-		}
-	} else {
-		for id := range *baseIds {
-			itemFieldIds, ok := ws.Index.ItemFieldIds[id]
-			if ok {
-				maps.Copy(fieldIds, itemFieldIds)
-			}
-		}
-	}
-	count := 0
-	var base *types.BaseField = nil
-	for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
-		if count > 40 {
-			break
-		}
-
-		if !filters.HasField(id) {
-			if f, ok := ws.Index.Facets[id]; ok {
-				base = f.GetBaseField()
-				if base == nil || base.HideFacet {
-					continue
-				}
-
-				wg.Add(1)
-				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					if facet != nil && facet.CategoryLevel == 0 && !facet.Result.HasValues() {
-						return nil
-					}
-					return facet
-				})
-				if base.Type != "fps" {
-					count++
-				}
-			}
-		}
-	}
-
-}
-
-func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" {
-		RespondToOptions(w, r)
-		return
-	}
-	sr := makeBaseFacetRequest()
-	err := GetFacetQueryFromRequest(r, sr)
-	writer := io.Writer(w)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 	go facetSearches.Inc()
 
@@ -403,22 +118,20 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 	}
 	defaultHeaders(w, r, true, "60")
 	w.WriteHeader(http.StatusOK)
-	enc := json.NewEncoder(writer)
 
 	for _, v := range *ws.Sorting.FieldSort {
 		if d, ok := ret[v.Id]; ok {
-			enc.Encode(d)
+			err = enc.Encode(d)
 		}
 	}
-
+	return err
 }
 
-func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
-	sr := makeBaseSearchRequest()
-	err := GetQueryFromRequest(r, sr)
+func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+
+	sr, err := GetQueryFromRequest(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
 	resultChan := make(chan searchResult)
@@ -432,37 +145,18 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, false, "20")
 	w.WriteHeader(http.StatusOK)
 
-	enc := json.NewEncoder(w)
-	encErr := enc.Encode(result.matching)
-	if encErr != nil {
-		http.Error(w, encErr.Error(), http.StatusInternalServerError)
-	}
+	return enc.Encode(result.matching)
 }
 
-func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" {
-		RespondToOptions(w, r)
-		return
-	}
-	sr := makeBaseSearchRequest()
-	err := GetQueryFromRequest(r, sr)
+func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+
+	sr, err := GetQueryFromRequest(r)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 
-	if sr.Sort == "" {
-		sr.Sort = "popular"
-	}
-
-	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 	if ws.Tracking != nil {
-		go func() {
-			err := ws.Tracking.TrackSearch(session_id, sr.Filters, sr.Query, sr.Page)
-			if err != nil {
-				fmt.Printf("Failed to track search %v", err)
-			}
-		}()
+		go ws.Tracking.TrackSearch(session_id, sr.Filters, sr.Query, sr.Page)
 	}
 
 	resultChan := make(chan searchResult)
@@ -474,7 +168,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, false, "3600")
 	w.WriteHeader(http.StatusOK)
 
-	enc := json.NewEncoder(w)
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
 	result := <-resultChan
@@ -483,17 +176,27 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 
 	fn := <-sortedItemsChan
 	idx := 0
+
 	for item := range fn {
 		idx++
-		enc.Encode(item)
+		err = enc.Encode(item)
+		if err != nil {
+			break
+		}
 		if idx >= end {
 			break
 		}
 	}
+	if err != nil {
+		return err
+	}
 
-	w.Write([]byte("\n"))
+	_, err = w.Write([]byte("\n"))
+	if err != nil {
+		return err
+	}
 
-	enc.Encode(SearchResponse{
+	return enc.Encode(SearchResponse{
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
@@ -503,11 +206,8 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" {
-		RespondToOptions(w, r)
-		return
-	}
+func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	words := strings.Split(query, " ")
@@ -516,7 +216,6 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	hasMoreWords := len(words) > 1
 	other := words[:len(words)-1]
 	go noSuggests.Inc()
-	session_id := common.HandleSessionCookie(ws.Tracking, w, r)
 
 	wordMatchesChan := make(chan []search.Match)
 	sortChan := make(chan *types.ByValue)
@@ -535,16 +234,19 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	sitem := &SuggestResult{}
-	sitem.Other = other
-	enc := json.NewEncoder(w)
+	suggestResult := &SuggestResult{}
+	suggestResult.Other = other
+	var err error
 	for _, s := range <-wordMatchesChan {
-		sitem.Word = s.Word
-		sitem.Hits = len(*s.Items)
+		suggestResult.Word = s.Word
+		suggestResult.Hits = len(*s.Items)
 		if !hasMoreWords || results.HasIntersection(s.Items) {
-			json.NewEncoder(w).Encode(sitem)
+			err = enc.Encode(suggestResult)
 			results.Merge(s.Items)
 		}
+	}
+	if err != nil {
+		return err
 	}
 	// if hasMoreWords && docResult != nil {
 	// 	go docResult.GetSortingWithAdditionalItems(&results, nil, sortChan)
@@ -552,7 +254,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	// } else {
 	// 	go ws.Sorting.GetSorting("popular", sortChan)
 	// }
-	w.Write([]byte("\n"))
+	_, err = w.Write([]byte("\n"))
 
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
 	if docResult != nil {
@@ -566,10 +268,13 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 	idx := 0
 	for item := range fn {
 		idx++
-		enc.Encode(item)
-		if idx >= 20 {
+		err = enc.Encode(item)
+		if idx >= 20 || err != nil {
 			break
 		}
+	}
+	if err != nil {
+		return err
 	}
 
 	ws.Index.Lock()
@@ -579,7 +284,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 
 	ws.getOtherFacets(&results, &index.Filters{}, ch, wg)
 
-	w.Write([]byte("\n"))
+	_, err = w.Write([]byte("\n"))
 
 	ret := make(map[uint]*index.JsonFacet)
 	go func() {
@@ -594,17 +299,17 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request) {
 
 	for _, v := range *ws.Sorting.FieldSort {
 		if d, ok := ret[v.Id]; ok {
-			_ = enc.Encode(d)
+			err = enc.Encode(d)
 		}
 	}
+	return err
 }
 
-func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
@@ -614,17 +319,15 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request) {
 		if base.Id == uint(id) {
 			defaultHeaders(w, r, true, "120")
 			w.WriteHeader(http.StatusOK)
-			err := json.NewEncoder(w).Encode(field.GetValues())
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-			return
+			err := enc.Encode(field.GetValues())
+			return err
 		}
 	}
 	w.WriteHeader(http.StatusNotFound)
+	return nil
 }
 
-func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
 	publicHeaders(w, r, true, "1200")
 
 	w.WriteHeader(http.StatusOK)
@@ -636,22 +339,15 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request) {
 		idx++
 	}
 
-	err := json.NewEncoder(w).Encode(res)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return enc.Encode(res)
 }
 
-func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "OPTIONS" {
-		RespondToOptions(w, r)
-		return
-	}
+func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
+
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 	relatedChan := make(chan *types.ItemList)
 	defer close(relatedChan)
@@ -671,7 +367,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 	go ws.Sorting.GetSorting("popular", sortChan)
 
 	i := 0
-	enc := json.NewEncoder(w)
+
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
 	related := <-relatedChan
@@ -680,13 +376,14 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request) {
 
 		item, ok := ws.Index.Items[relatedId]
 		if ok && (*item).GetId() != uint(id) {
-			enc.Encode(item)
+			err = enc.Encode(item)
 			i++
 		}
-		if i > 20 {
+		if i > 20 || err != nil {
 			break
 		}
 	}
+	return err
 }
 
 type CategoryResult struct {
@@ -708,7 +405,7 @@ func CategoryResultFrom(c *index.Category) *CategoryResult {
 	return ret
 }
 
-func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
 	publicHeaders(w, r, true, "600")
 	w.WriteHeader(http.StatusOK)
 	categories := ws.Index.GetCategories()
@@ -720,39 +417,30 @@ func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err := json.NewEncoder(w).Encode(result)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return enc.Encode(result)
 }
 
-func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
 	id := r.PathValue("id")
 	itemId, err := strconv.Atoi(id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 	item, ok := ws.Index.Items[uint(itemId)]
 	if !ok {
-		http.Error(w, "Item not found", http.StatusNotFound)
-		return
+		return err
 	}
 	publicHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(item)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return enc.Encode(item)
 }
 
-func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "600")
 	items := make([]uint, 0)
 	err := json.NewDecoder(r.Body).Decode(&items)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
 	result := make([]interface{}, len(items))
 	i := 0
@@ -764,25 +452,21 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(result[:i])
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	return enc.Encode(result[:i])
 }
 
-func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, session_id int, enc *json.Encoder) error {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	typeField, ok := ws.Index.Facets[31158]
 	if !ok {
-		http.Error(w, "no type", http.StatusNotImplemented)
-		return
+		return fmt.Errorf("facet not found")
 	}
 	values := typeField.GetValues()
 
 	var productType string
-	for _, ivalue := range values {
-		value := ivalue.(string)
+	for _, valueInterface := range values {
+		value := valueInterface.(string)
 
 		if strings.Contains(query, strings.ToLower(value)) {
 			productType = value
@@ -791,42 +475,28 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 
 	}
 
-	embeddings := embeddings.GetEmbedding(query)
+	queryVector := embeddings.GetEmbedding(query)
 	if ws.Embeddings == nil {
-		http.Error(w, "Embeddings not enabled", http.StatusNotImplemented)
-		return
+		return fmt.Errorf("embeddings not enabled")
 	}
-	results := ws.Embeddings.FindMatches(embeddings)
+	results := ws.Embeddings.FindMatches(queryVector)
 	toMatch := typeField.Match(productType)
 	results.Ids.Intersect(*toMatch)
 	defaultHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
-	enc := json.NewEncoder(w)
+	var err error
 	idx := 0
 	for id := range results.SortIndex.SortMap(*toMatch) {
 		item, ok := ws.Index.Items[id]
 		if ok {
-			enc.Encode(item)
+			err = enc.Encode(item)
 		}
 		idx++
-		if idx > 40 {
+		if idx > 40 || err != nil {
 			break
 		}
 	}
-}
-
-func RespondToOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Max-Age", "86400")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
-	w.Header().Set("Age", "0")
-	w.WriteHeader(http.StatusAccepted)
+	return err
 }
 
 func (ws *WebServer) ClientHandler() *http.ServeMux {
@@ -838,20 +508,20 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	srv.HandleFunc("/content", ws.ContentSearch)
-	srv.HandleFunc("/facets", ws.GetFacets)
-	srv.HandleFunc("/ai-search", ws.SearchEmbeddings)
-	srv.HandleFunc("/related/{id}", ws.Related)
-	srv.HandleFunc("/facet-list", ws.Facets)
-	srv.HandleFunc("/suggest", ws.Suggest)
-	srv.HandleFunc("/categories", ws.Categories)
+	srv.HandleFunc("/content", JsonHandler(ws.Tracking, ws.ContentSearch))
+	srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
+	srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
+	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
+	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
+	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
+	srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
-	srv.HandleFunc("/stream", ws.SearchStreamed)
+	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))
 
-	srv.HandleFunc("/ids", ws.GetIds)
-	srv.HandleFunc("GET /get/{id}", ws.GetItem)
-	srv.HandleFunc("POST /get", ws.GetItems)
-	srv.HandleFunc("/values/{id}", ws.GetValues)
+	srv.HandleFunc("/ids", JsonHandler(ws.Tracking, ws.GetIds))
+	srv.HandleFunc("GET /get/{id}", JsonHandler(ws.Tracking, ws.GetItem))
+	srv.HandleFunc("POST /get", JsonHandler(ws.Tracking, ws.GetItems))
+	srv.HandleFunc("/values/{id}", JsonHandler(ws.Tracking, ws.GetValues))
 
 	return srv
 }

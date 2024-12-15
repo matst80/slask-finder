@@ -17,6 +17,6 @@ type TrackingAction struct {
 }
 
 type Tracking interface {
-	TrackSession(session_id int, r *http.Request) error
-	TrackSearch(session_id int, filters *index.Filters, query string, page int) error
+	TrackSession(session_id int, r *http.Request)
+	TrackSearch(session_id int, filters *index.Filters, query string, page int)
 }

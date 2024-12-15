@@ -79,7 +79,7 @@ type Session struct {
 	PragmaHeader string `json:"pragma,omitempty"`
 }
 
-func (rt *RabbitTracking) TrackSession(session_id int, r *http.Request) error {
+func (rt *RabbitTracking) TrackSession(sessionId int, r *http.Request) {
 	ip := r.Header.Get("X-Real-Ip")
 	if ip == "" {
 		ip = r.Header.Get("X-Forwarded-For")
@@ -89,7 +89,7 @@ func (rt *RabbitTracking) TrackSession(session_id int, r *http.Request) error {
 	}
 
 	err := rt.send(Session{
-		BaseEvent:    &BaseEvent{Event: 0, SessionId: session_id},
+		BaseEvent:    &BaseEvent{Event: 0, SessionId: sessionId},
 		Language:     r.Header.Get("Accept-Language"),
 		UserAgent:    r.UserAgent(),
 		Ip:           ip,
@@ -98,7 +98,6 @@ func (rt *RabbitTracking) TrackSession(session_id int, r *http.Request) error {
 	if err != nil {
 		log.Println("Error sending session event: ", err)
 	}
-	return err
 }
 
 type Event struct {
@@ -131,9 +130,9 @@ type SearchEventData struct {
 	Page  int    `json:"page"`
 }
 
-func (rt *RabbitTracking) TrackSearch(session_id int, filters *index.Filters, query string, page int) error {
+func (rt *RabbitTracking) TrackSearch(sessionId int, filters *index.Filters, query string, page int) {
 	err := rt.send(&SearchEventData{
-		BaseEvent: &BaseEvent{Event: 1, SessionId: session_id},
+		BaseEvent: &BaseEvent{Event: 1, SessionId: sessionId},
 		Filters:   filters,
 		Query:     query,
 		Page:      page,
@@ -141,7 +140,7 @@ func (rt *RabbitTracking) TrackSearch(session_id int, filters *index.Filters, qu
 	if err != nil {
 		log.Println("Error sending search event: ", err)
 	}
-	return err
+
 }
 
 //func (rt *RabbitTracking) TrackClick(session_id uint32, item_id uint, position float32) error {

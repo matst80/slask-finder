@@ -36,11 +36,18 @@ func (s *SearchRequest) UseStaticPosition() bool {
 	return s.Sort == "popular" || s.Sort == ""
 }
 
-func GetQueryFromRequest(r *http.Request, searchRequest *SearchRequest) error {
+func GetQueryFromRequest(r *http.Request) (*SearchRequest, error) {
+	sr := makeBaseSearchRequest()
+	var err error
 	if r.Method == http.MethodGet {
-		return queryFromRequestQuery(r.URL.Query(), searchRequest)
+		err = queryFromRequestQuery(r.URL.Query(), sr)
+	} else {
+		err = json.NewDecoder(r.Body).Decode(sr)
 	}
-	return json.NewDecoder(r.Body).Decode(searchRequest)
+	if sr.Sort == "" {
+		sr.Sort = "popular"
+	}
+	return sr, err
 }
 
 func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
@@ -53,11 +60,16 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
-func GetFacetQueryFromRequest(r *http.Request, facetRequest *FacetRequest) error {
+func GetFacetQueryFromRequest(r *http.Request) (*FacetRequest, error) {
+	sr := makeBaseFacetRequest()
+	var err error
 	if r.Method == http.MethodGet {
-		return facetQueryFromRequestQuery(r.URL.Query(), facetRequest)
+		err = facetQueryFromRequestQuery(r.URL.Query(), sr)
+	} else {
+		err = json.NewDecoder(r.Body).Decode(sr)
 	}
-	return json.NewDecoder(r.Body).Decode(facetRequest)
+
+	return sr, err
 }
 
 func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
