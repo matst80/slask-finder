@@ -2419,7 +2419,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 34814, Name: "Amount of plastic content packaging (%)", Description: "Plastic and all plastic materials calculated as % of packaging total weight. There is no standardized way of calculating this parameter, and therefore depends on each suppliers calculating method", Priority: 571.0})
 	idx.AddKeyField(&types.BaseField{Id: 34817, Name: "Amount of product possible to recycle (%)", Description: "Calculated as a % of the product total weight. There is no standardized way of calculating this parameter, and therefore depends on each suppliers calculating method", Priority: 517.0})
 	idx.AddKeyField(&types.BaseField{Id: 34818, Name: "Tredje parts miljömärkning", Description: "Miljögodkännande från tredje part", Priority: 810.0})
-	idx.AddKeyField(&types.BaseField{Id: 34819, Name: "Leverantörens EcoVadis Score", Description: "EcoVadis utför en tredje parts bedömning av ett företags nivå av hållbarhetsprestanda. Den högsta poängen är Platina, följt av Guld, Silver och Brons", Priority: 14310.0})
+	idx.AddKeyField(&types.BaseField{Id: 34819, Name: "Leverantörens EcoVadis Score", Description: "EcoVadis utför en tredje parts bedömning av ett företags nivå av hållbarhetsprestanda. Den högsta poängen är Platina, följt av Guld, Silver och Brons", Priority: 9310.0})
 	idx.AddDecimalField(&types.BaseField{Id: 34820, Name: "Maxvikt - framsida (kg)", Priority: 90.0})
 	idx.AddDecimalField(&types.BaseField{Id: 34821, Name: "Maxtemperatur i ugnshålighet (C°)", Priority: 50.0})
 	idx.AddKeyField(&types.BaseField{Id: 34822, Name: "Typ av ugnsspjäll", Priority: 95.0})

@@ -105,7 +105,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
 	idx.AddKeyField(&types.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0}) // 949259
-	idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 119999.0, Type: "brand"})
+	idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 119999.0, Type: "brand", ValueSorting: 1})
 	idx.AddKeyField(&types.BaseField{Id: 3, Name: "Lager", Description: "Lagerstatus", Priority: 99999.0})
 	idx.AddKeyField(&types.BaseField{Id: 9, Name: "Säljs av", Description: "", Priority: 199999.0})
 
