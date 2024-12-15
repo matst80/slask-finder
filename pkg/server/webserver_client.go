@@ -375,7 +375,6 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 	items, fields := ws.Sorting.GetSessionData(uint(sessionId))
 	articleTypes := map[string]float64{}
 	itemChan := make(chan *Similar)
-	defer close(itemChan)
 
 	wg := &sync.WaitGroup{}
 	pop := ws.Sorting.GetSort("popular")
@@ -407,6 +406,9 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 			Items:       make([]types.Item, 0, limit),
 		}
 		for id := range sort.SortMap(*resultIds) {
+			if _, found := (*items)[id]; found {
+				continue
+			}
 			if item, ok := ws.Index.Items[id]; ok {
 				similar.Items = append(similar.Items, *item)
 				if len(similar.Items) >= limit {
@@ -424,6 +426,8 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		wg.Wait()
 		close(itemChan)
 	}()
+	defaultHeaders(w, r, false, "600")
+	w.WriteHeader(http.StatusOK)
 	for similar := range itemChan {
 		err := enc.Encode(similar)
 		if err != nil {
