@@ -105,7 +105,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
 	idx.AddKeyField(&types.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0}) // 949259
-	idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 119999.0, Type: "brand"})
+	idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 119999.0, Type: "brand", ValueSorting: 1})
 	idx.AddKeyField(&types.BaseField{Id: 3, Name: "Lager", Description: "Lagerstatus", Priority: 99999.0})
 	idx.AddKeyField(&types.BaseField{Id: 9, Name: "Säljs av", Description: "", Priority: 199999.0})
 
@@ -129,12 +129,12 @@ func LoadIndex(wg *sync.WaitGroup) {
 	idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
 	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", HideFacet: true, Priority: 99.4, Type: "currency"})
 
-	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
-	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
-	idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
-	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
+	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
+	idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
+	idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
 
-	idx.AddKeyField(&types.BaseField{Id: 35, Name: "CGM", HideFacet: true, Priority: 0, IgnoreIfInSearch: true})
+	idx.AddKeyField(&types.BaseField{Id: 35, Name: "CGM", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
 
 	addDbFields(idx)
 

@@ -91,7 +91,7 @@ func (item *DataItem) IsSoftDeleted() bool {
 	if !ok {
 		return true
 	}
-	price := getPrice(p)
+	price := getFloatValue(p)
 	if price <= 200 {
 		return true
 	}
@@ -112,7 +112,7 @@ func (item *DataItem) GetPrice() int {
 	if !ok {
 		return 0
 	}
-	return int(getPrice(priceField))
+	return int(getFloatValue(priceField))
 }
 
 func (item *DataItem) GetStock() types.LocationStock {
@@ -131,12 +131,16 @@ func (item *DataItem) GetCreated() int64 {
 	return item.Created
 }
 
-func getPrice(priceField interface{}) float64 {
+func getFloatValue(fieldValue interface{}) float64 {
 
-	switch priceField := priceField.(type) {
+	switch priceField := fieldValue.(type) {
+	case int:
+		return float64(priceField)
 	case int64:
+
 		return float64(priceField)
 	case float64:
+
 		return priceField
 	}
 	return 0
@@ -152,16 +156,16 @@ func (item *DataItem) GetPopularity() float64 {
 	isOwnBrand := false
 	for id, f := range item.Fields.GetFacets() {
 		if id == 4 {
-			price = getPrice(f)
+			price = getFloatValue(f)
 		}
 		if id == 5 {
-			orgPrice = getPrice(f)
+			orgPrice = getFloatValue(f)
 		}
 		if id == 6 {
-			grade = int(getPrice(f))
+			grade = int(getFloatValue(f))
 		}
 		if id == 7 {
-			noGrades = int(getPrice(f))
+			noGrades = int(getFloatValue(f))
 		}
 		if id == 9 {
 			if soldby, ok := f.(string); ok {
@@ -178,11 +182,9 @@ func (item *DataItem) GetPopularity() float64 {
 			}
 		}
 	}
-	if price == 0 {
-		v -= 50000
-	}
+
 	if isOutlet {
-		v -= 8000
+		v -= 6000
 	}
 	if orgPrice > 0 && orgPrice-price > 0 {
 		//sdiscount := orgPrice - price
@@ -205,7 +207,7 @@ func (item *DataItem) GetPopularity() float64 {
 		v += 4500
 	}
 	if !isOwnBrand {
-		v -= 9000
+		v -= 12000
 	}
 	if item.MarginPercent < 99 && item.MarginPercent >= 0 {
 		v -= item.MarginPercent * 50
@@ -213,8 +215,15 @@ func (item *DataItem) GetPopularity() float64 {
 	if item.BadgeUrl != "" {
 		v += 2500
 	}
-
-	return v + (float64(grade*min(noGrades, 100)) / 10)
+	ageInDays := (time.Now().UnixNano() - item.Created) / (60 * 60 * 24 * 1000)
+	if ageInDays < 5 {
+		v += 2500
+	}
+	v -= float64(ageInDays) / 2.0
+	if grade == 0 && noGrades == 0 {
+		return v
+	}
+	return v + (float64((grade-20)*noGrades) / 5)
 
 }
 

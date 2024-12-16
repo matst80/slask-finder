@@ -282,6 +282,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.F
 func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	fieldIds := make(map[uint]struct{})
+
 	if len(*baseIds) > 65535 {
 		for id := range ws.Index.Facets {
 			fieldIds[id] = struct{}{}
@@ -296,6 +297,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filt
 	}
 	count := 0
 	var base *types.BaseField = nil
+	hasCat := filters.HasCategoryFilter()
 	for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
 		if count > 40 {
 			break
@@ -307,10 +309,13 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filt
 				if base == nil || base.HideFacet {
 					continue
 				}
+				if base.CategoryLevel > 0 && hasCat {
+					continue
+				}
 
 				wg.Add(1)
 				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					if facet != nil && facet.CategoryLevel == 0 && !facet.Result.HasValues() {
+					if facet != nil && !facet.Result.HasValues() {
 						return nil
 					}
 					return facet

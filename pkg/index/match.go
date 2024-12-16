@@ -59,6 +59,12 @@ func (f *Filters) HasField(id uint) bool {
 	return ok
 }
 
+func (f *Filters) HasCategoryFilter() bool {
+	return slices.ContainsFunc(f.StringFilter, func(filter facet.StringFilter) bool {
+		return filter.Id >= 30 && filter.Id <= 35 && filter.Id != 23
+	})
+}
+
 func (i *Index) Match(search *Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
 	cnt := 0
 	i.mu.Lock()
