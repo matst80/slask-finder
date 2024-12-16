@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
