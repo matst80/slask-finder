@@ -63,6 +63,7 @@ type Index struct {
 func NewIndex(freeText *search.FreeTextIndex) *Index {
 	return &Index{
 		mu:           sync.RWMutex{},
+		All:          types.ItemList{},
 		categories:   make(map[uint]*Category),
 		ItemFieldIds: make(map[uint]map[uint]struct{}),
 		Facets:       make(map[uint]types.Facet),
