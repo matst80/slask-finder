@@ -92,7 +92,7 @@ func (item *DataItem) IsSoftDeleted() bool {
 	if !ok {
 		return true
 	}
-	price := getFloatValue(p)
+	price := getNumberValue[int](p)
 	if price <= 200 {
 		return true
 	}
@@ -116,7 +116,7 @@ func (item *DataItem) GetPrice() int {
 	if !ok {
 		return 0
 	}
-	return int(getFloatValue(priceField))
+	return getNumberValue[int](priceField)
 }
 
 func (item *DataItem) GetStock() types.LocationStock {
@@ -134,6 +134,24 @@ func (item *DataItem) GetFields() map[uint]interface{} {
 	return ret
 }
 
+func (item *DataItem) GetFieldValue(id uint) (interface{}, bool) {
+	v, ok := item.Fields[id]
+	return v, ok
+}
+
+func (item *DataItem) GetRating() (int, int) {
+
+	average, ok := item.GetFieldValue(6)
+	if !ok {
+		return 0, 0
+	}
+	grades, ok := item.GetFieldValue(7)
+	if !ok {
+		return 0, 0
+	}
+	return getNumberValue[int](average), getNumberValue[int](grades)
+}
+
 func (item *DataItem) GetLastUpdated() int64 {
 	return item.LastUpdate
 }
@@ -142,19 +160,31 @@ func (item *DataItem) GetCreated() int64 {
 	return item.Created
 }
 
-func getFloatValue(fieldValue interface{}) float64 {
+func getNumberValue[K float64 | int](fieldValue interface{}) K {
 
-	switch priceField := fieldValue.(type) {
+	switch value := fieldValue.(type) {
 	case int:
-		return float64(priceField)
+		return K(value)
 	case int64:
-
-		return float64(priceField)
+		return K(value)
 	case float64:
-
-		return priceField
+		return K(value)
 	}
 	return 0
+}
+
+func (item *DataItem) GetDiscount() *int {
+	price := item.GetPrice()
+	orgPriceValue, ok := item.GetFieldValue(5)
+	if !ok {
+		return nil
+	}
+	orgPrice := getNumberValue[int](orgPriceValue)
+	if orgPrice > 0 && orgPrice > price {
+		discount := orgPrice - price
+		return &discount
+	}
+	return nil
 }
 
 func (item *DataItem) GetPopularity() float64 {
@@ -167,16 +197,16 @@ func (item *DataItem) GetPopularity() float64 {
 	isOwnBrand := false
 	for id, f := range item.Fields.GetFacets() {
 		if id == 4 {
-			price = getFloatValue(f)
+			price = getNumberValue[float64](f)
 		}
 		if id == 5 {
-			orgPrice = getFloatValue(f)
+			orgPrice = getNumberValue[float64](f)
 		}
 		if id == 6 {
-			grade = int(getFloatValue(f))
+			grade = getNumberValue[int](f)
 		}
 		if id == 7 {
-			noGrades = int(getFloatValue(f))
+			noGrades = getNumberValue[int](f)
 		}
 		if id == 9 {
 			if soldby, ok := f.(string); ok {

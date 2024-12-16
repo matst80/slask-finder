@@ -39,6 +39,9 @@ type Item interface {
 	IsDeleted() bool
 	IsSoftDeleted() bool
 	GetPrice() int
+	GetDiscount() *int
+	GetRating() (int, int)
+	GetFieldValue(id uint) (interface{}, bool)
 	GetLastUpdated() int64
 	GetCreated() int64
 	GetPopularity() float64

@@ -6,10 +6,31 @@ type MockItem struct {
 	Fields        map[uint]interface{}
 	Deleted       bool
 	Price         int
+	OrgPrice      int
+	StockLevel    string
+	Stock         []LocationStock
+	Buyable       bool
 	LastUpdated   int64
 	Created       int64
 	Popularity    float64
 	Title         string
+}
+
+func (m *MockItem) GetDiscount() *int {
+	if m.OrgPrice == 0 {
+		return nil
+	}
+	d := max(m.OrgPrice-m.Price, 0)
+	return &d
+}
+
+func (m *MockItem) GetRating() (int, int) {
+	return 20, 5
+}
+
+func (m *MockItem) GetFieldValue(id uint) (interface{}, bool) {
+	v, ok := m.Fields[id]
+	return v, ok
 }
 
 func (m *MockItem) GetId() uint {
@@ -74,10 +95,21 @@ func (m *MockItem) GetItem() interface{} {
 	return m
 }
 
-func MakeMockItem(id uint) Item {
-	return &MockItem{
-		Id: id,
+type MockField struct {
+	Key   uint
+	Value interface{}
+}
+
+func MakeMockItem(id uint, fields ...MockField) Item {
+	ret := &MockItem{
+		Id:     id,
+		Fields: make(map[uint]interface{}),
 	}
+	for _, field := range fields {
+		ret.Fields[field.Key] = field.Value
+
+	}
+	return ret
 }
 
 func (m *MockItem) ToItem() Item {
