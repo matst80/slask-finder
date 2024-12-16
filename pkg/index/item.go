@@ -80,6 +80,9 @@ func (item *DataItem) IsDeleted() bool {
 	if softDeleted {
 		return true
 	}
+	if item.SaleStatus == "999" {
+		return true
+	}
 	return item.SaleStatus == "MDD"
 }
 
@@ -93,6 +96,12 @@ func (item *DataItem) IsSoftDeleted() bool {
 		return true
 	}
 	if price > 99999000 && price <= 100000000 {
+		return true
+	}
+	if item.SaleStatus == "DIS" {
+		return true
+	}
+	if item.SaleStatus == "DIO" {
 		return true
 	}
 	return false
