@@ -25,6 +25,7 @@ func (t *TokenList) AddToken(token Token) {
 }
 
 var replacements = []CharReplacement{
+	{From: "mobil", To: "smartphone"},
 	{From: "ö", To: "o"},
 	{From: "ä", To: "a"},
 	{From: "å", To: "a"},

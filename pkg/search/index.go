@@ -164,7 +164,7 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 		word = tokens[wordIdx]
 		for i, t := range doc.Tokens {
 			if word == t {
-				score += max(1, 100.0-(10.0*float64(absDiffInt(i, lastIndex))))
+				score += max(1, 20.0-(2.0*float64(absDiffInt(i, lastIndex))))
 				lastIndex = i
 				wordIdx++
 				missing--
@@ -174,7 +174,7 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 				word = tokens[wordIdx]
 			}
 		}
-		res[doc.Id] = score - float64(missing*30)
+		res[doc.Id] = score - float64(missing*3000)
 		// if res[doc.Id] > 0 {
 		// 	//l := float64(len(tokens))
 		// 	//dl := float64(len(doc.Tokens))
