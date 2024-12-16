@@ -112,6 +112,7 @@ func (i *Index) addItemValues(item types.Item) {
 
 	tree := make([]*Category, 0)
 	var base *types.BaseField
+	// test virtual category
 
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {

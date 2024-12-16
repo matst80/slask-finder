@@ -124,7 +124,14 @@ func (item *DataItem) GetStock() types.LocationStock {
 }
 
 func (item *DataItem) GetFields() map[uint]interface{} {
-	return item.Fields.GetFacets()
+	ret := item.Fields.GetFacets()
+	// virtual promotion
+	if item.AdvertisingText != "" {
+		ret[21] = item.AdvertisingText
+	} else {
+		delete(ret, 21)
+	}
+	return ret
 }
 
 func (item *DataItem) GetLastUpdated() int64 {
