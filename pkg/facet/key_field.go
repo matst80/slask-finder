@@ -28,7 +28,16 @@ func (f KeyField) GetValues() []interface{} {
 }
 
 func (f *KeyField) match(value string) *types.ItemList {
-
+	if value == "!nil" {
+		ret := make(types.ItemList)
+		for v, ids := range f.Keys {
+			if v == "" {
+				continue
+			}
+			ret.Merge(&ids)
+		}
+		return &ret
+	}
 	ids, ok := f.Keys[value]
 	if ok {
 		return &ids
