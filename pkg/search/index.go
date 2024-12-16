@@ -14,6 +14,7 @@ type FreeTextIndex struct {
 	Documents map[uint]*Document
 	TokenMap  map[Token][]*Document
 	//BaseSortMap map[uint]float64
+
 	Tokens []string
 }
 
@@ -145,7 +146,6 @@ func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
 }
 
 func (i *FreeTextIndex) Search(query string) *DocumentResult {
-
 	tokens := i.Tokenizer.Tokenize(query)
 	res := make(DocumentResult)
 	i.mu.RLock()

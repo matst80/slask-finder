@@ -47,13 +47,13 @@ type Category struct {
 }
 
 type Index struct {
-	mu           sync.RWMutex
-	categories   map[uint]*Category
-	Facets       map[uint]types.Facet
-	ItemFieldIds map[uint]map[uint]struct{}
-	Items        map[uint]*types.Item
-	ItemsInStock map[string]types.ItemList
-
+	mu            sync.RWMutex
+	categories    map[uint]*Category
+	Facets        map[uint]types.Facet
+	ItemFieldIds  map[uint]map[uint]struct{}
+	Items         map[uint]*types.Item
+	ItemsInStock  map[string]types.ItemList
+	All           types.ItemList
 	AutoSuggest   AutoSuggest
 	ChangeHandler ChangeHandler
 	Sorting       *Sorting
@@ -250,6 +250,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 		}
 		return false
 	}
+	i.All.AddId(id)
 	if isUpdate {
 		old_price := (*current).GetPrice()
 		new_price := item.GetPrice()

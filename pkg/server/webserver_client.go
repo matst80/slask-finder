@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"iter"
+	"maps"
 	"net/http"
 
 	"strconv"
@@ -51,10 +52,17 @@ func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.D
 	var initialIds *types.ItemList = nil
 	var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
-		queryResult := ws.Index.Search.Search(sr.Query)
-		initialIds = queryResult.ToResult()
+		if sr.Query == "*" {
+			// probably should copy this
+			cloned := types.ItemList{}
+			maps.Copy(cloned, ws.Index.All)
+			initialIds = &cloned
+		} else {
+			queryResult := ws.Index.Search.Search(sr.Query)
+			initialIds = queryResult.ToResult()
 
-		documentResult = queryResult
+			documentResult = queryResult
+		}
 	}
 
 	if len(sr.Stock) > 0 {
