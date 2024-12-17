@@ -27,7 +27,15 @@ type Field struct {
 func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
 
 	err := enc.Decode(item)
-	return err
+	if err != nil {
+		return err
+	}
+	if item.AdvertisingText != "" {
+		item.Fields[21] = item.AdvertisingText
+	} else {
+		delete(item.Fields, 21)
+	}
+	return nil
 }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {

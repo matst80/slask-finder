@@ -112,6 +112,7 @@ func (item *DataItem) IsSoftDeleted() bool {
 }
 
 func (item *DataItem) GetPrice() int {
+
 	priceField, ok := item.Fields.GetFacetValue(4)
 	if !ok {
 		return 0
@@ -124,14 +125,7 @@ func (item *DataItem) GetStock() types.LocationStock {
 }
 
 func (item *DataItem) GetFields() map[uint]interface{} {
-	ret := item.Fields.GetFacets()
-	// virtual promotion
-	if item.AdvertisingText != "" {
-		ret[21] = item.AdvertisingText
-	} else {
-		delete(ret, 21)
-	}
-	return ret
+	return item.Fields.GetFacets()
 }
 
 func (item *DataItem) GetFieldValue(id uint) (interface{}, bool) {
@@ -140,7 +134,6 @@ func (item *DataItem) GetFieldValue(id uint) (interface{}, bool) {
 }
 
 func (item *DataItem) GetRating() (int, int) {
-
 	average, ok := item.GetFieldValue(6)
 	if !ok {
 		return 0, 0

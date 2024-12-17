@@ -150,20 +150,20 @@ func NewSorting(addr, password string, db int) *Sorting {
 				SubtractValue:  -20,
 				ValueIfNoMatch: 0,
 			},
-			&types.AgedRule{
-				HourMultiplier: -0.0019,
-				RuleSource: types.RuleSource{
-					Source:       types.Property,
-					PropertyName: "Created",
-				},
-			},
-			&types.AgedRule{
-				HourMultiplier: -0.00002,
-				RuleSource: types.RuleSource{
-					Source:       types.Property,
-					PropertyName: "LastUpdate",
-				},
-			},
+			// &types.AgedRule{
+			// 	HourMultiplier: -0.0019,
+			// 	RuleSource: types.RuleSource{
+			// 		Source:       types.Property,
+			// 		PropertyName: "Created",
+			// 	},
+			// },
+			// &types.AgedRule{
+			// 	HourMultiplier: -0.00002,
+			// 	RuleSource: types.RuleSource{
+			// 		Source:       types.Property,
+			// 		PropertyName: "LastUpdate",
+			// 	},
+			// },
 		},
 		idx: nil,
 	}
