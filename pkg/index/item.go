@@ -46,6 +46,7 @@ type ItemProp struct {
 	BoxSize         string        `json:"boxSize,omitempty"`
 	CheapestBItem   *OutletItem   `json:"bItem,omitempty"`
 	AItem           *OutletItem   `json:"aItem,omitempty"`
+	ArticleType     string        `json:"articleType,omitempty"`
 }
 
 type BaseItem struct {

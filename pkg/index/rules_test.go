@@ -109,7 +109,7 @@ func TestRatingRule_GetValue(t *testing.T) {
 }
 
 func TestRecreateRules(t *testing.T) {
-	rules := []ItemPopularityRule{
+	rules := ItemPopularityRules{
 		&MatchRule{
 			Match:           "Elgiganten",
 			FieldId:         9,
@@ -183,7 +183,7 @@ func TestRecreateRules(t *testing.T) {
 		t.Error(err)
 	}
 	t.Log(string(jsonString))
-	rules2 := []ItemPopularityRule{}
+	rules2 := ItemPopularityRules{}
 	err = json.Unmarshal(jsonString, &rules2)
 	if err != nil {
 		t.Error(err)
