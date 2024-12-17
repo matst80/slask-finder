@@ -1,0 +1,88 @@
+package index
+
+import (
+	"github.com/matst80/slask-finder/pkg/types"
+	"sync"
+)
+
+type NumberComparator string
+
+type Source string
+
+type RuleSource struct {
+	Source       Source `json:"source"`
+	PropertyName string `json:"property,omitempty"`
+	FieldId      uint   `json:"fieldId,omitempty"`
+}
+
+func (r RuleSource) GetSourceValue(item types.Item) interface{} {
+	fetchByFieldId := r.Source == FieldId || (r.Source == "" && r.FieldId > 0)
+
+	if fetchByFieldId {
+		return item.GetFields()[r.FieldId]
+	} else {
+		if r.PropertyName == "" {
+			return nil
+		}
+		return GetPropertyValue(item, r.PropertyName)
+	}
+}
+
+type NumberLimitRule struct {
+	RuleSource
+	Limit           float64          `json:"limit"`
+	Comparator      NumberComparator `json:"comparator"`
+	ValueIfMatch    float64          `json:"value"`
+	ValueIfNotMatch float64          `json:"valueIfNotMatch"`
+	//PropertyName    string           `json:"property,omitempty"`
+	//FieldId         uint             `json:"fieldId,omitempty"`
+}
+
+const (
+	Over     NumberComparator = ">"
+	Under    NumberComparator = "<"
+	Equal    NumberComparator = "="
+	Property Source           = "property"
+	FieldId  Source           = "fieldId"
+)
+
+func (_ *NumberLimitRule) Type() RuleType {
+	return "NumberLimitRule"
+}
+
+func (_ *NumberLimitRule) New() ItemPopularityRule {
+	return &NumberLimitRule{}
+}
+
+func CompareFactory[K int | float64 | int64](comparator NumberComparator, limit K) func(nr K) bool {
+	return func(nr K) bool {
+		switch comparator {
+		case Over:
+			return nr > limit
+		case Under:
+			return nr < limit
+		case Equal:
+			return nr == limit
+		}
+		return false
+	}
+}
+
+func (r *NumberLimitRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	matchFn := CompareFactory(r.Comparator, r.Limit)
+	value := r.GetSourceValue(item)
+
+	v, found := AsNumber[float64](value)
+
+	if !found {
+		res <- r.ValueIfNotMatch
+	} else {
+		if matchFn(v) {
+			res <- r.ValueIfMatch
+		} else {
+			res <- r.ValueIfNotMatch
+		}
+	}
+}

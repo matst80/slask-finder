@@ -5,76 +5,19 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-type FilterIds map[uint]struct{}
-
-type Filters struct {
-	ids          *FilterIds
-	StringFilter []facet.StringFilter `json:"string" schema:"-"`
-	RangeFilter  []facet.RangeFilter  `json:"range" schema:"-"`
-}
-
-func (f *Filters) WithOut(id uint) *Filters {
-	result := Filters{
-		StringFilter: make([]facet.StringFilter, 0, len(f.StringFilter)),
-		RangeFilter:  make([]facet.RangeFilter, 0, len(f.RangeFilter)),
-	}
-	for _, filter := range f.StringFilter {
-		if filter.Id != id {
-			result.StringFilter = append(result.StringFilter, filter)
-		}
-	}
-	for _, filter := range f.RangeFilter {
-		if filter.Id != id {
-			result.RangeFilter = append(result.RangeFilter, filter)
-		}
-	}
-	return &result
-}
-
-func (f *Filters) getIds() *FilterIds {
-	if f.ids == nil {
-		ids := make(FilterIds)
-		if f.StringFilter != nil {
-			for _, filter := range f.StringFilter {
-				ids[filter.Id] = struct{}{}
-			}
-		}
-		if f.RangeFilter != nil {
-			for _, filter := range f.RangeFilter {
-				ids[filter.Id] = struct{}{}
-			}
-		}
-		f.ids = &ids
-	}
-	return f.ids
-}
-
-func (f *Filters) HasField(id uint) bool {
-	ids := f.getIds()
-	_, ok := (*ids)[id]
-	return ok
-}
-
-func (f *Filters) HasCategoryFilter() bool {
-	return slices.ContainsFunc(f.StringFilter, func(filter facet.StringFilter) bool {
-		return filter.Id >= 30 && filter.Id <= 35 && filter.Id != 23
-	})
-}
-
-func (i *Index) Match(search *Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
+func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
 
-	parseKeys := func(field facet.StringFilter, fld types.Facet) {
+	parseKeys := func(field types.StringFilter, fld types.Facet) {
 		results <- fld.Match(field.Value)
 	}
-	parseRange := func(field facet.RangeFilter, fld types.Facet) {
+	parseRange := func(field types.RangeFilter, fld types.Facet) {
 		results <- fld.Match(field)
 	}
 

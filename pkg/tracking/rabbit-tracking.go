@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -112,25 +112,14 @@ type ActionEvent struct {
 	Reason string `json:"reason"`
 }
 
-type ImpressionEvent struct {
-	*BaseEvent
-	Items []Impression `json:"items"`
-}
-
-type CartEvent struct {
-	*BaseEvent
-	Item     uint `json:"item"`
-	Quantity uint `json:"quantity"`
-}
-
 type SearchEventData struct {
-	*index.Filters
+	*types.Filters
 	*BaseEvent
 	Query string `json:"query"`
 	Page  int    `json:"page"`
 }
 
-func (rt *RabbitTracking) TrackSearch(sessionId int, filters *index.Filters, query string, page int) {
+func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, query string, page int) {
 	err := rt.send(&SearchEventData{
 		BaseEvent: &BaseEvent{Event: 1, SessionId: sessionId},
 		Filters:   filters,
@@ -143,41 +132,10 @@ func (rt *RabbitTracking) TrackSearch(sessionId int, filters *index.Filters, que
 
 }
 
-//func (rt *RabbitTracking) TrackClick(session_id uint32, item_id uint, position float32) error {
-//	return rt.send(&Event{
-//		BaseEvent: &BaseEvent{Event: 2, SessionId: session_id},
-//		Item:      item_id,
-//		Position:  position,
-//	})
-//}
-//
-//func (rt *RabbitTracking) TrackAddToCart(session_id uint32, item_id uint, quantity uint) error {
-//	return rt.send(&CartEvent{
-//		BaseEvent: &BaseEvent{Event: 3, SessionId: session_id},
-//		Item:      item_id,
-//		Quantity:  quantity,
-//	})
-//}
-//
-//func (rt *RabbitTracking) TrackPurchase(session_id uint32, item_id uint, quantity uint) error {
-//	return rt.send(&CartEvent{
-//		BaseEvent: &BaseEvent{Event: 4, SessionId: session_id},
-//		Item:      item_id,
-//		Quantity:  quantity,
-//	})
-//}
-
-//func (rt *RabbitTracking) TrackImpressions(session_id uint32, viewedItems []Impression) error {
-//	return rt.send(&ImpressionEvent{
-//		BaseEvent: &BaseEvent{Event: 5, SessionId: session_id},
-//		Items:     viewedItems,
-//	})
-//}
-
-//func (rt *RabbitTracking) TrackAction(session_id uint32, value TrackingAction) error {
-//	return rt.send(&ActionEvent{
-//		BaseEvent: &BaseEvent{Event: 6, SessionId: session_id},
-//		Action:    value.Action,
-//		Reason:    value.Reason,
-//	})
-//}
+func (rt *RabbitTracking) TrackAction(sessionId int, value TrackingAction) error {
+	return rt.send(&ActionEvent{
+		BaseEvent: &BaseEvent{Event: 6, SessionId: sessionId},
+		Action:    value.Action,
+		Reason:    value.Reason,
+	})
+}

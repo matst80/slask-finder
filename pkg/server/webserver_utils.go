@@ -2,13 +2,14 @@ package server
 
 import (
 	"encoding/json"
-	"github.com/matst80/slask-finder/pkg/common"
-	"github.com/matst80/slask-finder/pkg/index"
-	"github.com/matst80/slask-finder/pkg/tracking"
 	"log"
 	"maps"
 	"net/http"
 	"sync"
+
+	"github.com/matst80/slask-finder/pkg/common"
+	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/tracking"
 
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -58,7 +59,7 @@ func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, 
 	defer close(sortChan)
 	defer close(ch)
 	for i := 0; i < len(categories); i++ {
-		sr.Filters.StringFilter = append(sr.Filters.StringFilter, facet.StringFilter{
+		sr.Filters.StringFilter = append(sr.Filters.StringFilter, types.StringFilter{
 			Id:    categoryStartId + uint(i),
 			Value: categories[i],
 		})
@@ -240,12 +241,12 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 	c <- modifyResult(ret)
 }
 
-func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 	for _, s := range filters.StringFilter {
 		if f, ok := ws.Index.Facets[s.Id]; ok {
 			if !f.GetBaseField().HideFacet {
 				wg.Add(1)
-				go func(otherFilters *index.Filters) {
+				go func(otherFilters *types.Filters) {
 					matchIds := make(chan *types.ItemList)
 					defer close(matchIds)
 
@@ -264,7 +265,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.F
 	for _, r := range filters.RangeFilter {
 		if f, ok := ws.Index.Facets[r.Id]; ok {
 			wg.Add(1)
-			go func(otherFilters *index.Filters) {
+			go func(otherFilters *types.Filters) {
 				matchIds := make(chan *types.ItemList)
 				defer close(matchIds)
 				go ws.Index.Match(otherFilters, baseIds, matchIds)
@@ -279,7 +280,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *index.F
 	}
 }
 
-func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *index.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	fieldIds := make(map[uint]struct{})
 

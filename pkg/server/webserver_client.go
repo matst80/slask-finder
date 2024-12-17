@@ -3,16 +3,16 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"iter"
+	"maps"
+	"net/http"
+
 	"github.com/matst80/slask-finder/pkg/embeddings"
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-	"iter"
-	"maps"
-	"net/http"
 
 	"strconv"
 	"strings"
@@ -291,7 +291,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
-	ws.getOtherFacets(&results, &index.Filters{}, ch, wg)
+	ws.getOtherFacets(&results, &types.Filters{}, ch, wg)
 
 	_, err = w.Write([]byte("\n"))
 
@@ -396,8 +396,8 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		ids := make(chan *types.ItemList)
 		defer close(ids)
 		defer wg.Done()
-		filter := index.Filters{
-			StringFilter: []facet.StringFilter{
+		filter := types.Filters{
+			StringFilter: []types.StringFilter{
 				{Id: 31158, Value: articleType},
 			},
 		}

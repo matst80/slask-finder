@@ -21,15 +21,22 @@ var item = &types.MockItem{
 func TestNotEmptyRule(t *testing.T) {
 
 	rule := &NotEmptyRule{
-		PropertyName: "Title",
+		RuleSource: RuleSource{
+			Source:       Property,
+			PropertyName: "Title",
+		},
 		ValueIfMatch: 100,
 	}
 	rule2 := &NotEmptyRule{
-		FieldId:      10,
+		RuleSource: RuleSource{
+			FieldId: 10,
+		},
 		ValueIfMatch: 200,
 	}
 	rule3 := &NotEmptyRule{
-		PropertyName: "Kalle",
+		RuleSource: RuleSource{
+			PropertyName: "Kalle",
+		},
 		ValueIfMatch: 300,
 	}
 	res := CollectPopularity(item, rule, rule2, rule3)
@@ -40,9 +47,11 @@ func TestNotEmptyRule(t *testing.T) {
 
 func TestStringMatchRule_GetValue_Normal(t *testing.T) {
 	res := CollectPopularity(item, &MatchRule{
-		Match:           "World",
-		Invert:          false,
-		FieldId:         10,
+		Match:  "World",
+		Invert: false,
+		RuleSource: RuleSource{
+			FieldId: 10,
+		},
 		ValueIfMatch:    100,
 		ValueIfNotMatch: -100,
 	})
@@ -51,11 +60,14 @@ func TestStringMatchRule_GetValue_Normal(t *testing.T) {
 	}
 }
 
+// [{"match":"Elgiganten","fieldId":9,"value":0,"valueIfNotMatch":-12000,"$type":"MatchRule"},{"match":"Outlet","fieldId":10,"value":0,"valueIfNotMatch":-6000,"$type":"MatchRule"},{"multiplier":30,"valueIfMatch":4500,"$type":"DiscountRule"},{"match":true,"property":"Buyable","value":5000,"valueIfNotMatch":-2000,"$type":"MatchRule"},{"noStoreMultiplier":20,"noStockValue":-6000,"$type":"MatchRule"},{"match":"","invert":true,"property":"BadgeUrl","value":0,"valueIfNotMatch":4500,"$type":"MatchRule"},{"limit":99999900,"comparator":"\u003e","value":-2500,"valueIfNotMatch":0,"fieldId":4,"$type":"NumberLimitRule"},{"limit":10000,"comparator":"\u003c","value":-800,"valueIfNotMatch":0,"fieldId":4,"$type":"NumberLimitRule"},{"multiplier":50,"min":0,"max":100,"property":"MarginPercent","$type":"NumberLimitRule"},{"multiplier":0.06,"subtractValue":-20,"valueIfNoMatch":0,"$type":"RatingRule"},{"hourMultiplier":-0.019,"property":"Created","$type":"AgedRule"},{"hourMultiplier":-0.0002,"property":"LastUpdate","$type":"AgedRule"}]
 func TestStringMatchRule_GetValue_Inverted(t *testing.T) {
 	res := CollectPopularity(item, &MatchRule{
-		Match:           "World",
-		Invert:          true,
-		FieldId:         10,
+		Match:  "World",
+		Invert: true,
+		RuleSource: RuleSource{
+			FieldId: 10,
+		},
 		ValueIfMatch:    100,
 		ValueIfNotMatch: -100,
 	})
@@ -66,9 +78,11 @@ func TestStringMatchRule_GetValue_Inverted(t *testing.T) {
 
 func TestBoolMatchRule_GetValue_Inverted(t *testing.T) {
 	res := CollectPopularity(item, &MatchRule{
-		Match:           true,
-		Invert:          false,
-		PropertyName:    "Buyable",
+		Match:  true,
+		Invert: false,
+		RuleSource: RuleSource{
+			PropertyName: "Buyable",
+		},
 		ValueIfMatch:    100,
 		ValueIfNotMatch: -100,
 	})
@@ -89,7 +103,7 @@ func TestOutOfStockRule_GetValue(t *testing.T) {
 
 func TestDiscountRule_GetValue(t *testing.T) {
 	res := CollectPopularity(item, &DiscountRule{
-		Multiplier:   0.1,
+		Multiplier:   10,
 		ValueIfMatch: 100,
 	})
 	if res != 110 {
@@ -111,13 +125,19 @@ func TestRatingRule_GetValue(t *testing.T) {
 func TestRecreateRules(t *testing.T) {
 	rules := ItemPopularityRules{
 		&MatchRule{
-			Match:           "Elgiganten",
-			FieldId:         9,
+			Match: "Elgiganten",
+			RuleSource: RuleSource{
+				Source:  FieldId,
+				FieldId: 9,
+			},
 			ValueIfNotMatch: -12000,
 		},
 		&MatchRule{
-			Match:           "Outlet",
-			FieldId:         10,
+			Match: "Outlet",
+			RuleSource: RuleSource{
+				Source:  FieldId,
+				FieldId: 10,
+			},
 			ValueIfNotMatch: -6000,
 		},
 		&DiscountRule{
@@ -125,8 +145,11 @@ func TestRecreateRules(t *testing.T) {
 			ValueIfMatch: 4500,
 		},
 		&MatchRule{
-			Match:           true,
-			PropertyName:    "Buyable",
+			Match: true,
+			RuleSource: RuleSource{
+				Source:       Property,
+				PropertyName: "Buyable",
+			},
 			ValueIfMatch:    5000,
 			ValueIfNotMatch: -2000,
 		},
@@ -135,8 +158,11 @@ func TestRecreateRules(t *testing.T) {
 			NoStockValue:      -6000,
 		},
 		&MatchRule{
-			Match:           "",
-			PropertyName:    "BadgeUrl",
+			Match: "",
+			RuleSource: RuleSource{
+				Source:       Property,
+				PropertyName: "BadgeUrl",
+			},
 			Invert:          true,
 			ValueIfNotMatch: 4500,
 		},
@@ -145,20 +171,29 @@ func TestRecreateRules(t *testing.T) {
 			Comparator:      ">",
 			ValueIfMatch:    -2500,
 			ValueIfNotMatch: 0,
-			FieldId:         4,
+			RuleSource: RuleSource{
+				Source:  FieldId,
+				FieldId: 4,
+			},
 		},
 		&NumberLimitRule{
 			Limit:           10000,
 			Comparator:      "<",
 			ValueIfMatch:    -800,
 			ValueIfNotMatch: 0,
-			FieldId:         4,
+			RuleSource: RuleSource{
+				Source:  FieldId,
+				FieldId: 4,
+			},
 		},
 		&PercentMultiplierRule{
-			Multiplier:   50,
-			Min:          0,
-			Max:          100,
-			PropertyName: "MarginPercent",
+			Multiplier: 50,
+			Min:        0,
+			Max:        100,
+			RuleSource: RuleSource{
+				Source:       Property,
+				PropertyName: "MarginPercent",
+			},
 		},
 		&RatingRule{
 			Multiplier:     0.06,
@@ -167,11 +202,17 @@ func TestRecreateRules(t *testing.T) {
 		},
 		&AgedRule{
 			HourMultiplier: -0.019,
-			PropertyName:   "Created",
+			RuleSource: RuleSource{
+				Source:       Property,
+				PropertyName: "Created",
+			},
 		},
 		&AgedRule{
 			HourMultiplier: -0.0002,
-			PropertyName:   "LastUpdate",
+			RuleSource: RuleSource{
+				Source:       Property,
+				PropertyName: "LastUpdate",
+			},
 		},
 	}
 	res := CollectPopularity(item, rules...)

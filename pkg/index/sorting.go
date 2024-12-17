@@ -111,7 +111,6 @@ func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionI
 				continue
 			}
 
-			log.Printf("Received session override change for sessonid: %d", sessionId)
 			sortOverride, err := GetOverrideFromKey(rdb, msg.Payload)
 
 			if err != nil {

@@ -3,7 +3,7 @@ package tracking
 import (
 	"net/http"
 
-	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type Impression struct {
@@ -18,5 +18,5 @@ type TrackingAction struct {
 
 type Tracking interface {
 	TrackSession(session_id int, r *http.Request)
-	TrackSearch(session_id int, filters *index.Filters, query string, page int)
+	TrackSearch(session_id int, filters *types.Filters, query string, page int)
 }

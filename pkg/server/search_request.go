@@ -9,12 +9,11 @@ import (
 	"strings"
 
 	"github.com/gorilla/schema"
-	"github.com/matst80/slask-finder/pkg/facet"
-	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type FacetRequest struct {
-	*index.Filters
+	*types.Filters
 	Stock []string `json:"stock" schema:"stock"`
 	Query string   `json:"query" schema:"query"`
 }
@@ -95,12 +94,12 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 			continue
 		}
 		if strings.Contains(parts[1], "||") {
-			result.StringFilter = append(result.StringFilter, facet.StringFilter{
+			result.StringFilter = append(result.StringFilter, types.StringFilter{
 				Id:    uint(id),
 				Value: strings.Split(parts[1], "||"),
 			})
 		} else {
-			result.StringFilter = append(result.StringFilter, facet.StringFilter{
+			result.StringFilter = append(result.StringFilter, types.StringFilter{
 				Id:    uint(id),
 				Value: parts[1],
 			})
@@ -116,7 +115,7 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 		if err != nil {
 			continue
 		}
-		result.RangeFilter = append(result.RangeFilter, facet.RangeFilter{
+		result.RangeFilter = append(result.RangeFilter, types.RangeFilter{
 			Id:  id,
 			Min: _min,
 			Max: _max,
@@ -127,9 +126,9 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 
 func makeBaseFacetRequest() *FacetRequest {
 	return &FacetRequest{
-		Filters: &index.Filters{
-			StringFilter: []facet.StringFilter{},
-			RangeFilter:  []facet.RangeFilter{},
+		Filters: &types.Filters{
+			StringFilter: []types.StringFilter{},
+			RangeFilter:  []types.RangeFilter{},
 		},
 		Stock: []string{},
 		Query: "",

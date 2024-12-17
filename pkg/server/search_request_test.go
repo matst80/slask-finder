@@ -4,8 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/matst80/slask-finder/pkg/facet"
-	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func TestParseQueryValues(t *testing.T) {
@@ -22,9 +21,9 @@ func TestParseQueryValues(t *testing.T) {
 		Page:     0,
 		PageSize: 25,
 		FacetRequest: &FacetRequest{
-			Filters: &index.Filters{
-				StringFilter: []facet.StringFilter{},
-				RangeFilter:  []facet.RangeFilter{},
+			Filters: &types.Filters{
+				StringFilter: []types.StringFilter{},
+				RangeFilter:  []types.RangeFilter{},
 			},
 			Stock: []string{},
 			Query: "",

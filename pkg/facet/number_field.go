@@ -10,17 +10,6 @@ type FieldNumberValue interface {
 	int | float64
 }
 
-type StringFilter struct {
-	Id    uint        `json:"id"`
-	Value interface{} `json:"value"`
-}
-
-type RangeFilter struct {
-	Min interface{} `json:"min"`
-	Max interface{} `json:"max"`
-	Id  uint        `json:"id"`
-}
-
 type DecimalField struct {
 	*types.BaseField
 	*NumberRange[float64]
@@ -77,7 +66,7 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 }
 
 func (f DecimalField) Match(input interface{}) *types.ItemList {
-	value, ok := input.(RangeFilter)
+	value, ok := input.(types.RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
 		max, maxOk := value.Max.(float64)

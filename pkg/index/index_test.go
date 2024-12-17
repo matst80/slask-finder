@@ -3,7 +3,6 @@ package index
 import (
 	"testing"
 
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -45,9 +44,9 @@ func TestIndexMatch(t *testing.T) {
 		Fields: types.ItemFields{1: "test", 2: "hej", 3: 1.0},
 	}
 	i.UpsertItem(&item)
-	query := Filters{
-		StringFilter: []facet.StringFilter{{Id: 1, Value: "test"}},
-		RangeFilter:  []facet.RangeFilter{{Id: 3, Min: 1, Max: 2}},
+	query := types.Filters{
+		StringFilter: []types.StringFilter{{Id: 1, Value: "test"}},
+		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
 	ch := make(chan *types.ItemList)
 	defer close(ch)
@@ -111,9 +110,9 @@ func TestHasFields(t *testing.T) {
 
 func TestMultipleIndexMatch(t *testing.T) {
 	i := CreateIndex()
-	query := Filters{
-		StringFilter: []facet.StringFilter{{Id: 1, Value: "test"}},
-		RangeFilter:  []facet.RangeFilter{{Id: 3, Min: 1, Max: 2}},
+	query := types.Filters{
+		StringFilter: []types.StringFilter{{Id: 1, Value: "test"}},
+		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
 	ch := make(chan *types.ItemList)
 	defer close(ch)
@@ -126,9 +125,9 @@ func TestMultipleIndexMatch(t *testing.T) {
 
 func TestGetMatchItems(t *testing.T) {
 	i := CreateIndex()
-	query := Filters{
-		StringFilter: []facet.StringFilter{{Id: 1, Value: "test"}},
-		RangeFilter:  []facet.RangeFilter{{Id: 3, Min: 1, Max: 2}},
+	query := types.Filters{
+		StringFilter: []types.StringFilter{{Id: 1, Value: "test"}},
+		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
 	ch := make(chan *types.ItemList)
 	defer close(ch)
@@ -207,9 +206,9 @@ func TestDeleteItem(t *testing.T) {
 	if i.HasItem(1) {
 		t.Errorf("Expected to not have item with id 1")
 	}
-	f := Filters{
-		StringFilter: []facet.StringFilter{},
-		RangeFilter:  []facet.RangeFilter{{Id: 3, Min: 1, Max: 1000}},
+	f := types.Filters{
+		StringFilter: []types.StringFilter{},
+		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 1000}},
 	}
 	ch := make(chan *types.ItemList)
 	defer close(ch)
