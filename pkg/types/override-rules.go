@@ -4,23 +4,17 @@ import (
 	"sync"
 )
 
-type ItemPopularityRule interface {
+type FilterOverrideules []FilterOverrideRule
+
+type FilterOverrideRule interface {
 	GetValue(item Item, res chan<- float64, wg *sync.WaitGroup)
 }
 
 func init() {
-	Register(&MatchRule{})
-	Register(&DiscountRule{})
-	Register(&OutOfStockRule{})
-	Register(&NumberLimitRule{})
-	Register(&PercentMultiplierRule{})
-	Register(&RatingRule{})
-	Register(&AgedRule{})
+	//RegisterRule(&MatchRule{})
 }
 
-type ItemPopularityRules []ItemPopularityRule
-
-func CollectPopularity(item Item, rules ...ItemPopularityRule) float64 {
+func MatchOverrides(item Item, rules ...FilterOverrideRule) float64 {
 	wg := &sync.WaitGroup{}
 	res := make(chan float64)
 	for _, rule := range rules {

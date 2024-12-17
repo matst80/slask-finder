@@ -13,7 +13,7 @@ func (_ *DiscountRule) Type() RuleType {
 	return "DiscountRule"
 }
 
-func (_ *DiscountRule) New() ItemPopularityRule {
+func (_ *DiscountRule) New() JsonType {
 	return &DiscountRule{}
 }
 

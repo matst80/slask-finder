@@ -33,8 +33,6 @@ type NumberLimitRule struct {
 	Comparator      NumberComparator `json:"comparator"`
 	ValueIfMatch    float64          `json:"value"`
 	ValueIfNotMatch float64          `json:"valueIfNotMatch"`
-	//PropertyName    string           `json:"property,omitempty"`
-	//FieldId         uint             `json:"fieldId,omitempty"`
 }
 
 const (
@@ -49,7 +47,7 @@ func (_ *NumberLimitRule) Type() RuleType {
 	return "NumberLimitRule"
 }
 
-func (_ *NumberLimitRule) New() ItemPopularityRule {
+func (_ *NumberLimitRule) New() JsonType {
 	return &NumberLimitRule{}
 }
 

@@ -16,7 +16,7 @@ func (_ *MatchRule) Type() RuleType {
 	return "MatchRule"
 }
 
-func (_ *MatchRule) New() ItemPopularityRule {
+func (_ *MatchRule) New() JsonType {
 	return &MatchRule{}
 }
 

@@ -10,11 +10,11 @@ type RatingRule struct {
 	ValueIfNoMatch float64 `json:"valueIfNoMatch,omitempty"`
 }
 
-func (_ *RatingRule) Type() RuleType {
+func (r *RatingRule) Type() RuleType {
 	return "RatingRule"
 }
 
-func (_ *RatingRule) New() ItemPopularityRule {
+func (r *RatingRule) New() JsonType {
 	return &RatingRule{}
 }
 

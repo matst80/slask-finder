@@ -13,7 +13,7 @@ func (_ *OutOfStockRule) Type() RuleType {
 	return "OutOfStockRule"
 }
 
-func (_ *OutOfStockRule) New() ItemPopularityRule {
+func (_ *OutOfStockRule) New() JsonType {
 	return &OutOfStockRule{}
 }
 

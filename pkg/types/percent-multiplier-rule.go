@@ -15,7 +15,7 @@ func (_ *PercentMultiplierRule) Type() RuleType {
 	return "PercentMultiplierRule"
 }
 
-func (_ *PercentMultiplierRule) New() ItemPopularityRule {
+func (_ *PercentMultiplierRule) New() JsonType {
 	return &PercentMultiplierRule{}
 }
 

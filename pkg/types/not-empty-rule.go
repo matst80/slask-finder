@@ -14,7 +14,7 @@ func (_ *NotEmptyRule) Type() RuleType {
 	return "NotEmptyRule"
 }
 
-func (_ *NotEmptyRule) New() ItemPopularityRule {
+func (_ *NotEmptyRule) New() JsonType {
 	return &NotEmptyRule{}
 }
 

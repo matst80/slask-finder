@@ -122,7 +122,7 @@ func TestRatingRule_GetValue(t *testing.T) {
 }
 
 func TestRecreateRules(t *testing.T) {
-	rules := ItemPopularityRules{
+	rules := JsonTypes{
 		&MatchRule{
 			Match: "Elgiganten",
 			RuleSource: RuleSource{
@@ -200,33 +200,42 @@ func TestRecreateRules(t *testing.T) {
 			ValueIfNoMatch: 0,
 		},
 		&AgedRule{
-			HourMultiplier: -0.019,
+			HourMultiplier: -0.0019,
 			RuleSource: RuleSource{
 				Source:       Property,
 				PropertyName: "Created",
 			},
 		},
 		&AgedRule{
-			HourMultiplier: -0.0002,
+			HourMultiplier: -0.00002,
 			RuleSource: RuleSource{
 				Source:       Property,
 				PropertyName: "LastUpdate",
 			},
 		},
 	}
-	res := CollectPopularity(item, rules...)
-	if res > -18000 {
-		t.Errorf("Expected -12000 but got %v", res)
-	}
+	res := CollectPopularity(item, FromJsonTypes[ItemPopularityRule](rules)...)
+
 	jsonString, err := json.Marshal(rules)
 	if err != nil {
 		t.Error(err)
 	}
 	t.Log(string(jsonString))
-	rules2 := ItemPopularityRules{}
+	rules2 := JsonTypes{}
 	err = json.Unmarshal(jsonString, &rules2)
 	if err != nil {
 		t.Error(err)
 	}
+	res2 := CollectPopularity(item, FromJsonTypes[ItemPopularityRule](rules)...)
+	if diff(res2, res) > 0.001 {
+		t.Errorf("Expected %f but got %f", res, res2)
+	}
 
+}
+
+func diff(a, b float64) float64 {
+	if a > b {
+		return a - b
+	}
+	return b - a
 }

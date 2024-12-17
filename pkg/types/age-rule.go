@@ -14,7 +14,7 @@ func (_ *AgedRule) Type() RuleType {
 	return "AgedRule"
 }
 
-func (_ *AgedRule) New() ItemPopularityRule {
+func (_ *AgedRule) New() JsonType {
 	return &AgedRule{}
 }
 
@@ -24,7 +24,7 @@ func (r *AgedRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 
 	now := time.Now().UnixNano()
 	v, ok := AsNumber[int64](value)
-	if ok {
+	if ok && v > 0 {
 		res <- float64((now-v)/60_000) * r.HourMultiplier
 	} else {
 		res <- 0
