@@ -1,12 +1,11 @@
-package index
+package types
 
 import (
 	"encoding/json"
-	"github.com/matst80/slask-finder/pkg/types"
 	"testing"
 )
 
-var item = &types.MockItem{
+var item = &MockItem{
 	Id:    1,
 	Title: "Hello",
 	Fields: map[uint]interface{}{
@@ -14,7 +13,7 @@ var item = &types.MockItem{
 	},
 	OrgPrice: 200,
 	Buyable:  true,
-	Stock:    make([]types.LocationStock, 4),
+	Stock:    make([]LocationStock, 4),
 	Price:    100,
 }
 

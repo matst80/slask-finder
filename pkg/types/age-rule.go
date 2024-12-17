@@ -1,7 +1,6 @@
-package index
+package types
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"sync"
 	"time"
 )
@@ -19,7 +18,7 @@ func (_ *AgedRule) New() ItemPopularityRule {
 	return &AgedRule{}
 }
 
-func (r *AgedRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+func (r *AgedRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	value := r.GetSourceValue(item)
 

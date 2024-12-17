@@ -1,10 +1,9 @@
-package index
+package types
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/matst80/slask-finder/pkg/types"
 	"reflect"
 	"slices"
 	"sync"
@@ -40,7 +39,7 @@ type RuleType string
 type ItemPopularityRule interface {
 	Type() RuleType
 	New() ItemPopularityRule
-	GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup)
+	GetValue(item Item, res chan<- float64, wg *sync.WaitGroup)
 }
 
 type LazyType struct {
@@ -113,7 +112,7 @@ func (l ItemPopularityRules) MarshalJSON() ([]byte, error) {
 
 type ItemPopularityRules []ItemPopularityRule
 
-func CollectPopularity(item types.Item, rules ...ItemPopularityRule) float64 {
+func CollectPopularity(item Item, rules ...ItemPopularityRule) float64 {
 	wg := &sync.WaitGroup{}
 	res := make(chan float64)
 	for _, rule := range rules {

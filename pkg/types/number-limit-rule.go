@@ -1,7 +1,6 @@
-package index
+package types
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"sync"
 )
 
@@ -15,7 +14,7 @@ type RuleSource struct {
 	FieldId      uint   `json:"fieldId,omitempty"`
 }
 
-func (r RuleSource) GetSourceValue(item types.Item) interface{} {
+func (r RuleSource) GetSourceValue(item Item) interface{} {
 	fetchByFieldId := r.Source == FieldId || (r.Source == "" && r.FieldId > 0)
 
 	if fetchByFieldId {
@@ -68,7 +67,7 @@ func CompareFactory[K int | float64 | int64](comparator NumberComparator, limit 
 	}
 }
 
-func (r *NumberLimitRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+func (r *NumberLimitRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	matchFn := CompareFactory(r.Comparator, r.Limit)

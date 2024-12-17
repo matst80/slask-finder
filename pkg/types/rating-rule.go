@@ -1,7 +1,6 @@
-package index
+package types
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"sync"
 )
 
@@ -19,7 +18,7 @@ func (_ *RatingRule) New() ItemPopularityRule {
 	return &RatingRule{}
 }
 
-func (r *RatingRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+func (r *RatingRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	avg, num := item.GetRating()
 	if r.Multiplier == 0 {

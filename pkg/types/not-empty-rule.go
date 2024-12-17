@@ -1,7 +1,6 @@
-package index
+package types
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"sync"
 )
 
@@ -19,7 +18,7 @@ func (_ *NotEmptyRule) New() ItemPopularityRule {
 	return &NotEmptyRule{}
 }
 
-func (r *NotEmptyRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+func (r *NotEmptyRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	value := r.GetSourceValue(item)
 	match := false

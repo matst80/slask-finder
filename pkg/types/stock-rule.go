@@ -1,7 +1,6 @@
-package index
+package types
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"sync"
 )
 
@@ -18,7 +17,7 @@ func (_ *OutOfStockRule) New() ItemPopularityRule {
 	return &OutOfStockRule{}
 }
 
-func (r *OutOfStockRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+func (r *OutOfStockRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	stores := len(item.GetStock())
 	if stores > 0 {

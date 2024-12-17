@@ -1,7 +1,6 @@
-package index
+package types
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"sync"
 )
 
@@ -20,7 +19,7 @@ func (_ *PercentMultiplierRule) New() ItemPopularityRule {
 	return &PercentMultiplierRule{}
 }
 
-func (r *PercentMultiplierRule) GetValue(item types.Item, res chan<- float64, wg *sync.WaitGroup) {
+func (r *PercentMultiplierRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
 	defer wg.Done()
 	value := r.GetSourceValue(item)
 	v, ok := AsNumber[float64](value)
