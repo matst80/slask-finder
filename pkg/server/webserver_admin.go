@@ -24,6 +24,55 @@ var (
 	})
 )
 
+func (ws *WebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) {
+
+	if r.Method == "POST" {
+		defaultHeaders(w, r, false, "0")
+		jsonArray := types.JsonTypes{}
+		err := json.NewDecoder(r.Body).Decode(&jsonArray)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		sort := make(types.ItemPopularityRules, 0, len(jsonArray))
+		for _, item := range jsonArray {
+			v, ok := item.(types.ItemPopularityRule)
+			if !ok {
+				continue
+			}
+			sort = append(sort, v)
+		}
+
+		ws.Sorting.SetPopularityRules(&sort)
+
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	sort := ws.Sorting.GetPopularityRules()
+	if sort == nil {
+		http.Error(w, "rules not found", http.StatusNotFound)
+		return
+	}
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+
+	jsonArray := make(types.JsonTypes, 0, len(*sort))
+	for _, v := range *sort {
+		j, ok := v.(types.JsonType)
+		if !ok {
+			continue
+		}
+		jsonArray = append(jsonArray, j)
+	}
+
+	err := json.NewEncoder(w).Encode(jsonArray)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
@@ -357,6 +406,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
+	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
 	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))

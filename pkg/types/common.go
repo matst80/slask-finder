@@ -14,6 +14,12 @@ type BaseField struct {
 	IgnoreIfInSearch         bool    `json:"-"`
 }
 
+type FacetRequest struct {
+	*Filters
+	Stock []string `json:"stock" schema:"stock"`
+	Query string   `json:"query" schema:"query"`
+}
+
 type LocationStock []struct {
 	Id    string `json:"id"`
 	Level string `json:"level"`
@@ -44,7 +50,7 @@ type Item interface {
 	GetFieldValue(id uint) (interface{}, bool)
 	GetLastUpdated() int64
 	GetCreated() int64
-	GetPopularity() float64
+	//GetPopularity() float64
 	GetTitle() string
 	ToString() string
 	GetBaseItem() BaseItem

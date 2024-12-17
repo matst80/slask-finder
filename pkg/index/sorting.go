@@ -32,6 +32,7 @@ type Sorting struct {
 	sortMethods           map[string]*types.ByValue
 	staticPositions       *StaticPositions
 	FieldSort             *types.ByValue
+	popularityRules       *types.ItemPopularityRules
 	hasItemChanges        bool
 }
 
@@ -72,7 +73,99 @@ func NewSorting(addr, password string, db int) *Sorting {
 		fieldOverride:         &SortOverride{},
 		staticPositions:       &StaticPositions{},
 		popularMap:            &SortOverride{},
-		idx:                   nil,
+		popularityRules: &types.ItemPopularityRules{
+			&types.MatchRule{
+				Match: "Elgiganten",
+				RuleSource: types.RuleSource{
+					Source:  types.FieldId,
+					FieldId: 9,
+				},
+				ValueIfNotMatch: -12000,
+			},
+			&types.MatchRule{
+				Match: "Outlet",
+				RuleSource: types.RuleSource{
+					Source:  types.FieldId,
+					FieldId: 10,
+				},
+				ValueIfNotMatch: -6000,
+			},
+			&types.DiscountRule{
+				Multiplier:   30,
+				ValueIfMatch: 4500,
+			},
+			&types.MatchRule{
+				Match: true,
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "Buyable",
+				},
+				ValueIfMatch:    5000,
+				ValueIfNotMatch: -2000,
+			},
+			&types.OutOfStockRule{
+				NoStoreMultiplier: 20,
+				NoStockValue:      -6000,
+			},
+			&types.MatchRule{
+				Match: "",
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "BadgeUrl",
+				},
+				Invert:          true,
+				ValueIfNotMatch: 4500,
+			},
+			&types.NumberLimitRule{
+				Limit:           99999900,
+				Comparator:      ">",
+				ValueIfMatch:    -2500,
+				ValueIfNotMatch: 0,
+				RuleSource: types.RuleSource{
+					Source:  types.FieldId,
+					FieldId: 4,
+				},
+			},
+			&types.NumberLimitRule{
+				Limit:           10000,
+				Comparator:      "<",
+				ValueIfMatch:    -800,
+				ValueIfNotMatch: 0,
+				RuleSource: types.RuleSource{
+					Source:  types.FieldId,
+					FieldId: 4,
+				},
+			},
+			&types.PercentMultiplierRule{
+				Multiplier: 50,
+				Min:        0,
+				Max:        100,
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "MarginPercent",
+				},
+			},
+			&types.RatingRule{
+				Multiplier:     0.06,
+				SubtractValue:  -20,
+				ValueIfNoMatch: 0,
+			},
+			&types.AgedRule{
+				HourMultiplier: -0.0019,
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "Created",
+				},
+			},
+			&types.AgedRule{
+				HourMultiplier: -0.00002,
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "LastUpdate",
+				},
+			},
+		},
+		idx: nil,
 	}
 
 	return instance
@@ -470,9 +563,7 @@ func makeSortForItems(m SortOverride, items *types.ItemList, ch chan []types.Loo
 				break
 			}
 		}
-	}, func(a, b types.Lookup) int {
-		return cmp.Compare(b.Value, a.Value)
-	})
+	}, types.LookUpReversed)
 }
 
 func (s *Sorting) makeItemSortMaps() {
@@ -501,7 +592,7 @@ func (s *Sorting) makeItemSortMaps() {
 	for id, itm = range s.idx.Items {
 		item = *itm
 		j += 0.0000000000001
-		popular := item.GetPopularity() + (overrides[item.GetId()] * 1000)
+		popular := types.CollectPopularity(item, *s.popularityRules...) + (overrides[id] * 100)
 
 		partPopular := popular / 10000.0
 		if item.GetLastUpdated() == 0 {
@@ -549,6 +640,19 @@ func cloneReversed(arr *types.ByValue) *types.ByValue {
 	copy(n, *arr)
 	slices.Reverse(n)
 	return &n
+}
+
+func (s *Sorting) SetPopularityRules(rules *types.ItemPopularityRules) {
+	s.muOverride.Lock()
+	defer s.muOverride.Unlock()
+	s.popularityRules = rules
+	s.hasItemChanges = true
+}
+
+func (s *Sorting) GetPopularityRules() *types.ItemPopularityRules {
+	s.muOverride.RLock()
+	defer s.muOverride.RUnlock()
+	return s.popularityRules
 }
 
 func (s *Sorting) setFieldSortOverride(sort *SortOverride) {

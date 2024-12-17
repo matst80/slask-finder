@@ -4,19 +4,31 @@ import (
 	"sync"
 )
 
-type FilterOverrideules []FilterOverrideRule
+type FilterOverrideules []FilterMatchRule
 
-type FilterOverrideRule interface {
-	GetValue(item Item, res chan<- float64, wg *sync.WaitGroup)
+type RuleActionType string
+
+type RuleAction struct {
+	Value interface{}    `json:"value"`
+	Type  RuleActionType `json:"id"`
+}
+
+const (
+	Audience RuleActionType = "audience"
+	Ignore   RuleActionType = "ignore"
+)
+
+type FilterMatchRule interface {
+	GetValue(item FacetRequest, res chan<- *RuleAction, wg *sync.WaitGroup)
 }
 
 func init() {
 	//RegisterRule(&MatchRule{})
 }
 
-func MatchOverrides(item Item, rules ...FilterOverrideRule) float64 {
+func MatchOverrides(item FacetRequest, rules ...FilterMatchRule) *RuleAction {
 	wg := &sync.WaitGroup{}
-	res := make(chan float64)
+	res := make(chan *RuleAction)
 	for _, rule := range rules {
 		wg.Add(1)
 		go rule.GetValue(item, res, wg)
@@ -26,9 +38,10 @@ func MatchOverrides(item Item, rules ...FilterOverrideRule) float64 {
 		defer close(res)
 	}()
 
-	var sum float64
 	for v := range res {
-		sum += v
+		if v != nil {
+			return v
+		}
 	}
-	return sum
+	return nil
 }

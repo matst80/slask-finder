@@ -48,7 +48,7 @@ var (
 	// })
 )
 
-func (ws *WebServer) getInitialIds(sr *FacetRequest) (*types.ItemList, *search.DocumentResult) {
+func (ws *WebServer) getInitialIds(sr *types.FacetRequest) (*types.ItemList, *search.DocumentResult) {
 	var initialIds *types.ItemList = nil
 	var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {

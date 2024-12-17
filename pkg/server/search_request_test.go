@@ -20,7 +20,7 @@ func TestParseQueryValues(t *testing.T) {
 	sr := &SearchRequest{
 		Page:     0,
 		PageSize: 25,
-		FacetRequest: &FacetRequest{
+		FacetRequest: &types.FacetRequest{
 			Filters: &types.Filters{
 				StringFilter: []types.StringFilter{},
 				RangeFilter:  []types.RangeFilter{},

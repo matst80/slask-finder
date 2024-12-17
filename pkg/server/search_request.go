@@ -12,14 +12,8 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-type FacetRequest struct {
-	*types.Filters
-	Stock []string `json:"stock" schema:"stock"`
-	Query string   `json:"query" schema:"query"`
-}
-
 type SearchRequest struct {
-	*FacetRequest
+	*types.FacetRequest
 	Sort     string `json:"sort" schema:"sort,default:popular"`
 	Page     int    `json:"page" schema:"page"`
 	PageSize int    `json:"pageSize" schema:"size,default:40"`
@@ -59,7 +53,7 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
-func GetFacetQueryFromRequest(r *http.Request) (*FacetRequest, error) {
+func GetFacetQueryFromRequest(r *http.Request) (*types.FacetRequest, error) {
 	sr := makeBaseFacetRequest()
 	var err error
 	if r.Method == http.MethodGet {
@@ -71,7 +65,7 @@ func GetFacetQueryFromRequest(r *http.Request) (*FacetRequest, error) {
 	return sr, err
 }
 
-func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
+func facetQueryFromRequestQuery(query url.Values, result *types.FacetRequest) error {
 
 	err := decoder.Decode(result, query)
 	if err != nil {
@@ -81,7 +75,7 @@ func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
 	return decodeFiltersFromRequest(query, result)
 }
 
-func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
+func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) error {
 	var err error
 	for _, v := range query["str"] {
 		parts := strings.Split(v, ":")
@@ -124,8 +118,8 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 	return err
 }
 
-func makeBaseFacetRequest() *FacetRequest {
-	return &FacetRequest{
+func makeBaseFacetRequest() *types.FacetRequest {
+	return &types.FacetRequest{
 		Filters: &types.Filters{
 			StringFilter: []types.StringFilter{},
 			RangeFilter:  []types.RangeFilter{},
