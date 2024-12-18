@@ -99,6 +99,14 @@ func NewSorting(addr, password string, db int) *Sorting {
 				ValueIfMatch: 2300,
 			},
 			&types.MatchRule{
+				Match: "Google",
+				RuleSource: types.RuleSource{
+					Source:  types.FieldId,
+					FieldId: 2,
+				},
+				ValueIfMatch: 2100,
+			},
+			&types.MatchRule{
 				Match: "Nothing",
 				RuleSource: types.RuleSource{
 					Source:  types.FieldId,
