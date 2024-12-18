@@ -213,8 +213,8 @@ func (i *Index) UpsertItems(items []types.Item) {
 	log.Printf("Upserting items %d", l)
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	changed := make([]types.Item, 0)
-	price_lowered := make([]types.Item, 0)
+	changed := make([]types.Item, 0, len(items))
+	price_lowered := make([]types.Item, 0, len(items))
 
 	for _, it := range items {
 		if i.UpsertItemUnsafe(it) {

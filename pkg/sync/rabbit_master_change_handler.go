@@ -12,6 +12,7 @@ type RabbitMasterChangeHandler struct {
 
 func (r *RabbitMasterChangeHandler) ItemsUpserted(items []types.Item) {
 	if len(items) == 0 {
+		log.Fatalln("No items to upsert")
 		return
 	}
 	err := r.Master.ItemsUpserted(items)
