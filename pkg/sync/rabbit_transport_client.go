@@ -64,8 +64,10 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	}
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
+
 			var items []index.DataItem
 			if err := json.Unmarshal(d.Body, &items); err == nil {
+				log.Printf("Got upserts %d", len(items))
 				t.handler.UpsertItems(index.ToItemArray(items))
 			} else {
 				log.Printf("Failed to unmarshal upset message %v", err)

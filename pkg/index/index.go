@@ -224,6 +224,7 @@ func (i *Index) UpsertItems(items []types.Item) {
 		changed = append(changed, it)
 	}
 	if i.ChangeHandler != nil {
+		log.Printf("Propagating changes (%d)", len(changed))
 		i.ChangeHandler.ItemsUpserted(changed)
 		i.ChangeHandler.PriceLowered(price_lowered)
 	}
