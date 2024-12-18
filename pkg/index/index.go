@@ -228,6 +228,12 @@ func (i *Index) UpsertItems(items []types.Item) {
 		i.ChangeHandler.ItemsUpserted(changed)
 		i.ChangeHandler.PriceLowered(price_lowered)
 	}
+	if len(changed) > 0 {
+		log.Printf("Items upserted %d", len(changed))
+		if i.Sorting != nil {
+			i.Sorting.IndexChanged(i)
+		}
+	}
 }
 
 func (i *Index) Lock() {
@@ -273,9 +279,6 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	go i.AutoSuggest.InsertItem(item)
 	if i.Search != nil {
 		go i.Search.CreateDocument(id, item.ToString())
-	}
-	if i.Sorting != nil {
-		i.Sorting.IndexChanged(i)
 	}
 	return price_lowered
 }
