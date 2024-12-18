@@ -88,7 +88,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 					Source:  types.FieldId,
 					FieldId: 2,
 				},
-				ValueIfNotMatch: 2500,
+				ValueIfMatch: 2500,
 			},
 			&types.MatchRule{
 				Match: "Samsung",
@@ -96,7 +96,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 					Source:  types.FieldId,
 					FieldId: 2,
 				},
-				ValueIfNotMatch: 2300,
+				ValueIfMatch: 2300,
 			},
 			&types.MatchRule{
 				Match: "Nothing",
@@ -104,7 +104,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 					Source:  types.FieldId,
 					FieldId: 2,
 				},
-				ValueIfNotMatch: 2100,
+				ValueIfMatch: 2100,
 			},
 			&types.MatchRule{
 				Match: "Outlet",
@@ -112,7 +112,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 					Source:  types.FieldId,
 					FieldId: 10,
 				},
-				ValueIfNotMatch: -6000,
+				ValueIfMatch: -6000,
 			},
 			&types.DiscountRule{
 				Multiplier:   30,
