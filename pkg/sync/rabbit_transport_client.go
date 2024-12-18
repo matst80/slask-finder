@@ -62,6 +62,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Connected to rabbit upsert topic: %s", t.ItemsUpsertedTopic)
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
 
@@ -79,6 +80,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	if err != nil {
 		return err
 	}
+	log.Printf("Connected to rabbit delete topic: %s", t.ItemDeletedTopic)
 	go func(msgs <-chan amqp.Delivery) {
 		for d := range msgs {
 			var item uint
