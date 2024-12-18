@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"log"
+	"net/http"
 	"os"
 	"runtime"
 
@@ -103,5 +104,6 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
 	log.Println("Saved index")
+	w.WriteHeader(http.StatusOK)
 	return err
 }
