@@ -146,7 +146,16 @@ func NewSorting(addr, password string, db int) *Sorting {
 					PropertyName: "BadgeUrl",
 				},
 				Invert:          false,
-				ValueIfNotMatch: 4500,
+				ValueIfNotMatch: 3500,
+			},
+			&types.MatchRule{
+				Match: "",
+				RuleSource: types.RuleSource{
+					Source:  types.FieldId,
+					FieldId: 21,
+				},
+				Invert:          false,
+				ValueIfNotMatch: 4200,
 			},
 			&types.NumberLimitRule{
 				Limit:           99999900,
