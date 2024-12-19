@@ -584,14 +584,14 @@ func (s *Sorting) GetSortedFields(sessionId int, items []*JsonFacet) []*JsonFace
 }
 
 func ToSortedMap[K comparable](i map[K]float64) []K {
-	return slices.SortedFunc[K](func(yield func(K) bool) {
+	return slices.SortedFunc(func(yield func(K) bool) {
 		for key, _ := range i {
 			if !yield(key) {
 				break
 			}
 		}
 	}, func(k K, k2 K) int {
-		return cmp.Compare(i[k], i[k2])
+		return cmp.Compare(i[k2], i[k])
 	})
 }
 
