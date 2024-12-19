@@ -419,7 +419,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 	}
 
 	for i, typeValue := range index.ToSortedMap(articleTypes) {
-		if i > 5 {
+		if i > 4 {
 			break
 		}
 		wg.Add(1)
