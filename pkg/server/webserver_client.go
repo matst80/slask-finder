@@ -34,18 +34,10 @@ var (
 		Name: "slaskfinder_suggest_total",
 		Help: "The total number of processed suggestions",
 	})
-	// avgSearchTime = promauto.NewCounter(prometheus.CounterOpts{
-	// 	Name: "slaskfinder_searches_ms_total",
-	// 	Help: "The total number of ms consumed by search",
-	// })
 	facetSearches = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "slaskfinder_facets_total",
 		Help: "The total number of processed searches",
 	})
-	// facetGenerationTime = promauto.NewCounter(prometheus.CounterOpts{
-	// 	Name: "slaskfinder_searches_ms_total",
-	// 	Help: "The total number of ms consumed by search",
-	// })
 )
 
 func (ws *WebServer) getInitialIds(sr *types.FacetRequest) (*types.ItemList, *search.DocumentResult) {
@@ -165,7 +157,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	}
 
 	if ws.Tracking != nil {
-		go ws.Tracking.TrackSearch(sessionId, sr.Filters, sr.Query, sr.Page)
+		go ws.Tracking.TrackSearch(sessionId, sr.Filters, sr.Query, sr.Page, r)
 	}
 
 	resultChan := make(chan searchResult)
