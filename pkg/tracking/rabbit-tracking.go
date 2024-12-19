@@ -115,16 +115,20 @@ type ActionEvent struct {
 type SearchEventData struct {
 	*types.Filters
 	*BaseEvent
-	Query string `json:"query"`
-	Page  int    `json:"page"`
+	Query   string `json:"query"`
+	Page    int    `json:"page"`
+	Referer string `json:"referer"`
 }
 
-func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, query string, page int) {
+func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, query string, page int, r *http.Request) {
+	referer := r.Header.Get("Referer")
+	log.Printf("referer: %s", referer)
 	err := rt.send(&SearchEventData{
 		BaseEvent: &BaseEvent{Event: 1, SessionId: sessionId},
 		Filters:   filters,
 		Query:     query,
 		Page:      page,
+		Referer:   referer,
 	})
 	if err != nil {
 		log.Println("Error sending search event: ", err)
