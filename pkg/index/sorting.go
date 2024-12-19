@@ -107,6 +107,14 @@ func NewSorting(addr, password string, db int) *Sorting {
 				ValueIfMatch: 2100,
 			},
 			&types.MatchRule{
+				Match: "PRE",
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "SaleStatus",
+				},
+				ValueIfMatch: 1500,
+			},
+			&types.MatchRule{
 				Match: "Nothing",
 				RuleSource: types.RuleSource{
 					Source:  types.FieldId,
@@ -191,6 +199,7 @@ func NewSorting(addr, password string, db int) *Sorting {
 				SubtractValue:  -20,
 				ValueIfNoMatch: 0,
 			},
+
 			// &types.AgedRule{
 			// 	HourMultiplier: -0.0019,
 			// 	RuleSource: types.RuleSource{
