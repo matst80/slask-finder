@@ -633,11 +633,11 @@ func makeSortForItems(m SortOverride, items *types.ItemList, ch chan []types.Loo
 }
 
 func (s *Sorting) makeItemSortMaps() {
-	s.muOverride.Lock()
-	defer s.muOverride.Unlock()
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.muOverride.RLock()
+	defer s.muOverride.RUnlock()
+
 	overrides := *s.popularOverrides
+
 	s.idx.Lock()
 	defer s.idx.Unlock()
 	l := len(s.idx.Items)
@@ -679,18 +679,24 @@ func (s *Sorting) makeItemSortMaps() {
 	// if s.idx != nil {
 	// 	s.idx.SetBaseSortMap(popularSearchMap)
 	// }
-	s.popularMap = &popularSearchMap
-	SortByValues(popularMap)
-	s.sortMethods[POPULAR_SORT] = &popularMap
-	SortByValues(priceMap)
-	s.sortMethods[PRICE_DESC_SORT] = &priceMap
-	s.sortMethods[PRICE_SORT] = cloneReversed(&priceMap)
-	SortByValues(updatedMap)
-	s.sortMethods[UPDATED_DESC_SORT] = &updatedMap
-	s.sortMethods[UPDATED_SORT] = cloneReversed(&updatedMap)
-	SortByValues(createdMap)
-	s.sortMethods[CREATED_SORT] = &createdMap
-	s.sortMethods[CREATED_DESC_SORT] = cloneReversed(&createdMap)
+	go func() {
+		s.muOverride.Lock()
+		defer s.muOverride.Unlock()
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.popularMap = &popularSearchMap
+		SortByValues(popularMap)
+		s.sortMethods[POPULAR_SORT] = &popularMap
+		SortByValues(priceMap)
+		s.sortMethods[PRICE_DESC_SORT] = &priceMap
+		s.sortMethods[PRICE_SORT] = cloneReversed(&priceMap)
+		SortByValues(updatedMap)
+		s.sortMethods[UPDATED_DESC_SORT] = &updatedMap
+		s.sortMethods[UPDATED_SORT] = cloneReversed(&updatedMap)
+		SortByValues(createdMap)
+		s.sortMethods[CREATED_SORT] = &createdMap
+		s.sortMethods[CREATED_DESC_SORT] = cloneReversed(&createdMap)
+	}()
 
 }
 
