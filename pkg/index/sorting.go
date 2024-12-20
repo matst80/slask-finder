@@ -633,15 +633,13 @@ func makeSortForItems(m SortOverride, items *types.ItemList, ch chan []types.Loo
 }
 
 func (s *Sorting) makeItemSortMaps() {
-	s.idx.Lock()
-	defer s.idx.Unlock()
-
 	s.muOverride.Lock()
 	defer s.muOverride.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	overrides := *s.popularOverrides
-
+	s.idx.Lock()
+	defer s.idx.Unlock()
 	l := len(s.idx.Items)
 	j := 0.0
 	now := time.Now()
@@ -655,6 +653,7 @@ func (s *Sorting) makeItemSortMaps() {
 	var item types.Item
 	var itm *types.Item
 	var id uint
+
 	for id, itm = range s.idx.Items {
 		item = *itm
 		j += 0.0000000000001
@@ -674,7 +673,7 @@ func (s *Sorting) makeItemSortMaps() {
 
 		priceMap[i] = types.Lookup{Id: id, Value: float64(item.GetPrice()) + j}
 		popularMap[i] = types.Lookup{Id: id, Value: popular + j}
-		popularSearchMap[id] = popular / 1000.0
+		popularSearchMap[id] = popular / 100.0
 		i++
 	}
 	// if s.idx != nil {
