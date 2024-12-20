@@ -211,13 +211,6 @@ func (i *ContentIndex) AddItem(item ContentItem) {
 
 func (i *ContentIndex) MatchQuery(query string) iter.Seq[ContentItem] {
 	result := i.Search.Search(query)
-	//sortResult := make(chan *types.SortIndex)
-	//result.GetSorting(sortResult)
-	//defer close(sortResult)
-	//s := <-sortResult
-	//itemIds := *result.ToResult()
-	// j := min(30, len(*result))
-	// resultItems := make([]ContentItem, 0, j)
 
 	return func(yield func(ContentItem) bool) {
 		for id := range *result {
@@ -229,15 +222,5 @@ func (i *ContentIndex) MatchQuery(query string) iter.Seq[ContentItem] {
 			}
 		}
 	}
-	// for id := range *result {
-	// 	item, ok := i.Items[id]
-	// 	if ok {
-	// 		resultItems = append(resultItems, item)
-	// 		j--
-	// 	}
-	// 	if j == 0 {
-	// 		break
-	// 	}
-	// }
-	// return resultItems
+
 }

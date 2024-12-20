@@ -94,7 +94,7 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
 	isPopular := sr.Sort == "popular" || sr.Sort == ""
 
-	if sr.Query != "" || isPopular {
+	if isPopular && sr.Query != "*" {
 		go func() {
 			sortChan <- nil
 		}()
