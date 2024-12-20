@@ -1,9 +1,5 @@
 package types
 
-import (
-	"sync"
-)
-
 type NumberComparator string
 
 type Source string
@@ -65,8 +61,7 @@ func CompareFactory[K int | float64 | int64](comparator NumberComparator, limit 
 	}
 }
 
-func (r *NumberLimitRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (r *NumberLimitRule) GetValue(item Item) float64 {
 
 	matchFn := CompareFactory(r.Comparator, r.Limit)
 	value := r.GetSourceValue(item)
@@ -74,12 +69,12 @@ func (r *NumberLimitRule) GetValue(item Item, res chan<- float64, wg *sync.WaitG
 	v, found := AsNumber[float64](value)
 
 	if !found {
-		res <- r.ValueIfNotMatch
+		return r.ValueIfNotMatch
 	} else {
 		if matchFn(v) {
-			res <- r.ValueIfMatch
+			return r.ValueIfMatch
 		} else {
-			res <- r.ValueIfNotMatch
+			return r.ValueIfNotMatch
 		}
 	}
 }

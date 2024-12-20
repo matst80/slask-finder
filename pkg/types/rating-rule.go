@@ -1,9 +1,5 @@
 package types
 
-import (
-	"sync"
-)
-
 type RatingRule struct {
 	Multiplier     float64 `json:"multiplier,omitempty"`
 	SubtractValue  int     `json:"subtractValue,omitempty"`
@@ -18,15 +14,15 @@ func (r *RatingRule) New() JsonType {
 	return &RatingRule{}
 }
 
-func (r *RatingRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (r *RatingRule) GetValue(item Item) float64 {
+
 	avg, num := item.GetRating()
 	if r.Multiplier == 0 {
 		r.Multiplier = 1
 	}
 	if num == 0 {
-		res <- r.ValueIfNoMatch
+		return r.ValueIfNoMatch
 	} else {
-		res <- (float64(avg) - float64(r.SubtractValue)) * r.Multiplier
+		return (float64(avg) - float64(r.SubtractValue)) * r.Multiplier
 	}
 }

@@ -1,9 +1,5 @@
 package types
 
-import (
-	"sync"
-)
-
 type MatchRule struct {
 	RuleSource
 	Match           interface{} `json:"match"`
@@ -20,8 +16,7 @@ func (_ *MatchRule) New() JsonType {
 	return &MatchRule{}
 }
 
-func (r *MatchRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (r *MatchRule) GetValue(item Item) float64 {
 	match := false
 	value := r.GetSourceValue(item)
 
@@ -32,8 +27,8 @@ func (r *MatchRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) 
 	}
 
 	if match {
-		res <- r.ValueIfMatch
+		return r.ValueIfMatch
 	} else {
-		res <- r.ValueIfNotMatch
+		return r.ValueIfNotMatch
 	}
 }

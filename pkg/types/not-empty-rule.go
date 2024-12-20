@@ -1,9 +1,5 @@
 package types
 
-import (
-	"sync"
-)
-
 type NotEmptyRule struct {
 	RuleSource
 	ValueIfMatch    float64 `json:"value,omitempty"`
@@ -18,13 +14,11 @@ func (_ *NotEmptyRule) New() JsonType {
 	return &NotEmptyRule{}
 }
 
-func (r *NotEmptyRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGroup) {
-	defer wg.Done()
+func (r *NotEmptyRule) GetValue(item Item) float64 {
 	value := r.GetSourceValue(item)
 	match := false
 	if value == nil {
-		res <- r.ValueIfNotMatch
-		return
+		return r.ValueIfNotMatch
 	}
 	switch v := value.(type) {
 	case string:
@@ -41,8 +35,9 @@ func (r *NotEmptyRule) GetValue(item Item, res chan<- float64, wg *sync.WaitGrou
 		}
 	}
 	if match {
-		res <- r.ValueIfMatch
-	} else {
-		res <- r.ValueIfNotMatch
+		return r.ValueIfMatch
 	}
+
+	return r.ValueIfNotMatch
+
 }
