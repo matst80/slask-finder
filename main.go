@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"log"
 	"net/http"
@@ -94,6 +95,36 @@ func init() {
 		Endpoint: google.Endpoint,
 	}
 	srv.OAuthConfig = authConfig
+}
+
+type FieldType uint
+
+type StorageFacet struct {
+	types.BaseField
+	Type FieldType `json:"type"`
+}
+
+func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
+	file, err := os.Create(filename)
+	toStore := make([]StorageFacet, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	for _, ff := range facets {
+
+		b := ff.GetBaseField()
+		toStore = append(toStore, StorageFacet{
+			BaseField: *b,
+			Type:      FieldType(ff.GetType()),
+		})
+	}
+	err = json.NewEncoder(file).Encode(toStore)
+	if err != nil {
+		return err
+	}
+	return nil
+
 }
 
 func LoadIndex(wg *sync.WaitGroup) {
@@ -193,6 +224,8 @@ func LoadIndex(wg *sync.WaitGroup) {
 				}
 				srv.Sorting.InitializeWithIndex(idx)
 				srv.Sorting.StartListeningForChanges()
+
+				// saveFieldsToFile(idx.Facets, "data/facets.json")
 
 				wg.Add(1)
 				go populateContentFromCsv(contentIdx, "data/content.csv", wg)

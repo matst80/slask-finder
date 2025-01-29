@@ -215,7 +215,15 @@ func NewSorting(addr, password string, db int) *Sorting {
 				SubtractValue:  -20,
 				ValueIfNoMatch: 0,
 			},
-
+			&types.MatchRule{
+				Match: false,
+				RuleSource: types.RuleSource{
+					Source:       types.Property,
+					PropertyName: "Buyable",
+				},
+				ValueIfMatch:    -200000,
+				ValueIfNotMatch: 1000,
+			},
 			// &types.AgedRule{
 			// 	HourMultiplier: -0.0019,
 			// 	RuleSource: types.RuleSource{
@@ -643,7 +651,7 @@ func (s *Sorting) makeItemSortMaps() {
 	l := len(s.idx.Items)
 	j := 0.0
 	now := time.Now()
-	ts := now.Unix() / 1000
+	ts := now.UnixMilli()
 	popularMap := make(types.ByValue, l)
 	priceMap := make(types.ByValue, l)
 	updatedMap := make(types.ByValue, l)

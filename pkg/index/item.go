@@ -18,7 +18,7 @@ type PriceTuple struct {
 }
 
 type OutletItem struct {
-	ArticleNumber string     `json:"sku,opmitempty"`
+	ArticleNumber string     `json:"sku,omitempty"`
 	Price         PriceTuple `json:"price,omitempty"`
 	Title         string     `json:"title"`
 }
@@ -26,26 +26,27 @@ type OutletItem struct {
 type ItemProp struct {
 	Url string `json:"url"`
 	//Tree            []string      `json:"tree"`
-	Disclaimer      string        `json:"disclaimer,omitempty"`
-	ReleaseDate     string        `json:"releaseDate,omitempty"`
-	SaleStatus      string        `json:"saleStatus"`
-	MarginPercent   float64       `json:"mp,omitempty"`
-	PresaleDate     string        `json:"presaleDate,omitempty"`
-	Restock         string        `json:"restock,omitempty"`
-	AdvertisingText string        `json:"advertisingText,omitempty"`
-	Img             string        `json:"img,omitempty"`
-	BadgeUrl        string        `json:"badgeUrl,omitempty"`
-	EnergyRating    *EnergyRating `json:"energyRating,omitempty"`
-	BulletPoints    string        `json:"bp,omitempty"`
-	LastUpdate      int64         `json:"lastUpdate,omitempty"`
-	Created         int64         `json:"created,omitempty"`
-	Buyable         bool          `json:"buyable"`
-	Description     string        `json:"description,omitempty"`
-	BuyableInStore  bool          `json:"buyableInStore"`
-	BoxSize         string        `json:"boxSize,omitempty"`
-	CheapestBItem   *OutletItem   `json:"bItem,omitempty"`
-	AItem           *OutletItem   `json:"aItem,omitempty"`
-	ArticleType     string        `json:"articleType,omitempty"`
+	Disclaimer       string        `json:"disclaimer,omitempty"`
+	ReleaseDate      string        `json:"releaseDate,omitempty"`
+	SaleStatus       string        `json:"saleStatus"`
+	OnlineSaleStatus string        `json:"onlineSaleStatus"`
+	MarginPercent    float64       `json:"mp,omitempty"`
+	PresaleDate      string        `json:"presaleDate,omitempty"`
+	Restock          string        `json:"restock,omitempty"`
+	AdvertisingText  string        `json:"advertisingText,omitempty"`
+	Img              string        `json:"img,omitempty"`
+	BadgeUrl         string        `json:"badgeUrl,omitempty"`
+	EnergyRating     *EnergyRating `json:"energyRating,omitempty"`
+	BulletPoints     string        `json:"bp,omitempty"`
+	LastUpdate       int64         `json:"lastUpdate,omitempty"`
+	Created          int64         `json:"created,omitempty"`
+	Buyable          bool          `json:"buyable"`
+	Description      string        `json:"description,omitempty"`
+	BuyableInStore   bool          `json:"buyableInStore"`
+	BoxSize          string        `json:"boxSize,omitempty"`
+	CheapestBItem    *OutletItem   `json:"bItem,omitempty"`
+	AItem            *OutletItem   `json:"aItem,omitempty"`
+	ArticleType      string        `json:"articleType,omitempty"`
 }
 
 type BaseItem struct {
