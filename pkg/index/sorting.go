@@ -643,7 +643,7 @@ func (s *Sorting) makeItemSortMaps() {
 	l := len(s.idx.Items)
 	j := 0.0
 	now := time.Now()
-	ts := now.Unix() / 1000
+	ts := now.UnixMilli()
 	popularMap := make(types.ByValue, l)
 	priceMap := make(types.ByValue, l)
 	updatedMap := make(types.ByValue, l)

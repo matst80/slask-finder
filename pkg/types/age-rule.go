@@ -21,7 +21,7 @@ func (r *AgedRule) GetValue(item Item) float64 {
 
 	value := r.GetSourceValue(item)
 
-	now := time.Now().UnixNano()
+	now := time.Now().UnixMilli()
 	v, ok := AsNumber[int64](value)
 	if ok && v > 0 {
 		return float64((now-v)/60_000) * r.HourMultiplier
