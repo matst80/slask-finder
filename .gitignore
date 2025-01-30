@@ -6,3 +6,4 @@ data/carts/
 facet-search
 clickhouse
 .env
+facets.json
