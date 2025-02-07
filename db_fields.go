@@ -2828,4 +2828,5 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 36300, Name: "Supported radiator size - side", Priority: 999})
 	idx.AddKeyField(&types.BaseField{Id: 36301, Name: "No. of 3.5mm mini jack combo", Priority: 999})
 	idx.AddKeyField(&types.BaseField{Id: 36302, Name: "No. of 3.5mm mini jack microphone", Priority: 999})
+	idx.AddIntegerField(&types.BaseField{Id: 36338, Name: "M.2 Key size", Priority: 1999})
 }
