@@ -97,18 +97,18 @@ func (item *DataItem) IsSoftDeleted() bool {
 	if price <= 200 {
 		return true
 	}
-	// if !item.Buyable {
-	// 	return true
-	// }
+	if !item.Buyable {
+		return true
+	}
 	if price > 99999000 && price <= 100000000 {
 		return true
 	}
 	if item.SaleStatus == "DIS" {
 		return true
 	}
-	// if item.SaleStatus == "DIO" {
-	// 	return true
-	// }
+	if item.SaleStatus == "DIO" {
+		return true
+	}
 	return false
 }
 

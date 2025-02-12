@@ -250,6 +250,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	current, isUpdate := i.Items[id]
 	if item.IsDeleted() {
 		if item.IsSoftDeleted() {
+			i.removeItemValues(*current)
 			return false
 		}
 		delete(i.ItemFieldIds, id)
