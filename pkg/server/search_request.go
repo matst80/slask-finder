@@ -14,9 +14,10 @@ import (
 
 type SearchRequest struct {
 	*types.FacetRequest
-	Sort     string `json:"sort" schema:"sort,default:popular"`
-	Page     int    `json:"page" schema:"page"`
-	PageSize int    `json:"pageSize" schema:"size,default:40"`
+	SkipTracking bool   `json:"skipTracking" schema:"nt"`
+	Sort         string `json:"sort" schema:"sort,default:popular"`
+	Page         int    `json:"page" schema:"page"`
+	PageSize     int    `json:"pageSize" schema:"size,default:40"`
 }
 
 var decoder = schema.NewDecoder()
