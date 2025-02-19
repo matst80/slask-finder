@@ -84,13 +84,21 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	if strings.Contains(str, "&lt;") || strings.Contains(str, "&gt;") {
 		return false
 	}
-	parts := strings.Split(str, "; ")
-	for _, part := range parts {
+	parts := strings.Split(str, ";")
+	// if len(parts) > 1 {
+	// 	log.Print("found keys", strings.Join(parts, " / "))
+	// }
+	itemId := item.GetId()
+	for _, partData := range parts {
+		part := strings.TrimSpace(partData)
+		if part == "" {
+			continue
+		}
 		// if len(part) > 128 {
 		// 	log.Printf("Truncating key value %s", part)
 		// 	part = part[:126] + "..."
 		// }
-		itemId := item.GetId()
+
 		if k, ok := f.Keys[part]; ok {
 			k.AddId(itemId)
 		} else {
