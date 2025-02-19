@@ -67,6 +67,8 @@ func MakeIntersectResult(r chan *ItemList, len int) *ItemList {
 		next = <-r
 		if next != nil {
 			first.Intersect(*next)
+		} else {
+			return &ItemList{}
 		}
 	}
 
