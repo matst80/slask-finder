@@ -1,6 +1,8 @@
 package facet
 
 import (
+	"strings"
+
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -79,14 +81,21 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	if !ok || str == "" {
 		return false
 	}
-	if len(str) > 64 {
-		str = str[:61] + "..."
+	if strings.Contains(str, "&lt;") || strings.Contains(str, "&gt;") {
+		return false
 	}
-	itemId := item.GetId()
-	if k, ok := f.Keys[str]; ok {
-		k.AddId(itemId)
-	} else {
-		f.Keys[str] = types.ItemList{itemId: struct{}{}}
+	parts := strings.Split(str, "; ")
+	for _, part := range parts {
+		// if len(part) > 128 {
+		// 	log.Printf("Truncating key value %s", part)
+		// 	part = part[:126] + "..."
+		// }
+		itemId := item.GetId()
+		if k, ok := f.Keys[part]; ok {
+			k.AddId(itemId)
+		} else {
+			f.Keys[part] = types.ItemList{itemId: struct{}{}}
+		}
 	}
 	return true
 }
