@@ -156,7 +156,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 		return err
 	}
 
-	if ws.Tracking != nil {
+	if ws.Tracking != nil && !sr.SkipTracking {
 		go ws.Tracking.TrackSearch(sessionId, sr.Filters, sr.Query, sr.Page, r)
 	}
 
