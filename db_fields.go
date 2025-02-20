@@ -1888,7 +1888,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddDecimalField(&types.BaseField{Id: 33703, Name: "Recirkulation boostposition (m3/h)", Priority: 121.0})
 	idx.AddDecimalField(&types.BaseField{Id: 33704, Name: "Total lampeffekt (m3/h)", Priority: 398.0})
 	idx.AddKeyField(&types.BaseField{Id: 33705, Name: "Edition", Priority: 1247.0})
-	idx.AddKeyField(&types.BaseField{Id: 33706, Name: "Grafikkort (serie)", Priority: 530.0})
+	idx.AddKeyField(&types.BaseField{Id: 33706, Name: "Grafikkort (serie)", Priority: 12530.0})
 	idx.AddKeyField(&types.BaseField{Id: 33707, Name: "Exhaust water pipe", Priority: 39.0})
 	idx.AddKeyField(&types.BaseField{Id: 33711, Name: "Torkställ för fintvätt", Priority: 222.0})
 	idx.AddKeyField(&types.BaseField{Id: 33712, Name: "Kokande vatten", Priority: 178.0})
