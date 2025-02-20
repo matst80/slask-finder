@@ -2776,7 +2776,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 36253, Name: "LED Color", Priority: 999})
 	idx.AddKeyField(&types.BaseField{Id: 36306, Name: "Fan color", Priority: 999})
 	idx.AddKeyField(&types.BaseField{Id: 32077, Name: "Compatible CPU socket", Priority: 999})
-	idx.AddKeyField(&types.BaseField{Id: 36307, Name: "CPU TDP capacity (watt)", Priority: 999})
+	idx.AddIntegerField(&types.BaseField{Id: 36307, Name: "CPU TDP capacity (watt)", Priority: 999})
 	idx.AddKeyField(&types.BaseField{Id: 36314, Name: "Heatsink material", Priority: 999})
 	idx.AddDecimalField(&types.BaseField{Id: 36315, Name: "Heatsink height inc fans (mm)", Priority: 999})
 	idx.AddDecimalField(&types.BaseField{Id: 36316, Name: "RAM clearance (mm)", Priority: 999})

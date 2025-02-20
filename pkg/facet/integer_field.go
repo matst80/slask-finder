@@ -2,6 +2,7 @@ package facet
 
 import (
 	"maps"
+	"strconv"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -113,6 +114,12 @@ func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
 	case float64:
 		f.addValueLink(int(value), item)
 		return true
+	case string:
+		intValue, err := strconv.Atoi(value)
+		if err == nil {
+			f.addValueLink(intValue, item)
+			return true
+		}
 	}
 
 	return false
