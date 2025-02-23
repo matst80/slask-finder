@@ -54,13 +54,13 @@ type Index struct {
 	Items         map[uint]*types.Item
 	ItemsInStock  map[string]types.ItemList
 	All           types.ItemList
-	AutoSuggest   AutoSuggest
+	AutoSuggest   *AutoSuggest
 	ChangeHandler ChangeHandler
 	Sorting       *Sorting
 	Search        *search.FreeTextIndex
 }
 
-func NewIndex(freeText *search.FreeTextIndex) *Index {
+func NewIndex() *Index {
 	return &Index{
 		mu:           sync.RWMutex{},
 		All:          types.ItemList{},
@@ -69,8 +69,6 @@ func NewIndex(freeText *search.FreeTextIndex) *Index {
 		Facets:       make(map[uint]types.Facet),
 		Items:        make(map[uint]*types.Item),
 		ItemsInStock: make(map[string]types.ItemList),
-		AutoSuggest:  AutoSuggest{Trie: search.NewTrie()},
-		Search:       freeText,
 	}
 }
 
@@ -279,7 +277,9 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	if i.ChangeHandler != nil {
 		return price_lowered
 	}
-	go i.AutoSuggest.InsertItem(item)
+	if i.AutoSuggest != nil {
+		go i.AutoSuggest.InsertItem(item)
+	}
 	if i.Search != nil {
 		go i.Search.CreateDocument(id, item.ToString())
 	}

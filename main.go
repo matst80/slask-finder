@@ -43,8 +43,8 @@ var rabbitConfig = ffSync.RabbitConfig{
 	Url:                rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}
-var freetextSearch = search.NewFreeTextIndex(&token)
-var idx = index.NewIndex(freetextSearch)
+
+var idx = index.NewIndex()
 var db = persistance.NewPersistance()
 
 var embeddingsIndex = embeddings.NewEmbeddingsIndex()
@@ -129,10 +129,13 @@ func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
 
 func LoadIndex(wg *sync.WaitGroup) {
 
-	srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
-
-	srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
-	idx.Sorting = srv.Sorting
+	if mode != ModeMaster {
+		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
+		srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
+		idx.Sorting = srv.Sorting
+		idx.AutoSuggest = &index.AutoSuggest{Trie: search.NewTrie()}
+		idx.Search = search.NewFreeTextIndex(&token)
+	}
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
 	idx.AddKeyField(&types.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0}) // 949259
