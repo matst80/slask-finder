@@ -135,6 +135,8 @@ func LoadIndex(wg *sync.WaitGroup) {
 		idx.Sorting = srv.Sorting
 		idx.AutoSuggest = &index.AutoSuggest{Trie: search.NewTrie()}
 		idx.Search = search.NewFreeTextIndex(&token)
+	} else {
+		idx.IsMaster = true
 	}
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 

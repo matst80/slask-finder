@@ -53,6 +53,7 @@ type Index struct {
 	ItemFieldIds  map[uint]map[uint]struct{}
 	Items         map[uint]*types.Item
 	ItemsInStock  map[string]types.ItemList
+	IsMaster      bool
 	All           types.ItemList
 	AutoSuggest   *AutoSuggest
 	ChangeHandler ChangeHandler
@@ -95,6 +96,9 @@ func makeCategoryId(level int, value string) uint {
 }
 
 func (i *Index) addItemValues(item types.Item) {
+	if i.IsMaster {
+		return
+	}
 	itemId := item.GetId()
 	for _, stock := range i.ItemsInStock {
 		delete(stock, itemId)
@@ -169,6 +173,9 @@ func (i *Index) GetCategories() []*Category {
 }
 
 func (i *Index) removeItemValues(item types.Item) {
+	if i.IsMaster {
+		return
+	}
 	itemId := item.GetId()
 	for fieldId, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[fieldId]; ok {
@@ -217,7 +224,6 @@ func (i *Index) UpsertItems(items []types.Item) {
 	for _, it := range items {
 		if i.UpsertItemUnsafe(it) {
 			price_lowered = append(price_lowered, it)
-
 		}
 		changed = append(changed, it)
 	}
@@ -274,9 +280,10 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	i.addItemValues(item)
 
 	i.Items[id] = &item
-	if i.ChangeHandler != nil {
+	if i.IsMaster {
 		return price_lowered
 	}
+
 	if i.AutoSuggest != nil {
 		go i.AutoSuggest.InsertItem(item)
 	}
