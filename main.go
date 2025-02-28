@@ -71,15 +71,8 @@ var mode = ModeStandalone
 var hasRabbitConfig = false
 
 func init() {
-	if rabbitUrl != "" {
-		hasRabbitConfig = true
-	} else {
-		if clientName != "" {
-			mode = ModeMaster
-		} else {
-			mode = ModeClient
-		}
-	}
+	flag.Parse()
+
 	if redisUrl == "" {
 		log.Fatalf("No redis url provided")
 	}
@@ -128,7 +121,15 @@ func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
 }
 
 func LoadIndex(wg *sync.WaitGroup) {
-
+	if rabbitUrl != "" {
+		hasRabbitConfig = true
+	} else {
+		if clientName != "" {
+			mode = ModeMaster
+		} else {
+			mode = ModeClient
+		}
+	}
 	if mode != ModeMaster {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
@@ -252,7 +253,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 }
 
 func main() {
-	flag.Parse()
+
 	wg := sync.WaitGroup{}
 	LoadIndex(&wg)
 
