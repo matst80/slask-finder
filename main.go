@@ -121,6 +121,7 @@ func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
 }
 
 func LoadIndex(wg *sync.WaitGroup) {
+	log.Printf("amqp url: %s", rabbitUrl)
 	if rabbitUrl != "" {
 		hasRabbitConfig = true
 	} else {
@@ -199,7 +200,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 			log.Println("Index loaded")
 
 			//cartServer.Tracking = srv.Tracking
-			if mode == ModeMaster {
+			if rabbitUrl != "" && clientName == "" {
 				log.Println("Starting as master")
 				masterTransport := ffSync.RabbitTransportMaster{
 					RabbitConfig: rabbitConfig,
