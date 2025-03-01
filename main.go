@@ -225,7 +225,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 				srv.Sorting.StartListeningForChanges()
 
 				// saveFieldsToFile(idx.Facets, "data/facets.json")
-
+				wg.Add(1)
 				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
 
 				go func() {
