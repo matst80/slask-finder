@@ -2,6 +2,7 @@ package index
 
 import (
 	"encoding/json"
+	"errors"
 	"iter"
 	"strconv"
 	"strings"
@@ -124,6 +125,10 @@ func (i StoreContentItem) IndexData() string {
 }
 
 func ContentItemFromLine(record []string) (ContentItem, error) {
+	// log.Printf("Record deleted: %v", record[IsDeleted])
+	if record[IsDeleted] == "true" {
+		return nil, errors.New("item is deleted")
+	}
 	if record[StoreID] == "" {
 		idString := record[Id]
 		if strings.HasPrefix(idString, "SELLER:") {

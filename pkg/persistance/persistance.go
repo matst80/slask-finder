@@ -61,6 +61,9 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	for err == nil {
 
 		if err = decodeNormal(enc, tmp); err == nil {
+			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
+				continue
+			}
 			idx.UpsertItemUnsafe(tmp)
 			tmp = &index.DataItem{}
 		}
