@@ -17,7 +17,7 @@ type RabbitTrackingConfig struct {
 type RabbitTracking struct {
 	RabbitTrackingConfig
 	connection *amqp.Connection
-	channel    *amqp.Channel
+	//channel    *amqp.Channel
 }
 
 func NewRabbitTracking(config RabbitTrackingConfig) (*RabbitTracking, error) {
@@ -39,14 +39,35 @@ func (t *RabbitTracking) Connect() error {
 	if err != nil {
 		return err
 	}
-	t.channel = ch
+	defer ch.Close()
+	if err := ch.ExchangeDeclare(
+		t.TrackingTopic, // name
+		"topic",         // type
+		true,            // durable
+		false,           // auto-delete
+		false,           // internal
+		false,           // noWait
+		nil,             // arguments
+	); err != nil {
+		return err
+	}
+
+	if _, err = ch.QueueDeclare(
+		t.TrackingTopic, // name of the queue
+		true,            // durable
+		false,           // delete when unused
+		false,           // exclusive
+		false,           // noWait
+		nil,             // arguments
+	); err != nil {
+		return err
+	}
 
 	return nil
 }
 
 func (t *RabbitTracking) Close() error {
-	defer t.connection.Close()
-	return t.channel.Close()
+	return t.connection.Close()
 }
 
 func (t *RabbitTracking) send(data any) error {
@@ -54,7 +75,12 @@ func (t *RabbitTracking) send(data any) error {
 	if err != nil {
 		return err
 	}
-	return t.channel.Publish(
+	ch, err := t.connection.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+	return ch.Publish(
 		t.TrackingTopic,
 		t.TrackingTopic,
 		true,
