@@ -17,11 +17,13 @@ type RabbitTransportMaster struct {
 func (t *RabbitTransportMaster) Connect() error {
 
 	conn, err := amqp.Dial(t.Url)
+	conn.Config.Vhost = t.VHost
 	if err != nil {
 		return err
 	}
 	t.connection = conn
 	ch, err := conn.Channel()
+
 	if err != nil {
 		return err
 	}

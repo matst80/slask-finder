@@ -13,6 +13,7 @@ type RabbitConfig struct {
 	ItemDeletedTopic   string
 	PriceLoweredTopic  string
 	Url                string
+	VHost              string
 }
 
 func MakeBaseClient(index *index.Index, transport TransportClient) *BaseClient {
