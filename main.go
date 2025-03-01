@@ -237,7 +237,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 				}()
 			}
 		}
-		wg.Add(1)
+
 		runtime.GC()
 		done = true
 	}()
