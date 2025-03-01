@@ -117,6 +117,7 @@ func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
 }
 
 func LoadIndex(wg *sync.WaitGroup) {
+	wg.Add(1)
 	log.Printf("amqp url: %s", rabbitUrl)
 	log.Printf("clientName: %s", clientName)
 
@@ -179,8 +180,8 @@ func LoadIndex(wg *sync.WaitGroup) {
 		srv.Tracking = trk
 	}
 
-	wg.Add(1)
 	go func() {
+
 		defer wg.Done()
 		err := db.LoadIndex(idx)
 
