@@ -2,6 +2,7 @@ package sync
 
 import (
 	"encoding/json"
+	"log"
 
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -30,6 +31,7 @@ func (t *RabbitTransportMaster) Connect() error {
 }
 
 func (t *RabbitTransportMaster) Close() error {
+	log.Println("Closing master channel")
 	defer t.connection.Close()
 	return t.channel.Close()
 }

@@ -60,14 +60,8 @@ var srv = server.WebServer{
 	Embeddings:       embeddingsIndex,
 }
 
-const (
-	ModeStandalone = iota
-	ModeMaster
-	ModeClient
-)
-
 var done = false
-var mode = ModeStandalone
+
 var hasRabbitConfig = false
 
 func init() {
@@ -123,15 +117,7 @@ func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
 func LoadIndex(wg *sync.WaitGroup) {
 	log.Printf("amqp url: %s", rabbitUrl)
 	log.Printf("clientName: %s", clientName)
-	if rabbitUrl != "" {
-		hasRabbitConfig = true
-	} else {
-		if clientName != "" {
-			mode = ModeMaster
-		} else {
-			mode = ModeClient
-		}
-	}
+
 	if rabbitUrl != "" && clientName == "" {
 		idx.IsMaster = true
 		log.Println("Starting with reduced memory consumption")
@@ -141,9 +127,8 @@ func LoadIndex(wg *sync.WaitGroup) {
 		idx.Sorting = srv.Sorting
 		idx.AutoSuggest = &index.AutoSuggest{Trie: search.NewTrie()}
 		idx.Search = search.NewFreeTextIndex(&token)
-
+		log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 	}
-	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
 	idx.AddKeyField(&types.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0}) // 949259
 	idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 119999.0, Type: "brand", ValueSorting: 1})
@@ -181,7 +166,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 
 	addDbFields(idx)
 
-	if hasRabbitConfig {
+	if rabbitUrl != "" {
 		trk, err := tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
 			TrackingTopic: "tracking",
 			Url:           rabbitUrl,
@@ -212,6 +197,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 				if err != nil {
 					log.Printf("Failed to connect to RabbitMQ as master, %v", err)
 				} else {
+					log.Print("Connected to RabbitMQ as master")
 					idx.ChangeHandler = &ffSync.RabbitMasterChangeHandler{
 						Master: masterTransport,
 					}
@@ -237,7 +223,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 
 				// saveFieldsToFile(idx.Facets, "data/facets.json")
 
-				wg.Add(1)
 				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
 
 				go func() {
@@ -250,6 +235,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 				}()
 			}
 		}
+		wg.Add(1)
 		runtime.GC()
 		done = true
 	}()
@@ -277,12 +263,10 @@ func main() {
 		wg.Wait()
 		log.Println("Starting api")
 
-		if ModeStandalone == mode || ModeMaster == mode {
-			mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
-		}
-		if ModeClient == mode || ModeStandalone == mode {
-			mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
-		}
+		mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
+
+		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+
 		log.Printf("Starting server %v", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, mux))
 	}()
