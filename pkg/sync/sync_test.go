@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/index"
-	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -89,7 +88,7 @@ func TestSync(t *testing.T) {
 	masterTransport := RabbitTransportMaster{
 		RabbitConfig: rabbitConfig,
 	}
-	index1 := index.NewIndex(search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}))
+	index1 := index.NewIndex()
 
 	clientTransport1 := RabbitTransportClient{
 		RabbitConfig: rabbitConfig,

@@ -139,6 +139,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 		idx.Search = search.NewFreeTextIndex(&token)
 	} else {
 		idx.IsMaster = true
+		log.Println("Starting with reduced memory consumption")
 	}
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 

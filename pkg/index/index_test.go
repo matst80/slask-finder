@@ -33,7 +33,7 @@ func (l *LoggingChangeHandler) PriceLowered(item []types.Item) {
 }
 
 func TestIndexMatch(t *testing.T) {
-	i := NewIndex(freetext_search)
+	i := NewIndex()
 	i.AddKeyField(&types.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&types.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&types.BaseField{Id: 3, Name: "number", Description: "number field"})
@@ -58,11 +58,12 @@ func TestIndexMatch(t *testing.T) {
 }
 
 var token = search.Tokenizer{MaxTokens: 128}
-var freetext_search = search.NewFreeTextIndex(&token)
+
+//var freetext_search = search.NewFreeTextIndex(&token)
 
 func CreateIndex() *Index {
 
-	i := NewIndex(freetext_search)
+	i := NewIndex()
 	i.AddKeyField(&types.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&types.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&types.BaseField{Id: 3, Name: "number", Description: "number field"})
