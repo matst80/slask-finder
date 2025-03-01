@@ -122,6 +122,7 @@ func saveFieldsToFile(facets map[uint]types.Facet, filename string) error {
 
 func LoadIndex(wg *sync.WaitGroup) {
 	log.Printf("amqp url: %s", rabbitUrl)
+	log.Printf("clientName: %s", clientName)
 	if rabbitUrl != "" {
 		hasRabbitConfig = true
 	} else {
@@ -131,15 +132,16 @@ func LoadIndex(wg *sync.WaitGroup) {
 			mode = ModeClient
 		}
 	}
-	if mode != ModeMaster {
+	if rabbitUrl != "" && clientName == "" {
+		idx.IsMaster = true
+		log.Println("Starting with reduced memory consumption")
+	} else {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
 		idx.Sorting = srv.Sorting
 		idx.AutoSuggest = &index.AutoSuggest{Trie: search.NewTrie()}
 		idx.Search = search.NewFreeTextIndex(&token)
-	} else {
-		idx.IsMaster = true
-		log.Println("Starting with reduced memory consumption")
+
 	}
 	log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 
