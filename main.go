@@ -38,11 +38,11 @@ var callbackUrl = os.Getenv("CALLBACK_URL")
 
 var rabbitConfig = ffSync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
-	ItemsUpsertedTopic: "item_added",
+	ItemsUpsertedTopic: "items_added",
 	ItemDeletedTopic:   "item_deleted",
 	PriceLoweredTopic:  "price_lowered",
-
-	Url: rabbitUrl,
+	VHost:              os.Getenv("RABBIT_HOST"),
+	Url:                rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}
 
