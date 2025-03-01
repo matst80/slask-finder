@@ -11,31 +11,77 @@ import (
 type RabbitTransportMaster struct {
 	RabbitConfig
 	connection *amqp.Connection
-	channel    *amqp.Channel
+	//channel    *amqp.Channel
 }
 
 func (t *RabbitTransportMaster) Connect() error {
 
-	conn, err := amqp.Dial(t.Url)
-	//conn.Config.Vhost = t.VHost
+	conn, err := amqp.DialConfig(t.Url, amqp.Config{
+		Vhost:      t.VHost,
+		Properties: amqp.NewConnectionProperties(),
+	})
+
 	if err != nil {
 		return err
 	}
 	t.connection = conn
 	ch, err := conn.Channel()
-
 	if err != nil {
 		return err
 	}
-	t.channel = ch
+	defer ch.Close()
+	if err := ch.ExchangeDeclare(
+		t.RabbitConfig.ItemsUpsertedTopic, // name
+		"topic",                           // type
+		true,                              // durable
+		false,                             // auto-delete
+		false,                             // internal
+		false,                             // noWait
+		nil,                               // arguments
+	); err != nil {
+		return err
+	}
+	if err := ch.ExchangeDeclare(
+		t.RabbitConfig.ItemDeletedTopic, // name
+		"topic",                         // type
+		true,                            // durable
+		false,                           // auto-delete
+		false,                           // internal
+		false,                           // noWait
+		nil,                             // arguments
+	); err != nil {
+		return err
+	}
+
+	if _, err = ch.QueueDeclare(
+		t.RabbitConfig.ItemsUpsertedTopic, // name of the queue
+		true,                              // durable
+		false,                             // delete when unused
+		false,                             // exclusive
+		false,                             // noWait
+		nil,                               // arguments
+	); err != nil {
+		return err
+	}
+	if _, err = ch.QueueDeclare(
+		t.RabbitConfig.ItemDeletedTopic, // name of the queue
+		true,                            // durable
+		false,                           // delete when unused
+		false,                           // exclusive
+		false,                           // noWait
+		nil,                             // arguments
+	); err != nil {
+		return err
+	}
+	//	t.channel = ch
 
 	return nil
 }
 
 func (t *RabbitTransportMaster) Close() error {
 	log.Println("Closing master channel")
-	defer t.connection.Close()
-	return t.channel.Close()
+	return t.connection.Close()
+	//return t.channel.Close()
 }
 
 func (t *RabbitTransportMaster) send(topic string, data any) error {
@@ -43,7 +89,12 @@ func (t *RabbitTransportMaster) send(topic string, data any) error {
 	if err != nil {
 		return err
 	}
-	return t.channel.Publish(
+	ch, err := t.connection.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+	return ch.Publish(
 		topic,
 		topic,
 		true,

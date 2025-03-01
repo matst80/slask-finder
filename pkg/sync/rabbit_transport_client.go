@@ -46,7 +46,10 @@ func (t *RabbitTransportClient) declareBindAndConsume(topic string) (<-chan amqp
 }
 
 func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
-	conn, err := amqp.Dial(t.Url)
+	conn, err := amqp.DialConfig(t.Url, amqp.Config{
+		Vhost:      t.VHost,
+		Properties: amqp.NewConnectionProperties(),
+	})
 	//conn.Config.Vhost = t.VHost
 	t.quit = make(chan bool)
 	if err != nil {
