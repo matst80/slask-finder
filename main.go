@@ -26,7 +26,7 @@ import (
 )
 
 var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")
-var rabbitVHost = os.Getenv("RABBIT_HOST")
+
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
 var redisUrl = os.Getenv("REDIS_URL")
@@ -41,8 +41,8 @@ var rabbitConfig = ffSync.RabbitConfig{
 	ItemsUpsertedTopic: "item_added",
 	ItemDeletedTopic:   "item_deleted",
 	PriceLoweredTopic:  "price_lowered",
-	VHost:              rabbitVHost,
-	Url:                rabbitUrl,
+
+	Url: rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}
 
@@ -63,8 +63,6 @@ var srv = server.WebServer{
 }
 
 var done = false
-
-var hasRabbitConfig = false
 
 func init() {
 	flag.Parse()
@@ -211,7 +209,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 				} else {
 					log.Printf("Starting as client: %s", clientName)
 				}
-				if hasRabbitConfig {
+				if rabbitUrl != "" {
 					clientTransport := ffSync.RabbitTransportClient{
 						ClientName:   clientName,
 						RabbitConfig: rabbitConfig,
