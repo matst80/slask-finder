@@ -17,7 +17,7 @@ type RabbitTransportMaster struct {
 func (t *RabbitTransportMaster) Connect() error {
 
 	conn, err := amqp.Dial(t.Url)
-	conn.Config.Vhost = t.VHost
+	//conn.Config.Vhost = t.VHost
 	if err != nil {
 		return err
 	}
