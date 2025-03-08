@@ -30,7 +30,7 @@ type ItemProp struct {
 	ReleaseDate      string        `json:"releaseDate,omitempty"`
 	SaleStatus       string        `json:"saleStatus"`
 	OnlineSaleStatus string        `json:"onlineSaleStatus"`
-	MarginPercent    float64       `json:"mp,omitempty"`
+	MarginPercent    float64       //`json:"mp,omitempty"`
 	PresaleDate      string        `json:"presaleDate,omitempty"`
 	Restock          string        `json:"restock,omitempty"`
 	AdvertisingText  string        `json:"advertisingText,omitempty"`
