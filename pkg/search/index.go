@@ -81,11 +81,11 @@ func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
 		}
 		score = 0.0
 		found = false
-		for idx, chr := range token {
+		for _, chr := range token {
 			found = false
-			for jdx, jchr := range i {
+			for _, jchr := range i {
 				if chr == jchr {
-					score += float64(tl-absDiffInt(idx, jdx)) * 4.0
+					score += 4.0
 					found = true
 					break
 				}
