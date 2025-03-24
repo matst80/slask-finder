@@ -94,8 +94,8 @@ func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
 				score -= float64(tl)
 			}
 		}
-		score -= float64(absDiffInt(il, tl) * 2)
-		if score > float64(tl)*2.0 {
+		score -= float64(absDiffInt(il, tl))
+		if score > 0 {
 			matching = append(matching, tokenScore{score: score, token: Token(i)})
 		}
 	}
