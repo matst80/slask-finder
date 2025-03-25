@@ -238,6 +238,16 @@ func (i *Index) UpsertItems(items []types.Item) {
 			i.Sorting.IndexChanged(i)
 		}
 	}
+	i.Save()
+}
+
+func (i *Index) Save() {
+	for _, facet := range i.Facets {
+		saveError := facet.Save()
+		if saveError != nil {
+			log.Printf("Error saving facet %s", saveError.Error())
+		}
+	}
 }
 
 func (i *Index) Lock() {

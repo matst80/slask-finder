@@ -1,4 +1,7 @@
 data/*.db
+data/*.tmp
+data/items/*
+data/facets/*
 __debug*
 data/*.dbz
 data/carts/

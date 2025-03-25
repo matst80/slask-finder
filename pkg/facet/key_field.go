@@ -1,6 +1,9 @@
 package facet
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -8,7 +11,8 @@ import (
 
 type KeyField struct {
 	*types.BaseField
-	Keys map[string]types.ItemList
+	Keys    map[string]types.ItemList
+	changed bool
 }
 
 func (f KeyField) GetType() uint {
@@ -104,7 +108,9 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 		} else {
 			f.Keys[part] = types.ItemList{itemId: struct{}{}}
 		}
+		f.setChanged(true)
 	}
+
 	return true
 }
 
@@ -112,6 +118,7 @@ func (f KeyField) RemoveValueLink(data interface{}, id uint) {
 	if str, ok := data.(string); ok {
 		if keyId, ok := f.Keys[str]; ok {
 			delete(keyId, id)
+			f.setChanged(true)
 		}
 	}
 }
@@ -126,6 +133,23 @@ func (f *KeyField) TotalCount() int {
 
 func (f *KeyField) UniqueCount() int {
 	return len(f.Keys)
+}
+
+func (f *KeyField) setChanged(changed bool) {
+	f.changed = changed
+}
+
+func (f KeyField) Save() error {
+
+	file, err := os.Create(fmt.Sprintf("data/facets/key-%d.jz", f.Id))
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	//zipWriter := gzip.NewWriter(file)
+	//defer zipWriter.Close()
+	return json.NewEncoder(file).Encode(f)
 }
 
 func EmptyKeyValueField(field *types.BaseField) KeyField {

@@ -1,7 +1,10 @@
 package facet
 
 import (
+	"encoding/json"
+	"fmt"
 	"maps"
+	"os"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -14,13 +17,14 @@ type DecimalField struct {
 	*types.BaseField
 	*NumberRange[float64]
 	buckets   map[int]Bucket[float64]
-	allValues map[uint]float64
+	AllValues map[uint]float64
 	//all     *types.ItemList
-	Count int `json:"count"`
+	Count   int `json:"count"`
+	changed bool
 }
 
 func (f *DecimalField) ValueForItemId(id uint) *float64 {
-	if v, ok := f.allValues[id]; ok {
+	if v, ok := f.AllValues[id]; ok {
 		return &v
 	}
 	return nil
@@ -109,7 +113,7 @@ func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
 	f.Min = min(f.Min, value)
 	f.Max = max(f.Max, value)
 	f.Count++
-	f.allValues[item.GetId()] = value
+	f.AllValues[item.GetId()] = value
 
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
@@ -118,6 +122,7 @@ func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
 	} else {
 		bucketValues.AddValueLink(value, item)
 	}
+	f.changed = true
 	return true
 }
 
@@ -129,11 +134,25 @@ func (f DecimalField) RemoveValueLink(data interface{}, id uint) {
 
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-	delete(f.allValues, id)
+	delete(f.AllValues, id)
 	if ok {
 		(&f).Count--
 		bucketValues.RemoveValueLink(value, id)
 	}
+	f.changed = true
+}
+
+func (f DecimalField) Save() error {
+
+	file, err := os.Create(fmt.Sprintf("data/facets/number-%d.jz", f.Id))
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	//zipWriter := gzip.NewWriter(file)
+	//defer zipWriter.Close()
+	return json.NewEncoder(file).Encode(f)
 }
 
 func (f *DecimalField) TotalCount() int {
@@ -150,7 +169,7 @@ func (DecimalField) GetType() uint {
 
 func EmptyDecimalField(field *types.BaseField) DecimalField {
 	return DecimalField{
-		allValues:   map[uint]float64{},
+		AllValues:   map[uint]float64{},
 		BaseField:   field,
 		NumberRange: &NumberRange[float64]{Min: 0, Max: 0},
 		buckets:     map[int]Bucket[float64]{},

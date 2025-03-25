@@ -1,7 +1,10 @@
 package facet
 
 import (
+	"encoding/json"
+	"fmt"
 	"maps"
+	"os"
 	"strconv"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -11,12 +14,13 @@ type IntegerField struct {
 	*types.BaseField
 	*NumberRange[int]
 	buckets   map[int]Bucket[int]
-	allValues map[uint]int
+	AllValues map[uint]int
 	Count     int `json:"count"`
+	changed   bool
 }
 
 func (f *IntegerField) ValueForItemId(id uint) *int {
-	if v, ok := f.allValues[id]; ok {
+	if v, ok := f.AllValues[id]; ok {
 		return &v
 	}
 	return nil
@@ -98,12 +102,13 @@ func (f IntegerField) addValueLink(value int, item types.Item) {
 	f.Count++
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-	f.allValues[item.GetId()] = value
+	f.AllValues[item.GetId()] = value
 	if !ok {
 		f.buckets[bucket] = MakeBucket(value, item)
 	} else {
 		bucketValues.AddValueLink(value, item)
 	}
+	f.changed = true
 }
 
 func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
@@ -128,11 +133,25 @@ func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
 func (f *IntegerField) removeValueLink(value int, id uint) {
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-	delete(f.allValues, id)
+	delete(f.AllValues, id)
 	if ok {
 		f.Count--
 		bucketValues.RemoveValueLink(value, id)
 	}
+	f.changed = true
+}
+
+func (f IntegerField) Save() error {
+
+	file, err := os.Create(fmt.Sprintf("data/facets/integer-%d.jz", f.Id))
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	//zipWriter := gzip.NewWriter(file)
+	//defer zipWriter.Close()
+	return json.NewEncoder(file).Encode(f)
 }
 
 func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
@@ -159,7 +178,7 @@ func (IntegerField) GetType() uint {
 func EmptyIntegerField(field *types.BaseField) IntegerField {
 	return IntegerField{
 		BaseField:   field,
-		allValues:   map[uint]int{},
+		AllValues:   map[uint]int{},
 		NumberRange: &NumberRange[int]{Min: 0, Max: 0},
 		buckets:     map[int]Bucket[int]{},
 	}

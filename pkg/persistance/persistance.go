@@ -3,11 +3,14 @@ package persistance
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"runtime"
 
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func NewPersistance() *Persistance {
@@ -69,12 +72,31 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		}
 	}
 	enc = nil
-
+	idx.Save()
 	if err.Error() == "EOF" {
 		return nil
 	}
 
 	return err
+}
+
+func saveItem(id uint, item *types.Item) error {
+	if item == nil {
+		return nil
+	}
+	if (*item).IsDeleted() {
+		return nil
+	}
+	file, err := os.Create(fmt.Sprintf("data/items/item-%d.jz", id))
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	//zipWriter := gzip.NewWriter(file)
+	//defer zipWriter.Close()
+	return json.NewEncoder(file).Encode(item)
+
 }
 
 func (p *Persistance) SaveIndex(idx *index.Index) error {
@@ -101,6 +123,8 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		if err != nil {
 			return err
 		}
+		id := (*item).GetId()
+		go saveItem(id, item)
 	}
 
 	enc = nil
