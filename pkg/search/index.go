@@ -174,7 +174,7 @@ func (i *FreeTextIndex) Search(query string) *DocumentResult {
 				word = tokens[wordIdx]
 			}
 		}
-		res[doc.Id] = score - float64(missing*3000)
+		res[doc.Id] = score - float64(missing)*0.2
 		// if res[doc.Id] > 0 {
 		// 	//l := float64(len(tokens))
 		// 	//dl := float64(len(doc.Tokens))

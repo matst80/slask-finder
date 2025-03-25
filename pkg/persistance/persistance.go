@@ -30,11 +30,12 @@ func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
 	if err != nil {
 		return err
 	}
-	if item.AdvertisingText != "" {
-		item.Fields[21] = item.AdvertisingText
-	} else {
-		delete(item.Fields, 21)
-	}
+	// if item.AdvertisingText != "" {
+	// 	item.Fields[21] = item.AdvertisingText
+	// } else {
+	// 	delete(item.Fields, 21)
+	// }
+
 	return nil
 }
 
@@ -59,7 +60,6 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	defer idx.Unlock()
 	tmp := &index.DataItem{}
 	for err == nil {
-
 		if err = decodeNormal(enc, tmp); err == nil {
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue

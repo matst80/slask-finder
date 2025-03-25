@@ -55,6 +55,16 @@ func TestCommonCharIssues(t *testing.T) {
 	}
 }
 
+func TestWords(t *testing.T) {
+	token := Tokenizer{
+		MaxTokens: 100,
+	}
+	res := token.Tokenize("9800X3D")
+	if res[0] != "9800x3d" {
+		t.Errorf("Expected '9800x3d' but got %s", res[0])
+	}
+}
+
 func TestCommonTokenDeDuplication(t *testing.T) {
 	token := Tokenizer{
 		MaxTokens: 100,
