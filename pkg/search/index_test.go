@@ -37,11 +37,11 @@ func TestDocument2Index(t *testing.T) {
 	idx := NewFreeTextIndex(&token)
 	idx.AddDocument(token.MakeDocument(1, "Other property", "9900X3D"))
 	idx.AddDocument(token.MakeDocument(2, "Some other text slask", "AMD 9600X3D"))
-	idx.AddDocument(token.MakeDocument(3, "Hello slask, how are you?", "Some other text"))
+	idx.AddDocument(token.MakeDocument(3, "Hello slask, how are you?", "Some other x3dtext"))
 
 	res := idx.Search("x3d")
-	if len(*res) != 2 {
-		t.Errorf("Expected 2 results but got %d", len(*res))
+	if len(*res) != 3 {
+		t.Errorf("Expected 3 results but got %d", len(*res))
 	}
 
 	// if sort[0] != 1 {

@@ -69,7 +69,7 @@ func absMin(x, y int) int {
 	return y
 }
 
-func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
+func (i *FreeTextIndex) getRankedFuzzyMatch(token Token) []Token {
 	matching := make([]tokenScore, 0)
 	tl := len(token)
 	score := 0.0
@@ -94,8 +94,9 @@ func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
 				score -= float64(tl)
 			}
 		}
-		score -= float64(absDiffInt(il, tl))
+
 		if score > 0 {
+			score -= float64(absDiffInt(il, tl)) * 0.3
 			matching = append(matching, tokenScore{score: score, token: Token(i)})
 		}
 	}
@@ -116,7 +117,7 @@ func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
 func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
 
 	res := make(map[uint]*Document)
-	missingStrings := make([]string, 0)
+	missingStrings := make([]Token, 0)
 	for _, token := range tokens {
 		docs, ok := i.TokenMap[token]
 		if ok {
@@ -124,7 +125,7 @@ func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
 				res[doc.Id] = doc
 			}
 		} else {
-			missingStrings = append(missingStrings, string(token))
+			missingStrings = append(missingStrings, token)
 		}
 
 	}

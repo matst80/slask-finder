@@ -63,6 +63,13 @@ func TestWords(t *testing.T) {
 	if res[0] != "9800x3d" {
 		t.Errorf("Expected '9800x3d' but got %s", res[0])
 	}
+	res = token.Tokenize("test x3d hej")
+	if res[0] != "test" {
+		t.Errorf("Expected 'test' but got %s", res[0])
+	}
+	if res[1] != "x3d" {
+		t.Errorf("Expected 'x3d' but got %s", res[1])
+	}
 }
 
 func TestCommonTokenDeDuplication(t *testing.T) {
