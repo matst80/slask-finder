@@ -77,35 +77,47 @@ func (f KeyField) GetBaseField() *types.BaseField {
 }
 
 func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
-	str, ok := data.(string)
-	if !ok || str == "" {
+	switch typed := data.(type) {
+	case nil:
 		return false
-	}
-	if strings.Contains(str, "&lt;") || strings.Contains(str, "&gt;") {
-		return false
-	}
-	parts := strings.Split(str, ";")
-	// if len(parts) > 1 {
-	// 	log.Print("found keys", strings.Join(parts, " / "))
-	// }
-	itemId := item.GetId()
-	for _, partData := range parts {
-		part := strings.TrimSpace(partData)
-		if part == "" {
-			continue
+	case []string:
+		for _, v := range typed {
+			if v == "" {
+				continue
+			}
+			if !f.AddValueLink(v, item) {
+				return false
+			}
 		}
-		// if len(part) > 128 {
-		// 	log.Printf("Truncating key value %s", part)
-		// 	part = part[:126] + "..."
-		// }
 
-		if k, ok := f.Keys[part]; ok {
-			k.AddId(itemId)
-		} else {
-			f.Keys[part] = types.ItemList{itemId: struct{}{}}
+		return true
+	case string:
+
+		if typed == "" {
+			return false
 		}
+		if strings.Contains(typed, "&lt;") || strings.Contains(typed, "&gt;") {
+			return false
+		}
+		parts := strings.Split(typed, ";")
+
+		itemId := item.GetId()
+		for _, partData := range parts {
+			part := strings.TrimSpace(partData)
+			if part == "" {
+				continue
+			}
+
+			if k, ok := f.Keys[part]; ok {
+				k.AddId(itemId)
+			} else {
+				f.Keys[part] = types.ItemList{itemId: struct{}{}}
+			}
+		}
+
+		return true
 	}
-	return true
+	return false
 }
 
 func (f KeyField) RemoveValueLink(data interface{}, id uint) {
