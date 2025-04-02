@@ -25,27 +25,33 @@ func (b ItemFields) MarshalBinary() ([]byte, error) {
 
 	for k, v := range b {
 		MustWrite(buf, uint64(k))
-		str, ok := v.(string)
-		if ok {
+		switch typed := v.(type) {
+		case string:
 			MustWrite(buf, uint8(0))
-			l := uint8(len(str))
+			l := uint8(len(typed))
 			MustWrite(buf, l)
-			MustWrite(buf, []byte(str[:l]))
-			continue
-		}
-		i, ok := v.(int)
-		if ok {
-			MustWrite(buf, uint8(1))
-			MustWrite(buf, int64(i))
-			continue
-		}
-		f, ok := v.(float64)
-		if ok {
-			MustWrite(buf, uint8(2))
-			binary.Write(buf, binary.LittleEndian, math.Float64bits(f))
-			continue
-		}
+			MustWrite(buf, []byte(typed[:l]))
 
+		case int:
+
+			MustWrite(buf, uint8(1))
+			MustWrite(buf, int64(typed))
+
+		case float64:
+
+			MustWrite(buf, uint8(2))
+			binary.Write(buf, binary.LittleEndian, math.Float64bits(typed))
+
+		case []string:
+			MustWrite(buf, uint8(3))
+			l := uint8(len(typed))
+			MustWrite(buf, l)
+			for _, str := range typed {
+				strLen := uint8(len(str))
+				MustWrite(buf, strLen)
+				MustWrite(buf, []byte(str[:strLen]))
+			}
+		}
 	}
 
 	return buf.Bytes(), nil
@@ -104,6 +110,19 @@ func (s *ItemFields) UnmarshalBinary(data []byte) error {
 			var fbits uint64
 			binary.Read(b, binary.LittleEndian, &fbits)
 			d[uint(key)] = math.Float64frombits(fbits)
+
+		case 3:
+			var arrayLength uint8
+			binary.Read(b, binary.BigEndian, &arrayLength)
+			values := make([]string, 0, arrayLength)
+			for j := 0; j < int(arrayLength); j++ {
+				var strLen uint8
+				binary.Read(b, binary.BigEndian, &strLen)
+				stringBytes := make([]byte, strLen)
+				binary.Read(b, binary.BigEndian, &stringBytes)
+				values = append(values, string(stringBytes))
+			}
+			d[uint(key)] = values
 		}
 	}
 	*s = d
