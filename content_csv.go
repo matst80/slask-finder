@@ -28,17 +28,18 @@ func readCsvFile(filePath string) [][]string {
 
 func populateContentFromCsv(idx *index.ContentIndex, file string, group *sync.WaitGroup) {
 	defer group.Done()
-	records := readCsvFile(file)
-	for i, record := range records {
-		if i == 0 {
-			log.Println("Importing content records")
-			continue
-		}
-		itm, err := index.ContentItemFromLine(record)
-		if err == nil {
-			idx.AddItem(itm)
-		} else {
-			log.Println(err)
-		}
-	}
+	// records := readCsvFile(file)
+	// for i, record := range records {
+	// 	if i == 0 {
+	// 		log.Println("Importing content records")
+	// 		continue
+	// 	}
+	// 	itm, err := index.ContentItemFromLine(record)
+	// 	if err == nil {
+	// 		idx.AddItem(itm)
+	// 	} else {
+	// 		log.Println(err)
+	// 	}
+	// }
+	idx.Load()
 }

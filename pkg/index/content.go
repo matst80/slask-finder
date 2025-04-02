@@ -1,9 +1,12 @@
 package index
 
 import (
+	"compress/gzip"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"iter"
+	"os"
 	"strconv"
 	"strings"
 
@@ -63,6 +66,16 @@ const (
 	ValidFrom
 	ValidTo
 )
+
+func init() {
+	gob.Register(map[string]interface{}{})
+	gob.Register([]interface{}{})
+	gob.Register([]string{})
+	gob.Register(CmsComponent{})
+	gob.Register(CmsContentItem{})
+	gob.Register(SellerContentItem{})
+	gob.Register(StoreContentItem{})
+}
 
 type CmsComponent struct {
 	DetailTest string      `json:"detailText"`
@@ -207,6 +220,52 @@ func NewContentIndex() *ContentIndex {
 		Items:  make(map[uint]ContentItem, 0),
 		Search: search.NewFreeTextIndex(&search.Tokenizer{MaxTokens: 128}),
 	}
+}
+
+func (i *ContentIndex) RemoveItem(id uint) {
+	delete(i.Items, id)
+	i.Search.RemoveDocument(id)
+}
+
+func (i *ContentIndex) Save() error {
+	file, err := os.Create("data/content/index.dbz")
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+	zipWriter := gzip.NewWriter(file)
+	enc := gob.NewEncoder(zipWriter)
+	defer zipWriter.Close()
+
+	enc.Encode(i.Items)
+
+	return err
+}
+
+func (i *ContentIndex) Load() error {
+	file, err := os.Open("data/content/index.dbz")
+	if err != nil {
+		return err
+	}
+
+	defer file.Close()
+
+	zipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+
+	enc := gob.NewDecoder(zipReader)
+	defer zipReader.Close()
+
+	err = enc.Decode(&i.Items)
+
+	for id, item := range i.Items {
+		i.Search.CreateDocument(id, item.IndexData())
+	}
+
+	return err
 }
 
 func (i *ContentIndex) AddItem(item ContentItem) {

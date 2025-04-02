@@ -72,7 +72,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		}
 	}
 	enc = nil
-	idx.Save()
+	// idx.Save()
 	if err.Error() == "EOF" {
 		return nil
 	}
@@ -113,22 +113,22 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer zipWriter.Close()
 	idx.Lock()
 	defer idx.Unlock()
-
-	for _, item := range idx.Items {
-		store, ok := (*item).(*index.DataItem)
-		if !ok {
-			log.Fatalf("Could not convert item to DataItem")
-		}
-		err = enc.Encode(store)
-		if err != nil {
-			return err
-		}
-		id := (*item).GetId()
-		go saveItem(id, item)
-	}
+	enc.Encode(idx.Items)
+	// for _, item := range idx.Items {
+	// 	store, ok := (*item).(*index.DataItem)
+	// 	if !ok {
+	// 		log.Fatalf("Could not convert item to DataItem")
+	// 	}
+	// 	err = enc.Encode(store)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	// id := (*item).GetId()
+	// 	// go saveItem(id, item)
+	// }
 
 	enc = nil
-	err = os.Rename(p.File+".tmp", p.File)
+	err = os.Rename(p.File+".tmp", p.File+".new")
 	log.Println("Saved index")
 
 	return err
