@@ -8,10 +8,13 @@ import (
 	"runtime"
 
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func NewPersistance() *Persistance {
 	gob.Register(index.DataItem{})
+	gob.Register([]string{})
+	gob.Register(types.ItemFields{})
 	// gob.Register([]interface{}(nil))
 	return &Persistance{
 		File:         "data/index-v2.dbz",
