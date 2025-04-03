@@ -181,6 +181,7 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) Save(w http.ResponseWriter, _ *http.Request) {
 	err := ws.Db.SaveIndex(ws.Index)
 	if err != nil {
+		log.Printf("Error saving index: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
