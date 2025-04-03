@@ -81,12 +81,17 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	case nil:
 		return false
 	case []string:
+		itemId := item.GetId()
 		for _, v := range typed {
-			if v == "" {
+			part := strings.TrimSpace(v)
+			if part == "" {
 				continue
 			}
-			if !f.AddValueLink(v, item) {
-				return false
+
+			if k, ok := f.Keys[part]; ok {
+				k.AddId(itemId)
+			} else {
+				f.Keys[part] = types.ItemList{itemId: struct{}{}}
 			}
 		}
 
