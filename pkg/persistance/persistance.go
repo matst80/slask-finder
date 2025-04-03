@@ -57,23 +57,23 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		return err
 	}
 
-	dec := json.NewDecoder(zipReader)
+	enc := json.NewDecoder(zipReader)
 	defer zipReader.Close()
 
 	idx.Lock()
 	defer idx.Unlock()
-	tmp := []index.DataItem{}
-	err = dec.Decode(&tmp)
-	// for err == nil {
-	// 	if err = decodeNormal(enc, tmp); err == nil {
-	// 		if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
-	// 			continue
-	// 		}
-	// 		idx.UpsertItemUnsafe(tmp)
-	// 		tmp = &index.DataItem{}
-	// 	}
-	// }
-	// enc = nil
+	tmp := &index.DataItem{}
+	for err == nil {
+
+		if err = enc.Decode(tmp); err == nil {
+			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
+				continue
+			}
+			idx.UpsertItemUnsafe(tmp)
+			tmp = &index.DataItem{}
+		}
+	}
+	enc = nil
 
 	if err.Error() == "EOF" {
 		return nil
