@@ -114,8 +114,12 @@ func (s *ItemFields) UnmarshalBinary(data []byte) error {
 		case 3:
 			var arrayLength uint8
 			binary.Read(b, binary.BigEndian, &arrayLength)
-			values := make([]string, 0, arrayLength)
-			for j := 0; j < int(arrayLength); j++ {
+			if arrayLength == 0 {
+				d[uint(key)] = []string{}
+				continue
+			}
+			values := make([]string, arrayLength)
+			for j := range int(arrayLength) {
 				var strLen uint8
 				binary.Read(b, binary.BigEndian, &strLen)
 				stringBytes := make([]byte, strLen)
