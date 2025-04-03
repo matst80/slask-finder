@@ -222,18 +222,18 @@ func (i *Index) UpsertItems(items []types.Item) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	changed := make([]types.Item, 0, len(items))
-	price_lowered := make([]types.Item, 0, len(items))
+	//price_lowered := make([]types.Item, 0, len(items))
 
 	for _, it := range items {
-		if i.UpsertItemUnsafe(it) {
-			price_lowered = append(price_lowered, it)
-		}
+		i.UpsertItemUnsafe(it)
+		//	price_lowered = append(price_lowered, it)
+		//}
 		changed = append(changed, it)
 	}
 	if i.ChangeHandler != nil {
 		log.Printf("Propagating changes (%d)", len(changed))
 		i.ChangeHandler.ItemsUpserted(changed)
-		i.ChangeHandler.PriceLowered(price_lowered)
+		//i.ChangeHandler.PriceLowered(price_lowered)
 	}
 	if len(changed) > 0 {
 		log.Printf("Items upserted %d", len(changed))
