@@ -14,7 +14,6 @@ import (
 func NewPersistance() *Persistance {
 	gob.Register(index.DataItem{})
 	gob.Register([]string{})
-	gob.Register([]interface{})
 	gob.Register(types.ItemFields{})
 	// gob.Register([]interface{}(nil))
 	return &Persistance{
