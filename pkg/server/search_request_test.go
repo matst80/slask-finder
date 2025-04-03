@@ -59,3 +59,32 @@ func TestParseQueryValues(t *testing.T) {
 		t.Errorf("Expected range filter to be [14:14-14], got %v", sr.RangeFilter[1])
 	}
 }
+
+func TestRealUrl(t *testing.T) {
+	realUrl := "https://slask-finder.knatofs.se/api/stream?page=0&size=120&sort=popular&query=&rng=36307%3A65-9999&str=32077%3ASocket+AM5&str=31158%3ACPU+AIO-vattenkylare%7C%7CVattenkylning"
+	parsedUrl, err := url.Parse(realUrl)
+	if err != nil {
+		t.Fatalf("Failed to parse URL: %v", err)
+	}
+	sr := SearchRequest{
+		Page:     0,
+		PageSize: 120,
+		FacetRequest: &types.FacetRequest{
+			Filters: &types.Filters{
+				StringFilter: []types.StringFilter{},
+				RangeFilter:  []types.RangeFilter{},
+			},
+			Stock: []string{},
+			Query: "",
+		},
+		Sort: "popular",
+	}
+	queryFromRequestQuery(parsedUrl.Query(), &sr)
+	t.Logf("%+v", sr)
+	if sr.FacetRequest.Filters.StringFilter[0].Value != "Socket AM5" {
+		t.Errorf("Expected string filter to be [32077:Socket AM5], got %v", sr.FacetRequest.Filters.StringFilter[0])
+	}
+	if sr.FacetRequest.Filters.StringFilter[1].Value != []string("CPU AIO-vattenkylare", "Vattenkylning") {
+		t.Errorf("Expected string filter to be [32077:Socket AM5], got %v", sr.FacetRequest.Filters.StringFilter[0])
+	}
+}
