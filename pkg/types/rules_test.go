@@ -13,8 +13,10 @@ var item = &MockItem{
 	},
 	OrgPrice: 200,
 	Buyable:  true,
-	Stock:    make([]LocationStock, 4),
-	Price:    100,
+	Stock: map[string]string{
+		"1": "1",
+	},
+	Price: 100,
 }
 
 func TestNotEmptyRule(t *testing.T) {

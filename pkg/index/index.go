@@ -104,10 +104,13 @@ func (i *Index) addItemValues(item types.Item) {
 		delete(stock, itemId)
 	}
 
-	for _, stock := range item.GetStock() {
-		stockLocation, ok := i.ItemsInStock[stock.Id]
+	for id, stock := range item.GetStock() {
+		if stock == "" || stock == "0" {
+			continue
+		}
+		stockLocation, ok := i.ItemsInStock[id]
 		if !ok {
-			i.ItemsInStock[stock.Id] = types.ItemList{itemId: struct{}{}}
+			i.ItemsInStock[id] = types.ItemList{itemId: struct{}{}}
 		} else {
 			stockLocation[itemId] = struct{}{}
 		}

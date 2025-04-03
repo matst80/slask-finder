@@ -51,11 +51,11 @@ type ItemProp struct {
 
 type BaseItem struct {
 	ItemProp
-	StockLevel string              `json:"stockLevel,omitempty"`
-	Stock      types.LocationStock `json:"stock"`
-	Id         uint                `json:"id"`
-	Sku        string              `json:"sku"`
-	Title      string              `json:"title"`
+	StockLevel string            `json:"stockLevel,omitempty"`
+	Stock      map[string]string `json:"stock"`
+	Id         uint              `json:"id"`
+	Sku        string            `json:"sku"`
+	Title      string            `json:"title"`
 }
 
 type DataItem struct {
@@ -121,7 +121,7 @@ func (item *DataItem) GetPrice() int {
 	return getNumberValue[int](priceField)
 }
 
-func (item *DataItem) GetStock() types.LocationStock {
+func (item *DataItem) GetStock() map[string]string {
 	return item.Stock
 }
 

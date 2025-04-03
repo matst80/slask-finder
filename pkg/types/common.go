@@ -40,7 +40,7 @@ type CategoryUpdate struct {
 
 type Item interface {
 	GetId() uint
-	GetStock() LocationStock
+	GetStock() map[string]string
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
 	IsSoftDeleted() bool

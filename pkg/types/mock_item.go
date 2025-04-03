@@ -1,19 +1,18 @@
 package types
 
 type MockItem struct {
-	Id            uint
-	LocationStock LocationStock
-	Fields        map[uint]interface{}
-	Deleted       bool
-	Price         int
-	OrgPrice      int
-	StockLevel    string
-	Stock         []LocationStock
-	Buyable       bool
-	LastUpdated   int64
-	Created       int64
-	Popularity    float64
-	Title         string
+	Id          uint
+	Fields      map[uint]interface{}
+	Deleted     bool
+	Price       int
+	OrgPrice    int
+	StockLevel  string
+	Stock       map[string]string
+	Buyable     bool
+	LastUpdated int64
+	Created     int64
+	Popularity  float64
+	Title       string
 }
 
 func (m *MockItem) GetDiscount() *int {
@@ -41,8 +40,8 @@ func (m *MockItem) IsSoftDeleted() bool {
 	return false
 }
 
-func (m *MockItem) GetStock() LocationStock {
-	return m.LocationStock
+func (m *MockItem) GetStock() map[string]string {
+	return m.Stock
 }
 
 func (m *MockItem) GetFields() map[uint]interface{} {
