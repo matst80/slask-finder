@@ -3,6 +3,7 @@ package persistance
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"encoding/json"
 	"log"
 	"os"
 	"runtime"
@@ -17,7 +18,7 @@ func NewPersistance() *Persistance {
 	gob.Register(types.ItemFields{})
 	// gob.Register([]interface{}(nil))
 	return &Persistance{
-		File:         "data/index-v2.dbz",
+		File:         "data/index-v2.jz",
 		FreeTextFile: "data/freetext.dbz",
 	}
 }
@@ -56,22 +57,23 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 		return err
 	}
 
-	enc := gob.NewDecoder(zipReader)
+	dec := json.NewDecoder(zipReader)
 	defer zipReader.Close()
 
 	idx.Lock()
 	defer idx.Unlock()
-	tmp := &index.DataItem{}
-	for err == nil {
-		if err = decodeNormal(enc, tmp); err == nil {
-			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
-				continue
-			}
-			idx.UpsertItemUnsafe(tmp)
-			tmp = &index.DataItem{}
-		}
-	}
-	enc = nil
+	tmp := []index.DataItem{}
+	err = dec.Decode(&tmp)
+	// for err == nil {
+	// 	if err = decodeNormal(enc, tmp); err == nil {
+	// 		if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
+	// 			continue
+	// 		}
+	// 		idx.UpsertItemUnsafe(tmp)
+	// 		tmp = &index.DataItem{}
+	// 	}
+	// }
+	// enc = nil
 
 	if err.Error() == "EOF" {
 		return nil
@@ -90,7 +92,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 	defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
-	enc := gob.NewEncoder(zipWriter)
+	enc := json.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 	idx.Lock()
 	defer idx.Unlock()
