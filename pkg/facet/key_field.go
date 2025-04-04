@@ -1,6 +1,7 @@
 package facet
 
 import (
+	"log"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -80,6 +81,22 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	switch typed := data.(type) {
 	case nil:
 		return false
+	case []interface{}:
+		itemId := item.GetId()
+		for _, v := range typed {
+			if str, ok := v.(string); ok {
+				part := strings.TrimSpace(str)
+				if part == "" {
+					continue
+				}
+				if k, ok := f.Keys[part]; ok {
+					k.AddId(itemId)
+				} else {
+					f.Keys[part] = types.ItemList{itemId: struct{}{}}
+				}
+			}
+
+		}
 	case []string:
 		itemId := item.GetId()
 		for _, v := range typed {
@@ -121,6 +138,8 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 		}
 
 		return true
+	default:
+		log.Printf("KeyField: AddValueLink: Unknown type %T, fieldId: %d", typed, f.Id)
 	}
 	return false
 }

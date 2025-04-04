@@ -1,5 +1,7 @@
 data/*.db
+data/*.jz
 data/*.db*
+data/fields.json
 data/facets/*
 data/items/*
 data/content/*
