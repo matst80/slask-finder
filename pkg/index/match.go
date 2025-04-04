@@ -14,14 +14,17 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
 
-	parseKeys := func(field types.StringFilter, fld types.Facet) {
-		results <- fld.Match(field.Value)
+	parseKeys := func(field types.StringFilter, facet types.Facet) {
+		results <- facet.Match(field.Value)
 	}
-	parseRange := func(field types.RangeFilter, fld types.Facet) {
-		results <- fld.Match(field)
+	parseRange := func(field types.RangeFilter, facet types.Facet) {
+		results <- facet.Match(field)
 	}
 
 	for _, fld := range search.StringFilter {
+		if fld.Value == nil {
+			continue
+		}
 		if f, ok := i.Facets[fld.Id]; ok {
 			cnt++
 			go parseKeys(fld, f)
