@@ -1477,7 +1477,7 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 31983, Name: "Tiling/form", Priority: 2073.0})
 	idx.AddKeyField(&types.BaseField{Id: 31984, Name: "Type of cooling", Priority: 191.0})
 	idx.AddKeyField(&types.BaseField{Id: 31985, Name: "Tillverkare nätaggregat (PSU)", Priority: 74.0})
-	idx.AddKeyField(&types.BaseField{Id: 31986, Name: "Strömförsörjning (Watt)", Priority: 3227.0})
+	idx.AddIntegerField(&types.BaseField{Id: 31986, Name: "Strömförsörjning (Watt)", Priority: 3227.0})
 	idx.AddKeyField(&types.BaseField{Id: 31987, Name: "Strömförsörjning (certifiering)", Priority: 125.0})
 	idx.AddKeyField(&types.BaseField{Id: 31988, Name: "HDMI ut", Priority: 204.0})
 	idx.AddKeyField(&types.BaseField{Id: 31989, Name: "HDMI på framsidan (för VR)", Priority: 80.0})

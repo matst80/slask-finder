@@ -155,7 +155,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 	idx.AddIntegerField(&types.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 999998.0})
 	idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
 	idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", HideFacet: true, Priority: 99.4, Type: "currency"})
-	idx.AddKeyField(&types.BaseField{Id: 15, Name: "Article type", HideFacet: true, Priority: 99.3})
+	//idx.AddKeyField(&types.BaseField{Id: 15, Name: "Article type", HideFacet: true, Priority: 99.3})
 
 	idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
 	idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
