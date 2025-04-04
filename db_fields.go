@@ -2829,4 +2829,9 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 36301, Name: "No. of 3.5mm mini jack combo", Priority: 999})
 	idx.AddKeyField(&types.BaseField{Id: 36302, Name: "No. of 3.5mm mini jack microphone", Priority: 999})
 	idx.AddIntegerField(&types.BaseField{Id: 36338, Name: "M.2 Key size", Priority: 1999})
+
+	idx.AddKeyField(&types.BaseField{Id: 36326, Name: "Laddningsenhet medföljer", Priority: 2999})
+	idx.AddKeyField(&types.BaseField{Id: 36329, Name: "USB-strömförsörjning (USB PD)", Priority: 2999})
+	idx.AddIntegerField(&types.BaseField{Id: 36327, Name: "Laddeffekt som krävs (min. i W)", Priority: 1999})
+	idx.AddIntegerField(&types.BaseField{Id: 36328, Name: "Laddeffekt som krävs (max. i W)", Priority: 1999})
 }
