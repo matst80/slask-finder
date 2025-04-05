@@ -405,7 +405,7 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		}
 		ws.FieldData[key] = field
 	}
-	ws.Db.SaveJsonFile(ws.FieldData, "fields.json")
+	ws.Db.SaveJsonFile(ws.FieldData, "fields.jz")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -432,7 +432,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 		}
 	})
 
-	ws.Db.LoadJsonFile(&ws.FieldData, "fields.json")
+	ws.Db.LoadJsonFile(&ws.FieldData, "fields.jz")
 
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)

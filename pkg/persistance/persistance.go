@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"path"
 	"runtime"
 
 	"github.com/matst80/slask-finder/pkg/index"
@@ -84,7 +85,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 
 func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
 
-	file, err := os.Create(filename + ".tmp")
+	file, err := os.Create(path.Join("data", filename+".tmp"))
 	if err != nil {
 		return err
 	}
@@ -108,7 +109,7 @@ func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
 }
 
 func (p *Persistance) LoadJsonFile(data interface{}, filename string) error {
-	file, err := os.Open(filename)
+	file, err := os.Open(path.Join("data", filename))
 	if err != nil {
 		return err
 	}
