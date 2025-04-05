@@ -84,8 +84,8 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 }
 
 func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
-
-	file, err := os.Create(path.Join("data", filename+".tmp"))
+	tmpFileName := path.Join("data", filename+".tmp")
+	file, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,7 @@ func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
 	}
 
 	enc = nil
-	err = os.Rename(filename+".tmp", filename)
+	err = os.Rename(tmpFileName, path.Join("data", filename))
 	log.Println("Saved index")
 
 	return err
