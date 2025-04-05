@@ -58,6 +58,7 @@ var srv = server.WebServer{
 	ContentIndex:     contentIdx,
 	FacetLimit:       1024,
 	SearchFacetLimit: 10280,
+	FieldData:        map[string]server.FieldData{},
 	Cache:            nil,
 	Embeddings:       embeddingsIndex,
 }
