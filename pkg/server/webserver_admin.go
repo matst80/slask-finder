@@ -74,7 +74,11 @@ func (ws *WebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) 
 }
 
 func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
-
+	if ws.Sorting == nil {
+		log.Printf("Sorting not initialized in handlePopularOverride")
+		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+		return
+	}
 	if r.Method == "POST" {
 		defaultHeaders(w, r, true, "0")
 		sort := index.SortOverride{}
