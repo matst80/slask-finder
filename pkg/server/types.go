@@ -18,8 +18,26 @@ type WebServer struct {
 	Cache            *Cache
 	Embeddings       embeddings.Embeddings
 	Tracking         tracking.Tracking
+	FieldData        map[string]FieldData
 	FacetLimit       int
 	SearchFacetLimit int
+}
+
+type DataType = int
+
+const (
+	KEY     = DataType(0)
+	NUMBER  = DataType(1)
+	DECIMAL = DataType(2)
+)
+
+type FieldData struct {
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	//Identifier  string   `json:"identifier"`
+	Purpose []string `json:"purpose"`
+	Type    DataType `json:"type"`
 }
 
 type AddItemRequest []index.DataItem

@@ -82,6 +82,57 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	return err
 }
 
+func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
+
+	file, err := os.Create(filename + ".tmp")
+	if err != nil {
+		return err
+	}
+
+	defer runtime.GC()
+	defer file.Close()
+	zipWriter := gzip.NewWriter(file)
+	enc := json.NewEncoder(zipWriter)
+	defer zipWriter.Close()
+
+	err = enc.Encode(data)
+	if err != nil {
+		return err
+	}
+
+	enc = nil
+	err = os.Rename(filename+".tmp", filename)
+	log.Println("Saved index")
+
+	return err
+}
+
+func (p *Persistance) LoadJsonFile(data interface{}, filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer runtime.GC()
+	defer file.Close()
+
+	zipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+
+	enc := json.NewDecoder(zipReader)
+	defer zipReader.Close()
+
+	err = enc.Decode(data)
+	if err != nil {
+		return err
+	}
+
+	enc = nil
+
+	return nil
+}
+
 func (p *Persistance) SaveIndex(idx *index.Index) error {
 
 	file, err := os.Create(p.File + ".tmp")

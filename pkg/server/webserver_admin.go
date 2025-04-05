@@ -387,6 +387,39 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 //
 //}
 
+func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	tmpFields := make(map[string]FieldData)
+	err := json.NewDecoder(r.Body).Decode(&tmpFields)
+	for key, field := range tmpFields {
+		facet, ok := ws.Index.Facets[field.Id]
+		if ok {
+			base := facet.GetBaseField()
+			if base != nil {
+				base.Name = field.Name
+				base.Description = field.Description
+			}
+		} else {
+			log.Printf("Field %s not found in index", key)
+		}
+		ws.FieldData[key] = field
+	}
+	ws.Db.SaveJsonFile(ws.FieldData, "fields.json")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *WebServer) GetFields(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(ws.FieldData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -398,6 +431,9 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 			log.Println("Error writing health check response")
 		}
 	})
+
+	ws.Db.LoadJsonFile(&ws.FieldData, "fields.json")
+
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
 	srv.HandleFunc("/user", ws.User)
@@ -407,6 +443,8 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
+	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
+	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
