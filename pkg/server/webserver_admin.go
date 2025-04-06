@@ -424,6 +424,22 @@ func (ws *WebServer) GetFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetField(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	fieldId := r.PathValue("id")
+	field, ok := ws.FieldData[fieldId]
+	if !ok {
+		http.Error(w, "Field not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(field)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 
@@ -485,7 +501,6 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 		}
 	}
 	for _, id := range toDelete {
-
 		delete(ws.Index.Facets, id)
 	}
 
@@ -493,6 +508,40 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	fieldId := r.PathValue("id")
+	field, ok := ws.FieldData[fieldId]
+	if !ok {
+		http.Error(w, "Field not found", http.StatusNotFound)
+		return
+	}
+	facet, found := ws.Index.Facets[field.Id]
+	if found {
+		http.Error(w, "Facet already exists", http.StatusBadRequest)
+		return
+	}
+	baseField := &types.BaseField{
+		Name:        field.Name,
+		Description: field.Description,
+		Id:          field.Id,
+		Priority:    10,
+	}
+	switch field.Type {
+	case KEY:
+		ws.Index.AddKeyField(baseField)
+	case NUMBER:
+		ws.Index.AddIntegerField(baseField)
+	case DECIMAL:
+		ws.Index.AddDecimalField(baseField)
+	}
+	err := ws.Db.SaveFields(ws.Index.Facets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
@@ -521,7 +570,9 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
 	srv.HandleFunc("/clean-fields", ws.CleanFields)
 	srv.HandleFunc("/update-fields", ws.UpdateFacetsFromFields)
+	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
+	srv.HandleFunc("GET /fields/{id}", ws.GetField)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
