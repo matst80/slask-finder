@@ -29,23 +29,26 @@ type Field struct {
 	Value interface{}
 }
 
-func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
+// func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
 
-	err := enc.Decode(item)
+// 	err := enc.Decode(item)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	// if item.AdvertisingText != "" {
+// 	// 	item.Fields[21] = item.AdvertisingText
+// 	// } else {
+// 	// 	delete(item.Fields, 21)
+// 	// }
+
+// 	return nil
+// }
+
+func (p *Persistance) LoadIndex(idx *index.Index) error {
+	err := p.LoadFields(idx)
 	if err != nil {
 		return err
 	}
-	// if item.AdvertisingText != "" {
-	// 	item.Fields[21] = item.AdvertisingText
-	// } else {
-	// 	delete(item.Fields, 21)
-	// }
-
-	return nil
-}
-
-func (p *Persistance) LoadIndex(idx *index.Index) error {
-
 	file, err := os.Open(p.File)
 	if err != nil {
 		return err
@@ -162,7 +165,68 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
-	log.Println("Saved index")
 
-	return err
+	if err != nil {
+		return err
+	}
+	log.Println("Saved index")
+	return p.SaveFields(idx.Facets)
+}
+
+type FieldType uint
+
+type StorageFacet struct {
+	types.BaseField
+	Type FieldType `json:"type"`
+}
+
+func (p *Persistance) SaveFields(facets map[uint]types.Facet) error {
+	file, err := os.Create("data/facets.json.tmp")
+	toStore := make([]StorageFacet, 0)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	for _, ff := range facets {
+
+		b := ff.GetBaseField()
+		toStore = append(toStore, StorageFacet{
+			BaseField: *b,
+			Type:      FieldType(ff.GetType()),
+		})
+	}
+	err = json.NewEncoder(file).Encode(toStore)
+	if err != nil {
+		return err
+	}
+	return os.Rename("data/facets.json.tmp", "data/facets.json")
+
+}
+
+func (p *Persistance) LoadFields(idx *index.Index) error {
+	file, err := os.Open("data/facets.json")
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	toStore := make([]StorageFacet, 0)
+	err = json.NewDecoder(file).Decode(&toStore)
+	if err != nil {
+		return err
+	}
+
+	for _, ff := range toStore {
+		switch ff.Type {
+		case 1:
+			idx.AddKeyField(&ff.BaseField)
+		case 3:
+			idx.AddIntegerField(&ff.BaseField)
+		case 2:
+			idx.AddDecimalField(&ff.BaseField)
+		default:
+			log.Printf("Unknown field type %d", ff.Type)
+		}
+	}
+
+	return nil
 }

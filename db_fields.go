@@ -2834,4 +2834,5 @@ func addDbFields(idx *index.Index) {
 	idx.AddKeyField(&types.BaseField{Id: 36329, Name: "USB-strömförsörjning (USB PD)", Priority: 2999})
 	idx.AddIntegerField(&types.BaseField{Id: 36327, Name: "Laddeffekt som krävs (min. i W)", Priority: 1999})
 	idx.AddIntegerField(&types.BaseField{Id: 36328, Name: "Laddeffekt som krävs (max. i W)", Priority: 1999})
+	idx.AddDecimalField(&types.BaseField{Id: 36341, Name: "Refresh rate (Hz)", Priority: 499})
 }
