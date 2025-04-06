@@ -518,7 +518,7 @@ func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Field not found", http.StatusNotFound)
 		return
 	}
-	facet, found := ws.Index.Facets[field.Id]
+	_, found := ws.Index.Facets[field.Id]
 	if found {
 		http.Error(w, "Facet already exists", http.StatusBadRequest)
 		return
