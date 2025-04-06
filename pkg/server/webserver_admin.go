@@ -394,7 +394,7 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
-	tmpFields := make(map[string]FieldData)
+	tmpFields := make(map[string]*FieldData)
 	err := json.NewDecoder(r.Body).Decode(&tmpFields)
 	for key, field := range tmpFields {
 		facet, ok := ws.Index.Facets[field.Id]
@@ -424,6 +424,77 @@ func (ws *WebServer) GetFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+
+	for _, field := range ws.FieldData {
+		field.ItemCount = 0
+	}
+	for _, itemP := range ws.Index.Items {
+		item, ok := (*itemP).(*index.DataItem)
+		if ok && !item.IsDeleted() {
+			for _, field := range ws.FieldData {
+				_, found := item.Fields[field.Id]
+				if found {
+					field.ItemCount++
+				}
+			}
+		}
+	}
+	cleanFields := make(map[string]*FieldData)
+	for key, field := range ws.FieldData {
+		if field.ItemCount > 0 {
+			cleanFields[key] = field
+			facet, ok := ws.Index.Facets[field.Id]
+			if ok {
+				base := facet.GetBaseField()
+				if base != nil {
+					base.Name = field.Name
+					base.Description = field.Description
+				}
+			} else {
+				log.Printf("Field %s not found in index", key)
+			}
+		}
+	}
+
+	err := ws.Db.SaveJsonFile(cleanFields, "fields.jz")
+	// err := json.NewEncoder(w).Encode(cleanFields)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	toDelete := make([]uint, 0)
+	for _, field := range ws.FieldData {
+		facet, ok := ws.Index.Facets[field.Id]
+		if ok {
+			base := facet.GetBaseField()
+			if base != nil {
+				base.Name = field.Name
+				base.Description = field.Description
+			}
+			if field.ItemCount < 5 {
+				log.Printf("Useless index field %s %d", field.Name, field.Id)
+				toDelete = append(toDelete, field.Id)
+			}
+		}
+	}
+	for _, id := range toDelete {
+
+		delete(ws.Index.Facets, id)
+	}
+
+	err := ws.Db.SaveFields(ws.Index.Facets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -448,6 +519,8 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
 	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
+	srv.HandleFunc("/clean-fields", ws.CleanFields)
+	srv.HandleFunc("/update-fields", ws.UpdateFacetsFromFields)
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))

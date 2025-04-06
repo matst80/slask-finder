@@ -18,7 +18,7 @@ type WebServer struct {
 	Cache            *Cache
 	Embeddings       embeddings.Embeddings
 	Tracking         tracking.Tracking
-	FieldData        map[string]FieldData
+	FieldData        map[string]*FieldData
 	FacetLimit       int
 	SearchFacetLimit int
 }
@@ -36,8 +36,9 @@ type FieldData struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	//Identifier  string   `json:"identifier"`
-	Purpose []string `json:"purpose"`
-	Type    DataType `json:"type"`
+	Purpose   []string `json:"purpose"`
+	Type      DataType `json:"type"`
+	ItemCount int      `json:"itemCount"`
 }
 
 type AddItemRequest []index.DataItem
