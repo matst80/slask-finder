@@ -25,14 +25,14 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 		if fld.Value == nil {
 			continue
 		}
-		if f, ok := i.Facets[fld.Id]; ok {
+		if f, ok := i.Facets[fld.Id]; ok && f != nil {
 			cnt++
 			go parseKeys(fld, f)
 		}
 	}
 
 	for _, fld := range search.RangeFilter {
-		if f, ok := i.Facets[fld.Id]; ok {
+		if f, ok := i.Facets[fld.Id]; ok && f != nil {
 			cnt++
 			go parseRange(fld, f)
 		}
