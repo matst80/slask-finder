@@ -642,6 +642,12 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 		if field.Name == "Audio control" {
 			continue
 		}
+		if field.Name == "Suitable for commercial use" {
+			continue
+		}
+		if field.Name == "Suitable for children" {
+			continue
+		}
 		ws.FieldData[key] = field
 	}
 	tmp = nil
