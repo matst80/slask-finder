@@ -605,6 +605,23 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (ws *WebServer) MissingFacets(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	missing := make([]*FieldData, 0)
+	for _, field := range ws.FieldData {
+		_, ok := ws.Index.Facets[field.Id]
+		if !ok {
+			missing = append(missing, field)
+		}
+	}
+
+	err := json.NewEncoder(w).Encode(missing)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -645,6 +662,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
+	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
