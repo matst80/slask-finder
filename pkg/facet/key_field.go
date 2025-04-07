@@ -50,6 +50,9 @@ func (f *KeyField) match(value string) *types.ItemList {
 }
 
 func (f KeyField) Match(input interface{}) *types.ItemList {
+	if input == nil {
+		return &types.ItemList{}
+	}
 	switch val := input.(type) {
 	case string:
 		return f.match(val)
