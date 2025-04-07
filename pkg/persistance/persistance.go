@@ -45,7 +45,7 @@ type Field struct {
 // }
 
 func (p *Persistance) LoadIndex(idx *index.Index) error {
-	err := p.LoadFields(idx)
+	err := p.LoadFacets(idx)
 	if err != nil {
 		return err
 	}
@@ -170,7 +170,7 @@ func (p *Persistance) SaveIndex(idx *index.Index) error {
 		return err
 	}
 	log.Println("Saved index")
-	return p.SaveFields(idx.Facets)
+	return p.SaveFacets(idx.Facets)
 }
 
 type FieldType uint
@@ -180,7 +180,7 @@ type StorageFacet struct {
 	Type FieldType `json:"type"`
 }
 
-func (p *Persistance) SaveFields(facets map[uint]types.Facet) error {
+func (p *Persistance) SaveFacets(facets map[uint]types.Facet) error {
 	file, err := os.Create("data/facets.json.tmp")
 	toStore := make([]StorageFacet, 0)
 	if err != nil {
@@ -203,15 +203,14 @@ func (p *Persistance) SaveFields(facets map[uint]types.Facet) error {
 
 }
 
-func (p *Persistance) LoadFields(idx *index.Index) error {
+func (p *Persistance) LoadFacets(idx *index.Index) error {
 	file, err := os.Open("data/facets.json")
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 	toStore := make([]StorageFacet, 0)
-	err = json.NewDecoder(file).Decode(&toStore)
-	if err != nil {
+	if err = json.NewDecoder(file).Decode(&toStore); err != nil {
 		return err
 	}
 

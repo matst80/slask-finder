@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/golang-jwt/jwt"
@@ -504,7 +505,7 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 		delete(ws.Index.Facets, id)
 	}
 
-	err := ws.Db.SaveFields(ws.Index.Facets)
+	err := ws.Db.SaveFacets(ws.Index.Facets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -537,8 +538,68 @@ func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	case DECIMAL:
 		ws.Index.AddDecimalField(baseField)
 	}
-	err := ws.Db.SaveFields(ws.Index.Facets)
+	err := ws.Db.SaveFacets(ws.Index.Facets)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) DeleteFacet(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	facetIdString := r.PathValue("id")
+	facetId, err := strconv.Atoi(facetIdString)
+	if err != nil {
+		http.Error(w, "Invalid facet ID", http.StatusBadRequest)
+		return
+	}
+	_, ok := ws.Index.Facets[uint(facetId)]
+	if !ok {
+		http.Error(w, "Facet not found", http.StatusNotFound)
+		return
+	}
+	delete(ws.Index.Facets, uint(facetId))
+	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	facetIdString := r.PathValue("id")
+	facetId, err := strconv.Atoi(facetIdString)
+	if err != nil {
+		http.Error(w, "Invalid facet ID", http.StatusBadRequest)
+		return
+	}
+	data := types.BaseField{}
+	err = json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	facet, ok := ws.Index.Facets[uint(facetId)]
+	if !ok {
+		http.Error(w, "Facet not found", http.StatusNotFound)
+		return
+	}
+	current := facet.GetBaseField()
+	if current == nil {
+		http.Error(w, "Facet not found", http.StatusNotFound)
+		return
+	}
+	current.Name = data.Name
+	current.Description = data.Description
+	current.Priority = data.Priority
+	current.CategoryLevel = data.CategoryLevel
+	current.HideFacet = data.HideFacet
+	current.LinkedId = data.LinkedId
+	current.Searchable = data.Searchable
+	current.Type = data.Type
+	current.ValueSorting = data.ValueSorting
+	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
@@ -555,8 +616,18 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 			log.Println("Error writing health check response")
 		}
 	})
-
-	ws.Db.LoadJsonFile(&ws.FieldData, "fields.jz")
+	tmp := map[string]*FieldData{}
+	ws.Db.LoadJsonFile(&tmp, "fields.jz")
+	for key, field := range tmp {
+		if field.Name == "Supplier's EcoVadis Score" {
+			continue
+		}
+		if field.Name == "Audio control" {
+			continue
+		}
+		ws.FieldData[key] = field
+	}
+	tmp = nil
 
 	srv.HandleFunc("/login", ws.Login)
 	srv.HandleFunc("/logout", ws.Logout)
@@ -570,6 +641,8 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
 	srv.HandleFunc("/clean-fields", ws.CleanFields)
 	srv.HandleFunc("/update-fields", ws.UpdateFacetsFromFields)
+	srv.HandleFunc("DELETE /facets/{id}", ws.AuthMiddleware(ws.DeleteFacet))
+	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)

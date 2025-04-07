@@ -15,7 +15,6 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/persistance"
 	"github.com/matst80/slask-finder/pkg/search"
@@ -47,7 +46,7 @@ var token = search.Tokenizer{MaxTokens: 128}
 var idx = index.NewIndex()
 var db = persistance.NewPersistance()
 
-var embeddingsIndex = embeddings.NewEmbeddingsIndex()
+// var embeddingsIndex = embeddings.NewEmbeddingsIndex()
 var contentIdx = index.NewContentIndex()
 
 var srv = server.WebServer{
@@ -58,7 +57,7 @@ var srv = server.WebServer{
 	SearchFacetLimit: 10280,
 	FieldData:        map[string]*server.FieldData{},
 	Cache:            nil,
-	Embeddings:       embeddingsIndex,
+	//Embeddings:       embeddingsIndex,
 }
 
 var done = false
@@ -195,14 +194,14 @@ func LoadIndex(wg *sync.WaitGroup) {
 				wg.Add(1)
 				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
 
-				go func() {
-					idx.Lock()
-					for _, item := range idx.Items {
-						embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
-					}
-					idx.Unlock()
-					log.Printf("Embeddings index loaded")
-				}()
+				// go func() {
+				// 	idx.Lock()
+				// 	for _, item := range idx.Items {
+				// 		embeddingsIndex.AddDocument(embeddings.MakeDocument(*item))
+				// 	}
+				// 	idx.Unlock()
+				// 	log.Printf("Embeddings index loaded")
+				// }()
 			}
 		}
 

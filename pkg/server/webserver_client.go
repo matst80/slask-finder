@@ -2,12 +2,10 @@ package server
 
 import (
 	"encoding/json"
-	"fmt"
 	"iter"
 	"maps"
 	"net/http"
 
-	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -553,49 +551,49 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId 
 	return enc.Encode(result[:i])
 }
 
-func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	query := r.URL.Query().Get("q")
-	query = strings.TrimSpace(query)
-	typeField, ok := ws.Index.Facets[31158]
-	if !ok {
-		return fmt.Errorf("facet not found")
-	}
-	values := typeField.GetValues()
+// func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+// 	query := r.URL.Query().Get("q")
+// 	query = strings.TrimSpace(query)
+// 	typeField, ok := ws.Index.Facets[31158]
+// 	if !ok {
+// 		return fmt.Errorf("facet not found")
+// 	}
+// 	values := typeField.GetValues()
 
-	var productType string
-	for _, valueInterface := range values {
-		value := valueInterface.(string)
+// 	var productType string
+// 	for _, valueInterface := range values {
+// 		value := valueInterface.(string)
 
-		if strings.Contains(query, strings.ToLower(value)) {
-			productType = value
-			break
-		}
+// 		if strings.Contains(query, strings.ToLower(value)) {
+// 			productType = value
+// 			break
+// 		}
 
-	}
+// 	}
 
-	queryVector := embeddings.GetEmbedding(query)
-	if ws.Embeddings == nil {
-		return fmt.Errorf("embeddings not enabled")
-	}
-	results := ws.Embeddings.FindMatches(queryVector)
-	toMatch := typeField.Match(productType)
-	results.Ids.Intersect(*toMatch)
-	defaultHeaders(w, r, true, "120")
-	w.WriteHeader(http.StatusOK)
-	var err error
-	idx := 0
-	for id := range results.SortIndex.SortMap(*toMatch) {
-		item, ok := ws.Index.Items[id]
-		if ok {
-			err = enc.Encode(item)
-		}
-		idx++
-		if idx > 40 || err != nil {
-			break
-		}
-	}
-	return err
-}
+// 	queryVector := embeddings.GetEmbedding(query)
+// 	if ws.Embeddings == nil {
+// 		return fmt.Errorf("embeddings not enabled")
+// 	}
+// 	results := ws.Embeddings.FindMatches(queryVector)
+// 	toMatch := typeField.Match(productType)
+// 	results.Ids.Intersect(*toMatch)
+// 	defaultHeaders(w, r, true, "120")
+// 	w.WriteHeader(http.StatusOK)
+// 	var err error
+// 	idx := 0
+// 	for id := range results.SortIndex.SortMap(*toMatch) {
+// 		item, ok := ws.Index.Items[id]
+// 		if ok {
+// 			err = enc.Encode(item)
+// 		}
+// 		idx++
+// 		if idx > 40 || err != nil {
+// 			break
+// 		}
+// 	}
+// 	return err
+// }
 
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
@@ -608,7 +606,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	})
 	srv.HandleFunc("/content", JsonHandler(ws.Tracking, ws.ContentSearch))
 	srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
-	srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
+	//srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
