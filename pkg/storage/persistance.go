@@ -217,7 +217,7 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 	}
 
 	for _, ff := range toStore {
-		ff.BaseField.Searchable = true
+		//ff.BaseField.Searchable = true
 		switch ff.Type {
 		case 1:
 			idx.AddKeyField(ff.BaseField)
