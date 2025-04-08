@@ -485,8 +485,8 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-
-	err := ws.Db.SaveJsonFile(cleanFields, "fields.jz")
+	ws.FieldData = cleanFields
+	err := ws.Db.SaveJsonFile(ws.FieldData, "fields.jz")
 	// err := json.NewEncoder(w).Encode(cleanFields)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
