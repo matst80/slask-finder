@@ -280,7 +280,9 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	go noUpdates.Inc()
 	i.ItemFieldIds[id] = make(map[uint]struct{})
 	//	i.AllItems[item.Id] = &item.ItemFields
-	i.addItemValues(item)
+	if i.Search != nil {
+		i.addItemValues(item)
+	}
 
 	i.Items[id] = &item
 	if i.IsMaster {
