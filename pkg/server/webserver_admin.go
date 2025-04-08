@@ -650,8 +650,9 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 		res[idx] = *f.GetBaseField()
 		idx++
 	}
+	enc := json.NewEncoder(w)
 
-	return enc.Encode(res)
+	enc.Encode(res)
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
