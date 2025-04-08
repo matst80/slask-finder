@@ -101,6 +101,9 @@ func (f DecimalField) GetValues() []interface{} {
 }
 
 func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
+	if !f.Searchable {
+		return false
+	}
 	value, ok := data.(float64)
 	if !ok {
 		return false

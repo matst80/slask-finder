@@ -605,7 +605,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 		w.Write([]byte("ok"))
 	})
 	srv.HandleFunc("/content", JsonHandler(ws.Tracking, ws.ContentSearch))
-	//srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
+	srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
 	//srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))

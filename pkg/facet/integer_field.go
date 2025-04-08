@@ -107,6 +107,9 @@ func (f IntegerField) addValueLink(value int, item types.Item) {
 }
 
 func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
+	if !f.Searchable {
+		return false
+	}
 	switch value := data.(type) {
 	case int:
 		f.addValueLink(value, item)

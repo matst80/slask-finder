@@ -81,6 +81,9 @@ func (f KeyField) GetBaseField() *types.BaseField {
 }
 
 func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
+	if !f.Searchable {
+		return false
+	}
 	switch typed := data.(type) {
 	case nil:
 		return false
