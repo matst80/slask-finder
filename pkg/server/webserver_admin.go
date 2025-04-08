@@ -109,7 +109,11 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 }
 
 func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
-
+	if ws.Sorting == nil {
+		log.Printf("Sorting not initialized in handleFieldSort")
+		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+		return
+	}
 	if r.Method == "POST" {
 		defaultHeaders(w, r, true, "0")
 		sort := index.SortOverride{}
@@ -137,7 +141,11 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
-
+	if ws.Sorting == nil {
+		log.Printf("Sorting not initialized in handleFieldSort")
+		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+		return
+	}
 	if r.Method == "POST" {
 		defaultHeaders(w, r, true, "0")
 		sort := index.StaticPositions{}
@@ -681,7 +689,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
-	srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
+	//srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
 	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
 }
