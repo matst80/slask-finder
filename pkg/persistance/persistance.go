@@ -106,7 +106,7 @@ func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
 
 	enc = nil
 	err = os.Rename(tmpFileName, path.Join("data", filename))
-	log.Println("Saved index")
+	log.Printf("Saved file: %s", filename)
 
 	return err
 }
