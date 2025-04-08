@@ -5,7 +5,7 @@ type BaseField struct {
 	Name          string  `json:"name"`
 	Description   string  `json:"description,omitempty"`
 	Priority      float64 `json:"prio,omitempty"`
-	Type          string  `json:"type,omitempty"`
+	Type          string  `json:"valueType,omitempty"`
 	LinkedId      uint    `json:"linkedId,omitempty"`
 	ValueSorting  uint    `json:"sorting,omitempty"`
 	Searchable    bool    `json:"searchable,omitempty"`

@@ -176,7 +176,7 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 type FieldType uint
 
 type StorageFacet struct {
-	types.BaseField
+	*types.BaseField
 	Type FieldType `json:"type"`
 }
 
@@ -187,13 +187,15 @@ func (p *DataRepository) SaveFacets(facets map[uint]types.Facet) error {
 		return err
 	}
 	defer file.Close()
+	var base *types.BaseField
 	for _, ff := range facets {
-
-		b := ff.GetBaseField()
-		toStore = append(toStore, StorageFacet{
-			BaseField: *b,
-			Type:      FieldType(ff.GetType()),
-		})
+		base = ff.GetBaseField()
+		if base != nil {
+			toStore = append(toStore, StorageFacet{
+				BaseField: base,
+				Type:      FieldType(ff.GetType()),
+			})
+		}
 	}
 	err = json.NewEncoder(file).Encode(toStore)
 	if err != nil {
@@ -218,11 +220,11 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 		ff.BaseField.Searchable = true
 		switch ff.Type {
 		case 1:
-			idx.AddKeyField(&ff.BaseField)
+			idx.AddKeyField(ff.BaseField)
 		case 3:
-			idx.AddIntegerField(&ff.BaseField)
+			idx.AddIntegerField(ff.BaseField)
 		case 2:
-			idx.AddDecimalField(&ff.BaseField)
+			idx.AddDecimalField(ff.BaseField)
 		default:
 			log.Printf("Unknown field type %d", ff.Type)
 		}
