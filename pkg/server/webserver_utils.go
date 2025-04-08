@@ -318,7 +318,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 
 				wg.Add(1)
 				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					if facet != nil && !facet.Result.HasValues() && base.CategoryLevel == 0 {
+					if facet != nil && !facet.Result.HasValues() && facet.CategoryLevel == 0 {
 						return nil
 					}
 					return facet
