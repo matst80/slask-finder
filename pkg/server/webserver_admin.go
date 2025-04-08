@@ -453,7 +453,8 @@ func (ws *WebServer) GetField(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
-
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
 	for _, field := range ws.FieldData {
 		field.ItemCount = 0
 	}
