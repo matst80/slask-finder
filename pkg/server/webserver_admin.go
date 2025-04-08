@@ -410,6 +410,9 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		}
 		existing, found := ws.FieldData[key]
 		if found {
+			if existing.Created == 0 {
+				existing.Created = time.Now().UnixMilli()
+			}
 			existing.LastSeen = time.Now().UnixMilli()
 		} else {
 			field.LastSeen = time.Now().UnixMilli()
