@@ -39,6 +39,8 @@ type FieldData struct {
 	Purpose   []string `json:"purpose"`
 	Type      DataType `json:"type"`
 	ItemCount int      `json:"itemCount"`
+	LastSeen  int64    `json:"lastSeen"`
+	Created   int64    `json:"created"`
 }
 
 type AddItemRequest []index.DataItem

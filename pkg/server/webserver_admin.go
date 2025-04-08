@@ -408,7 +408,14 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		} else {
 			log.Printf("Field %s not found in index", key)
 		}
-		ws.FieldData[key] = field
+		existing, found := ws.FieldData[key]
+		if found {
+			existing.LastSeen = time.Now().UnixMilli()
+		} else {
+			field.LastSeen = time.Now().UnixMilli()
+			field.Created = time.Now().UnixMilli()
+			ws.FieldData[key] = field
+		}
 	}
 	ws.Db.SaveJsonFile(ws.FieldData, "fields.jz")
 	if err != nil {
