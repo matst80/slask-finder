@@ -285,8 +285,10 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 	fieldIds := make(map[uint]struct{})
 
 	if len(*baseIds) > 65535 {
-		for id := range ws.Index.Facets {
-			fieldIds[id] = struct{}{}
+		for id, f := range ws.Index.Facets {
+			if !f.GetBaseField().HideFacet {
+				fieldIds[id] = struct{}{}
+			}
 		}
 	} else {
 		for id := range *baseIds {
@@ -316,7 +318,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 
 				wg.Add(1)
 				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					if facet != nil && !facet.Result.HasValues() {
+					if facet != nil && !facet.Result.HasValues() && base.CategoryLevel == 0 {
 						return nil
 					}
 					return facet

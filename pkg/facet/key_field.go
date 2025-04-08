@@ -80,6 +80,34 @@ func (f KeyField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
+func (f *KeyField) addString(value string, id uint) {
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return
+	}
+
+	if k, ok := f.Keys[v]; ok {
+		k.AddId(id)
+	} else {
+		f.Keys[v] = types.ItemList{id: struct{}{}}
+	}
+
+}
+
+func (f *KeyField) removeString(value string, id uint) {
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return
+	}
+
+	if k, ok := f.Keys[v]; ok {
+		delete(k, id)
+		if len(k) == 0 {
+			delete(f.Keys, v)
+		}
+	}
+}
+
 func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 	if !f.Searchable {
 		return false
@@ -89,41 +117,23 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 		return false
 	case []interface{}:
 		itemId := item.GetId()
+
 		for _, v := range typed {
 			if str, ok := v.(string); ok {
-				part := strings.TrimSpace(str)
-				if part == "" {
-					continue
-				}
-				if k, ok := f.Keys[part]; ok {
-					k.AddId(itemId)
-				} else {
-					f.Keys[part] = types.ItemList{itemId: struct{}{}}
-				}
+				f.addString(str, itemId)
 			}
-
 		}
+		return true
 	case []string:
 		itemId := item.GetId()
-		for _, v := range typed {
-			part := strings.TrimSpace(v)
-			if part == "" {
-				continue
-			}
 
-			if k, ok := f.Keys[part]; ok {
-				k.AddId(itemId)
-			} else {
-				f.Keys[part] = types.ItemList{itemId: struct{}{}}
-			}
+		for _, v := range typed {
+			f.addString(v, itemId)
 		}
 
 		return true
 	case string:
 
-		if typed == "" {
-			return false
-		}
 		if strings.Contains(typed, "&lt;") || strings.Contains(typed, "&gt;") {
 			return false
 		}
@@ -131,16 +141,7 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 
 		itemId := item.GetId()
 		for _, partData := range parts {
-			part := strings.TrimSpace(partData)
-			if part == "" {
-				continue
-			}
-
-			if k, ok := f.Keys[part]; ok {
-				k.AddId(itemId)
-			} else {
-				f.Keys[part] = types.ItemList{itemId: struct{}{}}
-			}
+			f.addString(partData, itemId)
 		}
 
 		return true
@@ -151,10 +152,38 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 }
 
 func (f KeyField) RemoveValueLink(data interface{}, id uint) {
-	if str, ok := data.(string); ok {
-		if keyId, ok := f.Keys[str]; ok {
-			delete(keyId, id)
+	switch typed := data.(type) {
+	case nil:
+		return
+	case []interface{}:
+
+		for _, v := range typed {
+			if str, ok := v.(string); ok {
+				f.addString(str, id)
+			}
 		}
+		return
+	case []string:
+
+		for _, v := range typed {
+			f.addString(v, id)
+		}
+
+		return
+	case string:
+
+		if strings.Contains(typed, "&lt;") || strings.Contains(typed, "&gt;") {
+			return
+		}
+		parts := strings.Split(typed, ";")
+
+		for _, partData := range parts {
+			f.addString(partData, id)
+		}
+
+		return
+	default:
+		log.Printf("KeyField: AddValueLink: Unknown type %T, fieldId: %d", typed, f.Id)
 	}
 }
 

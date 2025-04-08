@@ -62,6 +62,7 @@ type Item interface {
 const FacetKeyType = 1
 const FacetNumberType = 2
 const FacetIntegerType = 3
+const FacetTreeType = 4
 
 type Facet interface {
 	GetType() uint
