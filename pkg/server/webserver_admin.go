@@ -405,8 +405,6 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 				base.Name = field.Name
 				base.Description = field.Description
 			}
-		} else {
-			log.Printf("Field %s not found in index", key)
 		}
 		existing, found := ws.FieldData[key]
 		if found {
