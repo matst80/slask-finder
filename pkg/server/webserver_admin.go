@@ -639,7 +639,7 @@ func (ws *WebServer) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request) {
 	publicHeaders(w, r, true, "10")
 
 	w.WriteHeader(http.StatusOK)
@@ -697,10 +697,11 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/clean-fields", ws.CleanFields)
 	srv.HandleFunc("/update-fields", ws.UpdateFacetsFromFields)
 	srv.HandleFunc("DELETE /facets/{id}", ws.AuthMiddleware(ws.DeleteFacet))
+	srv.HandleFunc("GET /facets", ws.GetFacets)
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
-	srv.HandleFunc("GET /facets", ws.GetFacets)
+
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
