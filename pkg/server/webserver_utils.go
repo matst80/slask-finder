@@ -300,7 +300,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 	}
 	count := 0
 	var base *types.BaseField = nil
-	hasCat := filters.HasCategoryFilter()
+	//hasCat := filters.HasCategoryFilter()
 	for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
 		if count > 40 {
 			break
@@ -312,9 +312,9 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 				if base == nil || base.HideFacet {
 					continue
 				}
-				if base.CategoryLevel > 0 && hasCat {
-					continue
-				}
+				// if base.CategoryLevel > 0 && hasCat {
+				// 	continue
+				// }
 
 				wg.Add(1)
 				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
