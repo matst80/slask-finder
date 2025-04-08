@@ -1,4 +1,4 @@
-package persistance
+package storage
 
 import (
 	"encoding/gob"

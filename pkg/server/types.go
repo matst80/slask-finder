@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
-	"github.com/matst80/slask-finder/pkg/persistance"
+	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 	"golang.org/x/oauth2"
@@ -13,7 +13,7 @@ type WebServer struct {
 	OAuthConfig      *oauth2.Config
 	Index            *index.Index
 	ContentIndex     *index.ContentIndex
-	Db               *persistance.Persistance
+	Db               *storage.DataRepository
 	Sorting          *index.Sorting
 	Cache            *Cache
 	Embeddings       embeddings.Embeddings

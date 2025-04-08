@@ -1,4 +1,4 @@
-package persistance
+package storage
 
 import (
 	"compress/gzip"
@@ -13,12 +13,12 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-func NewPersistance() *Persistance {
+func NewPersistance() *DataRepository {
 	gob.Register(index.DataItem{})
 	gob.Register([]string{})
 	gob.Register(types.ItemFields{})
 	// gob.Register([]interface{}(nil))
-	return &Persistance{
+	return &DataRepository{
 		File:         "data/index-v2.jz",
 		FreeTextFile: "data/freetext.dbz",
 	}
@@ -44,7 +44,7 @@ type Field struct {
 // 	return nil
 // }
 
-func (p *Persistance) LoadIndex(idx *index.Index) error {
+func (p *DataRepository) LoadIndex(idx *index.Index) error {
 	err := p.LoadFacets(idx)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func (p *Persistance) LoadIndex(idx *index.Index) error {
 	return err
 }
 
-func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
+func (p *DataRepository) SaveJsonFile(data interface{}, filename string) error {
 	tmpFileName := path.Join("data", filename+".tmp")
 	file, err := os.Create(tmpFileName)
 	if err != nil {
@@ -111,7 +111,7 @@ func (p *Persistance) SaveJsonFile(data interface{}, filename string) error {
 	return err
 }
 
-func (p *Persistance) LoadJsonFile(data interface{}, filename string) error {
+func (p *DataRepository) LoadJsonFile(data interface{}, filename string) error {
 	file, err := os.Open(path.Join("data", filename))
 	if err != nil {
 		return err
@@ -137,7 +137,7 @@ func (p *Persistance) LoadJsonFile(data interface{}, filename string) error {
 	return nil
 }
 
-func (p *Persistance) SaveIndex(idx *index.Index) error {
+func (p *DataRepository) SaveIndex(idx *index.Index) error {
 
 	file, err := os.Create(p.File + ".tmp")
 	if err != nil {
@@ -180,7 +180,7 @@ type StorageFacet struct {
 	Type FieldType `json:"type"`
 }
 
-func (p *Persistance) SaveFacets(facets map[uint]types.Facet) error {
+func (p *DataRepository) SaveFacets(facets map[uint]types.Facet) error {
 	file, err := os.Create("data/facets.json.tmp")
 	toStore := make([]StorageFacet, 0)
 	if err != nil {
@@ -203,7 +203,7 @@ func (p *Persistance) SaveFacets(facets map[uint]types.Facet) error {
 
 }
 
-func (p *Persistance) LoadFacets(idx *index.Index) error {
+func (p *DataRepository) LoadFacets(idx *index.Index) error {
 	file, err := os.Open("data/facets.json")
 	if err != nil {
 		return err
@@ -215,6 +215,7 @@ func (p *Persistance) LoadFacets(idx *index.Index) error {
 	}
 
 	for _, ff := range toStore {
+		ff.BaseField.Searchable = true
 		switch ff.Type {
 		case 1:
 			idx.AddKeyField(&ff.BaseField)
