@@ -242,10 +242,14 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 }
 
 func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+	var base *types.BaseField
 	for _, s := range filters.StringFilter {
 		if f, ok := ws.Index.Facets[s.Id]; ok {
-			if !f.GetBaseField().HideFacet {
+			base = f.GetBaseField()
+
+			if !base.HideFacet {
 				wg.Add(1)
+
 				go func(otherFilters *types.Filters) {
 					matchIds := make(chan *types.ItemList)
 					defer close(matchIds)
@@ -258,7 +262,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.F
 						}
 						return facet
 					})
-				}(filters.WithOut(s.Id))
+				}(filters.WithOut(s.Id, base.CategoryLevel > 0))
 			}
 		}
 	}
@@ -275,7 +279,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.F
 					}
 					return facet
 				})
-			}(filters.WithOut(r.Id))
+			}(filters.WithOut(r.Id, false))
 		}
 	}
 }
