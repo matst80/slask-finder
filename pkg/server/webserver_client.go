@@ -501,20 +501,20 @@ func CategoryResultFrom(c *index.Category) *CategoryResult {
 	return ret
 }
 
-func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	publicHeaders(w, r, true, "600")
-	w.WriteHeader(http.StatusOK)
-	categories := ws.Index.GetCategories()
-	result := make([]*CategoryResult, 0)
+// func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+// 	publicHeaders(w, r, true, "600")
+// 	w.WriteHeader(http.StatusOK)
+// 	categories := ws.Index.GetCategories()
+// 	result := make([]*CategoryResult, 0)
 
-	for _, category := range categories {
-		if category != nil {
-			result = append(result, CategoryResultFrom(category))
-		}
-	}
+// 	for _, category := range categories {
+// 		if category != nil {
+// 			result = append(result, CategoryResultFrom(category))
+// 		}
+// 	}
 
-	return enc.Encode(result)
-}
+// 	return enc.Encode(result)
+// }
 
 func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	id := r.PathValue("id")
@@ -612,7 +612,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
-	srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
+	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))
 

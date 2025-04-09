@@ -47,8 +47,8 @@ type Category struct {
 }
 
 type Index struct {
-	mu            sync.RWMutex
-	categories    map[uint]*Category
+	mu sync.RWMutex
+	//categories    map[uint]*Category
 	Facets        map[uint]types.Facet
 	ItemFieldIds  map[uint]map[uint]struct{}
 	Items         map[uint]*types.Item
@@ -63,9 +63,9 @@ type Index struct {
 
 func NewIndex() *Index {
 	return &Index{
-		mu:           sync.RWMutex{},
-		All:          types.ItemList{},
-		categories:   make(map[uint]*Category),
+		mu:  sync.RWMutex{},
+		All: types.ItemList{},
+		//categories:   make(map[uint]*Category),
 		ItemFieldIds: make(map[uint]map[uint]struct{}),
 		Facets:       make(map[uint]types.Facet),
 		Items:        make(map[uint]*types.Item),
@@ -123,16 +123,16 @@ func (i *Index) addItemValues(item types.Item) {
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
 			base = f.GetBaseField()
-			if base.CategoryLevel > 0 {
-				value, ok := fieldValue.(string)
-				if ok {
-					cid := makeCategoryId(base.CategoryLevel, value)
-					if i.categories[cid] == nil {
-						i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}
-					}
-					tree = append(tree, i.categories[cid])
-				}
-			}
+			// if base.CategoryLevel > 0 {
+			// 	value, ok := fieldValue.(string)
+			// 	if ok {
+			// 		cid := makeCategoryId(base.CategoryLevel, value)
+			// 		if i.categories[cid] == nil {
+			// 			i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}
+			// 		}
+			// 		tree = append(tree, i.categories[cid])
+			// 	}
+			// }
 
 			if f.AddValueLink(fieldValue, item) && i.ItemFieldIds != nil && !base.HideFacet {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
@@ -163,17 +163,17 @@ func (i *Index) addItemValues(item types.Item) {
 	}
 }
 
-func (i *Index) GetCategories() []*Category {
-	i.Lock()
-	defer i.Unlock()
-	categories := make([]*Category, 0)
-	for _, category := range i.categories {
-		if category.parent == nil && category.level == 1 {
-			categories = append(categories, category)
-		}
-	}
-	return categories
-}
+// func (i *Index) GetCategories() []*Category {
+// 	i.Lock()
+// 	defer i.Unlock()
+// 	categories := make([]*Category, 0)
+// 	for _, category := range i.categories {
+// 		if category.parent == nil && category.level == 1 {
+// 			categories = append(categories, category)
+// 		}
+// 	}
+// 	return categories
+// }
 
 func (i *Index) removeItemValues(item types.Item) {
 	if i.IsMaster {
