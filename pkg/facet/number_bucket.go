@@ -3,12 +3,19 @@ package facet
 import "github.com/matst80/slask-finder/pkg/types"
 
 type Bucket[V FieldNumberValue] struct {
-	values map[V]types.ItemList
+	minValue V
+	maxValue V
+	values   map[V]types.ItemList
 }
 
 func (b *Bucket[V]) AddValueLink(value V, item types.Item) {
 	idList, ok := b.values[value]
-
+	if b.minValue > value {
+		b.minValue = value
+	}
+	if b.maxValue < value {
+		b.maxValue = value
+	}
 	if !ok {
 		b.values[value] = types.ItemList{item.GetId(): struct{}{}}
 

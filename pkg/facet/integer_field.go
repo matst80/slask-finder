@@ -7,6 +7,28 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
+const (
+	EXPECTED_RESULT_SIZE = 6
+)
+
+func NormalizeResults(input []uint) []uint {
+	l := len(input)
+	if l <= EXPECTED_RESULT_SIZE {
+		return input
+	}
+	result := make([]uint, 0, EXPECTED_RESULT_SIZE)
+	itemsToGroup := l / EXPECTED_RESULT_SIZE
+	sum := uint(0)
+	for i := 0; i < l; i++ {
+		sum += input[i]
+		if (i+1)%itemsToGroup == 0 {
+			result = append(result, sum)
+			sum = 0
+		}
+	}
+	return result
+}
+
 type IntegerField struct {
 	*types.BaseField
 	*NumberRange[int]
@@ -20,6 +42,21 @@ func (f *IntegerField) ValueForItemId(id uint) *int {
 		return &v
 	}
 	return nil
+}
+
+func (f *IntegerField) GetBucketSizes(minValue int, maxValue int) []uint {
+	if minValue > maxValue {
+		return []uint{}
+	}
+	minBucket := GetBucket(max(minValue, f.Min))
+	maxBucket := GetBucket(min(maxValue, f.Max))
+	bucketSizes := make([]uint, maxBucket-minBucket+1)
+	for i := minBucket; i <= maxBucket; i++ {
+		if bucket, ok := f.buckets[i]; ok {
+			bucketSizes[i-minBucket] = uint(len(bucket.values))
+		}
+	}
+	return bucketSizes
 }
 
 func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList {

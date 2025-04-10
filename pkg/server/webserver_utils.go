@@ -207,6 +207,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 				}
 			}
 		}
+		fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
 		if !hasValues {
 			c <- nil
 			return

@@ -28,9 +28,10 @@ func (k *KeyFieldResult) HasValues() bool {
 }
 
 type IntegerFieldResult struct {
-	Count uint `json:"count,omitempty"`
-	Min   int  `json:"min"`
-	Max   int  `json:"max"`
+	Count   uint   `json:"count,omitempty"`
+	Min     int    `json:"min"`
+	Max     int    `json:"max"`
+	Buckets []uint `json:"buckets,omitempty"`
 }
 
 func (k *IntegerFieldResult) HasValues() bool {

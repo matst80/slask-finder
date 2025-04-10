@@ -519,6 +519,9 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 				if slices.Index(field.Purpose, "do not show") != -1 {
 					base.HideFacet = true
 				}
+				if slices.Index(field.Purpose, "UL Benchmarking") != -1 {
+					base.Type = "fps"
+				}
 			}
 			if field.ItemCount < 5 {
 				log.Printf("Useless index field %s %d, count: %d", field.Name, field.Id, field.ItemCount)
