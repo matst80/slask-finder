@@ -8,13 +8,31 @@ import (
 )
 
 const (
-	EXPECTED_RESULT_SIZE = 6
+	EXPECTED_RESULT_SIZE = 20
+	MAX_RESULT_VALUE     = float64(100)
 )
+
+func NormalizeValues(input []uint) []uint {
+	min := uint(0)
+	max := uint(0)
+	for _, v := range input {
+		if v < min {
+			min = v
+		} else if v > max {
+			max = v
+		}
+	}
+	result := make([]uint, len(input))
+	for i := 0; i < len(input); i++ {
+		result[i] = uint((float64(input[i]-min) / float64(max-min)) * MAX_RESULT_VALUE)
+	}
+	return result
+}
 
 func NormalizeResults(input []uint) []uint {
 	l := len(input)
 	if l <= EXPECTED_RESULT_SIZE {
-		return input
+		return NormalizeValues(input)
 	}
 	result := make([]uint, 0, EXPECTED_RESULT_SIZE)
 	itemsToGroup := l / EXPECTED_RESULT_SIZE
@@ -26,7 +44,7 @@ func NormalizeResults(input []uint) []uint {
 			sum = 0
 		}
 	}
-	return result
+	return NormalizeValues(result)
 }
 
 type IntegerField struct {
