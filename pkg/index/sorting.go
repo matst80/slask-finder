@@ -412,7 +412,7 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	s.hasItemChanges = false
 	log.Println("Sorting initialized")
 	s.quit = make(chan struct{})
-	ticker := time.NewTicker(30 * time.Second)
+	ticker := time.NewTicker(60 * time.Second)
 	go func() {
 		for {
 			select {

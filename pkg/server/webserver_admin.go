@@ -189,6 +189,7 @@ func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.Index.UpsertItems(toUpdate)
 	totalItems.Set(float64(len(ws.Index.Items)))
+	toUpdate = nil
 	w.WriteHeader(http.StatusOK)
 }
 
