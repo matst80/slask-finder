@@ -59,9 +59,12 @@ func TestWords(t *testing.T) {
 	token := Tokenizer{
 		MaxTokens: 100,
 	}
-	res := token.Tokenize("9800X3D")
+	res := token.Tokenize("9800X3D A55")
 	if res[0] != "9800x3d" {
 		t.Errorf("Expected '9800x3d' but got %s", res[0])
+	}
+	if res[1] != "a55" {
+		t.Errorf("Expected 'a55' but got %s", res[1])
 	}
 }
 

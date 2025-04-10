@@ -8,27 +8,57 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
+type CleanKeyFacet struct {
+	types.Facet
+	level int
+	Value interface{} `json:"value"`
+}
+
+func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilter) []CleanKeyFacet {
+	ret := make([]CleanKeyFacet, 0, len(stringFilters))
+
+	maxLevel := 0
+	for _, fld := range stringFilters {
+		if fld.Value == nil {
+			continue
+		}
+		if f, ok := i.Facets[fld.Id]; ok && f != nil {
+			level := f.GetBaseField().CategoryLevel
+			ret = append(ret, CleanKeyFacet{
+				Facet: f,
+				Value: fld.Value,
+				level: level,
+			})
+
+			if level > 0 {
+				if level > maxLevel {
+					maxLevel = level
+				}
+			}
+		}
+	}
+
+	return slices.DeleteFunc(ret, func(f CleanKeyFacet) bool {
+		return f.level > 0 && f.level < maxLevel
+	})
+}
+
 func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
 
-	parseKeys := func(field types.StringFilter, facet types.Facet) {
-		results <- facet.Match(field.Value)
+	parseKeys := func(value interface{}, facet types.Facet) {
+		results <- facet.Match(value)
 	}
 	parseRange := func(field types.RangeFilter, facet types.Facet) {
 		results <- facet.Match(field)
 	}
 
-	for _, fld := range search.StringFilter {
-		if fld.Value == nil {
-			continue
-		}
-		if f, ok := i.Facets[fld.Id]; ok && f != nil {
-			cnt++
-			go parseKeys(fld, f)
-		}
+	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
+		cnt++
+		go parseKeys(fld.Value, fld.Facet)
 	}
 
 	for _, fld := range search.RangeFilter {
