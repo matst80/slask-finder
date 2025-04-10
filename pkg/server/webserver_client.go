@@ -104,7 +104,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	wg := &sync.WaitGroup{}
 
 	ids := <-matchIds
-	ws.getOtherFacets(ids, sr.Filters, ch, wg)
+	ws.getOtherFacets(ids, sr, ch, wg)
 	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
 
 	// todo optimize
@@ -281,7 +281,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
-	ws.getOtherFacets(&results, &types.Filters{}, ch, wg)
+	ws.getOtherFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
 
 	_, err = w.Write([]byte("\n"))
 

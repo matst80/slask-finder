@@ -17,8 +17,32 @@ type BaseField struct {
 
 type FacetRequest struct {
 	*Filters
-	Stock []string `json:"stock" schema:"stock"`
-	Query string   `json:"query" schema:"query"`
+	Stock        []string `json:"stock" schema:"stock"`
+	Query        string   `json:"query" schema:"query"`
+	IgnoreFacets []uint   `json:"skipFacets" schema:"sf"`
+}
+
+func (f *FacetRequest) HasField(id uint) bool {
+	for _, v := range f.StringFilter {
+		if v.Id == id {
+			return true
+		}
+	}
+	for _, v := range f.RangeFilter {
+		if v.Id == id {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *FacetRequest) IsIgnored(id uint) bool {
+	for _, v := range f.IgnoreFacets {
+		if v == id {
+			return true
+		}
+	}
+	return false
 }
 
 type LocationStock []struct {

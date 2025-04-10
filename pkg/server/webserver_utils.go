@@ -284,13 +284,13 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.F
 	}
 }
 
-func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	fieldIds := make(map[uint]struct{})
 
 	if len(*baseIds) > 65535 {
 		for id, f := range ws.Index.Facets {
-			if !f.GetBaseField().HideFacet {
+			if !f.GetBaseField().HideFacet && !sr.IsIgnored(id) {
 				fieldIds[id] = struct{}{}
 			}
 		}
@@ -310,7 +310,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 			break
 		}
 
-		if !filters.HasField(id) {
+		if !sr.Filters.HasField(id) {
 			if f, ok := ws.Index.Facets[id]; ok {
 				base = f.GetBaseField()
 				if base == nil || base.HideFacet {
@@ -331,6 +331,8 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, filters *types.Filt
 					count++
 				}
 			}
+		} else {
+			log.Printf("Facet %d is in filters", id)
 		}
 	}
 }
