@@ -285,22 +285,22 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 
 	_, err = w.Write([]byte("\n"))
 
-	ret := make(map[uint]*index.JsonFacet)
+	//ret := make(map[uint]*index.JsonFacet)
 	go func() {
 		wg.Wait()
 		close(ch)
 	}()
 	for jsonFacet := range ch {
 		if jsonFacet != nil {
-			ret[jsonFacet.Id] = jsonFacet
+			err = enc.Encode(jsonFacet)
 		}
 	}
 
-	for _, v := range *ws.Sorting.FieldSort {
-		if d, ok := ret[v.Id]; ok {
-			err = enc.Encode(d)
-		}
-	}
+	// for _, v := range *ws.Sorting.FieldSort {
+	// 	if d, ok := ret[v.Id]; ok {
+	// 		err = enc.Encode(d)
+	// 	}
+	// }
 	return err
 }
 
