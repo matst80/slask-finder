@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -507,7 +508,7 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
-	toDelete := make([]uint, 0)
+	//toDelete := make([]uint, 0)
 	for _, field := range ws.FieldData {
 		facet, ok := ws.Index.Facets[field.Id]
 		if ok {
@@ -515,16 +516,19 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 			if base != nil {
 				base.Name = field.Name
 				base.Description = field.Description
+				if slices.Index(field.Purpose, "do not show") != -1 {
+					base.HideFacet = true
+				}
 			}
 			if field.ItemCount < 5 {
-				log.Printf("Useless index field %s %d", field.Name, field.Id)
-				toDelete = append(toDelete, field.Id)
+				log.Printf("Useless index field %s %d, count: %d", field.Name, field.Id, field.ItemCount)
+				// 	toDelete = append(toDelete, field.Id)
 			}
 		}
 	}
-	for _, id := range toDelete {
-		delete(ws.Index.Facets, id)
-	}
+	// for _, id := range toDelete {
+	// 	delete(ws.Index.Facets, id)
+	// }
 
 	err := ws.Db.SaveFacets(ws.Index.Facets)
 	if err != nil {
