@@ -595,6 +595,33 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId 
 // 	return err
 // }
 
+func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	defaultHeaders(w, r, true, "1200")
+	ret := make(map[string]uint)
+	for id, facet := range ws.Index.Facets {
+		base := facet.GetBaseField()
+		if (base.Type != "" || base.CategoryLevel > 0) && !base.HideFacet && facet.GetType() == types.FacetKeyType {
+			for _, line := range facet.GetValues() {
+				switch values := line.(type) {
+				case []string:
+					for _, v := range values {
+						if v != "" {
+							ret[v] = id
+						}
+					}
+				case string:
+					if values != "" {
+						ret[values] = id
+					}
+				}
+			}
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	enc.Encode(ret)
+	return nil
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -610,6 +637,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
+	srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
 	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
