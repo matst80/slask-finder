@@ -554,6 +554,10 @@ func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 		Description: field.Description,
 		Id:          field.Id,
 		Priority:    10,
+		Searchable:  true,
+	}
+	if slices.Index(field.Purpose, "do not show") != -1 {
+		baseField.HideFacet = true
 	}
 	switch field.Type {
 	case KEY:
