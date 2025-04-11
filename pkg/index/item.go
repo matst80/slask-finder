@@ -2,6 +2,7 @@ package index
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -266,8 +267,49 @@ func (item *DataItem) GetTitle() string {
 	return item.Title
 }
 
+func getStringValues(fieldValue interface{}, found bool) []string {
+	if !found {
+		return []string{}
+	}
+	switch value := fieldValue.(type) {
+	case []string:
+		return value
+	case string:
+		return []string{value}
+	case int:
+		return []string{fmt.Sprintf("%d", value)}
+	case int64:
+		return []string{fmt.Sprintf("%d", value)}
+	case float64:
+		return []string{fmt.Sprintf("%f", value)}
+	default:
+		return []string{}
+	}
+}
+
+func (item *DataItem) ToStringList() []string {
+	fieldValues := make([]string, 0)
+	fieldValues = append(fieldValues, item.Title)
+	fieldValues = append(fieldValues, item.Sku)
+
+	// todo have a config for this
+	for _, id := range []uint{
+		2,
+		31158,
+		12,
+		13,
+		30290,
+		11,
+		10,
+	} {
+		fieldValues = append(fieldValues, getStringValues(item.GetFieldValue(id))...)
+	}
+
+	return fieldValues
+}
+
 func (item *DataItem) ToString() string {
-	return fmt.Sprintf("%s %s %s", item.Sku, item.Title, item.BulletPoints)
+	return strings.Join(item.ToStringList(), " ")
 }
 
 func (item *DataItem) GetBaseItem() types.BaseItem {

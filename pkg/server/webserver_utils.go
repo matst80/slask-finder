@@ -90,8 +90,8 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	defer close(matchingChan)
 	defer close(sortChan)
 
-	initialIds, documentResult := ws.getInitialIds(sr.FacetRequest)
-	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
+	initialIds := ws.getInitialIds(sr.FacetRequest)
+	go ws.Index.Match(sr.Filters, &initialIds, matchingChan)
 	isPopular := sr.Sort == "popular" || sr.Sort == ""
 
 	if isPopular && sr.Query != "*" {
@@ -102,15 +102,15 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 		go ws.Sorting.GetSorting(sr.Sort, sortChan)
 	}
 
-	if documentResult != nil {
-		queryOverride := index.SortOverride(*documentResult)
-		result <- searchResult{
-			matching:      <-matchingChan,
-			sortOverrides: []index.SortOverride{queryOverride},
-			sort:          <-sortChan,
-		}
-		return
-	}
+	// if documentResult != nil {
+	// 	queryOverride := index.SortOverride(*documentResult)
+	// 	result <- searchResult{
+	// 		matching:      <-matchingChan,
+	// 		sortOverrides: []index.SortOverride{queryOverride},
+	// 		sort:          <-sortChan,
+	// 	}
+	// 	return
+	// }
 	result <- searchResult{
 		matching:      <-matchingChan,
 		sort:          <-sortChan,

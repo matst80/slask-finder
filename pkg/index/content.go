@@ -218,7 +218,7 @@ func (i *ContentIndex) MatchQuery(query string) iter.Seq[ContentItem] {
 	result := i.Search.Search(query)
 
 	return func(yield func(ContentItem) bool) {
-		for id := range *result {
+		for id := range result {
 			item, ok := i.Items[id]
 			if ok {
 				if !yield(item) {

@@ -61,7 +61,6 @@ func TestStringMatchRule_GetValue_Normal(t *testing.T) {
 	}
 }
 
-// [{"match":"Elgiganten","fieldId":9,"value":0,"valueIfNotMatch":-12000,"$type":"MatchRule"},{"match":"Outlet","fieldId":10,"value":0,"valueIfNotMatch":-6000,"$type":"MatchRule"},{"multiplier":30,"valueIfMatch":4500,"$type":"DiscountRule"},{"match":true,"property":"Buyable","value":5000,"valueIfNotMatch":-2000,"$type":"MatchRule"},{"noStoreMultiplier":20,"noStockValue":-6000,"$type":"MatchRule"},{"match":"","invert":true,"property":"BadgeUrl","value":0,"valueIfNotMatch":4500,"$type":"MatchRule"},{"limit":99999900,"comparator":"\u003e","value":-2500,"valueIfNotMatch":0,"fieldId":4,"$type":"NumberLimitRule"},{"limit":10000,"comparator":"\u003c","value":-800,"valueIfNotMatch":0,"fieldId":4,"$type":"NumberLimitRule"},{"multiplier":50,"min":0,"max":100,"property":"MarginPercent","$type":"NumberLimitRule"},{"multiplier":0.06,"subtractValue":-20,"valueIfNoMatch":0,"$type":"RatingRule"},{"hourMultiplier":-0.019,"property":"Created","$type":"AgedRule"},{"hourMultiplier":-0.0002,"property":"LastUpdate","$type":"AgedRule"}]
 func TestStringMatchRule_GetValue_Inverted(t *testing.T) {
 	res := CollectPopularity(item, &MatchRule{
 		Match:  "World",

@@ -76,6 +76,10 @@ func (m *MockItem) ToString() string {
 	return m.Title
 }
 
+func (m *MockItem) ToStringList() []string {
+	return []string{m.Title}
+}
+
 func (m *MockItem) GetBaseItem() BaseItem {
 	return BaseItem{
 		Id:    m.Id,

@@ -38,20 +38,19 @@ var (
 	})
 )
 
-func (ws *WebServer) getInitialIds(sr *types.FacetRequest) (*types.ItemList, *search.DocumentResult) {
-	var initialIds *types.ItemList = nil
-	var documentResult *search.DocumentResult = nil
+func (ws *WebServer) getInitialIds(sr *types.FacetRequest) types.ItemList {
+	var initialIds types.ItemList = nil
+	//var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
 		if sr.Query == "*" {
 			// probably should copy this
 			cloned := types.ItemList{}
 			maps.Copy(cloned, ws.Index.All)
-			initialIds = &cloned
+			initialIds = cloned
 		} else {
-			queryResult := ws.Index.Search.Search(sr.Query)
-			initialIds = queryResult.ToResult()
+			initialIds = ws.Index.Search.Search(sr.Query)
 
-			documentResult = queryResult
+			//documentResult = queryResult
 		}
 	}
 
@@ -65,13 +64,13 @@ func (ws *WebServer) getInitialIds(sr *types.FacetRequest) (*types.ItemList, *se
 		}
 
 		if initialIds == nil {
-			initialIds = &resultStockIds
+			initialIds = resultStockIds
 		} else {
 			initialIds.Intersect(resultStockIds)
 		}
 	}
 
-	return initialIds, documentResult
+	return initialIds
 }
 
 func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -97,15 +96,15 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 
 	matchIds := make(chan *types.ItemList)
 	defer close(matchIds)
-	baseIds, _ := ws.getInitialIds(sr)
-	go ws.Index.Match(sr.Filters, baseIds, matchIds)
+	baseIds := ws.getInitialIds(sr)
+	go ws.Index.Match(sr.Filters, &baseIds, matchIds)
 
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
 	ids := <-matchIds
 	ws.getOtherFacets(ids, sr, ch, wg)
-	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
+	ws.getSearchedFacets(&baseIds, sr.Filters, ch, wg)
 
 	// todo optimize
 	go func() {
@@ -220,10 +219,10 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	sortChan := make(chan *types.ByValue)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
-	var docResult *search.DocumentResult = nil
+	var docResult types.ItemList
 	if hasMoreWords {
 		docResult = ws.Index.Search.Search(query)
-		types.Merge(results, *docResult)
+		types.Merge(results, docResult)
 		//results = *docResult
 	}
 
@@ -256,12 +255,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	_, err = w.Write([]byte("\n"))
 
 	sortedItemsChan := make(chan iter.Seq[*types.Item])
-	if docResult != nil {
-		o := index.SortOverride(*docResult)
-		go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan, o)
-	} else {
-		go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan)
-	}
+	// if docResult != nil {
+	// 	//o := index.SortOverride(docResult)
+	// 	go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan, o)
+	// } else {
+	go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan)
+	//}
 
 	fn := <-sortedItemsChan
 	idx := 0

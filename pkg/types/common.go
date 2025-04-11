@@ -78,6 +78,7 @@ type Item interface {
 	//GetPopularity() float64
 	GetTitle() string
 	ToString() string
+	ToStringList() []string
 	GetBaseItem() BaseItem
 	MergeKeyFields(updates []CategoryUpdate) bool
 	GetItem() interface{}

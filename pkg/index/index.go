@@ -292,7 +292,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 		go i.AutoSuggest.InsertItem(item)
 	}
 	if i.Search != nil {
-		go i.Search.CreateDocument(id, item.ToString())
+		go i.Search.CreateDocument(id, item.ToStringList()...)
 	}
 	return price_lowered
 }

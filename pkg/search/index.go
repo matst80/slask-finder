@@ -1,8 +1,6 @@
 package search
 
 import (
-	"cmp"
-	"slices"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -10,43 +8,56 @@ import (
 
 type FreeTextIndex struct {
 	mu        sync.RWMutex
-	Tokenizer *Tokenizer
-	Documents map[uint]*Document
-	TokenMap  map[Token][]*Document
+	tokenizer *Tokenizer
+	//Documents map[uint]*Document
+	TokenMap map[Token]types.ItemList
 	//BaseSortMap map[uint]float64
-
-	Tokens []string
+	WordMappings map[Token]Token
+	//Tokens []Token
 }
 
-type DocumentResult map[uint]float64
+//type DocumentResult map[uint]float64
 
-func (i *FreeTextIndex) AddDocument(doc *Document) {
+// func (i *FreeTextIndex) AddDocument(doc *Document) {
+// 	i.mu.Lock()
+// 	defer i.mu.Unlock()
+// 	//i.Documents[doc.Id] = doc
+// 	for _, token := range doc.Tokens {
+// 		if _, ok := i.TokenMap[token]; !ok {
+// 			i.TokenMap[token] = make([]*Document, 0)
+// 			i.Tokens = append(i.Tokens, token)
+// 		}
+// 		i.TokenMap[token] = append(i.TokenMap[token], doc)
+// 	}
+// }
+
+func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
+	i.tokenizer.MakeDocument(id, text...)
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	i.Documents[doc.Id] = doc
-	for _, token := range doc.Tokens {
-		if _, ok := i.TokenMap[token]; !ok {
-			i.TokenMap[token] = make([]*Document, 0)
-			i.Tokens = append(i.Tokens, string(token))
+	//i.Documents[doc.Id] = doc
+	for _, property := range text {
+		for _, token := range i.tokenizer.Tokenize(property) {
+			if l, ok := i.TokenMap[token]; !ok {
+				i.TokenMap[token] = types.ItemList{id: struct{}{}}
+			} else {
+				l.AddId(id)
+			}
 		}
-		i.TokenMap[token] = append(i.TokenMap[token], doc)
 	}
 }
 
-func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
-	i.AddDocument(i.Tokenizer.MakeDocument(id, text...))
-}
-
-func (i *FreeTextIndex) RemoveDocument(id uint) {
-	delete(i.Documents, id)
+func (i *FreeTextIndex) RemoveDocument(id uint, text ...string) {
+	//delete(i.Documents, id)
 }
 
 func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
-		Tokenizer: tokenizer,
-		Documents: make(map[uint]*Document),
-		TokenMap:  map[Token][]*Document{},
-		Tokens:    make([]string, 0),
+		tokenizer: tokenizer,
+		//Documents: make(map[uint]*Document),
+		TokenMap: map[Token]types.ItemList{},
+		//Tokens:    make([]string, 0),
+		WordMappings: make(map[Token]Token),
 	}
 }
 
@@ -69,12 +80,16 @@ func absMin(x, y int) int {
 	return y
 }
 
-func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
-	matching := make([]tokenScore, 0)
+func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
+	matching := make([]tokenScore, max)
+	for j := 0; j < max; j++ {
+		matching[j] = tokenScore{score: -99999999.0, token: token}
+	}
 	tl := len(token)
+
 	score := 0.0
 	found := false
-	for _, i := range i.Tokens {
+	for i, _ := range i.TokenMap {
 		il := len(i)
 		if il < tl {
 			continue
@@ -95,121 +110,132 @@ func (i *FreeTextIndex) getRankedFuzzyMatch(token string) []Token {
 			}
 		}
 		score -= float64(absDiffInt(il, tl))
-		if score > 0 {
-			matching = append(matching, tokenScore{score: score, token: Token(i)})
-		}
-	}
-	slices.SortFunc(matching, func(i, j tokenScore) int {
-		return cmp.Compare(j.score, i.score)
-	})
-	max := absMin(len(matching), 5)
-	res := make([]Token, max)
-	for idx, match := range matching {
-		if idx >= max {
-			break
-		}
-		res[idx] = match.token
-	}
-	return res
-}
-
-func (i *FreeTextIndex) getMatchDocs(tokens []Token) map[uint]*Document {
-
-	res := make(map[uint]*Document)
-	missingStrings := make([]string, 0)
-	for _, token := range tokens {
-		docs, ok := i.TokenMap[token]
-		if ok {
-			for _, doc := range docs {
-				res[doc.Id] = doc
-			}
-		} else {
-			missingStrings = append(missingStrings, string(token))
-		}
-
-	}
-
-	for _, token := range missingStrings {
-		matches := i.getRankedFuzzyMatch(token)
-		for _, match := range matches {
-			if docs, ok := i.TokenMap[match]; ok {
-
-				for _, doc := range docs {
-					res[doc.Id] = doc
-				}
-
-			}
-		}
-	}
-
-	return res
-}
-
-func (i *FreeTextIndex) Search(query string) *DocumentResult {
-	tokens := i.Tokenizer.Tokenize(query)
-	res := make(DocumentResult)
-	i.mu.RLock()
-	defer i.mu.RUnlock()
-	result := i.getMatchDocs(tokens)
-	score := 0.0
-	wordIdx := 0
-	lastIndex := 0
-	var missing int
-	var word Token
-	for _, doc := range result {
-		score = 50.0
-		wordIdx = 0
-		lastIndex = 0
-		missing = len(tokens)
-		word = tokens[wordIdx]
-		for i, t := range doc.Tokens {
-			if word == t {
-				score += max(1, 20.0-(2.0*float64(absDiffInt(i, lastIndex))))
-				lastIndex = i
-				wordIdx++
-				missing--
-				if wordIdx >= len(tokens) {
-					break
-				}
-				word = tokens[wordIdx]
-			}
-		}
-		res[doc.Id] = score - float64(missing)*0.2
-		// if res[doc.Id] > 0 {
-		// 	//l := float64(len(tokens))
-		// 	//dl := float64(len(doc.Tokens))
-		// 	// base := 0.0
-		// 	// if i.BaseSortMap != nil {
-		// 	// 	if v, ok := i.BaseSortMap[doc.Id]; ok {
-		// 	// 		base = v
-		// 	// 	}
-		// 	// }
-		// 	hits := res[doc.Id]
-		// 	res[doc.Id] = (hits * 1000.0)
-		// }
-	}
-
-	return &res
-}
-
-func (d *DocumentResult) ToSortIndex() []types.Lookup {
-	// l := len(*d)
-
-	// sortMap := make(types.ByValue, l)
-	// idx := 0
-	// for id, score := range *d {
-	// 	sortMap[idx] = types.Lookup{Id: id, Value: score}
-	// 	idx++
-	// }
-	return slices.SortedFunc(func(yield func(types.Lookup) bool) {
-		for id, score := range *d {
-			if !yield(types.Lookup{Id: id, Value: score}) {
+		for j := 0; j < max; j++ {
+			if matching[j].score < score {
+				matching[j].score = score
+				matching[j].token = i
 				break
 			}
 		}
-	}, types.LookUpReversed)
-
+	}
+	ret := make([]Token, 0, max)
+	for j := 0; j < max; j++ {
+		if matching[j].score < 0 {
+			break
+		}
+		ret = append(ret, matching[j].token)
+	}
+	return ret
+	// slices.SortFunc(matching, func(i, j tokenScore) int {
+	// 	return cmp.Compare(j.score, i.score)
+	// })
+	// max := absMin(len(matching), 5)
+	// res := make([]Token, max)
+	// for idx, match := range matching {
+	// 	if idx >= max {
+	// 		break
+	// 	}
+	// 	res[idx] = match.token
+	// }
+	// return res
 }
+
+func (i *FreeTextIndex) getMatchDocs(tokens []Token) types.ItemList {
+
+	//res := make(map[uint]*Document)
+	missingStrings := make([]Token, 0)
+	var res types.ItemList
+	for _, token := range tokens {
+		docs, ok := i.TokenMap[token]
+		if ok {
+			if res == nil {
+				res = docs
+			} else {
+				res.Intersect(docs)
+			}
+		} else {
+			missingStrings = append(missingStrings, i.getBestFuzzyMatch(token, 3)...)
+		}
+	}
+
+	for _, token := range missingStrings {
+		docs, ok := i.TokenMap[token]
+		if ok {
+			if res == nil {
+				res = docs
+			} else {
+				res.Merge(&docs)
+			}
+		}
+	}
+
+	return res
+}
+
+func (i *FreeTextIndex) Search(query string) types.ItemList {
+	tokens := i.tokenizer.Tokenize(query)
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+	return i.getMatchDocs(tokens)
+	// score := 0.0
+	// wordIdx := 0
+	// lastIndex := 0
+	// var missing int
+	// var word Token
+	// for _, doc := range result {
+	// 	score = 50.0
+	// 	wordIdx = 0
+	// 	lastIndex = 0
+	// 	missing = len(tokens)
+	// 	word = tokens[wordIdx]
+	// 	for i, t := range doc.Tokens {
+	// 		if word == t {
+	// 			score += max(1, 20.0-(2.0*float64(absDiffInt(i, lastIndex))))
+	// 			lastIndex = i
+	// 			wordIdx++
+	// 			missing--
+	// 			if wordIdx >= len(tokens) {
+	// 				break
+	// 			}
+	// 			word = tokens[wordIdx]
+	// 		}
+	// 	}
+	// 	res[doc.Id] = score - float64(missing)*0.2
+	// 	// if res[doc.Id] > 0 {
+	// 	// 	//l := float64(len(tokens))
+	// 	// 	//dl := float64(len(doc.Tokens))
+	// 	// 	// base := 0.0
+	// 	// 	// if i.BaseSortMap != nil {
+	// 	// 	// 	if v, ok := i.BaseSortMap[doc.Id]; ok {
+	// 	// 	// 		base = v
+	// 	// 	// 	}
+	// 	// 	// }
+	// 	// 	hits := res[doc.Id]
+	// 	// 	res[doc.Id] = (hits * 1000.0)
+	// 	// }
+	// }
+
+	// return &res
+}
+
+// func (d *DocumentResult) ToSortIndex() []types.Lookup {
+// 	// l := len(*d)
+
+// 	// sortMap := make(types.ByValue, l)
+// 	// idx := 0
+// 	// for id, score := range *d {
+// 	// 	sortMap[idx] = types.Lookup{Id: id, Value: score}
+// 	// 	idx++
+// 	// }
+// 	return slices.SortedFunc(func(yield func(types.Lookup) bool) {
+// 		for id, score := range *d {
+// 			if !yield(types.Lookup{Id: id, Value: score}) {
+// 				break
+// 			}
+// 		}
+// 	}, types.LookUpReversed)
+
+// }
 
 // func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *types.ItemList, baseMap map[uint]float64) *types.ByValue {
 
@@ -257,27 +283,27 @@ func (d *DocumentResult) ToSortIndex() []types.Lookup {
 // 	return &sortIndex
 // }
 
-type ResultWithSort struct {
-	*types.IdList
-	SortIndex types.SortIndex
-}
+// type ResultWithSort struct {
+// 	*types.IdList
+// 	SortIndex types.SortIndex
+// }
 
-func (d *DocumentResult) ToResult() *types.ItemList {
-	res := types.ItemList{}
+// func (d *DocumentResult) ToResult() *types.ItemList {
+// 	res := types.ItemList{}
 
-	for id := range *d {
-		res[id] = struct{}{}
-	}
-	return &res
-}
+// 	for id := range *d {
+// 		res[id] = struct{}{}
+// 	}
+// 	return &res
+// }
 
-func (d *DocumentResult) IntersectTo(items *types.ItemList) {
-	for id := range *items {
-		if _, ok := (*d)[id]; !ok {
-			delete(*items, id)
-		}
-	}
-}
+// func (d *DocumentResult) IntersectTo(items *types.ItemList) {
+// 	for id := range *items {
+// 		if _, ok := (*d)[id]; !ok {
+// 			delete(*items, id)
+// 		}
+// 	}
+// }
 
 // func (d *DocumentResult) GetSorting(sortChan chan<- *types.ByValue) {
 // 	v := types.ByValue(d.ToSortIndex())
