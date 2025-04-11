@@ -10,7 +10,7 @@ type FreeTextIndex struct {
 	mu        sync.RWMutex
 	tokenizer *Tokenizer
 	//Documents map[uint]*Document
-	TokenMap map[Token]types.ItemList
+	TokenMap map[Token]*types.ItemList
 	//BaseSortMap map[uint]float64
 	WordMappings map[Token]Token
 	//Tokens []Token
@@ -39,7 +39,7 @@ func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
 	for _, property := range text {
 		for _, token := range i.tokenizer.Tokenize(property) {
 			if l, ok := i.TokenMap[token]; !ok {
-				i.TokenMap[token] = types.ItemList{id: struct{}{}}
+				i.TokenMap[token] = &types.ItemList{id: struct{}{}}
 			} else {
 				l.AddId(id)
 			}
@@ -55,7 +55,7 @@ func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
 		tokenizer: tokenizer,
 		//Documents: make(map[uint]*Document),
-		TokenMap: map[Token]types.ItemList{},
+		TokenMap: map[Token]*types.ItemList{},
 		//Tokens:    make([]string, 0),
 		WordMappings: make(map[Token]Token),
 	}
@@ -140,31 +140,31 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 	// return res
 }
 
-func (i *FreeTextIndex) getMatchDocs(tokens []Token) types.ItemList {
+func (i *FreeTextIndex) getMatchDocs(tokens []Token) *types.ItemList {
 
 	//res := make(map[uint]*Document)
 	missingStrings := make([]Token, 0)
-	var res types.ItemList
-	for _, token := range tokens {
+	res := &types.ItemList{}
+	for j, token := range tokens {
 		docs, ok := i.TokenMap[token]
 		if ok {
-			if res == nil {
-				res = docs
+			if j == 0 {
+				res.Merge(docs)
 			} else {
-				res.Intersect(docs)
+				res.Intersect(*docs)
 			}
 		} else {
 			missingStrings = append(missingStrings, i.getBestFuzzyMatch(token, 3)...)
 		}
 	}
 
-	for _, token := range missingStrings {
+	for j, token := range missingStrings {
 		docs, ok := i.TokenMap[token]
 		if ok {
-			if res == nil {
-				res = docs
+			if j == 0 {
+				res.Merge(docs)
 			} else {
-				res.Merge(&docs)
+				res.Intersect(*docs)
 			}
 		}
 	}
@@ -172,11 +172,12 @@ func (i *FreeTextIndex) getMatchDocs(tokens []Token) types.ItemList {
 	return res
 }
 
-func (i *FreeTextIndex) Search(query string) types.ItemList {
+func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	tokens := i.tokenizer.Tokenize(query)
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	return i.getMatchDocs(tokens)
+	result := i.getMatchDocs(tokens)
+	return result
 	// score := 0.0
 	// wordIdx := 0
 	// lastIndex := 0

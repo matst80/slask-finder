@@ -38,15 +38,15 @@ var (
 	})
 )
 
-func (ws *WebServer) getInitialIds(sr *types.FacetRequest) types.ItemList {
-	var initialIds types.ItemList = nil
+func (ws *WebServer) getInitialIds(sr *types.FacetRequest) *types.ItemList {
+	var initialIds *types.ItemList = nil
 	//var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
 		if sr.Query == "*" {
 			// probably should copy this
 			cloned := types.ItemList{}
 			maps.Copy(cloned, ws.Index.All)
-			initialIds = cloned
+			initialIds = &cloned
 		} else {
 			initialIds = ws.Index.Search.Search(sr.Query)
 
@@ -64,7 +64,7 @@ func (ws *WebServer) getInitialIds(sr *types.FacetRequest) types.ItemList {
 		}
 
 		if initialIds == nil {
-			initialIds = resultStockIds
+			initialIds = &resultStockIds
 		} else {
 			initialIds.Intersect(resultStockIds)
 		}
@@ -97,14 +97,14 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	matchIds := make(chan *types.ItemList)
 	defer close(matchIds)
 	baseIds := ws.getInitialIds(sr)
-	go ws.Index.Match(sr.Filters, &baseIds, matchIds)
+	go ws.Index.Match(sr.Filters, baseIds, matchIds)
 
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
 	ids := <-matchIds
 	ws.getOtherFacets(ids, sr, ch, wg)
-	ws.getSearchedFacets(&baseIds, sr.Filters, ch, wg)
+	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
 
 	// todo optimize
 	go func() {
@@ -219,10 +219,10 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	sortChan := make(chan *types.ByValue)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
-	var docResult types.ItemList
+	var docResult *types.ItemList
 	if hasMoreWords {
 		docResult = ws.Index.Search.Search(query)
-		types.Merge(results, docResult)
+		types.Merge(results, *docResult)
 		//results = *docResult
 	}
 

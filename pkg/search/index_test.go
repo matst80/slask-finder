@@ -12,10 +12,10 @@ func TestDocumentIndex(t *testing.T) {
 	idx.CreateDocument(3, "Hello slask, how are you?", "Some other text")
 
 	res := idx.Search("Hello world")
-	if len(res) != 3 {
-		t.Errorf("Expected 3 results but got %d", len(res))
+	if len(*res) != 3 {
+		t.Errorf("Expected 3 results but got %d", len(*res))
 	}
-	sort := res
+	sort := *res
 	if len(sort) != 3 {
 		t.Errorf("Expected 3 results but got %d", len(sort))
 	}
@@ -47,8 +47,8 @@ func TestDocument2Index(t *testing.T) {
 	idx.CreateDocument(3, "Hello slask, how are you?", "Some other text")
 
 	res := idx.Search("x3d")
-	if len(res) != 2 {
-		t.Errorf("Expected 2 results but got %d", len(res))
+	if len(*res) != 2 {
+		t.Errorf("Expected 2 results but got %d", len(*res))
 	}
 
 	// if sort[0] != 1 {
