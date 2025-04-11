@@ -605,12 +605,12 @@ func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessio
 				switch values := line.(type) {
 				case []string:
 					for _, v := range values {
-						if v != "" {
+						if len(v) > 2 {
 							ret[v] = id
 						}
 					}
 				case string:
-					if values != "" {
+					if len(values) > 2 {
 						ret[values] = id
 					}
 				}

@@ -30,6 +30,28 @@ func (s *SearchRequest) UseStaticPosition() bool {
 	return s.Sort == "popular" || s.Sort == ""
 }
 
+func clamp[T int | float64](value, min, max T) T {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func (s *SearchRequest) Sanitize() {
+	s.Page = clamp(s.Page, 0, 100)
+	s.PageSize = clamp(s.PageSize, 1, 1000)
+	if s.Sort == "" {
+		s.Sort = "popular"
+	}
+	if len(s.StringFilter) > 0 || len(s.RangeFilter) > 0 && s.Query == "*" {
+		s.Query = ""
+	}
+
+}
+
 func GetQueryFromRequest(r *http.Request) (*SearchRequest, error) {
 	sr := makeBaseSearchRequest()
 	var err error
@@ -38,9 +60,7 @@ func GetQueryFromRequest(r *http.Request) (*SearchRequest, error) {
 	} else {
 		err = json.NewDecoder(r.Body).Decode(sr)
 	}
-	if sr.Sort == "" {
-		sr.Sort = "popular"
-	}
+	sr.Sanitize()
 	return sr, err
 }
 
@@ -50,7 +70,7 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	if err != nil {
 		return err
 	}
-
+	result.Sanitize()
 	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
