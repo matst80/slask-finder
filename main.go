@@ -4,9 +4,10 @@ import (
 	"flag"
 	"log"
 	"net/http"
-	"net/http/pprof"
+	httpprof "net/http/pprof"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/storage"
@@ -23,6 +24,7 @@ import (
 )
 
 var enableProfiling = flag.Bool("profiling", true, "enable profiling endpoints")
+var profileLoad = flag.String("profile-startup", "", "write cpu profile to file")
 
 var rabbitUrl = os.Getenv("RABBIT_URL")
 var clientName = os.Getenv("NODE_NAME")
@@ -147,7 +149,14 @@ func LoadIndex(wg *sync.WaitGroup) {
 	}
 
 	go func() {
-
+		if *profileLoad != "" {
+			f, err := os.Create(*profileLoad)
+			if err != nil {
+				log.Fatal(err)
+			}
+			pprof.StartCPUProfile(f)
+			defer pprof.StopCPUProfile()
+		}
 		defer wg.Done()
 		err := db.LoadIndex(idx)
 
@@ -244,11 +253,11 @@ func main() {
 
 	if enableProfiling != nil && *enableProfiling {
 		log.Println("Profiling enabled")
-		debugMux.HandleFunc("/debug/pprof/", pprof.Index)
-		debugMux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		debugMux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		debugMux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		debugMux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+		debugMux.HandleFunc("/debug/pprof/", httpprof.Index)
+		debugMux.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
+		debugMux.HandleFunc("/debug/pprof/profile", httpprof.Profile)
+		debugMux.HandleFunc("/debug/pprof/symbol", httpprof.Symbol)
+		debugMux.HandleFunc("/debug/pprof/trace", httpprof.Trace)
 		//mux.Handle("/debug/pprof/", )
 	}
 	log.Printf("Starting debug server %v", debugAddress)

@@ -221,6 +221,14 @@ func (i *Index) UpsertItems(items []types.Item) {
 	log.Printf("Upserting items %d", l)
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	if i.AutoSuggest != nil {
+		i.AutoSuggest.Lock()
+		defer i.AutoSuggest.Unlock()
+	}
+	if i.Search != nil {
+		i.Search.Lock()
+		defer i.Search.Unlock()
+	}
 	//changed := make([]types.Item, 0, len(items))
 	//price_lowered := make([]types.Item, 0, len(items))
 
@@ -289,10 +297,10 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	}
 
 	if i.AutoSuggest != nil {
-		go i.AutoSuggest.InsertItem(item)
+		i.AutoSuggest.InsertItemUnsafe(item)
 	}
 	if i.Search != nil {
-		go i.Search.CreateDocument(id, item.ToStringList()...)
+		i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
 	}
 	return price_lowered
 }

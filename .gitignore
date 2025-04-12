@@ -6,6 +6,7 @@ data/facets/*
 data/items/*
 data/content/*
 __debug*
+startup.prof
 data/*.dbz
 data/carts/
 .DS_Store

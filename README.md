@@ -10,6 +10,10 @@
 
 `go tool pprof "http://localhost:8080/debug/pprof/allocs"`
 
+`-profile-startup=startup.prof`
+
+`go tool pprof startup.prof`
+
 ## Table of Contents
 
 - [Installation](#installation)

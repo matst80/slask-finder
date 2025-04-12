@@ -32,10 +32,15 @@ type FreeTextIndex struct {
 // }
 
 func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
-	i.tokenizer.MakeDocument(id, text...)
+
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	//i.Documents[doc.Id] = doc
+	i.CreateDocumentUnsafe(id, text...)
+}
+
+func (i *FreeTextIndex) CreateDocumentUnsafe(id uint, text ...string) {
+	i.tokenizer.MakeDocument(id, text...)
+
 	for _, property := range text {
 		for _, token := range i.tokenizer.Tokenize(property) {
 			if l, ok := i.TokenMap[token]; !ok {
@@ -45,6 +50,14 @@ func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
 			}
 		}
 	}
+}
+
+func (i *FreeTextIndex) Lock() {
+	i.mu.Lock()
+}
+
+func (i *FreeTextIndex) Unlock() {
+	i.mu.Unlock()
 }
 
 func (i *FreeTextIndex) RemoveDocument(id uint, text ...string) {

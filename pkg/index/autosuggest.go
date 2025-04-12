@@ -37,19 +37,23 @@ func (a *AutoSuggest) InsertItem(item types.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	// addItem := func(word string, count int) bool {
-	// 	a.insertUnsafe(word, item)
-	// 	return true
-	// }
+	a.InsertItemUnsafe(item)
+}
+
+func (a *AutoSuggest) Lock() {
+	a.mu.Lock()
+}
+
+func (a *AutoSuggest) Unlock() {
+	a.mu.Unlock()
+}
+
+func (a *AutoSuggest) InsertItemUnsafe(item types.Item) {
 	title := item.GetTitle()
 	search.SplitWords(title, func(word string, count int) bool {
 		a.insertUnsafe(word, item)
 		return true
 	})
-	// for _, word := range a.tokenizer.Tokenize(title) {
-	// 	a.insertUnsafe(string(word), item)
-	// }
-	//search.SplitWords(strings.ToLower(title), addItem)
 }
 
 func (a *AutoSuggest) FindMatches(text string) []search.Match {
