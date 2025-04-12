@@ -70,5 +70,9 @@ func (a *AutoSuggest) FindMatches(text string) []search.Match {
 
 func (a *AutoSuggest) FindMatchesForWord(word string, resultChan chan<- []search.Match) {
 	tokens := a.tokenizer.Tokenize(word)
+	if len(tokens) == 0 {
+		resultChan <- []search.Match{}
+		return
+	}
 	resultChan <- a.Trie.FindMatches(string(tokens[len(tokens)-1]))
 }
