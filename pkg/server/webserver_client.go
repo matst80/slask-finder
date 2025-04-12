@@ -234,14 +234,17 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 
 	suggestResult := &SuggestResult{}
 	suggestResult.Other = other
+	hasResults := len(results) > 0
 	var err error
 	for _, s := range <-wordMatchesChan {
 		suggestResult.Prefix = lastWord
 		suggestResult.Word = s.Word
 
 		if suggestResult.Hits > 0 {
-
-			if results.HasIntersection(s.Items) {
+			if !hasResults {
+				suggestResult.Hits = len(*s.Items)
+				err = enc.Encode(suggestResult)
+			} else if results.HasIntersection(s.Items) {
 				suggestResult.Hits = results.IntersectionLen(*s.Items)
 				err = enc.Encode(suggestResult)
 				// dont intersect with the other words yet since partial
