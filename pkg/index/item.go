@@ -296,11 +296,11 @@ func (item *DataItem) ToStringList() []string {
 	for _, id := range []uint{
 		2,
 		31158,
-		12,
-		13,
+		//12,
+		//13,
 		30290,
-		11,
-		10,
+		//11,
+		//10,
 	} {
 		fieldValues = append(fieldValues, getStringValues(item.GetFieldValue(id))...)
 	}
