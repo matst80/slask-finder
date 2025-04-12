@@ -157,14 +157,18 @@ func (i *FreeTextIndex) getMatchDocs(tokens []Token) *types.ItemList {
 			missingStrings = append(missingStrings, i.getBestFuzzyMatch(token, 3)...)
 		}
 	}
-
-	for j, token := range missingStrings {
+	for _, token := range missingStrings {
 		docs, ok := i.TokenMap[token]
 		if ok {
-			if j == 0 {
-				res.Merge(docs)
+			copy := &types.ItemList{}
+			res.Merge(docs)
+			if len(*copy) == 0 {
+				copy.Merge(docs)
 			} else {
-				res.Intersect(*docs)
+				copy.Intersect(*docs)
+			}
+			if len(*copy) > 0 {
+				return copy
 			}
 		}
 	}

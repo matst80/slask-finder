@@ -62,15 +62,15 @@ func simplify(text string) Token {
 func getUniqueTokens(tokens []Token) []Token {
 	unique := make(map[Token]bool)
 	for _, token := range tokens {
-		unique[token] = true
+		if len(token) > 0 {
+			unique[token] = true
+		}
 	}
 	res := make([]Token, len(unique))
 	c := 0
 	for token := range unique {
-		if len(token) > 0 {
-			res[c] = token
-			c++
-		}
+		res[c] = token
+		c++
 	}
 	return res[:c]
 }
@@ -80,7 +80,7 @@ func SplitWords(text string, onWord func(word string, count int) bool) {
 	lastSplit := 0
 	for idx, chr := range text {
 		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' || chr == '/' {
-			if idx > lastSplit+1 {
+			if idx > lastSplit {
 				if !onWord(text[lastSplit:idx], count) {
 					return
 				}
