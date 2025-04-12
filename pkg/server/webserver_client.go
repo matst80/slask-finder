@@ -207,6 +207,27 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	query := r.URL.Query().Get("q")
+	if query == "" {
+		items, _ := ws.Sorting.GetSessionData(uint(sessionId))
+		sortedItems := items.ToSortedLookup()
+		//sortedFields := fields.ToSortedLookup()
+		defaultHeaders(w, r, true, "60")
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("\n"))
+
+		for _, v := range sortedItems {
+			item, ok := ws.Index.Items[v.Id]
+			if ok {
+				err := enc.Encode(item)
+				if err != nil {
+					return err
+				}
+			}
+		}
+		w.Write([]byte("\n"))
+		return nil
+	}
 	query = strings.TrimSpace(query)
 	words := strings.Split(query, " ")
 	results := types.ItemList{}
