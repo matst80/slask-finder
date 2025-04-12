@@ -88,7 +88,7 @@ var commonIssues = map[rune]rune{
 // 	return result
 // }
 
-func simplify(text string) Token {
+func NormalizeWord(text string) Token {
 	ret := make([]rune, 0, len(text))
 	var l rune
 	for _, r := range text {
@@ -105,18 +105,17 @@ func simplify(text string) Token {
 
 func getUniqueTokens(tokens []Token) []Token {
 	unique := make(map[Token]bool)
+	res := make([]Token, 0, len(unique))
 	for _, token := range tokens {
 		if len(token) > 0 {
+			if _, ok := unique[token]; !ok {
+				res = append(res, token)
+			}
 			unique[token] = true
 		}
 	}
-	res := make([]Token, len(unique))
-	c := 0
-	for token := range unique {
-		res[c] = token
-		c++
-	}
-	return res[:c]
+
+	return res
 }
 
 func SplitWords(text string, onWord func(word string, count int) bool) {
@@ -146,7 +145,7 @@ func (t *Tokenizer) Tokenize(text string) []Token {
 		if c >= t.MaxTokens {
 			return false
 		}
-		parts = append(parts, simplify(word))
+		parts = append(parts, NormalizeWord(word))
 		c++
 		return true
 	})

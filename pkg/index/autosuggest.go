@@ -1,7 +1,6 @@
 package index
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/search"
@@ -42,10 +41,14 @@ func (a *AutoSuggest) InsertItem(item types.Item) {
 	// 	a.insertUnsafe(word, item)
 	// 	return true
 	// }
-	title := strings.ToLower(item.GetTitle())
-	for _, word := range a.tokenizer.Tokenize(title) {
-		a.insertUnsafe(string(word), item)
-	}
+	title := item.GetTitle()
+	search.SplitWords(title, func(word string, count int) bool {
+		a.insertUnsafe(word, item)
+		return true
+	})
+	// for _, word := range a.tokenizer.Tokenize(title) {
+	// 	a.insertUnsafe(string(word), item)
+	// }
 	//search.SplitWords(strings.ToLower(title), addItem)
 }
 
@@ -62,5 +65,6 @@ func (a *AutoSuggest) FindMatches(text string) []search.Match {
 }
 
 func (a *AutoSuggest) FindMatchesForWord(word string, resultChan chan<- []search.Match) {
-	resultChan <- a.Trie.FindMatches(strings.ToLower(word))
+	tokens := a.tokenizer.Tokenize(word)
+	resultChan <- a.Trie.FindMatches(string(tokens[len(tokens)-1]))
 }
