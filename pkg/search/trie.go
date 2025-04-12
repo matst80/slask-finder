@@ -37,19 +37,23 @@ func (t *Trie) Insert(word string, item types.Item) {
 	node.Word = word
 	if node.Items == nil {
 		node.Items = types.ItemList{id: struct{}{}}
+	} else {
+		node.Items.AddId(id)
 	}
-	node.Items.AddId(id)
 }
 
-func (t *Trie) Search(word string) bool {
+func (t *Trie) Search(word string) *Node {
 	node := t.Root
 	for _, r := range word {
 		if _, ok := node.Children[r]; !ok {
-			return false
+			return nil
 		}
 		node = node.Children[r]
 	}
-	return node.IsLeaf
+	if node.IsLeaf {
+		return node
+	}
+	return nil
 }
 
 type Match struct {
