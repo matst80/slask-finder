@@ -9,8 +9,17 @@ import (
 )
 
 type AutoSuggest struct {
-	mu   sync.RWMutex
-	Trie *search.Trie
+	mu        sync.RWMutex
+	tokenizer *search.Tokenizer
+	Trie      *search.Trie
+}
+
+func NewAutoSuggest(tokenizer *search.Tokenizer) *AutoSuggest {
+	return &AutoSuggest{
+		mu:        sync.RWMutex{},
+		tokenizer: tokenizer,
+		Trie:      search.NewTrie(),
+	}
 }
 
 func (a *AutoSuggest) Insert(word string, item types.Item) {
@@ -29,23 +38,27 @@ func (a *AutoSuggest) InsertItem(item types.Item) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	addItem := func(word string, count int) bool {
-		a.insertUnsafe(word, item)
-		return true
-	}
+	// addItem := func(word string, count int) bool {
+	// 	a.insertUnsafe(word, item)
+	// 	return true
+	// }
 	title := strings.ToLower(item.GetTitle())
-	search.SplitWords(strings.ToLower(title), addItem)
+	for _, word := range a.tokenizer.Tokenize(title) {
+		a.insertUnsafe(string(word), item)
+	}
+	//search.SplitWords(strings.ToLower(title), addItem)
 }
 
 func (a *AutoSuggest) FindMatches(text string) []search.Match {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	words := strings.Split(strings.ToLower(text), " ")
+	words := a.tokenizer.Tokenize(text)
+	//words := strings.Split(strings.ToLower(text), " ")
 	// for i, word := range words[:len(words)-1] {
 	// 	a.Trie.FindMatches(strings.ToLower(word))
 	// }
-	prefix := words[len(words)-1]
-	return a.Trie.FindMatches(strings.ToLower(prefix))
+	suffix := words[len(words)-1]
+	return a.Trie.FindMatches(string(suffix))
 }
 
 func (a *AutoSuggest) FindMatchesForWord(word string, resultChan chan<- []search.Match) {
