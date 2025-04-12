@@ -28,13 +28,13 @@ func (t *Trie) Insert(word string, item types.Item) {
 		if _, ok := node.Children[r]; !ok {
 			node.Children[r] = &Node{
 				Children: make(map[rune]*Node),
-				Word:     word,
 			}
 		}
 		node = node.Children[r]
 	}
 	id := item.GetId()
 	node.IsLeaf = true
+	node.Word = word
 	if node.Items == nil {
 		node.Items = types.ItemList{id: struct{}{}}
 	}
