@@ -221,7 +221,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	defer close(sortChan)
 	var docResult *types.ItemList
 	if hasMoreWords {
-		docResult = ws.Index.Search.Search(query)
+		docResult = ws.Index.Search.Search(strings.Join(other, " "))
 		types.Merge(results, *docResult)
 		//results = *docResult
 	}
