@@ -215,13 +215,17 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("\n"))
-
+		max := 30
 		for _, v := range sortedItems {
 			item, ok := ws.Index.Items[v.Id]
 			if ok {
 				err := enc.Encode(item)
 				if err != nil {
 					return err
+				}
+				max--
+				if max <= 0 {
+					break
 				}
 			}
 		}
