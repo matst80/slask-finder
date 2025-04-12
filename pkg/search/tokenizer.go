@@ -1,6 +1,8 @@
 package search
 
-import "strings"
+import (
+	"unicode"
+)
 
 type Token string
 
@@ -24,39 +26,81 @@ func (t *TokenList) AddToken(token Token) {
 	*t = append(*t, token)
 }
 
-var replacements = []CharReplacement{
-	{From: "mobil", To: "smartphone"},
-	{From: "ö", To: "o"},
-	{From: "ä", To: "a"},
-	{From: "å", To: "a"},
-	{From: "é", To: "e"},
-	{From: "è", To: "e"},
-	{From: "ê", To: "e"},
-	{From: "ë", To: "e"},
-	{From: "ï", To: "i"},
-	{From: "î", To: "i"},
-	{From: "ö", To: "o"},
-	{From: "ô", To: "o"},
-	{From: "ü", To: "u"},
-	{From: "û", To: "u"},
-	{From: "ÿ", To: "y"},
-	{From: "ç", To: "c"},
-	{From: "ñ", To: "n"},
-	{From: "ß", To: "s"},
-	{From: "æ", To: "a"},
-	{From: "ø", To: "o"},
+// var replacements = []CharReplacement{
+// 	{From: "ö", To: "o"},
+// 	{From: "ä", To: "a"},
+// 	{From: "å", To: "a"},
+// 	{From: "é", To: "e"},
+// 	{From: "è", To: "e"},
+// 	{From: "ê", To: "e"},
+// 	{From: "ë", To: "e"},
+// 	{From: "ï", To: "i"},
+// 	{From: "î", To: "i"},
+// 	{From: "ö", To: "o"},
+// 	{From: "ô", To: "o"},
+// 	{From: "ü", To: "u"},
+// 	{From: "û", To: "u"},
+// 	{From: "ÿ", To: "y"},
+// 	{From: "ç", To: "c"},
+// 	{From: "ñ", To: "n"},
+// 	{From: "ß", To: "s"},
+// 	{From: "æ", To: "a"},
+// 	{From: "ø", To: "o"},
+// 	{From: "ø", To: "o"},
+// }
+
+var commonIssues = map[rune]rune{
+	'ö': 'o',
+	'ä': 'a',
+	'å': 'a',
+	'é': 'e',
+	'è': 'e',
+	'ê': 'e',
+	'ë': 'e',
+	'ï': 'i',
+	'î': 'i',
+	'ô': 'o',
+	'ü': 'u',
+	'û': 'u',
+	'ÿ': 'y',
+	'ç': 'c',
+	'ñ': 'n',
+	'ß': 's',
+	'æ': 'a',
+	'ø': 'o',
+	'Ø': 'o',
 }
 
-func replaceCommonIssues(text string) string {
-	for _, replacement := range replacements {
-		text = strings.ReplaceAll(text, replacement.From, replacement.To)
-	}
-	return text
-}
+// func replaceCommonIssues(text string) string {
+// 	for _, replacement := range replacements {
+// 		text = strings.ReplaceAll(text, replacement.From, replacement.To)
+// 	}
+// 	return text
+// }
+
+// func normalize(s string) string {
+// 	t := transform.Chain(norm.NFC, runes.Remove(runes.In(unicode.Common)), norm.NFC)
+// 	result, _, err := transform.String(t, s)
+// 	if err != nil {
+// 		return s
+// 	}
+
+// 	return result
+// }
 
 func simplify(text string) Token {
-
-	return Token(replaceCommonIssues(strings.ToLower(text)))
+	ret := make([]rune, 0, len(text))
+	var l rune
+	for _, r := range text {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			l = unicode.ToLower(r)
+			if replacement, ok := commonIssues[l]; ok {
+				l = replacement
+			}
+			ret = append(ret, l)
+		}
+	}
+	return Token(ret) //Token(replaceCommonIssues(strings.ToLower(text)))
 }
 
 func getUniqueTokens(tokens []Token) []Token {
