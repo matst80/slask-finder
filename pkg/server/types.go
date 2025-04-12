@@ -46,9 +46,10 @@ type FieldData struct {
 type AddItemRequest []index.DataItem
 
 type SuggestResult struct {
-	Word  string   `json:"match"`
-	Other []string `json:"other"`
-	Hits  int      `json:"hits"`
+	Prefix string   `json:"prefix"`
+	Word   string   `json:"match"`
+	Other  []string `json:"other"`
+	Hits   int      `json:"hits"`
 }
 
 type FieldValueAndItemId struct {
