@@ -333,7 +333,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 				}
 			}
 		} else {
-			log.Printf("Facet %d is in filters", id)
+			// log.Printf("Facet %d is in filters", id)
 		}
 	}
 }

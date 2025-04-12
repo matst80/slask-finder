@@ -51,6 +51,17 @@ func (i ItemList) HasIntersection(other *ItemList) bool {
 	return false
 }
 
+func (i ItemList) IntersectionLen(other ItemList) int {
+	count := 0
+	for id := range i {
+		_, ok := other[id]
+		if ok {
+			count++
+		}
+	}
+	return count
+}
+
 func MakeIntersectResult(r chan *ItemList, len int) *ItemList {
 	defer close(r)
 	first := &ItemList{}
