@@ -163,7 +163,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 
 	go ws.getMatchAndSort(sr, resultChan)
 
-	defaultHeaders(w, r, false, "3600")
+	defaultHeaders(w, r, false, "10")
 	w.WriteHeader(http.StatusOK)
 
 	start := sr.PageSize * sr.Page

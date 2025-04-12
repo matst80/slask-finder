@@ -46,7 +46,7 @@ func (s *SearchRequest) Sanitize() {
 	if s.Sort == "" {
 		s.Sort = "popular"
 	}
-	if len(s.StringFilter) > 0 || len(s.RangeFilter) > 0 && s.Query == "*" {
+	if (len(s.StringFilter) > 0 || len(s.RangeFilter) > 0) && s.Query == "*" {
 		s.Query = ""
 	}
 
