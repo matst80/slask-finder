@@ -239,11 +239,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	for _, s := range <-wordMatchesChan {
 		suggestResult.Prefix = lastWord
 		suggestResult.Word = s.Word
-
-		if suggestResult.Hits > 0 {
+		totalHits := len(*s.Items)
+		if totalHits > 0 {
 			if !hasResults {
-				suggestResult.Hits = len(*s.Items)
+				suggestResult.Hits = totalHits
 				err = enc.Encode(suggestResult)
+				results.Merge(s.Items)
 			} else if results.HasIntersection(s.Items) {
 				suggestResult.Hits = results.IntersectionLen(*s.Items)
 				err = enc.Encode(suggestResult)
