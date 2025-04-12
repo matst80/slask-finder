@@ -10,13 +10,6 @@
 
 `go tool pprof "http://localhost:8080/debug/pprof/allocs"`
 
-
-`go tool pprof "https://slask-finder.github.com/matst80/slask-finder/debug/pprof/profile?seconds=5"`
-
-`go tool pprof "https://slask-finder.github.com/matst80/slask-finder/debug/pprof/heap"`
-
-`go tool pprof "https://slask-finder.github.com/matst80/slask-finder/debug/pprof/allocs"`
-
 ## Table of Contents
 
 - [Installation](#installation)
