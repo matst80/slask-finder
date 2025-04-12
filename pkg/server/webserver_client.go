@@ -246,12 +246,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	defer close(sortChan)
 	var docResult *types.ItemList
 	if hasMoreWords {
-		docResult = ws.Index.Search.Search(strings.Join(other, " "))
+		docResult = ws.Index.Search.Search(query)
 		types.Merge(results, *docResult)
 		//results = *docResult
 	}
 
-	go ws.Index.AutoSuggest.FindMatchesForWord(lastWord, wordMatchesChan)
+	go ws.Index.Search.FindTrieMatchesForWord(lastWord, wordMatchesChan)
 
 	defaultHeaders(w, r, false, "360")
 

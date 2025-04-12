@@ -9,6 +9,7 @@ import (
 type FreeTextIndex struct {
 	mu        sync.RWMutex
 	tokenizer *Tokenizer
+	Trie      *Trie
 	//Documents map[uint]*Document
 	TokenMap map[Token]*types.ItemList
 	//BaseSortMap map[uint]float64
@@ -39,17 +40,30 @@ func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
 }
 
 func (i *FreeTextIndex) CreateDocumentUnsafe(id uint, text ...string) {
-	i.tokenizer.MakeDocument(id, text...)
+	//i.tokenizer.MakeDocument(id, text...)
 
-	for _, property := range text {
-		for _, token := range i.tokenizer.Tokenize(property) {
+	for j, property := range text {
+		i.tokenizer.Tokenize(property, func(token Token, original string) bool {
+			if j == 0 {
+				i.Trie.Insert(token, original, id)
+			}
 			if l, ok := i.TokenMap[token]; !ok {
 				i.TokenMap[token] = &types.ItemList{id: struct{}{}}
 			} else {
 				l.AddId(id)
 			}
-		}
+			return true
+		})
 	}
+}
+
+func (a *FreeTextIndex) FindTrieMatchesForWord(word string, resultChan chan<- []Match) {
+	token := NormalizeWord(word)
+	if len(token) == 0 {
+		resultChan <- []Match{}
+		return
+	}
+	resultChan <- a.Trie.FindMatches(token)
 }
 
 func (i *FreeTextIndex) Lock() {
@@ -66,11 +80,10 @@ func (i *FreeTextIndex) RemoveDocument(id uint, text ...string) {
 
 func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {
 	return &FreeTextIndex{
-		tokenizer: tokenizer,
-		//Documents: make(map[uint]*Document),
-		TokenMap: map[Token]*types.ItemList{},
-		//Tokens:    make([]string, 0),
+		tokenizer:    tokenizer,
+		TokenMap:     map[Token]*types.ItemList{},
 		WordMappings: make(map[Token]Token),
+		Trie:         NewTrie(),
 	}
 }
 
@@ -86,12 +99,12 @@ func absDiffInt(x, y int) int {
 	return x - y
 }
 
-func absMin(x, y int) int {
-	if x < y {
-		return x
-	}
-	return y
-}
+// func absMin(x, y int) int {
+// 	if x < y {
+// 		return x
+// 	}
+// 	return y
+// }
 
 func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 	matching := make([]tokenScore, max)
@@ -153,48 +166,99 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 	// return res
 }
 
-func (i *FreeTextIndex) getMatchDocs(tokens []Token) *types.ItemList {
+// func (i *FreeTextIndex) getMatchDocs(tokens []Token) *types.ItemList {
 
-	//res := make(map[uint]*Document)
-	missingStrings := make([]Token, 0)
-	res := &types.ItemList{}
-	for j, token := range tokens {
-		docs, ok := i.TokenMap[token]
-		if ok {
-			if j == 0 {
-				res.Merge(docs)
-			} else {
-				res.Intersect(*docs)
-			}
-		} else {
-			missingStrings = append(missingStrings, i.getBestFuzzyMatch(token, 3)...)
-		}
-	}
-	for _, token := range missingStrings {
-		docs, ok := i.TokenMap[token]
-		if ok {
-			copy := &types.ItemList{}
-			res.Merge(docs)
-			if len(*copy) == 0 {
-				copy.Merge(docs)
-			} else {
-				copy.Intersect(*docs)
-			}
-			if len(*copy) > 0 {
-				return copy
-			}
-		}
-	}
+// 	//res := make(map[uint]*Document)
+// 	missingStrings := make([]Token, 0)
+// 	res := &types.ItemList{}
+// 	for j, token := range tokens {
+// 		docs, ok := i.TokenMap[token]
+// 		if ok {
+// 			if j == 0 {
+// 				res.Merge(docs)
+// 			} else {
+// 				res.Intersect(*docs)
+// 			}
+// 		} else {
+// 			missingStrings = append(missingStrings, i.getBestFuzzyMatch(token, 3)...)
+// 		}
+// 	}
+// 	for _, token := range missingStrings {
+// 		docs, ok := i.TokenMap[token]
+// 		if ok {
+// 			copy := &types.ItemList{}
+// 			res.Merge(docs)
+// 			if len(*copy) == 0 {
+// 				copy.Merge(docs)
+// 			} else {
+// 				copy.Intersect(*docs)
+// 			}
+// 			if len(*copy) > 0 {
+// 				return copy
+// 			}
+// 		}
+// 	}
 
-	return res
-}
+// 	return res
+// }
 
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
-	tokens := i.tokenizer.Tokenize(query)
+	res := &types.ItemList{}
+	first := true
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	result := i.getMatchDocs(tokens)
-	return result
+	i.tokenizer.Tokenize(query, func(token Token, original string) bool {
+		ids, found := i.TokenMap[token]
+		if found {
+			if first {
+				res.Merge(ids)
+				first = false
+			} else if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
+			}
+		}
+
+		if !found {
+			// fuzzy or trie
+			for j, match := range i.Trie.FindMatches(token) {
+				if len(*match.Items) > 0 {
+					if first {
+						res.Merge(match.Items)
+						first = false
+						found = true
+					} else if res.HasIntersection(match.Items) {
+						res.Intersect(*match.Items)
+						found = true
+						break
+					}
+				}
+				if j > 50 {
+					break
+				}
+			}
+		}
+		if !found {
+			// fuzzy
+			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
+			for _, match := range fuzzyMatches {
+				if _, ok := i.TokenMap[match]; ok {
+					if first {
+						res.Merge(i.TokenMap[match])
+						first = false
+					} else if res.HasIntersection(i.TokenMap[match]) {
+						res.Intersect(*i.TokenMap[match])
+						break
+					}
+				}
+			}
+		}
+
+		return len(*res) > 0
+	})
+
+	return res
 	// score := 0.0
 	// wordIdx := 0
 	// lastIndex := 0

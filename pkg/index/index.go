@@ -49,13 +49,13 @@ type Category struct {
 type Index struct {
 	mu sync.RWMutex
 	//categories    map[uint]*Category
-	Facets        map[uint]types.Facet
-	ItemFieldIds  map[uint]map[uint]struct{}
-	Items         map[uint]*types.Item
-	ItemsInStock  map[string]types.ItemList
-	IsMaster      bool
-	All           types.ItemList
-	AutoSuggest   *AutoSuggest
+	Facets       map[uint]types.Facet
+	ItemFieldIds map[uint]map[uint]struct{}
+	Items        map[uint]*types.Item
+	ItemsInStock map[string]types.ItemList
+	IsMaster     bool
+	All          types.ItemList
+	//AutoSuggest   *AutoSuggest
 	ChangeHandler ChangeHandler
 	Sorting       *Sorting
 	Search        *search.FreeTextIndex
@@ -221,10 +221,10 @@ func (i *Index) UpsertItems(items []types.Item) {
 	log.Printf("Upserting items %d", l)
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	if i.AutoSuggest != nil {
-		i.AutoSuggest.Lock()
-		defer i.AutoSuggest.Unlock()
-	}
+	// if i.AutoSuggest != nil {
+	// 	i.AutoSuggest.Lock()
+	// 	defer i.AutoSuggest.Unlock()
+	// }
 	if i.Search != nil {
 		i.Search.Lock()
 		defer i.Search.Unlock()
@@ -296,9 +296,9 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 		return price_lowered
 	}
 
-	if i.AutoSuggest != nil {
-		i.AutoSuggest.InsertItemUnsafe(item)
-	}
+	// if i.AutoSuggest != nil {
+	// 	i.AutoSuggest.InsertItemUnsafe(item)
+	// }
 	if i.Search != nil {
 		i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
 	}

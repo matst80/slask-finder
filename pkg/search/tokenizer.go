@@ -103,20 +103,20 @@ func NormalizeWord(text string) Token {
 	return Token(ret) //Token(replaceCommonIssues(strings.ToLower(text)))
 }
 
-func getUniqueTokens(tokens []Token) []Token {
-	unique := make(map[Token]bool)
-	res := make([]Token, 0, len(unique))
-	for _, token := range tokens {
-		if len(token) > 0 {
-			if _, ok := unique[token]; !ok {
-				res = append(res, token)
-			}
-			unique[token] = true
-		}
-	}
+// func getUniqueTokens(tokens []Token) []Token {
+// 	unique := make(map[Token]bool)
+// 	res := make([]Token, 0, len(unique))
+// 	for _, token := range tokens {
+// 		if len(token) > 0 {
+// 			if _, ok := unique[token]; !ok {
+// 				res = append(res, token)
+// 			}
+// 			unique[token] = true
+// 		}
+// 	}
 
-	return res
-}
+// 	return res
+// }
 
 func SplitWords(text string, onWord func(word string, count int) bool) {
 	count := 0
@@ -138,29 +138,36 @@ func SplitWords(text string, onWord func(word string, count int) bool) {
 	}
 }
 
-func (t *Tokenizer) Tokenize(text string) []Token {
-	parts := []Token{}
-	c := 0
+func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original string) bool) {
+	//parts := make([]Token, 0, t.MaxTokens)
+
+	found := map[Token]struct{}{}
 	SplitWords(text, func(word string, count int) bool {
-		if c >= t.MaxTokens {
-			return false
+
+		normalized := NormalizeWord(word)
+		if len(normalized) == 0 {
+			return true
 		}
-		parts = append(parts, NormalizeWord(word))
-		c++
-		return true
+		_, hasWord := found[Token(word)]
+		if !hasWord {
+			onToken(normalized, word)
+		}
+		found[normalized] = struct{}{}
+
+		return count < t.MaxTokens
 	})
 
-	return getUniqueTokens(parts[:c])
+	//return getUniqueTokens(parts)
 }
 
-func (t *Tokenizer) MakeDocument(id uint, text ...string) *Document {
+// func (t *Tokenizer) MakeDocument(id uint, text ...string) *Document {
 
-	tokens := []Token{}
-	for _, txt := range text {
-		tokens = append(tokens, t.Tokenize(txt)...)
-	}
-	return &Document{
-		Id:     id,
-		Tokens: tokens,
-	}
-}
+// 	tokens := []Token{}
+// 	for _, txt := range text {
+// 		tokens = append(tokens, t.Tokenize(txt)...)
+// 	}
+// 	return &Document{
+// 		Id:     id,
+// 		Tokens: tokens,
+// 	}
+// }

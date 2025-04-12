@@ -21,6 +21,18 @@ func (a ItemList) Intersect(b ItemList) {
 	}
 }
 
+func (a ItemList) ToIntersected(b ItemList) (*ItemList, bool) {
+	result := make(ItemList)
+	maps.Copy(result, a)
+	for id := range a {
+		_, ok := b[id]
+		if !ok {
+			delete(a, id)
+		}
+	}
+	return &result, len(result) > 0
+}
+
 func Intersect[K any](a ItemList, b map[uint]K) ItemList {
 	result := make(ItemList)
 	for id := range a {

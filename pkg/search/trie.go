@@ -21,10 +21,10 @@ func NewTrie() *Trie {
 	}
 }
 
-func (t *Trie) Insert(word string, item types.Item) {
+func (t *Trie) Insert(word Token, raw string, id uint) {
 	node := t.Root
 
-	for _, r := range NormalizeWord(word) {
+	for _, r := range word {
 		if _, ok := node.Children[r]; !ok {
 			node.Children[r] = &Node{
 				Children: make(map[rune]*Node),
@@ -32,9 +32,9 @@ func (t *Trie) Insert(word string, item types.Item) {
 		}
 		node = node.Children[r]
 	}
-	id := item.GetId()
+
 	node.IsLeaf = true
-	node.Word = word
+	node.Word = raw
 	if node.Items == nil {
 		node.Items = types.ItemList{id: struct{}{}}
 	} else {
@@ -62,7 +62,7 @@ type Match struct {
 	Items  *types.ItemList `json:"ids"`
 }
 
-func (t *Trie) FindMatches(prefix string) []Match {
+func (t *Trie) FindMatches(prefix Token) []Match {
 	node := t.Root
 	for _, r := range prefix {
 		if _, ok := node.Children[r]; !ok {
@@ -70,7 +70,7 @@ func (t *Trie) FindMatches(prefix string) []Match {
 		}
 		node = node.Children[r]
 	}
-	return t.findMatches(node, prefix)
+	return t.findMatches(node, string(prefix))
 }
 
 func (t *Trie) findMatches(node *Node, prefix string) []Match {

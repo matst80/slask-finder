@@ -96,7 +96,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
 		idx.Sorting = srv.Sorting
-		idx.AutoSuggest = index.NewAutoSuggest(&token)
+		//idx.AutoSuggest = index.NewAutoSuggest(&token)
 		idx.Search = search.NewFreeTextIndex(&token)
 		log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 	}
@@ -199,7 +199,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 				srv.Sorting.InitializeWithIndex(idx)
 				srv.Sorting.StartListeningForChanges()
 
-				// saveFieldsToFile(idx.Facets, "data/facets.json")
 				wg.Add(1)
 				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
 
