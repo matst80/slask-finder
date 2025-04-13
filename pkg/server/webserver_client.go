@@ -77,7 +77,7 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessi
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	res := ws.ContentIndex.MatchQuery(query)
-	defaultHeaders(w, r, true, "160")
+	defaultHeaders(w, r, false, "160")
 	w.WriteHeader(http.StatusOK)
 	var err error
 	for content := range res {
