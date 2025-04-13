@@ -104,16 +104,18 @@ func (i CmsContentItem) GetId() uint {
 }
 
 func (i CmsContentItem) IndexData() string {
-	return i.Name + " " + i.Description
+	return i.Name
 }
 
 type StoreContentItem struct {
-	Id          uint   `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Image       string `json:"image"`
-	Lat         string `json:"lat"`
-	Lng         string `json:"lng"`
+	Id          uint        `json:"id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Image       string      `json:"image"`
+	OpenHours   interface{} `json:"openHours"`
+	Url         string      `json:"url"`
+	Lat         string      `json:"lat"`
+	Lng         string      `json:"lng"`
 }
 
 func (i StoreContentItem) GetId() uint {
@@ -122,6 +124,13 @@ func (i StoreContentItem) GetId() uint {
 
 func (i StoreContentItem) IndexData() string {
 	return i.Name + " " + i.Description
+}
+
+func fixUrl(url string) string {
+	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
+		return url
+	}
+	return strings.Replace("/elgiganten-se-sv", "https://www.elgiganten.se", "", -1)
 }
 
 func ContentItemFromLine(record []string) (ContentItem, error) {
@@ -145,7 +154,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 				Id:          uint(id),
 				Name:        record[PageTitle],
 				Description: record[PageDetailText],
-				Url:         record[PageUrl],
+				Url:         fixUrl(record[PageUrl]),
 				Picture:     picture,
 				//Component:   component,
 			}, nil
@@ -176,7 +185,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 			Id:          uint(id),
 			Name:        record[PageTitle],
 			Description: record[PageDetailText],
-			Url:         record[PageUrl],
+			Url:         fixUrl(record[PageUrl]),
 			Picture:     picture,
 			//Component:   component,
 		}, nil
@@ -185,11 +194,17 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		if err != nil {
 			return nil, err
 		}
+		var openHours interface{}
+		if record[StoreOpeningHours] != "" {
+			json.Unmarshal([]byte(record[StoreOpeningHours]), &openHours)
+		}
 		return StoreContentItem{
 			Id:          uint(id),
 			Name:        record[PageTitle],
 			Description: record[StoreAddress],
 			Image:       record[ComponentsPictures],
+			OpenHours:   openHours,
+			Url:         fixUrl(record[PageUrl]),
 			Lat:         record[StoreLatitude],
 			Lng:         record[StoreLongitude],
 		}, nil
