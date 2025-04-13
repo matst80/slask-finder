@@ -105,6 +105,8 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 			var changes []types.FieldChange
 			if err := json.Unmarshal(d.Body, &changes); err == nil {
 				t.handler.UpdateFields(changes)
+			} else {
+				log.Printf("Failed to unmarshal field change message %v", err)
 			}
 		}
 	}(fieldUpdates)

@@ -28,6 +28,10 @@ func (l *LoggingChangeHandler) ItemDeleted(id uint) {
 	l.Printf("Item deleted %v", id)
 }
 
+func (l *LoggingChangeHandler) FieldsChanged(item []types.FieldChange) {
+	l.Printf("Fields changed %v", len(item))
+}
+
 func (l *LoggingChangeHandler) PriceLowered(item []types.Item) {
 	l.Printf("Prices lowered %v", len(item))
 }

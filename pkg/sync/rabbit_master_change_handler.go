@@ -35,8 +35,9 @@ func (r *RabbitMasterChangeHandler) FieldsChanged(items []types.FieldChange) {
 	err := r.Master.SendFieldChange(items)
 	if err != nil {
 		log.Printf("Failed to send field change %v", err)
+	} else {
+		log.Printf("Field changes %d", len(items))
 	}
-	log.Printf("Field changes %d", len(items))
 }
 
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {

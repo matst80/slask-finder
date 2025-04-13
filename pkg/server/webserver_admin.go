@@ -641,7 +641,9 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		BaseField: current,
 		FieldType: facet.GetType(),
 	})
-	ws.Index.ChangeHandler.FieldsChanged(changes)
+	if ws.Index.ChangeHandler != nil {
+		ws.Index.ChangeHandler.FieldsChanged(changes)
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
