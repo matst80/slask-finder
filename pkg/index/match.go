@@ -152,7 +152,7 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 			continue
 		}
 		base = field.GetBaseField()
-		if base.CategoryLevel != 1 || base.Type != "" {
+		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
 			fields = append(fields, KeyFieldWithValue{
 				Facet: field,
 				Value: itemField,
