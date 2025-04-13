@@ -176,6 +176,9 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 		if next != nil && result.HasIntersection(next) {
 			result.Intersect(*next)
 		}
+		if len(result) <= 50 {
+			break
+		}
 	}
 	return &result, nil
 }
