@@ -130,7 +130,7 @@ func fixUrl(url string) string {
 	if strings.HasPrefix(url, "http://") || strings.HasPrefix(url, "https://") {
 		return url
 	}
-	return strings.Replace("/elgiganten-se-sv", "https://www.elgiganten.se", "", -1)
+	return strings.Replace(url, "/elgiganten-se-sv", "https://www.elgiganten.se", 1)
 }
 
 func ContentItemFromLine(record []string) (ContentItem, error) {
