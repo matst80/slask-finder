@@ -30,10 +30,12 @@ type ChangeHandler interface {
 	ItemDeleted(id uint)
 	ItemsUpserted(item []types.Item)
 	PriceLowered(item []types.Item)
+	FieldsChanged(item []types.FieldChange)
 }
 
 type UpdateHandler interface {
 	UpsertItems(item []types.Item)
+	UpdateFields(changes []types.FieldChange)
 	DeleteItem(id uint)
 }
 
@@ -183,6 +185,34 @@ func (i *Index) removeItemValues(item types.Item) {
 	for fieldId, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[fieldId]; ok {
 			f.RemoveValueLink(fieldValue, itemId)
+		}
+	}
+
+}
+
+func (i *Index) UpdateFields(changes []types.FieldChange) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	for _, change := range changes {
+		if change.Action == types.ADD_FIELD {
+			log.Println("not implemented add field")
+		} else {
+			if f, ok := i.Facets[change.Id]; ok {
+				if change.Action == types.UPDATE_FIELD {
+					targetBase := f.GetBaseField()
+					targetBase.CategoryLevel = change.CategoryLevel
+					targetBase.Type = change.Type
+					targetBase.HideFacet = change.HideFacet
+					targetBase.Priority = change.Priority
+					targetBase.Name = change.Name
+					targetBase.Searchable = change.Searchable
+					targetBase.LinkedId = change.LinkedId
+					targetBase.ValueSorting = change.ValueSorting
+
+				} else if change.Action == types.REMOVE_FIELD {
+					delete(i.Facets, change.Id)
+				}
+			}
 		}
 	}
 

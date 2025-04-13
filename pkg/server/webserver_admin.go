@@ -635,6 +635,13 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	changes := make([]types.FieldChange, 0)
+	changes = append(changes, types.FieldChange{
+		Action:    types.UPDATE_FIELD,
+		BaseField: current,
+		FieldType: facet.GetType(),
+	})
+	ws.Index.ChangeHandler.FieldsChanged(changes)
 	w.WriteHeader(http.StatusOK)
 }
 

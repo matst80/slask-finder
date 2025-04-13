@@ -42,6 +42,17 @@ func (t *RabbitTransportMaster) Connect() error {
 		return err
 	}
 	if err := ch.ExchangeDeclare(
+		t.RabbitConfig.FieldChangeTopic, // name
+		"topic",                         // type
+		true,                            // durable
+		false,                           // auto-delete
+		false,                           // internal
+		false,                           // noWait
+		nil,                             // arguments
+	); err != nil {
+		return err
+	}
+	if err := ch.ExchangeDeclare(
 		t.RabbitConfig.ItemDeletedTopic, // name
 		"topic",                         // type
 		true,                            // durable
@@ -60,6 +71,16 @@ func (t *RabbitTransportMaster) Connect() error {
 		false,                             // exclusive
 		false,                             // noWait
 		nil,                               // arguments
+	); err != nil {
+		return err
+	}
+	if _, err = ch.QueueDeclare(
+		t.RabbitConfig.FieldChangeTopic, // name of the queue
+		true,                            // durable
+		false,                           // delete when unused
+		false,                           // exclusive
+		false,                           // noWait
+		nil,                             // arguments
 	); err != nil {
 		return err
 	}
@@ -112,6 +133,10 @@ func (t *RabbitTransportMaster) ItemsUpserted(items []types.Item) error {
 
 func (t *RabbitTransportMaster) SendItemDeleted(id uint) error {
 	return t.send(t.ItemDeletedTopic, id)
+}
+
+func (t *RabbitTransportMaster) SendFieldChange(items []types.FieldChange) error {
+	return t.send(t.FieldChangeTopic, items)
 }
 
 func (t *RabbitTransportMaster) SendPriceLowered(items []types.Item) error {

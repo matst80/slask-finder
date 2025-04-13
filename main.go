@@ -37,6 +37,7 @@ var callbackUrl = os.Getenv("CALLBACK_URL")
 
 var rabbitConfig = ffSync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
+	FieldChangeTopic:   "field_change",
 	ItemsUpsertedTopic: "items_added",
 	ItemDeletedTopic:   "item_deleted",
 	PriceLoweredTopic:  "price_lowered",

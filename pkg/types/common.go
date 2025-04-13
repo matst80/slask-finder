@@ -98,3 +98,17 @@ type Facet interface {
 	RemoveValueLink(value interface{}, id uint)
 	GetValues() []interface{}
 }
+
+type FieldChangeAction = string
+
+const (
+	ADD_FIELD    FieldChangeAction = "add"
+	REMOVE_FIELD FieldChangeAction = "remove"
+	UPDATE_FIELD FieldChangeAction = "update"
+)
+
+type FieldChange struct {
+	Action    FieldChangeAction `json:"action"`
+	FieldType uint              `json:"fieldType"`
+	*BaseField
+}

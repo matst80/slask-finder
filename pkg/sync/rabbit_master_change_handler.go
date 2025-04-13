@@ -31,6 +31,14 @@ func (r *RabbitMasterChangeHandler) PriceLowered(items []types.Item) {
 	log.Printf("Items with price lowered %d", len(items))
 }
 
+func (r *RabbitMasterChangeHandler) FieldsChanged(items []types.FieldChange) {
+	err := r.Master.SendFieldChange(items)
+	if err != nil {
+		log.Printf("Failed to send field change %v", err)
+	}
+	log.Printf("Field changes %d", len(items))
+}
+
 func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 
 	err := r.Master.SendItemDeleted(id)

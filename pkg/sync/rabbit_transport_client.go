@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -93,6 +94,20 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 			}
 		}
 	}(toDelete)
+
+	fieldUpdates, err := t.declareBindAndConsume(t.FieldChangeTopic)
+	if err != nil {
+		return err
+	}
+	log.Printf("Connected to rabbit field topic: %s", t.FieldChangeTopic)
+	go func(msgs <-chan amqp.Delivery) {
+		for d := range msgs {
+			var changes []types.FieldChange
+			if err := json.Unmarshal(d.Body, &changes); err == nil {
+				t.handler.UpdateFields(changes)
+			}
+		}
+	}(fieldUpdates)
 	return nil
 }
 
