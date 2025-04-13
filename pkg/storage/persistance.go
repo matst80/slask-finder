@@ -220,6 +220,9 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 		//ff.BaseField.Searchable = true
 		switch ff.Type {
 		case 1:
+			if ff.BaseField.LinkedId != 0 {
+				log.Printf("Linked field %d -> %d", ff.BaseField.Id, ff.BaseField.LinkedId)
+			}
 			idx.AddKeyField(ff.BaseField)
 		case 3:
 			idx.AddIntegerField(ff.BaseField)
