@@ -311,7 +311,7 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 			break
 		}
 
-		if !sr.Filters.HasField(id) {
+		if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
 			if f, ok := ws.Index.Facets[id]; ok {
 				base = f.GetBaseField()
 				if base == nil || base.HideFacet {
