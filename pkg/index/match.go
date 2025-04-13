@@ -122,10 +122,8 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		return &result, nil
 	}
 
-	first := fields[0]
-	result = *first.Match(first.Value)
+	result = types.ItemList{}
 	for _, field := range fields {
-
 		next := field.Match(field.Value)
 		if len(result) == 0 && next != nil {
 			result.Merge(next)
@@ -168,10 +166,8 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 		return &result, nil
 	}
 
-	first := fields[0]
-	result = *first.Match(first.Value)
+	result = types.ItemList{}
 	for _, field := range fields {
-
 		next := field.Match(field.Value)
 		if len(result) == 0 && next != nil {
 			result.Merge(next)

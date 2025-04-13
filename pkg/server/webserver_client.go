@@ -532,7 +532,7 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 	go func(ch chan *types.ItemList) {
-		related, err := ws.Index.Related(uint(id))
+		related, err := ws.Index.Compatible(uint(id))
 		if err != nil {
 			ch <- &types.ItemList{}
 			return
