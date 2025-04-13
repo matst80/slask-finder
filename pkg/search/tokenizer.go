@@ -138,9 +138,9 @@ func SplitWords(text string, onWord func(word string, count int) bool) {
 	}
 }
 
-func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original string) bool) {
+func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original string, count int) bool) {
 	//parts := make([]Token, 0, t.MaxTokens)
-
+	tokenNumber := 0
 	found := map[Token]struct{}{}
 	SplitWords(text, func(word string, count int) bool {
 
@@ -150,7 +150,8 @@ func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original str
 		}
 		_, hasWord := found[Token(word)]
 		if !hasWord {
-			onToken(normalized, word)
+			onToken(normalized, word, tokenNumber)
+			tokenNumber++
 		}
 		found[normalized] = struct{}{}
 

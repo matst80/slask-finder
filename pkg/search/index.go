@@ -43,7 +43,7 @@ func (i *FreeTextIndex) CreateDocumentUnsafe(id uint, text ...string) {
 	//i.tokenizer.MakeDocument(id, text...)
 
 	for j, property := range text {
-		i.tokenizer.Tokenize(property, func(token Token, original string) bool {
+		i.tokenizer.Tokenize(property, func(token Token, original string, _ int) bool {
 			if j == 0 {
 				i.Trie.Insert(token, original, id)
 			}
@@ -204,37 +204,35 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}
-	first := true
+
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	i.tokenizer.Tokenize(query, func(token Token, original string) bool {
+
+	i.tokenizer.Tokenize(query, func(token Token, original string, count int) bool {
 		ids, found := i.TokenMap[token]
 		if found {
-			if first {
+			if count == 0 {
 				res.Merge(ids)
-				first = false
 			} else if res.HasIntersection(ids) {
 				res.Intersect(*ids)
-			} else {
-				found = false
 			}
 		}
 
-		if !found {
-			// fuzzy or trie
+		if len(*res) < 64 || !found {
+
 			for j, match := range i.Trie.FindMatches(token) {
 				if len(*match.Items) > 0 {
-					if first {
-						res.Merge(match.Items)
-						first = false
-						found = true
-					} else if res.HasIntersection(match.Items) {
-						res.Intersect(*match.Items)
-						found = true
-						break
-					}
+					//if first {
+					res.Merge(match.Items)
+					//first = false
+					found = true
+					// } else if res.HasIntersection(match.Items) {
+					// 	res.Intersect(*match.Items)
+					// 	found = true
+					// 	break
+					// }
 				}
-				if j > 50 {
+				if j > 20 {
 					break
 				}
 			}
@@ -244,13 +242,13 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if _, ok := i.TokenMap[match]; ok {
-					if first {
-						res.Merge(i.TokenMap[match])
-						first = false
-					} else if res.HasIntersection(i.TokenMap[match]) {
-						res.Intersect(*i.TokenMap[match])
-						break
-					}
+					//if first {
+					res.Merge(i.TokenMap[match])
+					//first = false
+					// } else if res.HasIntersection(i.TokenMap[match]) {
+					// 	res.Intersect(*i.TokenMap[match])
+					// 	break
+					// }
 				}
 			}
 		}
