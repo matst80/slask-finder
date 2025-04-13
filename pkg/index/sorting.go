@@ -40,8 +40,9 @@ const POPULAR_SORT = "popular"
 const PRICE_SORT = "price"
 const UPDATED_SORT = "updated"
 const CREATED_SORT = "created"
-const UPDATED_DESC_SORT = "updated_desc"
-const CREATED_DESC_SORT = "created_desc"
+
+// const UPDATED_DESC_SORT = "updated_desc"
+// const CREATED_DESC_SORT = "created_desc"
 
 const PRICE_DESC_SORT = "price_desc"
 const REDIS_POPULAR_KEY = "_popular"
@@ -699,11 +700,11 @@ func (s *Sorting) makeItemSortMaps() {
 		s.sortMethods[PRICE_DESC_SORT] = &priceMap
 		s.sortMethods[PRICE_SORT] = cloneReversed(&priceMap)
 		SortByValues(updatedMap)
-		s.sortMethods[UPDATED_DESC_SORT] = &updatedMap
-		s.sortMethods[UPDATED_SORT] = cloneReversed(&updatedMap)
+		//s.sortMethods[UPDATED_DESC_SORT] = &updatedMap
+		s.sortMethods[UPDATED_SORT] = &updatedMap
 		SortByValues(createdMap)
 		s.sortMethods[CREATED_SORT] = &createdMap
-		s.sortMethods[CREATED_DESC_SORT] = cloneReversed(&createdMap)
+		//s.sortMethods[CREATED_DESC_SORT] = cloneReversed(&createdMap)
 	}()
 
 }
