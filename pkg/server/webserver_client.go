@@ -517,6 +517,50 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 	return err
 }
 
+func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		return err
+	}
+	relatedChan := make(chan *types.ItemList)
+	defer close(relatedChan)
+	sortChan := make(chan *types.ByValue)
+	defer close(sortChan)
+
+	publicHeaders(w, r, false, "600")
+	w.WriteHeader(http.StatusOK)
+	go func(ch chan *types.ItemList) {
+		related, err := ws.Index.Related(uint(id))
+		if err != nil {
+			ch <- &types.ItemList{}
+			return
+		}
+		ch <- related
+	}(relatedChan)
+	go ws.Sorting.GetSorting("popular", sortChan)
+
+	i := 0
+
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
+	related := <-relatedChan
+	sort := <-sortChan
+	for relatedId := range sort.SortMap(*related) {
+
+		item, ok := ws.Index.Items[relatedId]
+		if ok && (*item).GetId() != uint(id) {
+			err = enc.Encode(item)
+			i++
+		}
+		if i > 20 || err != nil {
+			break
+		}
+	}
+	return err
+}
+
 type CategoryResult struct {
 	Value    string            `json:"value"`
 	Children []*CategoryResult `json:"children,omitempty"`
@@ -670,6 +714,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/facets", JsonHandler(ws.Tracking, ws.GetFacets))
 	//srv.HandleFunc("/ai-search", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
+	srv.HandleFunc("/compatible/{id}", JsonHandler(ws.Tracking, ws.Compatible))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
 	srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))

@@ -128,3 +128,47 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 	}
 	return &result, nil
 }
+
+func (i *Index) Compatible(id uint) (*types.ItemList, error) {
+	i.Lock()
+	defer i.Unlock()
+	item, ok := i.Items[id]
+	if !ok {
+		return nil, fmt.Errorf("Item with id %d not found", id)
+	}
+	fields := make([]KeyFieldWithValue, 0)
+	result := types.ItemList{}
+	var base *types.BaseField
+	for id, itemField := range (*item).GetFields() {
+		field, ok := i.Facets[id]
+		if !ok || field.GetType() != types.FacetKeyType {
+			continue
+		}
+		base = field.GetBaseField()
+		if base.LinkedId > 0 {
+			fields = append(fields, KeyFieldWithValue{
+				Facet: field,
+				Value: itemField,
+			})
+		}
+	}
+	// slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
+	// 	return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
+	// })
+	if len(fields) == 0 {
+		return &result, nil
+	}
+
+	first := fields[0]
+	result = *first.Match(first.Value)
+	for _, field := range fields[1:] {
+		// if len(result) < 500 {
+		// 	return &result, nil
+		// }
+		next := field.Match(field.Value)
+		if next != nil && result.HasIntersection(next) {
+			result.Intersect(*next)
+		}
+	}
+	return &result, nil
+}
