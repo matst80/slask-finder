@@ -124,11 +124,13 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 
 	first := fields[0]
 	result = *first.Match(first.Value)
-	for _, field := range fields[1:] {
-		if len(result) < 500 {
-			return &result, nil
-		}
+	for _, field := range fields {
+
 		next := field.Match(field.Value)
+		if len(result) == 0 && next != nil {
+			result.Merge(next)
+			continue
+		}
 		if next != nil && result.HasIntersection(next) {
 			result.Intersect(*next)
 		}
@@ -168,11 +170,13 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 
 	first := fields[0]
 	result = *first.Match(first.Value)
-	for _, field := range fields[1:] {
-		// if len(result) < 500 {
-		// 	return &result, nil
-		// }
+	for _, field := range fields {
+
 		next := field.Match(field.Value)
+		if len(result) == 0 && next != nil {
+			result.Merge(next)
+			continue
+		}
 		if next != nil && result.HasIntersection(next) {
 			result.Intersect(*next)
 		}

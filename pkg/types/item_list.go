@@ -54,6 +54,11 @@ func (i ItemList) Merge(other *ItemList) {
 }
 
 func (i ItemList) HasIntersection(other *ItemList) bool {
+	l1 := len(i)
+	l2 := len(*other)
+	if l1 == 0 || l2 == 0 {
+		return false
+	}
 	for id := range i {
 		_, ok := (*other)[id]
 		if ok {
