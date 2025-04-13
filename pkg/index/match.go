@@ -87,12 +87,12 @@ type KeyFieldWithValue struct {
 	Value interface{}
 }
 
-func (i *Index) Related(id uint) (*types.ItemList, error) {
+func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	i.Lock()
 	defer i.Unlock()
 	item, ok := i.Items[id]
 	if !ok {
-		return nil, fmt.Errorf("Item with id %d not found", id)
+		return nil, fmt.Errorf("item with id %d not found", id)
 	}
 	fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
@@ -103,9 +103,14 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 			continue
 		}
 		base = field.GetBaseField()
-		if base.CategoryLevel != 1 {
+		if base.LinkedId == 0 {
+			continue
+		}
+		targetField, ok := i.Facets[base.LinkedId]
+
+		if ok {
 			fields = append(fields, KeyFieldWithValue{
-				Facet: field,
+				Facet: targetField,
 				Value: itemField,
 			})
 		}
@@ -124,17 +129,19 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 			return &result, nil
 		}
 		next := field.Match(field.Value)
-		result.Intersect(*next)
+		if next != nil && result.HasIntersection(next) {
+			result.Intersect(*next)
+		}
 	}
 	return &result, nil
 }
 
-func (i *Index) Compatible(id uint) (*types.ItemList, error) {
+func (i *Index) Related(id uint) (*types.ItemList, error) {
 	i.Lock()
 	defer i.Unlock()
 	item, ok := i.Items[id]
 	if !ok {
-		return nil, fmt.Errorf("Item with id %d not found", id)
+		return nil, fmt.Errorf("item with id %d not found", id)
 	}
 	fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
@@ -145,16 +152,16 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			continue
 		}
 		base = field.GetBaseField()
-		if base.LinkedId > 0 {
+		if base.CategoryLevel != 1 || base.Type != "" {
 			fields = append(fields, KeyFieldWithValue{
 				Facet: field,
 				Value: itemField,
 			})
 		}
 	}
-	// slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-	// 	return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
-	// })
+	slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
+		return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
+	})
 	if len(fields) == 0 {
 		return &result, nil
 	}
