@@ -45,14 +45,14 @@ func (ws *WebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) 
 			}
 			sort = append(sort, v)
 		}
-
-		ws.Sorting.SetPopularityRules(&sort)
+		types.CurrentSettings.PopularityRules = &sort
+		//ws.Sorting.SetPopularityRules(&sort)
 
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 
-	sort := ws.Sorting.GetPopularityRules()
+	sort := types.CurrentSettings.PopularityRules
 	if sort == nil {
 		http.Error(w, "rules not found", http.StatusNotFound)
 		return
