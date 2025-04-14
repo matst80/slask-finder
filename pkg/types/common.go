@@ -289,3 +289,27 @@ var CurrentSettings = Settings{
 		// },
 	},
 }
+
+func (s *Settings) GetPopularityRules() *ItemPopularityRules {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.PopularityRules
+}
+func (s *Settings) SetPopularityRules(rules *ItemPopularityRules) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.PopularityRules = rules
+}
+
+func (s *Settings) Lock() {
+	s.mu.Lock()
+}
+func (s *Settings) Unlock() {
+	s.mu.Unlock()
+}
+func (s *Settings) RLock() {
+	s.mu.RLock()
+}
+func (s *Settings) RUnlock() {
+	s.mu.RUnlock()
+}

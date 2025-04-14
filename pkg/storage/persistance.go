@@ -166,11 +166,19 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
 
+	go p.SaveSettings()
+
 	if err != nil {
 		return err
 	}
 	log.Println("Saved index")
 	return p.SaveFacets(idx.Facets)
+}
+
+func (p *DataRepository) SaveSettings() error {
+	types.CurrentSettings.RLock()
+	defer types.CurrentSettings.RUnlock()
+	return p.SaveJsonFile(types.CurrentSettings, "settings.json")
 }
 
 type FieldType uint
