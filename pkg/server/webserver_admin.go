@@ -664,6 +664,15 @@ func (ws *WebServer) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) GetFacetList(w http.ResponseWriter, r *http.Request) {
 	publicHeaders(w, r, true, "10")
 
@@ -727,6 +736,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
+	srv.HandleFunc("GET /settings", ws.GetSettings)
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
