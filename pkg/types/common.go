@@ -120,7 +120,7 @@ type Settings struct {
 	PopularityRules *ItemPopularityRules
 }
 
-var CurrentSettings = Settings{
+var CurrentSettings = &Settings{
 	mu: sync.RWMutex{},
 	PopularityRules: &ItemPopularityRules{
 		&MatchRule{
