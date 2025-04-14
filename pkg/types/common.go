@@ -117,11 +117,21 @@ type FieldChange struct {
 
 type Settings struct {
 	mu              sync.RWMutex
+	FieldsToIndex   []uint
 	PopularityRules *ItemPopularityRules
 }
 
 var CurrentSettings = &Settings{
 	mu: sync.RWMutex{},
+	FieldsToIndex: []uint{
+		2,
+		31158,
+		//12,
+		//13,
+		30290,
+		//11,
+		//10,
+	},
 	PopularityRules: &ItemPopularityRules{
 		&MatchRule{
 			Match: "Elgiganten",

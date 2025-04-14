@@ -292,16 +292,7 @@ func (item *DataItem) ToStringList() []string {
 	fieldValues = append(fieldValues, item.Title)
 	fieldValues = append(fieldValues, item.Sku)
 
-	// todo have a config for this
-	for _, id := range []uint{
-		2,
-		31158,
-		//12,
-		//13,
-		30290,
-		//11,
-		//10,
-	} {
+	for _, id := range types.CurrentSettings.FieldsToIndex {
 		fieldValues = append(fieldValues, getStringValues(item.GetFieldValue(id))...)
 	}
 

@@ -1,9 +1,5 @@
 package types
 
-import (
-	"slices"
-)
-
 type StringFilter struct {
 	Id    uint        `json:"id"`
 	Value interface{} `json:"value"`
@@ -68,9 +64,8 @@ func (f *Filters) HasField(id uint) bool {
 	return ok
 }
 
-func (f *Filters) HasCategoryFilter() bool {
-	// todo handle this somehow
-	return slices.ContainsFunc(f.StringFilter, func(filter StringFilter) bool {
-		return filter.Id >= 30 && filter.Id <= 35 && filter.Id != 23
-	})
-}
+// func (f *Filters) HasCategoryFilter() bool {
+// 	return slices.ContainsFunc(f.StringFilter, func(filter StringFilter) bool {
+// 		return filter.Id >= 30 && filter.Id <= 35 && filter.Id != 23
+// 	})
+// }
