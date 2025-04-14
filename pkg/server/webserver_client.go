@@ -473,6 +473,50 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 	return nil
 }
 
+type PossibleRelationQuery struct {
+	Value interface{} `json:"value"`
+	Id    uint        `json:"id"`
+}
+
+func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	var query PossibleRelationQuery
+	err := json.NewDecoder(r.Body).Decode(&query)
+	if err != nil {
+		return err
+	}
+	var base types.BaseField
+	var l int
+	res := make(map[uint]int)
+	for _, facet := range ws.Index.Facets {
+
+		if facet.GetType() != types.FacetKeyType {
+			continue
+		}
+		base = *facet.GetBaseField()
+		if base.Id == query.Id || !base.Searchable {
+			continue
+		}
+
+		matches := facet.Match(query.Value)
+
+		if matches != nil {
+			l = len(*matches)
+			if l > 0 {
+				res[base.Id] = l
+			}
+		}
+	}
+	publicHeaders(w, r, true, "1200")
+	if len(res) == 0 {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	w.WriteHeader(http.StatusOK)
+	enc.Encode(res)
+	return nil
+}
+
 func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	idString := r.PathValue("id")
@@ -561,24 +605,24 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	return err
 }
 
-type CategoryResult struct {
-	Value    string            `json:"value"`
-	Children []*CategoryResult `json:"children,omitempty"`
-}
+// type CategoryResult struct {
+// 	Value    string            `json:"value"`
+// 	Children []*CategoryResult `json:"children,omitempty"`
+// }
 
-func CategoryResultFrom(c *index.Category) *CategoryResult {
-	ret := &CategoryResult{}
-	ret.Value = *c.Value
-	ret.Children = make([]*CategoryResult, 0)
-	if c.Children != nil {
-		for _, child := range c.Children {
-			if child != nil {
-				ret.Children = append(ret.Children, CategoryResultFrom(child))
-			}
-		}
-	}
-	return ret
-}
+// func CategoryResultFrom(c *index.Category) *CategoryResult {
+// 	ret := &CategoryResult{}
+// 	ret.Value = *c.Value
+// 	ret.Children = make([]*CategoryResult, 0)
+// 	if c.Children != nil {
+// 		for _, child := range c.Children {
+// 			if child != nil {
+// 				ret.Children = append(ret.Children, CategoryResultFrom(child))
+// 			}
+// 		}
+// 	}
+// 	return ret
+// }
 
 // func (ws *WebServer) Categories(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 // 	publicHeaders(w, r, true, "600")
@@ -720,6 +764,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
+	srv.HandleFunc("/find-related", JsonHandler(ws.Tracking, ws.FindRelated))
 	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))

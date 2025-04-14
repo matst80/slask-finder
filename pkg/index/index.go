@@ -1,10 +1,8 @@
 package index
 
 import (
-	"cmp"
 	"fmt"
 	"log"
-	"slices"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/facet"
@@ -39,14 +37,14 @@ type UpdateHandler interface {
 	DeleteItem(id uint)
 }
 
-type Category struct {
-	level int
-	id    uint
-	//Key      string  `json:"key"`
-	Value    *string `json:"value"`
-	parent   *Category
-	Children map[uint]*Category `json:"children"`
-}
+// type Category struct {
+// 	level int
+// 	id    uint
+// 	//Key      string  `json:"key"`
+// 	Value    *string `json:"value"`
+// 	parent   *Category
+// 	Children map[uint]*Category `json:"children"`
+// }
 
 type Index struct {
 	mu sync.RWMutex
@@ -118,7 +116,7 @@ func (i *Index) addItemValues(item types.Item) {
 		}
 	}
 
-	tree := make([]*Category, 0)
+	//tree := make([]*Category, 0)
 	var base *types.BaseField
 	// test virtual category
 
@@ -149,20 +147,20 @@ func (i *Index) addItemValues(item types.Item) {
 		}
 	}
 
-	if len(tree) > 0 {
-		slices.SortFunc(tree, func(a, b *Category) int {
-			return cmp.Compare(a.level, b.level)
-		})
-		for i := 0; i < len(tree)-1; i++ {
+	// if len(tree) > 0 {
+	// 	slices.SortFunc(tree, func(a, b *Category) int {
+	// 		return cmp.Compare(a.level, b.level)
+	// 	})
+	// 	for i := 0; i < len(tree)-1; i++ {
 
-			if tree[i].Children == nil {
-				tree[i].Children = make(map[uint]*Category, 0)
-			}
-			id := makeCategoryId(tree[i+1].level, *tree[i+1].Value)
-			tree[i].Children[id] = tree[i+1]
-			tree[i+1].parent = tree[i]
-		}
-	}
+	// 		if tree[i].Children == nil {
+	// 			tree[i].Children = make(map[uint]*Category, 0)
+	// 		}
+	// 		id := makeCategoryId(tree[i+1].level, *tree[i+1].Value)
+	// 		tree[i].Children[id] = tree[i+1]
+	// 		tree[i+1].parent = tree[i]
+	// 	}
+	// }
 }
 
 // func (i *Index) GetCategories() []*Category {
