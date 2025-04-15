@@ -216,7 +216,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		// 	slices.Sort(values)
 		// 	fieldResult.Buckets = facet.NormalizeResults(values)
 		// } else {
-		fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
+		//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
 		//}
 		if !hasValues {
 			c <- nil
