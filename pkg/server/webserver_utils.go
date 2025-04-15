@@ -5,7 +5,6 @@ import (
 	"log"
 	"maps"
 	"net/http"
-	"slices"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -195,8 +194,8 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			Min:   9999999999999999,
 			Max:   -9999999999999999,
 		}
-		useRealBuckets := len(matchIds) <= 1000
-		values := make([]uint, 0, min(len(matchIds), 1000))
+		// useRealBuckets := len(matchIds) <= 1000
+		// values := make([]uint, 0, min(len(matchIds), 1000))
 		hasValues := false
 		for id := range matchIds {
 			if value := field.ValueForItemId(id); value != nil {
@@ -208,17 +207,17 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 				if *value > fieldResult.Max {
 					fieldResult.Max = *value
 				}
-				if useRealBuckets {
-					values = append(values, uint(*value))
-				}
+				// if useRealBuckets {
+				// 	values = append(values, uint(*value))
+				// }
 			}
 		}
-		if useRealBuckets {
-			slices.Sort(values)
-			fieldResult.Buckets = facet.NormalizeResults(values)
-		} else {
-			fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
-		}
+		// if useRealBuckets {
+		// 	slices.Sort(values)
+		// 	fieldResult.Buckets = facet.NormalizeResults(values)
+		// } else {
+		fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
+		//}
 		if !hasValues {
 			c <- nil
 			return
