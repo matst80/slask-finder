@@ -202,6 +202,8 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 // 	return res
 // }
 
+// TODO maybe two itemlists, one for exact and one for fuzzy
+
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}
 
@@ -215,15 +217,20 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				res.Merge(ids)
 			} else if res.HasIntersection(ids) {
 				res.Intersect(*ids)
+			} else {
+				found = false
 			}
 		}
 
-		if len(*res) < 64 || !found {
+		if len(*res) < 40 || !found {
 
 			for j, match := range i.Trie.FindMatches(token) {
 				if len(*match.Items) > 0 {
-					//if first {
-					res.Merge(match.Items)
+					if res.HasIntersection(ids) {
+						res.Intersect(*ids)
+					} else {
+						res.Merge(match.Items)
+					}
 					//first = false
 					found = true
 					// } else if res.HasIntersection(match.Items) {
@@ -241,9 +248,14 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
-				if _, ok := i.TokenMap[match]; ok {
+				if ids, ok := i.TokenMap[match]; ok {
+					if res.HasIntersection(ids) {
+						res.Intersect(*ids)
+					} else {
+						res.Merge(ids)
+					}
 					//if first {
-					res.Merge(i.TokenMap[match])
+					//res.Merge(i.TokenMap[match])
 					//first = false
 					// } else if res.HasIntersection(i.TokenMap[match]) {
 					// 	res.Intersect(*i.TokenMap[match])
