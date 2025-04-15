@@ -100,6 +100,9 @@ func NormalizeWord(text string) Token {
 			ret = append(ret, l)
 		}
 	}
+	if string(ret) == "iphon" {
+		return Token("iphone")
+	}
 	return Token(ret) //Token(replaceCommonIssues(strings.ToLower(text)))
 }
 
