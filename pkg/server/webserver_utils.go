@@ -118,6 +118,17 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	}
 }
 
+const (
+	BucketSections = 20
+)
+
+type ResultBucket struct {
+	bucket [BucketSections]uint
+}
+
+func (r *ResultBucket) AddValue(value uint) {
+}
+
 func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFacet, wg *sync.WaitGroup, modifyResult func(*index.JsonFacet) *index.JsonFacet) {
 	defer wg.Done()
 	if baseIds == nil || len(*baseIds) == 0 {
@@ -189,23 +200,24 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			Values: r,
 		}
 	case facet.IntegerField:
-		fieldResult := index.IntegerFieldResult{
-			Count: 0,
-			Min:   9999999999999999,
-			Max:   -9999999999999999,
-		}
+		fieldResult := index.IntegerFieldResult{}
+		count := 0
+		min := 9999999999999999
+		max := -9999999999999999
 		// useRealBuckets := len(matchIds) <= 1000
 		// values := make([]uint, 0, min(len(matchIds), 1000))
 		hasValues := false
+		v := 0
 		for id := range matchIds {
 			if value := field.ValueForItemId(id); value != nil {
-				fieldResult.Count++
+				count++
 				hasValues = true
-				if *value < fieldResult.Min {
-					fieldResult.Min = *value
+				v = *value
+				if v < min {
+					min = v
 				}
-				if *value > fieldResult.Max {
-					fieldResult.Max = *value
+				if v > max {
+					max = v
 				}
 				// if useRealBuckets {
 				// 	values = append(values, uint(*value))

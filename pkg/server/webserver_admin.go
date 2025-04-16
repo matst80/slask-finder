@@ -412,8 +412,12 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		if ok {
 			base := facet.GetBaseField()
 			if base != nil {
-				base.Name = field.Name
-				base.Description = field.Description
+				if field.Name != "" {
+					base.Name = field.Name
+				}
+				if field.Description != "" {
+					base.Description = field.Description
+				}
 			}
 		}
 		existing, found := ws.FieldData[key]
@@ -422,8 +426,12 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 				existing.Created = time.Now().UnixMilli()
 			}
 			existing.Purpose = field.Purpose
-			existing.Name = field.Name
-			existing.Description = field.Description
+			if field.Name != "" {
+				existing.Name = field.Name
+			}
+			if field.Description != "" {
+				existing.Description = field.Description
+			}
 			existing.Type = field.Type
 			existing.LastSeen = time.Now().UnixMilli()
 		} else {

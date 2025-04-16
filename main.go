@@ -6,7 +6,6 @@ import (
 	"net/http"
 	httpprof "net/http/pprof"
 	"os"
-	"runtime"
 	"runtime/pprof"
 	"sync"
 
@@ -214,7 +213,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 			}
 		}
 
-		runtime.GC()
 		done = true
 	}()
 
@@ -247,6 +245,7 @@ func main() {
 
 		log.Printf("Starting server %v", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, mux))
+
 	}()
 
 	debugMux.Handle("/metrics", promhttp.Handler())
