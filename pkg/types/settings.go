@@ -5,7 +5,38 @@ import "sync"
 type Settings struct {
 	mu              sync.RWMutex
 	FieldsToIndex   []uint               `json:"fieldsToIndex"`
+	FacetRelations  []FacetRelationGroup `json:"facetRelations"`
 	PopularityRules *ItemPopularityRules `json:"popularityRules"`
+}
+
+type ItemRequirement struct {
+	FacetId uint        `json:"facetId"`
+	Value   interface{} `json:"value"`
+}
+
+type ValueConverter string
+
+const (
+	NoConverter = ValueConverter("none")
+	StringToMin = ValueConverter("stringToMin")
+	StringToMax = ValueConverter("stringToMax")
+)
+
+type FacetRelation struct {
+	Name               string `json:"name,omitempty"`
+	FacetId            uint   `json:"fromId"`
+	DestinationFacetId uint   `json:"toId"`
+	//ItemRequirements   []ItemRequirement `json:"requiredForItem"`
+	//AdditionalQueries  []ItemRequirement `json:"additionalQueries"`
+	ValueConverter ValueConverter `json:"converter"`
+}
+
+type FacetRelationGroup struct {
+	Name              string            `json:"name"`
+	GroupId           int               `json:"groupId"`
+	ItemRequirements  []ItemRequirement `json:"requiredForItem"`
+	AdditionalQueries []ItemRequirement `json:"additionalQueries"`
+	Relations         []FacetRelation   `json:"relations"`
 }
 
 var CurrentSettings = &Settings{
@@ -18,6 +49,37 @@ var CurrentSettings = &Settings{
 		30290,
 		//11,
 		//10,
+	},
+	FacetRelations: []FacetRelationGroup{
+		// CPU
+		{
+			Name: "Passande moderkort",
+
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT272",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT264",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            32103,
+					DestinationFacetId: 32103,
+					ValueConverter:     NoConverter,
+				},
+				{
+					FacetId:            36202,
+					DestinationFacetId: 30276,
+					ValueConverter:     NoConverter,
+				},
+			},
+		},
 	},
 	PopularityRules: &ItemPopularityRules{
 		&MatchRule{
