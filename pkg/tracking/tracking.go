@@ -18,5 +18,5 @@ type TrackingAction struct {
 
 type Tracking interface {
 	TrackSession(session_id int, r *http.Request)
-	TrackSearch(session_id int, filters *types.Filters, query string, page int, r *http.Request)
+	TrackSearch(session_id int, filters *types.Filters, resultLen int, query string, page int, r *http.Request)
 }

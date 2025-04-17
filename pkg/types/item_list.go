@@ -13,6 +13,16 @@ func (i *ItemList) AddId(id uint) {
 }
 
 func (a ItemList) Intersect(b ItemList) {
+	al := len(a)
+	bl := len(b)
+	if al == 0 {
+		return
+	}
+	if bl == 0 {
+		a = make(ItemList)
+		return
+	}
+
 	for id := range a {
 		_, ok := b[id]
 		if !ok {

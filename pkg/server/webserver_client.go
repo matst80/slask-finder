@@ -153,10 +153,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 		return err
 	}
 
-	if ws.Tracking != nil && !sr.SkipTracking {
-		go ws.Tracking.TrackSearch(sessionId, sr.Filters, sr.Query, sr.Page, r)
-	}
-
 	resultChan := make(chan searchResult)
 
 	defer close(resultChan)
@@ -193,13 +189,18 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	if err != nil {
 		return err
 	}
+	l := len(*result.matching)
+
+	if ws.Tracking != nil && !sr.SkipTracking {
+		go ws.Tracking.TrackSearch(sessionId, sr.Filters, l, sr.Query, sr.Page, r)
+	}
 
 	return enc.Encode(SearchResponse{
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
 		End:       end,
-		TotalHits: len(*result.matching),
+		TotalHits: l,
 		Sort:      sr.Sort,
 	})
 }
