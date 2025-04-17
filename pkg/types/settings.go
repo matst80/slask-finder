@@ -86,7 +86,7 @@ var CurrentSettings = &Settings{
 				},
 			},
 		},
-		// Ram
+		// RAM
 		{
 			Name:    "Passande minne",
 			GroupId: RAM_GROUP,
@@ -108,6 +108,35 @@ var CurrentSettings = &Settings{
 					DestinationFacetId: 31191,
 					ValueConverter:     StringToMin,
 				},
+			},
+		},
+		// CPU
+		{
+			Name:    "Passande CPU",
+			GroupId: CPU_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT264",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT272",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            32103,
+					DestinationFacetId: 32103,
+					ValueConverter:     NoConverter,
+				},
+				// {
+				// 	FacetId:            36202,
+				// 	DestinationFacetId: 30276,
+				// 	ValueConverter:     NoConverter,
+				// },
 			},
 		},
 	},
