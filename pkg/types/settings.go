@@ -39,6 +39,12 @@ type FacetRelationGroup struct {
 	Relations         []FacetRelation   `json:"relations"`
 }
 
+const (
+	MB_GROUP  = 1
+	RAM_GROUP = 2
+	CPU_GROUP = 3
+)
+
 var CurrentSettings = &Settings{
 	mu: sync.RWMutex{},
 	FieldsToIndex: []uint{
@@ -53,8 +59,8 @@ var CurrentSettings = &Settings{
 	FacetRelations: []FacetRelationGroup{
 		// CPU
 		{
-			Name: "Passande moderkort",
-
+			Name:    "Passande moderkort",
+			GroupId: MB_GROUP,
 			ItemRequirements: []ItemRequirement{
 				{
 					FacetId: 32,
@@ -77,6 +83,30 @@ var CurrentSettings = &Settings{
 					FacetId:            36202,
 					DestinationFacetId: 30276,
 					ValueConverter:     NoConverter,
+				},
+			},
+		},
+		// Ram
+		{
+			Name:    "Passande minne",
+			GroupId: RAM_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT272",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT264",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            35980,
+					DestinationFacetId: 31191,
+					ValueConverter:     StringToMin,
 				},
 			},
 		},
