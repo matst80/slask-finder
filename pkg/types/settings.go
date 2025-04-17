@@ -99,7 +99,7 @@ var CurrentSettings = &Settings{
 			AdditionalQueries: []ItemRequirement{
 				{
 					FacetId: 32,
-					Value:   "PT264",
+					Value:   "PT269",
 				},
 			},
 			Relations: []FacetRelation{

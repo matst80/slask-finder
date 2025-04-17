@@ -689,7 +689,7 @@ func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request
 			return
 		}
 	}
-	defaultHeaders(w, r, true, "0")
+	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetRelations)
 	if err != nil {
