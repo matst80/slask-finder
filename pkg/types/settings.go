@@ -40,9 +40,13 @@ type FacetRelationGroup struct {
 }
 
 const (
-	MB_GROUP  = 1
-	RAM_GROUP = 2
-	CPU_GROUP = 3
+	MB_GROUP             = 1
+	RAM_GROUP            = 2
+	CPU_GROUP            = 3
+	LIQUID_COOLING_GROUP = 4
+	AIR_COOLING_GROUP    = 5
+	PSU_GROUP            = 6
+	M2_GROUP             = 7
 )
 
 var CurrentSettings = &Settings{
@@ -58,6 +62,29 @@ var CurrentSettings = &Settings{
 	},
 	FacetRelations: []FacetRelationGroup{
 		// CPU
+		{
+			Name:    "Passande Vattenkylare",
+			GroupId: LIQUID_COOLING_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT272",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 33,
+					Value:   "PT1302",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            35990,
+					DestinationFacetId: 36307,
+					ValueConverter:     StringToMin,
+				},
+			},
+		},
 		{
 			Name:    "Passande moderkort",
 			GroupId: MB_GROUP,
@@ -110,7 +137,7 @@ var CurrentSettings = &Settings{
 				},
 			},
 		},
-		// CPU
+		// Motherboard
 		{
 			Name:    "Passande CPU",
 			GroupId: CPU_GROUP,
@@ -132,11 +159,11 @@ var CurrentSettings = &Settings{
 					DestinationFacetId: 32103,
 					ValueConverter:     NoConverter,
 				},
-				// {
-				// 	FacetId:            36202,
-				// 	DestinationFacetId: 30276,
-				// 	ValueConverter:     NoConverter,
-				// },
+				{
+					FacetId:            30276,
+					DestinationFacetId: 36202,
+					ValueConverter:     NoConverter,
+				},
 			},
 		},
 	},
