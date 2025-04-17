@@ -18,8 +18,8 @@ type ValueConverter string
 
 const (
 	NoConverter = ValueConverter("none")
-	StringToMin = ValueConverter("stringToMin")
-	StringToMax = ValueConverter("stringToMax")
+	ValueToMin  = ValueConverter("valueToMin")
+	ValueToMax  = ValueConverter("valueToMax")
 )
 
 type FacetRelation struct {
@@ -81,7 +81,7 @@ var CurrentSettings = &Settings{
 				{
 					FacetId:            35990,
 					DestinationFacetId: 36307,
-					ValueConverter:     StringToMin,
+					ValueConverter:     ValueToMin,
 				},
 			},
 		},
@@ -133,7 +133,7 @@ var CurrentSettings = &Settings{
 				{
 					FacetId:            35980,
 					DestinationFacetId: 31191,
-					ValueConverter:     StringToMin,
+					ValueConverter:     ValueToMin,
 				},
 			},
 		},
