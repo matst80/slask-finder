@@ -166,6 +166,80 @@ var CurrentSettings = &Settings{
 				},
 			},
 		},
+		{
+			Name:    "Passande minne",
+			GroupId: RAM_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT264",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT269",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            35921,
+					DestinationFacetId: 35921,
+					ValueConverter:     NoConverter,
+				},
+				{
+					FacetId:            30857,
+					DestinationFacetId: 30857,
+					ValueConverter:     NoConverter,
+				},
+			},
+		},
+		{
+			Name:    "Passande vattenkylare",
+			GroupId: LIQUID_COOLING_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT264",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 33,
+					Value:   "PT1302",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            35980,
+					DestinationFacetId: 32077,
+					ValueConverter:     NoConverter,
+				},
+			},
+		},
+		{
+			Name:    "Passande luftkylare",
+			GroupId: LIQUID_COOLING_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT264",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 33,
+					Value:   "PT1303",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            35980,
+					DestinationFacetId: 32077,
+					ValueConverter:     NoConverter,
+				},
+			},
+		},
 	},
 	PopularityRules: &ItemPopularityRules{
 		&MatchRule{
