@@ -181,6 +181,12 @@ func (p *DataRepository) SaveSettings() error {
 	return p.SaveJsonFile(types.CurrentSettings, "settings.json")
 }
 
+func (p *DataRepository) LoadSettings() error {
+	types.CurrentSettings.Lock()
+	defer types.CurrentSettings.Unlock()
+	return p.LoadJsonFile(types.CurrentSettings, "settings.json")
+}
+
 type FieldType uint
 
 type StorageFacet struct {

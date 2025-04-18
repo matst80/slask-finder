@@ -222,6 +222,10 @@ func LoadIndex(wg *sync.WaitGroup) {
 func main() {
 
 	wg := sync.WaitGroup{}
+	err := db.LoadSettings()
+	if err != nil {
+		log.Fatalf("Failed to load settings %v", err)
+	}
 	LoadIndex(&wg)
 
 	debugMux := http.NewServeMux()
