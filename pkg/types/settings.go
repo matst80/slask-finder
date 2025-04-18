@@ -63,7 +63,7 @@ var CurrentSettings = &Settings{
 	FacetRelations: []FacetRelationGroup{
 		// CPU
 		{
-			Name:    "Passande Vattenkylare",
+			Name:    "Passande vattenkylare",
 			GroupId: LIQUID_COOLING_GROUP,
 			ItemRequirements: []ItemRequirement{
 				{
