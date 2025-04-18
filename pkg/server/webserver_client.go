@@ -746,6 +746,16 @@ func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessio
 	return nil
 }
 
+func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	defaultHeaders(w, r, true, "1200")
+	w.WriteHeader(http.StatusOK)
+	if err := ws.Db.LoadSettings(); err != nil {
+		return err
+	}
+
+	return enc.Encode(types.CurrentSettings)
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -769,6 +779,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
 	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))
+	srv.HandleFunc("/reload-settings", JsonHandler(ws.Tracking, ws.ReloadSettings))
 	srv.HandleFunc("GET /relation-groups", ws.HandleRelationGroups)
 
 	srv.HandleFunc("/ids", JsonHandler(ws.Tracking, ws.GetIds))
