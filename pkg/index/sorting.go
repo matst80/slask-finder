@@ -535,6 +535,7 @@ func (s *Sorting) makeItemSortMaps() {
 		s.sortMethods[PRICE_DESC_SORT] = &priceMap
 		s.sortMethods[PRICE_SORT] = cloneReversed(&priceMap)
 		SortByValues(updatedMap)
+		slices.Reverse(updatedMap)
 		//s.sortMethods[UPDATED_DESC_SORT] = &updatedMap
 		s.sortMethods[UPDATED_SORT] = &updatedMap
 		SortByValues(createdMap)
