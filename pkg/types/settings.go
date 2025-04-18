@@ -257,11 +257,11 @@ var CurrentSettings = &Settings{
 				},
 			},
 			Relations: []FacetRelation{
-				{
-					FacetId:            31158,
-					DestinationFacetId: 31782,
-					ValueConverter:     NoConverter,
-				},
+				// {
+				// 	FacetId:            31158,
+				// 	DestinationFacetId: 31782,
+				// 	ValueConverter:     NoConverter,
+				// },
 				{
 					FacetId:            30879,
 					DestinationFacetId: 30303,
@@ -270,7 +270,7 @@ var CurrentSettings = &Settings{
 			},
 		},
 		{
-			Name:    "Passanr till",
+			Name:    "Passar till",
 			GroupId: PHONE_CASES_GROUP,
 			ItemRequirements: []ItemRequirement{
 				{
@@ -285,11 +285,11 @@ var CurrentSettings = &Settings{
 				},
 			},
 			Relations: []FacetRelation{
-				{
-					FacetId:            31782,
-					DestinationFacetId: 31158,
-					ValueConverter:     NoConverter,
-				},
+				// {
+				// 	FacetId:            31782,
+				// 	DestinationFacetId: 31158,
+				// 	ValueConverter:     NoConverter,
+				// },
 				{
 					FacetId:            30303,
 					DestinationFacetId: 30879,
