@@ -91,6 +91,7 @@ func LoadIndex(wg *sync.WaitGroup) {
 
 	if rabbitUrl != "" && clientName == "" {
 		idx.IsMaster = true
+		index.AllowConditionalData = true
 		log.Println("Starting with reduced memory consumption")
 	} else {
 		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)

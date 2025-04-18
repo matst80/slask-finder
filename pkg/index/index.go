@@ -1,7 +1,6 @@
 package index
 
 import (
-	"fmt"
 	"log"
 	"sync"
 
@@ -91,9 +90,9 @@ func (i *Index) AddIntegerField(field *types.BaseField) {
 // 	}
 // }
 
-func makeCategoryId(level int, value string) uint {
-	return facet.HashString(fmt.Sprintf("%d%s", level, value))
-}
+// func makeCategoryId(level int, value string) uint {
+// 	return facet.HashString(fmt.Sprintf("%d%s", level, value))
+// }
 
 func (i *Index) addItemValues(item types.Item) {
 	if i.IsMaster {

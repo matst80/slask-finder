@@ -1,6 +1,7 @@
 package index
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -24,6 +25,8 @@ type OutletItem struct {
 	Title         string     `json:"title"`
 }
 
+type MarginPercent float64
+
 type ItemProp struct {
 	Url string `json:"url"`
 	//Tree            []string      `json:"tree"`
@@ -31,7 +34,7 @@ type ItemProp struct {
 	ReleaseDate      string        `json:"releaseDate,omitempty"`
 	SaleStatus       string        `json:"saleStatus"`
 	OnlineSaleStatus string        `json:"onlineSaleStatus"`
-	MarginPercent    float64       `json:"-"` //`json:"mp,omitempty"`
+	MarginPercent    MarginPercent `json:"mp,omitempty"`
 	PresaleDate      string        `json:"presaleDate,omitempty"`
 	Restock          string        `json:"restock,omitempty"`
 	AdvertisingText  string        `json:"advertisingText,omitempty"`
@@ -48,6 +51,24 @@ type ItemProp struct {
 	CheapestBItem    *OutletItem   `json:"bItem,omitempty"`
 	AItem            *OutletItem   `json:"aItem,omitempty"`
 	ArticleType      string        `json:"articleType,omitempty"`
+}
+
+var AllowConditionalData = false
+
+func (a *MarginPercent) UnmarshalJSON(b []byte) error {
+	var v float64
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+	*a = MarginPercent(v)
+	return nil
+}
+
+func (a MarginPercent) MarshalJSON() ([]byte, error) {
+	if AllowConditionalData {
+		return json.Marshal(float64(a))
+	}
+	return json.Marshal(0.0)
 }
 
 type BaseItem struct {
