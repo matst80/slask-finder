@@ -98,6 +98,10 @@ func (item *DataItem) GetId() uint {
 	return item.Id
 }
 
+func (item *DataItem) GetSku() string {
+	return item.Sku
+}
+
 func (item *DataItem) IsDeleted() bool {
 	softDeleted := item.IsSoftDeleted()
 

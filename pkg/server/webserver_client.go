@@ -655,6 +655,19 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId i
 	return enc.Encode(item)
 }
 
+func (ws *WebServer) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	sku := r.PathValue("sku")
+	publicHeaders(w, r, true, "120")
+	item, ok := ws.Index.ItemsBySku[sku]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(item)
+}
+
 func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "600")
 	items := make([]uint, 0)
@@ -784,6 +797,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv.HandleFunc("/ids", JsonHandler(ws.Tracking, ws.GetIds))
 	srv.HandleFunc("GET /get/{id}", JsonHandler(ws.Tracking, ws.GetItem))
+	srv.HandleFunc("GET /by-sku/{sku}", JsonHandler(ws.Tracking, ws.GetItemBySku))
 	srv.HandleFunc("POST /get", JsonHandler(ws.Tracking, ws.GetItems))
 	srv.HandleFunc("/values/{id}", JsonHandler(ws.Tracking, ws.GetValues))
 

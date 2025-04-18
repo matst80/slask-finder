@@ -51,6 +51,7 @@ type Index struct {
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]map[uint]struct{}
 	Items        map[uint]*types.Item
+	ItemsBySku   map[string]*types.Item
 	ItemsInStock map[string]types.ItemList
 	IsMaster     bool
 	All          types.ItemList
@@ -256,6 +257,7 @@ func (i *Index) UpsertItems(items []types.Item) {
 		i.Search.Lock()
 		defer i.Search.Unlock()
 	}
+
 	//changed := make([]types.Item, 0, len(items))
 	//price_lowered := make([]types.Item, 0, len(items))
 
@@ -296,13 +298,18 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 			}
 			return false
 		}
+		delete(i.All, id)
+		delete(i.ItemsBySku, item.GetSku())
 		delete(i.ItemFieldIds, id)
 		if isUpdate {
 			i.deleteItemUnsafe(id)
 		}
 		return false
 	}
-	i.All.AddId(id)
+	if !i.IsMaster {
+		i.All.AddId(id)
+		i.ItemsBySku[item.GetSku()] = &item
+	}
 	if isUpdate {
 		old_price := (*current).GetPrice()
 		new_price := item.GetPrice()
@@ -321,13 +328,14 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 	i.Items[id] = &item
 	if i.IsMaster {
 		return price_lowered
-	}
+	} else {
 
-	// if i.AutoSuggest != nil {
-	// 	i.AutoSuggest.InsertItemUnsafe(item)
-	// }
-	if i.Search != nil {
-		i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
+		// if i.AutoSuggest != nil {
+		// 	i.AutoSuggest.InsertItemUnsafe(item)
+		// }
+		if i.Search != nil {
+			i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
+		}
 	}
 	return price_lowered
 }

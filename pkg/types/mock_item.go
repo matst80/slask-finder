@@ -2,6 +2,7 @@ package types
 
 type MockItem struct {
 	Id          uint
+	Sku         string
 	Fields      map[uint]interface{}
 	Deleted     bool
 	Price       int
@@ -34,6 +35,10 @@ func (m *MockItem) GetFieldValue(id uint) (interface{}, bool) {
 
 func (m *MockItem) GetId() uint {
 	return m.Id
+}
+
+func (m *MockItem) GetSku() string {
+	return m.Sku
 }
 
 func (m *MockItem) IsSoftDeleted() bool {

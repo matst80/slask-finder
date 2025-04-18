@@ -65,6 +65,7 @@ type CategoryUpdate struct {
 
 type Item interface {
 	GetId() uint
+	GetSku() string
 	GetStock() map[string]string
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
