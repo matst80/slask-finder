@@ -246,6 +246,34 @@ var CurrentSettings = &Settings{
 			GroupId: PHONE_CASES_GROUP,
 			ItemRequirements: []ItemRequirement{
 				{
+					FacetId: 31,
+					Value:   "PT238",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT245",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            31158,
+					DestinationFacetId: 31782,
+					ValueConverter:     NoConverter,
+				},
+				{
+					FacetId:            30879,
+					DestinationFacetId: 30303,
+					ValueConverter:     NoConverter,
+				},
+			},
+		},
+		{
+			Name:    "Passanr till",
+			GroupId: PHONE_CASES_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
 					FacetId: 32,
 					Value:   "PT245",
 				},
@@ -258,13 +286,13 @@ var CurrentSettings = &Settings{
 			},
 			Relations: []FacetRelation{
 				{
-					FacetId:            31158,
-					DestinationFacetId: 31782,
+					FacetId:            31782,
+					DestinationFacetId: 31158,
 					ValueConverter:     NoConverter,
 				},
 				{
-					FacetId:            30879,
-					DestinationFacetId: 30303,
+					FacetId:            30303,
+					DestinationFacetId: 30879,
 					ValueConverter:     NoConverter,
 				},
 			},
