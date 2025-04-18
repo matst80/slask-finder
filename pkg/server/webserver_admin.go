@@ -760,6 +760,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
+	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 	srv.HandleFunc("GET /settings", ws.GetSettings)
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
