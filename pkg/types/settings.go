@@ -47,6 +47,7 @@ const (
 	AIR_COOLING_GROUP    = 5
 	PSU_GROUP            = 6
 	M2_GROUP             = 7
+	PHONE_CASES_GROUP    = 10
 )
 
 var CurrentSettings = &Settings{
@@ -236,6 +237,34 @@ var CurrentSettings = &Settings{
 				{
 					FacetId:            35980,
 					DestinationFacetId: 32077,
+					ValueConverter:     NoConverter,
+				},
+			},
+		},
+		{
+			Name:    "Passande skal",
+			GroupId: PHONE_CASES_GROUP,
+			ItemRequirements: []ItemRequirement{
+				{
+					FacetId: 32,
+					Value:   "PT245",
+				},
+			},
+			AdditionalQueries: []ItemRequirement{
+				{
+					FacetId: 31,
+					Value:   "PT238",
+				},
+			},
+			Relations: []FacetRelation{
+				{
+					FacetId:            31158,
+					DestinationFacetId: 31782,
+					ValueConverter:     NoConverter,
+				},
+				{
+					FacetId:            30879,
+					DestinationFacetId: 30303,
 					ValueConverter:     NoConverter,
 				},
 			},
