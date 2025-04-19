@@ -199,6 +199,11 @@ func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
 		f.removeValueLink(value, id)
 	case float64:
 		f.removeValueLink(int(value), id)
+	case string:
+		intValue, err := strconv.Atoi(value)
+		if err == nil {
+			f.removeValueLink(intValue, id)
+		}
 	}
 }
 

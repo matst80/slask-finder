@@ -49,7 +49,7 @@ type Index struct {
 	mu sync.RWMutex
 	//categories    map[uint]*Category
 	Facets       map[uint]types.Facet
-	ItemFieldIds map[uint]map[uint]struct{}
+	ItemFieldIds map[uint]types.ItemList
 	Items        map[uint]*types.Item
 	ItemsBySku   map[string]*types.Item
 	ItemsInStock map[string]types.ItemList
@@ -67,7 +67,7 @@ func NewIndex() *Index {
 		All: types.ItemList{},
 		//categories:   make(map[uint]*Category),
 		ItemsBySku:   make(map[string]*types.Item),
-		ItemFieldIds: make(map[uint]map[uint]struct{}),
+		ItemFieldIds: make(map[uint]types.ItemList),
 		Facets:       make(map[uint]types.Facet),
 		Items:        make(map[uint]*types.Item),
 		ItemsInStock: make(map[string]types.ItemList),
@@ -289,49 +289,46 @@ func (i *Index) Unlock() {
 	i.mu.RUnlock()
 }
 
-func (i *Index) UpsertItemUnsafe(item types.Item) bool {
-	price_lowered := false
+func (i *Index) UpsertItemUnsafe(item types.Item) {
+	//price_lowered := false
 	id := item.GetId()
 	current, isUpdate := i.Items[id]
 	if item.IsDeleted() {
+		delete(i.All, id)
+		delete(i.ItemsBySku, item.GetSku())
+		delete(i.ItemFieldIds, id)
 		if item.IsSoftDeleted() {
 			if isUpdate {
 				i.removeItemValues(*current)
 			}
-			return false
+			return
 		}
-		delete(i.All, id)
-		delete(i.ItemsBySku, item.GetSku())
-		delete(i.ItemFieldIds, id)
+
 		if isUpdate {
 			i.deleteItemUnsafe(id)
 		}
-		return false
-	}
-	if !i.IsMaster {
-		i.All.AddId(id)
-		i.ItemsBySku[item.GetSku()] = &item
-	}
-	if isUpdate {
-		old_price := (*current).GetPrice()
-		new_price := item.GetPrice()
-		if new_price < old_price {
-			price_lowered = true
-		}
-		i.removeItemValues(*current)
+		return
 	}
 
-	i.ItemFieldIds[id] = make(map[uint]struct{})
-	//	i.AllItems[item.Id] = &item.ItemFields
-	if i.Search != nil {
-		i.addItemValues(item)
+	if isUpdate {
+		// old_price := (*current).GetPrice()
+		// new_price := item.GetPrice()
+		// if new_price < old_price {
+		// 	price_lowered = true
+		// }
+		i.removeItemValues(*current)
 	}
 
 	i.Items[id] = &item
 	if i.IsMaster {
-		return price_lowered
+		return
 	} else {
-
+		i.ItemFieldIds[id] = make(types.ItemList)
+		i.All.AddId(id)
+		i.ItemsBySku[item.GetSku()] = &item
+		if i.Search != nil {
+			i.addItemValues(item)
+		}
 		// if i.AutoSuggest != nil {
 		// 	i.AutoSuggest.InsertItemUnsafe(item)
 		// }
@@ -339,7 +336,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 			i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
 		}
 	}
-	return price_lowered
+
 }
 
 func (i *Index) DeleteItem(id uint) {
