@@ -46,9 +46,7 @@ func (s *SearchRequest) Sanitize() {
 	if s.Sort == "" {
 		s.Sort = "popular"
 	}
-	if (len(s.StringFilter) > 0 || len(s.RangeFilter) > 0) && s.Query == "*" {
-		s.Query = ""
-	}
+	s.FacetRequest.Sanitize()
 
 }
 
@@ -82,7 +80,7 @@ func GetFacetQueryFromRequest(r *http.Request) (*types.FacetRequest, error) {
 	} else {
 		err = json.NewDecoder(r.Body).Decode(sr)
 	}
-
+	sr.Sanitize()
 	return sr, err
 }
 
@@ -136,6 +134,7 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 			Max: _max,
 		})
 	}
+	result.Sanitize()
 	return err
 }
 

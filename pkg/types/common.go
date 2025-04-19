@@ -22,6 +22,12 @@ type FacetRequest struct {
 	IgnoreFacets []uint   `json:"skipFacets" schema:"sf"`
 }
 
+func (s *FacetRequest) Sanitize() {
+	if (len(s.StringFilter) > 0 || len(s.RangeFilter) > 0) && s.Query == "*" {
+		s.Query = ""
+	}
+}
+
 func (f *FacetRequest) HasField(id uint) bool {
 	for _, v := range f.StringFilter {
 		if v.Id == id {
