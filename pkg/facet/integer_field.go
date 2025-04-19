@@ -51,12 +51,12 @@ type IntegerField struct {
 	*types.BaseField
 	*NumberRange[int]
 	buckets   map[int]Bucket[int]
-	allValues map[uint]int
+	AllValues map[uint]int
 	Count     int `json:"count"`
 }
 
 func (f *IntegerField) ValueForItemId(id uint) *int {
-	if v, ok := f.allValues[id]; ok {
+	if v, ok := f.AllValues[id]; ok {
 		return &v
 	}
 	return nil
@@ -155,7 +155,7 @@ func (f IntegerField) addValueLink(value int, itemId uint) {
 	f.Count++
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-	f.allValues[itemId] = value
+	f.AllValues[itemId] = value
 	if !ok {
 		f.buckets[bucket] = MakeBucket(value, itemId)
 	} else {
@@ -189,7 +189,7 @@ func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
 func (f *IntegerField) removeValueLink(value int, id uint) {
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-	delete(f.allValues, id)
+	delete(f.AllValues, id)
 	if ok {
 		f.Count--
 		bucketValues.RemoveValueLink(value, id)
@@ -226,7 +226,7 @@ func (IntegerField) GetType() uint {
 func EmptyIntegerField(field *types.BaseField) IntegerField {
 	return IntegerField{
 		BaseField:   field,
-		allValues:   map[uint]int{},
+		AllValues:   map[uint]int{},
 		NumberRange: &NumberRange[int]{Min: 0, Max: 0},
 		buckets:     map[int]Bucket[int]{},
 	}
