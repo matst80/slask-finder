@@ -196,12 +196,11 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			Values: r,
 		}
 	case facet.IntegerField:
-		fieldResult := index.IntegerFieldResult{}
+
 		count := 0
 		min := 9999999999999999
 		max := -9999999999999999
-		// useRealBuckets := len(matchIds) <= 1000
-		// values := make([]uint, 0, min(len(matchIds), 1000))
+
 		hasValues := false
 		v := 0
 		ok := false
@@ -221,9 +220,6 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 				// }
 			}
 		}
-		fieldResult.Count = uint(count)
-		fieldResult.Min = min
-		fieldResult.Max = max
 
 		// if useRealBuckets {
 		// 	slices.Sort(values)
@@ -235,24 +231,27 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			c <- nil
 			return
 		}
-		ret.Result = &fieldResult
-	case facet.DecimalField:
-		fieldResult := index.DecimalFieldResult{
-			Count: 0,
-			Min:   9999999999999999,
-			Max:   -9999999999999999,
+		ret.Result = &index.IntegerFieldResult{
+			Count: uint(count),
+			Min:   min,
+			Max:   max,
 		}
+	case facet.DecimalField:
+		count := 0
+		min := 9999999999999999.0
+		max := -9999999999999999.0
+
 		hasResults := false
 
 		for id := range matchIds {
-			if value := field.ValueForItemId(id); value != nil {
-				fieldResult.Count++
+			if value, ok := field.AllValues[id]; ok {
+				count++
 				hasResults = true
-				if *value < fieldResult.Min {
-					fieldResult.Min = *value
+				if value < min {
+					min = value
 				}
-				if *value > fieldResult.Max {
-					fieldResult.Max = *value
+				if value > max {
+					max = value
 				}
 			}
 		}
@@ -260,7 +259,11 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			c <- nil
 			return
 		}
-		ret.Result = &fieldResult
+		ret.Result = &index.DecimalFieldResult{
+			Count: uint(count),
+			Min:   min,
+			Max:   max,
+		}
 	}
 	c <- modifyResult(ret)
 }
