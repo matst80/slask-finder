@@ -228,8 +228,8 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 
 			for j, match := range i.Trie.FindMatches(token) {
 				if len(*match.Items) > 0 {
-					if len(*res) > MERGE_LIMIT && res.HasIntersection(ids) {
-						res.Intersect(*ids)
+					if len(*res) > MERGE_LIMIT && res.HasIntersection(match.Items) {
+						res.Intersect(*match.Items)
 					} // } else {
 					// 	res.Merge(match.Items)
 					// }

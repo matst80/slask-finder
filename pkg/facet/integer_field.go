@@ -1,7 +1,6 @@
 package facet
 
 import (
-	"maps"
 	"strconv"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -50,70 +49,33 @@ func NormalizeResults(input []uint) []uint {
 type IntegerField struct {
 	*types.BaseField
 	*NumberRange[int]
-	buckets   map[int]Bucket[int]
-	allValues map[uint]int
-	Count     int `json:"count"`
+	bucket    *SmartBucket[int]
+	AllValues map[uint]int
 }
 
-func (f *IntegerField) ValueForItemId(id uint) *int {
-	if v, ok := f.allValues[id]; ok {
-		return &v
+// func (f *IntegerField) GetBucketSizes(minValue int, maxValue int) []uint {
+// 	if minValue > maxValue {
+// 		return []uint{}
+// 	}
+// 	minBucket := GetBucket(max(minValue, f.Min))
+// 	maxBucket := GetBucket(min(maxValue, f.Max))
+// 	bucketSizes := make([]uint, maxBucket-minBucket+1)
+// 	for i := minBucket; i <= maxBucket; i++ {
+// 		if bucket, ok := f.buckets[i]; ok {
+// 			bucketSizes[i-minBucket] = uint(len(bucket.values))
+// 		}
+// 	}
+// 	return bucketSizes
+// }
+
+func (f *IntegerField) MatchesRange(minValue int, maxValue int) types.ItemList {
+	if minValue > maxValue || (minValue <= f.Min && maxValue >= f.Max) {
+		return types.ItemList{}
 	}
-	return nil
-}
-
-func (f *IntegerField) GetBucketSizes(minValue int, maxValue int) []uint {
-	if minValue > maxValue {
-		return []uint{}
-	}
-	minBucket := GetBucket(max(minValue, f.Min))
-	maxBucket := GetBucket(min(maxValue, f.Max))
-	bucketSizes := make([]uint, maxBucket-minBucket+1)
-	for i := minBucket; i <= maxBucket; i++ {
-		if bucket, ok := f.buckets[i]; ok {
-			bucketSizes[i-minBucket] = uint(len(bucket.values))
-		}
-	}
-	return bucketSizes
-}
-
-func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList {
-	if minValue > maxValue {
-		return &types.ItemList{}
-	}
-	if minValue <= f.Min && maxValue >= f.Max {
-		return nil
-	}
-	minBucket := GetBucket(max(minValue, f.Min))
-	maxBucket := GetBucket(min(maxValue, f.Max))
-	found := make(types.ItemList, f.Count)
-
-	for v, ids := range f.buckets[minBucket].values {
-		if v >= minValue && v <= maxValue {
-			maps.Copy(found, ids)
-		}
-	}
-
-	if minBucket < maxBucket {
-
-		for id := minBucket + 1; id < maxBucket; id++ {
-			if bucket, ok := f.buckets[id]; ok {
-				for _, ids := range bucket.values {
-					maps.Copy(found, ids)
-				}
-				//maps.Copy(found, *bucket.all)
-			}
-
-		}
-
-		for v, ids := range f.buckets[maxBucket].values {
-			if v <= maxValue {
-				maps.Copy(found, ids)
-			}
-		}
-
-	}
-	return &found
+	// if minValue <= f.Min && maxValue >= f.Max {
+	// 	return nil
+	// }
+	return f.bucket.Match(minValue, maxValue)
 }
 
 func (f IntegerField) Match(input interface{}) *types.ItemList {
@@ -123,7 +85,8 @@ func (f IntegerField) Match(input interface{}) *types.ItemList {
 		max, maxOk := value.Max.(float64)
 
 		if minOk && maxOk {
-			return f.MatchesRange(int(min), int(max))
+			v := f.MatchesRange(int(min), int(max))
+			return &v
 		}
 	}
 
@@ -148,17 +111,24 @@ func (f IntegerField) GetValues() []interface{} {
 }
 
 func (f IntegerField) addValueLink(value int, itemId uint) {
-	f.Min = min(f.Min, value)
-	f.Max = max(f.Max, value)
-	f.Count++
-	bucket := GetBucket(value)
-	bucketValues, ok := f.buckets[bucket]
-	f.allValues[itemId] = value
-	if !ok {
-		f.buckets[bucket] = MakeBucket(value, itemId)
-	} else {
-		bucketValues.AddValueLink(value, itemId)
+
+	if value > f.Max {
+		f.Max = value
 	}
+	if value < f.Min {
+		f.Min = value
+	}
+
+	//f.Count++
+	// bucket := GetBucket(value)
+	// bucketValues, ok := f.buckets[bucket]
+	// f.AllValues[itemId] = value
+	// if !ok {
+	// 	f.buckets[bucket] = MakeBucket(value, itemId)
+	// } else {
+	// 	bucketValues.AddValueLink(value, itemId)
+	// }
+	f.bucket.AddValueLink(value, itemId)
 }
 
 func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
@@ -184,13 +154,14 @@ func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
 }
 
 func (f *IntegerField) removeValueLink(value int, id uint) {
-	bucket := GetBucket(value)
-	bucketValues, ok := f.buckets[bucket]
-	delete(f.allValues, id)
-	if ok {
-		f.Count--
-		bucketValues.RemoveValueLink(value, id)
-	}
+	f.bucket.RemoveValueLink(value, id)
+	// bucket := GetBucket(value)
+	// bucketValues, ok := f.buckets[bucket]
+	// delete(f.AllValues, id)
+	// if ok {
+	// 	f.Count--
+	// 	bucketValues.RemoveValueLink(value, id)
+	// }
 }
 
 func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
@@ -208,7 +179,7 @@ func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
 }
 
 func (f *IntegerField) TotalCount() int {
-	return f.Count
+	return f.bucket.TotalCount()
 }
 
 // func (f *IntegerField) GetRangeForIds(ids *IdList) NumberRange[int] {
@@ -222,8 +193,9 @@ func (IntegerField) GetType() uint {
 func EmptyIntegerField(field *types.BaseField) IntegerField {
 	return IntegerField{
 		BaseField:   field,
-		allValues:   map[uint]int{},
+		AllValues:   map[uint]int{},
 		NumberRange: &NumberRange[int]{Min: 0, Max: 0},
-		buckets:     map[int]Bucket[int]{},
+		//buckets:     map[int]Bucket[int]{},
+		bucket: NewSmartBucket(100),
 	}
 }

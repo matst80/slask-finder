@@ -151,7 +151,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			ret.Result = r
 		case facet.IntegerField:
 			ret.Result = &index.IntegerFieldResult{
-				Count: uint(field.Count),
+				Count: uint(field.Max - field.Min),
 				Min:   field.Min,
 				Max:   field.Max,
 			}
@@ -179,17 +179,13 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		hasValues := false
 		r := make(map[string]uint, len(field.Keys))
 		count := uint(0)
-		var ok bool
-		for keyId, sourceIds := range field.Keys {
-			count = 0
-			for id := range sourceIds {
-				if _, ok = matchIds[id]; ok {
-					count++
-				}
-			}
+		//var ok bool
+		for key, sourceIds := range field.Keys {
+			count = uint(sourceIds.IntersectionLen(matchIds))
+
 			if count > 0 {
 				hasValues = true
-				r[string(keyId)] = count
+				r[key] = count
 			}
 		}
 		if !hasValues {
@@ -208,11 +204,12 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		// values := make([]uint, 0, min(len(matchIds), 1000))
 		hasValues := false
 		v := 0
+		ok := false
 		for id := range matchIds {
-			if value := field.ValueForItemId(id); value != nil {
+			if v, ok = field.AllValues[id]; ok {
 				count++
 				hasValues = true
-				v = *value
+
 				if v < min {
 					min = v
 				}
@@ -224,6 +221,10 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 				// }
 			}
 		}
+		fieldResult.Count = uint(count)
+		fieldResult.Min = min
+		fieldResult.Max = max
+
 		// if useRealBuckets {
 		// 	slices.Sort(values)
 		// 	fieldResult.Buckets = facet.NormalizeResults(values)
@@ -310,8 +311,9 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.F
 func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	fieldIds := make(map[uint]struct{})
-
+	limit := 40
 	if len(*baseIds) > 65535 {
+		limit = 20
 		for id, f := range ws.Index.Facets {
 			if !f.GetBaseField().HideFacet && !sr.IsIgnored(id) {
 				fieldIds[id] = struct{}{}
@@ -327,9 +329,9 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 	}
 	count := 0
 	var base *types.BaseField = nil
-	//hasCat := filters.HasCategoryFilter()
+	//hasCat := sr.Filters.HasCategoryFilter()
 	for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
-		if count > 40 {
+		if count > limit {
 			break
 		}
 

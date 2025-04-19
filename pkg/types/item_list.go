@@ -13,15 +13,6 @@ func (i *ItemList) AddId(id uint) {
 }
 
 func (a ItemList) Intersect(b ItemList) {
-	al := len(a)
-	bl := len(b)
-	if al == 0 {
-		return
-	}
-	if bl == 0 {
-		a = make(ItemList)
-		return
-	}
 
 	for id := range a {
 		_, ok := b[id]
@@ -33,25 +24,43 @@ func (a ItemList) Intersect(b ItemList) {
 
 func (a ItemList) ToIntersected(b ItemList) (*ItemList, bool) {
 	result := make(ItemList)
-	maps.Copy(result, a)
-	for id := range a {
-		_, ok := b[id]
-		if !ok {
-			delete(a, id)
-		}
-	}
-	return &result, len(result) > 0
-}
 
-func Intersect[K any](a ItemList, b map[uint]K) ItemList {
-	result := make(ItemList)
 	for id := range a {
 		if _, ok := b[id]; ok {
 			result[id] = struct{}{}
 		}
 	}
-	return result
+	return &result, len(result) > 0
 }
+
+func (a ItemList) OnIntersect(b ItemList, onMatch func(id uint) bool) {
+	al := len(a)
+	bl := len(b)
+	if al == 0 || bl == 0 {
+		return
+	}
+	if al > bl {
+		a, b = b, a
+	}
+
+	for id := range a {
+		if _, ok := b[id]; ok {
+			if !onMatch(id) {
+				break
+			}
+		}
+	}
+}
+
+// func Intersect[K any](a ItemList, b map[uint]K) ItemList {
+// 	result := make(ItemList)
+// 	for id := range a {
+// 		if _, ok := b[id]; ok {
+// 			result[id] = struct{}{}
+// 		}
+// 	}
+// 	return result
+// }
 
 func Merge[K any](a ItemList, b map[uint]K) {
 	for id := range b {
@@ -64,25 +73,40 @@ func (i ItemList) Merge(other *ItemList) {
 }
 
 func (i ItemList) HasIntersection(other *ItemList) bool {
-	l1 := len(i)
-	l2 := len(*other)
-	if l1 == 0 || l2 == 0 {
+	found := false
+	i.OnIntersect(*other, func(id uint) bool {
+		found = true
 		return false
-	}
-	for id := range i {
-		_, ok := (*other)[id]
-		if ok {
-			return true
-		}
-	}
-	return false
+	})
+	return found
+	// l1 := len(i)
+	// l2 := len(*other)
+	// if l1 == 0 || l2 == 0 {
+	// 	return false
+	// }
+	// for id := range i {
+	// 	_, ok := (*other)[id]
+	// 	if ok {
+	// 		return true
+	// 	}
+	// }
+	// return false
 }
 
-func (i ItemList) IntersectionLen(other ItemList) int {
+func (a ItemList) IntersectionLen(b ItemList) int {
+
 	count := 0
-	for id := range i {
-		_, ok := other[id]
-		if ok {
+	al := len(a)
+	bl := len(b)
+	if al == 0 || bl == 0 {
+		return count
+	}
+	if al > bl {
+		a, b = b, a
+	}
+	ok := false
+	for id := range a {
+		if _, ok = b[id]; ok {
 			count++
 		}
 	}

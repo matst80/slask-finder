@@ -4,11 +4,11 @@
 
 `brew install graphviz`
 
-`go tool pprof "http://localhost:8080/debug/pprof/profile?seconds=5"`
+`go tool pprof "http://localhost:8081/debug/pprof/profile?seconds=5"`
 
-`go tool pprof "http://localhost:8080/debug/pprof/heap"`
+`go tool pprof "http://localhost:8081/debug/pprof/heap"`
 
-`go tool pprof "http://localhost:8080/debug/pprof/allocs"`
+`go tool pprof "http://localhost:8081/debug/pprof/allocs"`
 
 `-profile-startup=startup.prof`
 

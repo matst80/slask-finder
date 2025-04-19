@@ -44,9 +44,9 @@ func (ws *WebServer) getInitialIds(sr *types.FacetRequest) *types.ItemList {
 	if sr.Query != "" {
 		if sr.Query == "*" {
 			// probably should copy this
-			cloned := types.ItemList{}
-			maps.Copy(cloned, ws.Index.All)
-			initialIds = &cloned
+			clone := maps.Clone(ws.Index.All)
+			initialIds = &clone
+
 		} else {
 			initialIds = ws.Index.Search.Search(sr.Query)
 

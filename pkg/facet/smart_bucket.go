@@ -28,12 +28,10 @@ func (b *SmartBucket[V]) canFit(value V) bool {
 	}
 	diff := b.MaxValue - b.MinValue
 	if diff < b.maxSize {
-		if value > b.MaxValue && value < b.MaxValue+b.maxSize {
+		if value >= b.MinValue+b.maxSize && value <= b.MaxValue-b.maxSize {
 			return true
 		}
-		if value < b.MinValue && value > b.MinValue-b.maxSize {
-			return true
-		}
+
 	}
 	return false
 }
@@ -46,8 +44,8 @@ func (b *SmartBucket[V]) findOrCreateBucket(value V) *SmartBucket[V] {
 	if value > b.MaxValue {
 		if b.next == nil {
 			b.next = NewSmartBucket(b.maxSize)
-			// b.next.MinValue = value
-			// b.next.MaxValue = value
+			b.next.MinValue = value
+			b.next.MaxValue = value
 			b.next.prev = b
 			return b.next
 		}
@@ -56,8 +54,8 @@ func (b *SmartBucket[V]) findOrCreateBucket(value V) *SmartBucket[V] {
 		} else {
 			if b.next.MinValue > value {
 				n := NewSmartBucket(b.maxSize)
-				// n.MinValue = value
-				// n.MaxValue = value
+				n.MinValue = value
+				n.MaxValue = value
 				// insert n between b and b.next
 				n.next = b.next
 				n.prev = b
@@ -76,8 +74,8 @@ func (b *SmartBucket[V]) findOrCreateBucket(value V) *SmartBucket[V] {
 	if value < b.MinValue {
 		if b.prev == nil {
 			b.prev = NewSmartBucket(b.maxSize)
-			// b.prev.MinValue = value
-			// b.prev.MaxValue = value
+			b.prev.MinValue = value
+			b.prev.MaxValue = value
 			b.prev.next = b
 			return b.prev
 		}
@@ -87,8 +85,8 @@ func (b *SmartBucket[V]) findOrCreateBucket(value V) *SmartBucket[V] {
 
 			if b.prev.MaxValue < value {
 				n := NewSmartBucket(b.maxSize)
-				// n.MinValue = value
-				// n.MaxValue = value
+				n.MinValue = value
+				n.MaxValue = value
 				// insert n between b.prev and b
 				n.prev = b.prev
 				n.next = b

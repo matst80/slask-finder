@@ -37,6 +37,15 @@ func (f *FacetRequest) HasField(id uint) bool {
 }
 
 func (f *FacetRequest) IsIgnored(id uint) bool {
+	// should be config
+	if id >= 11 && id <= 14 {
+		for _, sf := range f.StringFilter {
+			if sf.Id > 9 && sf.Id < 14 && sf.Id != id {
+				return false
+			}
+		}
+		return true
+	}
 	for _, v := range f.IgnoreFacets {
 		if v == id {
 			return true
