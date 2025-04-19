@@ -16,12 +16,12 @@ type MockItem struct {
 	Title       string
 }
 
-func (m *MockItem) GetDiscount() *int {
-	if m.OrgPrice == 0 {
-		return nil
+func (m *MockItem) GetDiscount() int {
+
+	if m.OrgPrice > m.Price {
+		return m.OrgPrice - m.Price
 	}
-	d := max(m.OrgPrice-m.Price, 0)
-	return &d
+	return 0
 }
 
 func (m *MockItem) GetRating() (int, int) {

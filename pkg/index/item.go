@@ -193,18 +193,18 @@ func getNumberValue[K float64 | int](fieldValue interface{}) K {
 	return 0
 }
 
-func (item *DataItem) GetDiscount() *int {
+func (item *DataItem) GetDiscount() int {
 	price := item.GetPrice()
 	orgPriceValue, ok := item.GetFieldValue(5)
 	if !ok {
-		return nil
+		return 0
 	}
 	orgPrice := getNumberValue[int](orgPriceValue)
 	if orgPrice > 0 && orgPrice > price {
 		discount := orgPrice - price
-		return &discount
+		return discount
 	}
-	return nil
+	return 0
 }
 
 // func (item *DataItem) GetPopularity() float64 {

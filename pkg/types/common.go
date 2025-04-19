@@ -80,7 +80,7 @@ type Item interface {
 	IsDeleted() bool
 	IsSoftDeleted() bool
 	GetPrice() int
-	GetDiscount() *int
+	GetDiscount() int
 	GetRating() (int, int)
 	GetFieldValue(id uint) (interface{}, bool)
 	GetLastUpdated() int64
