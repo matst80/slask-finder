@@ -268,6 +268,7 @@ func (i *Index) UpsertItems(items []types.Item) {
 		//}
 		//changed = append(changed, it)
 	}
+	go noUpdates.Add(float64(l))
 	if i.ChangeHandler != nil {
 		log.Printf("Propagating changes")
 		go i.ChangeHandler.ItemsUpserted(items)
@@ -319,7 +320,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) bool {
 		}
 		i.removeItemValues(*current)
 	}
-	go noUpdates.Inc()
+
 	i.ItemFieldIds[id] = make(map[uint]struct{})
 	//	i.AllItems[item.Id] = &item.ItemFields
 	if i.Search != nil {

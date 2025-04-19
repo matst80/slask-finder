@@ -45,6 +45,8 @@ type Field struct {
 // }
 
 func (p *DataRepository) LoadIndex(idx *index.Index) error {
+	idx.Lock()
+	defer idx.Unlock()
 	err := p.LoadFacets(idx)
 	if err != nil {
 		return err
@@ -64,8 +66,6 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 	enc := json.NewDecoder(zipReader)
 	defer zipReader.Close()
 
-	idx.Lock()
-	defer idx.Unlock()
 	tmp := &index.DataItem{}
 	for err == nil {
 
