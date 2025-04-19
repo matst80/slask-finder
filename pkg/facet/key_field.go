@@ -108,15 +108,15 @@ func (f *KeyField) removeString(value string, id uint) {
 	}
 }
 
-func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
+func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
 	if !f.Searchable {
 		return false
 	}
+
 	switch typed := data.(type) {
 	case nil:
 		return false
 	case []interface{}:
-		itemId := item.GetId()
 
 		for _, v := range typed {
 			if str, ok := v.(string); ok {
@@ -125,7 +125,6 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 		}
 		return true
 	case []string:
-		itemId := item.GetId()
 
 		for _, v := range typed {
 			f.addString(v, itemId)
@@ -139,7 +138,6 @@ func (f KeyField) AddValueLink(data interface{}, item types.Item) bool {
 		}
 		parts := strings.Split(typed, ";")
 
-		itemId := item.GetId()
 		for _, partData := range parts {
 			f.addString(partData, itemId)
 		}
@@ -159,26 +157,30 @@ func (f KeyField) RemoveValueLink(data interface{}, id uint) {
 
 		for _, v := range typed {
 			if str, ok := v.(string); ok {
-				f.addString(str, id)
+				f.removeString(str, id)
 			}
 		}
 		return
 	case []string:
 
 		for _, v := range typed {
-			f.addString(v, id)
+			f.removeString(v, id)
 		}
 
 		return
 	case string:
 
 		if strings.Contains(typed, "&lt;") || strings.Contains(typed, "&gt;") {
+			log.Printf("KeyField: RemoveValueLink: Invalid string %s, facetid: %d", typed, f.Id)
 			return
 		}
 		parts := strings.Split(typed, ";")
+		if len(parts) > 1 {
+			log.Printf("KeyField: RemoveValueLink: array string %s, facetid: %d", typed, f.Id)
+		}
 
 		for _, partData := range parts {
-			f.addString(partData, id)
+			f.removeString(partData, id)
 		}
 
 		return

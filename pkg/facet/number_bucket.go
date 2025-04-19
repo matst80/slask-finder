@@ -8,7 +8,7 @@ type Bucket[V FieldNumberValue] struct {
 	values   map[V]types.ItemList
 }
 
-func (b *Bucket[V]) AddValueLink(value V, item types.Item) {
+func (b *Bucket[V]) AddValueLink(value V, itemId uint) {
 	idList, ok := b.values[value]
 	if b.minValue > value {
 		b.minValue = value
@@ -17,10 +17,10 @@ func (b *Bucket[V]) AddValueLink(value V, item types.Item) {
 		b.maxValue = value
 	}
 	if !ok {
-		b.values[value] = types.ItemList{item.GetId(): struct{}{}}
+		b.values[value] = types.ItemList{itemId: struct{}{}}
 
 	} else {
-		idList.Add(item)
+		idList.AddId(itemId)
 	}
 }
 
@@ -32,9 +32,9 @@ func (b *Bucket[V]) RemoveValueLink(value V, id uint) {
 	delete(idList, id)
 }
 
-func MakeBucket[V FieldNumberValue](value V, item types.Item) Bucket[V] {
+func MakeBucket[V FieldNumberValue](value V, itemId uint) Bucket[V] {
 	return Bucket[V]{
-		values: map[V]types.ItemList{value: {item.GetId(): struct{}{}}},
+		values: map[V]types.ItemList{value: {itemId: struct{}{}}},
 	}
 }
 

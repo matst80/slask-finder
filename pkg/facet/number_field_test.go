@@ -27,8 +27,8 @@ func makeNumberField() *IntegerField {
 	r := EmptyIntegerField(&types.BaseField{Id: 1, Name: "number", Description: "number field"})
 	for i := 0; i < total; i++ {
 		for j := 0; j < 100; j++ {
-			r.AddValueLink(i, makeItem(uint((total*100)+j)))
-			r.AddValueLink(i, makeItem(uint((total*100)+total+i+j)))
+			r.AddValueLink(i, uint((total*100)+j))
+			r.AddValueLink(i, uint((total*100)+total+i+j))
 		}
 	}
 	return &r
@@ -38,8 +38,8 @@ func makeDecimalField() *DecimalField {
 	r := EmptyDecimalField(&types.BaseField{Id: 1, Name: "number", Description: "number field"})
 	for i := 0; i < total; i++ {
 		for j := 0; j < 100; j++ {
-			r.AddValueLink(i, makeItem(uint((total*100)+j)))
-			r.AddValueLink(i, makeItem(uint((total*100)+total+i+j)))
+			r.AddValueLink(i, uint((total*100)+j))
+			r.AddValueLink(i, uint((total*100)+total+i+j))
 		}
 	}
 	return &r

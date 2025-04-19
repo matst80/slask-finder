@@ -100,7 +100,7 @@ func (f DecimalField) GetValues() []interface{} {
 	return []interface{}{f.NumberRange}
 }
 
-func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
+func (f DecimalField) AddValueLink(data interface{}, itemId uint) bool {
 	if !f.Searchable {
 		return false
 	}
@@ -112,14 +112,14 @@ func (f DecimalField) AddValueLink(data interface{}, item types.Item) bool {
 	f.Min = min(f.Min, value)
 	f.Max = max(f.Max, value)
 	f.Count++
-	f.allValues[item.GetId()] = value
+	f.allValues[itemId] = value
 
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
 	if !ok {
-		f.buckets[bucket] = MakeBucket(value, item)
+		f.buckets[bucket] = MakeBucket(value, itemId)
 	} else {
-		bucketValues.AddValueLink(value, item)
+		bucketValues.AddValueLink(value, itemId)
 	}
 	return true
 }

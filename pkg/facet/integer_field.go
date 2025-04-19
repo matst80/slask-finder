@@ -147,35 +147,35 @@ func (f IntegerField) GetValues() []interface{} {
 	return []interface{}{f.NumberRange}
 }
 
-func (f IntegerField) addValueLink(value int, item types.Item) {
+func (f IntegerField) addValueLink(value int, itemId uint) {
 	f.Min = min(f.Min, value)
 	f.Max = max(f.Max, value)
 	f.Count++
 	bucket := GetBucket(value)
 	bucketValues, ok := f.buckets[bucket]
-	f.allValues[item.GetId()] = value
+	f.allValues[itemId] = value
 	if !ok {
-		f.buckets[bucket] = MakeBucket(value, item)
+		f.buckets[bucket] = MakeBucket(value, itemId)
 	} else {
-		bucketValues.AddValueLink(value, item)
+		bucketValues.AddValueLink(value, itemId)
 	}
 }
 
-func (f IntegerField) AddValueLink(data interface{}, item types.Item) bool {
+func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
 	if !f.Searchable {
 		return false
 	}
 	switch value := data.(type) {
 	case int:
-		f.addValueLink(value, item)
+		f.addValueLink(value, itemId)
 		return true
 	case float64:
-		f.addValueLink(int(value), item)
+		f.addValueLink(int(value), itemId)
 		return true
 	case string:
 		intValue, err := strconv.Atoi(value)
 		if err == nil {
-			f.addValueLink(intValue, item)
+			f.addValueLink(intValue, itemId)
 			return true
 		}
 	}

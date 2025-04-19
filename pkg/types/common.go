@@ -95,7 +95,7 @@ type Facet interface {
 	Match(data interface{}) *ItemList
 	MatchAsync(data interface{}, results chan<- *ItemList)
 	GetBaseField() *BaseField
-	AddValueLink(value interface{}, item Item) bool
+	AddValueLink(value interface{}, id uint) bool
 	RemoveValueLink(value interface{}, id uint)
 	GetValues() []interface{}
 }

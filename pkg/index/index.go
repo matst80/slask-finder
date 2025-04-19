@@ -135,7 +135,7 @@ func (i *Index) addItemValues(item types.Item) {
 			// 	}
 			// }
 
-			if f.AddValueLink(fieldValue, item) && i.ItemFieldIds != nil && !base.HideFacet {
+			if f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil && !base.HideFacet {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
 					fids[base.Id] = struct{}{}
 				} else {
