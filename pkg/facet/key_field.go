@@ -170,14 +170,7 @@ func (f KeyField) RemoveValueLink(data interface{}, id uint) {
 		return
 	case string:
 
-		if strings.Contains(typed, "&lt;") || strings.Contains(typed, "&gt;") {
-			log.Printf("KeyField: RemoveValueLink: Invalid string %s, facetid: %d", typed, f.Id)
-			return
-		}
 		parts := strings.Split(typed, ";")
-		if len(parts) > 1 {
-			log.Printf("KeyField: RemoveValueLink: array string %s, facetid: %d", typed, f.Id)
-		}
 
 		for _, partData := range parts {
 			f.removeString(partData, id)
