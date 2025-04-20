@@ -363,12 +363,12 @@ func (i *Index) HasItem(id uint) bool {
 	return ok
 }
 
-func (i *Index) GetItemIds(ids []uint, page int, pageSize int) []uint {
-	l := len(ids)
-	start := page * pageSize
-	end := min(l, start+pageSize)
-	if start > l {
-		return ids[0:0]
-	}
-	return ids[start:end]
-}
+// func (i *Index) GetItemIds(ids []uint, page int, pageSize int) []uint {
+// 	l := len(ids)
+// 	start := page * pageSize
+// 	end := min(l, start+pageSize)
+// 	if start > l {
+// 		return ids[0:0]
+// 	}
+// 	return ids[start:end]
+// }

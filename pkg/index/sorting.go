@@ -302,10 +302,12 @@ func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
 			}
 			v := base.Priority + overrides[base.Id]
 			fieldMap[id] = v
-			yield(types.Lookup{
+			if !yield(types.Lookup{
 				Id:    id,
 				Value: v,
-			})
+			}) {
+				break
+			}
 
 		}
 	}, types.LookUpReversed))
@@ -497,13 +499,18 @@ func (s *Sorting) makeItemSortMaps() {
 	var item types.Item
 	var itm *types.Item
 	var id uint
+	var popular float64
+	var partPopular float64
 	rules := types.CurrentSettings.PopularityRules
 	for id, itm = range s.idx.Items {
 		item = *itm
+		if item.IsDeleted() {
+			continue
+		}
 		j += 0.0000000000001
-		popular := types.CollectPopularity(item, *rules...) + (overrides[id] * 100)
+		popular = types.CollectPopularity(item, *rules...) + (overrides[id] * 100)
 
-		partPopular := popular / 10000.0
+		partPopular = popular / 10000.0
 		if item.GetLastUpdated() == 0 {
 			updatedMap[i] = types.Lookup{Id: id, Value: j}
 		} else {
@@ -520,10 +527,15 @@ func (s *Sorting) makeItemSortMaps() {
 		popularSearchMap[id] = popular / 100.0
 		i++
 	}
+
 	// if s.idx != nil {
 	// 	s.idx.SetBaseSortMap(popularSearchMap)
 	// }
 	go func() {
+		popularMap = popularMap[:i]
+		priceMap = priceMap[:i]
+		updatedMap = updatedMap[:i]
+		createdMap = createdMap[:i]
 		s.muOverride.Lock()
 		defer s.muOverride.Unlock()
 		s.mu.Lock()
