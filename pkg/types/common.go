@@ -1,16 +1,18 @@
 package types
 
 type BaseField struct {
-	Id            uint    `json:"id"`
-	Name          string  `json:"name"`
-	Description   string  `json:"description,omitempty"`
-	Priority      float64 `json:"prio,omitempty"`
-	Type          string  `json:"valueType,omitempty"`
-	LinkedId      uint    `json:"linkedId,omitempty"`
-	ValueSorting  uint    `json:"sorting,omitempty"`
-	Searchable    bool    `json:"searchable,omitempty"`
-	HideFacet     bool    `json:"hide,omitempty"`
-	CategoryLevel int     `json:"categoryLevel,omitempty"`
+	Id               uint    `json:"id"`
+	Name             string  `json:"name"`
+	Description      string  `json:"description,omitempty"`
+	Priority         float64 `json:"prio,omitempty"`
+	Type             string  `json:"valueType,omitempty"`
+	LinkedId         uint    `json:"linkedId,omitempty"`
+	ValueSorting     uint    `json:"sorting,omitempty"`
+	Searchable       bool    `json:"searchable,omitempty"`
+	HideFacet        bool    `json:"hide,omitempty"`
+	CategoryLevel    int     `json:"categoryLevel,omitempty"`
+	GroupId          uint    `json:"groupId,omitempty"`
+	KeySpecification bool    `json:"isKey,omitempty"`
 	// IgnoreCategoryIfSearched bool    `json:"-"`
 	// IgnoreIfInSearch         bool    `json:"-"`
 }

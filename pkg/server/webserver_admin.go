@@ -531,6 +531,11 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 				if slices.Index(field.Purpose, "UL Benchmarking") != -1 {
 					base.Type = "fps"
 				}
+				if slices.Index(field.Purpose, "Key Specification") == -1 {
+					base.KeySpecification = false
+				} else {
+					base.KeySpecification = true
+				}
 			}
 			if field.ItemCount < 5 {
 				log.Printf("Useless index field %s %d, count: %d", field.Name, field.Id, field.ItemCount)
