@@ -230,9 +230,9 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				if len(*match.Items) > 0 {
 					if len(*res) > MERGE_LIMIT && res.HasIntersection(match.Items) {
 						res.Intersect(*match.Items)
-					} // } else {
-					// 	res.Merge(match.Items)
-					// }
+					} else {
+						res.Merge(match.Items)
+					}
 					//first = false
 					found = true
 					// } else if res.HasIntersection(match.Items) {
@@ -241,7 +241,7 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 					// 	break
 					// }
 				}
-				if j > 20 {
+				if j > 64 {
 					break
 				}
 			}
@@ -253,10 +253,9 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				if ids, ok := i.TokenMap[match]; ok {
 					if len(*res) > MERGE_LIMIT && res.HasIntersection(ids) {
 						res.Intersect(*ids)
+					} else {
+						res.Merge(ids)
 					}
-					// else {
-					// 	res.Merge(ids)
-					// }
 					//if first {
 					//res.Merge(i.TokenMap[match])
 					//first = false
