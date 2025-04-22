@@ -692,7 +692,7 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, r, true, "0")
+	defaultHeaders(w, r, true, "5")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(types.CurrentSettings.FieldsToIndex)
 	if err != nil {
