@@ -499,6 +499,11 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 				if base != nil {
 					base.Name = field.Name
 					base.Description = field.Description
+					if slices.Index(field.Purpose, "Key Specification") == -1 {
+						base.KeySpecification = false
+					} else {
+						base.KeySpecification = true
+					}
 				}
 			} else {
 				log.Printf("Field %s not found in index", key)

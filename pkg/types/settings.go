@@ -6,7 +6,7 @@ type Settings struct {
 	mu              sync.RWMutex
 	FieldsToIndex   []uint               `json:"fieldsToIndex"`
 	FacetRelations  []FacetRelationGroup `json:"facetRelations"`
-	PopularityRules *ItemPopularityRules `json:"popularityRulesUpdated"`
+	PopularityRules *ItemPopularityRules `json:"popularityRules"`
 	FacetGroups     []FacetGroup         `json:"facetGroups"`
 }
 
