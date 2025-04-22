@@ -7,6 +7,13 @@ type Settings struct {
 	FieldsToIndex   []uint               `json:"fieldsToIndex"`
 	FacetRelations  []FacetRelationGroup `json:"facetRelations"`
 	PopularityRules *ItemPopularityRules `json:"popularityRules"`
+	FacetGroups     []FacetGroup         `json:"facetGroups"`
+}
+
+type FacetGroup struct {
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
 }
 
 type ItemRequirement struct {
@@ -52,6 +59,16 @@ const (
 
 var CurrentSettings = &Settings{
 	mu: sync.RWMutex{},
+	FacetGroups: []FacetGroup{
+		{
+			Id:   CPU_GROUP,
+			Name: "Processor",
+		},
+		{
+			Id:   MB_GROUP,
+			Name: "Moderkort",
+		},
+	},
 	FieldsToIndex: []uint{
 		2,
 		31158,
