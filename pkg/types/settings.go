@@ -76,7 +76,7 @@ var CurrentSettings = &Settings{
 		//13,
 		30290,
 		//11,
-		//10,
+		10,
 	},
 	FacetRelations: []FacetRelationGroup{
 		// CPU

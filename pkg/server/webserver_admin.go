@@ -691,6 +691,28 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings.FieldsToIndex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *WebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	if r.Method == "POST" {
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FieldsToIndex)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ws.Db.SaveSettings()
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
@@ -769,6 +791,8 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("DELETE /facets/{id}", ws.AuthMiddleware(ws.DeleteFacet))
 	srv.HandleFunc("GET /facets", ws.GetFacetList)
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
+	srv.HandleFunc("GET /index/facets", ws.AuthMiddleware(ws.GetSearchIndexedFacets))
+	srv.HandleFunc("POST /index/facets", ws.AuthMiddleware(ws.SetSearchIndexedFacets))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
