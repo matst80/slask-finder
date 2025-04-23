@@ -204,7 +204,7 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 // TODO maybe two itemlists, one for exact and one for fuzzy
 
-const MERGE_LIMIT = 40
+const MERGE_LIMIT = 80
 
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}

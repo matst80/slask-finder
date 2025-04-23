@@ -791,6 +791,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/find-related", JsonHandler(ws.Tracking, ws.FindRelated))
 	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
+	srv.HandleFunc("GET /settings", ws.GetSettings)
 	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))
 	srv.HandleFunc("/reload-settings", JsonHandler(ws.Tracking, ws.ReloadSettings))
 	srv.HandleFunc("GET /relation-groups", ws.HandleRelationGroups)
