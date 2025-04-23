@@ -3,11 +3,12 @@ package types
 import "sync"
 
 type Settings struct {
-	mu              sync.RWMutex
-	FieldsToIndex   []uint               `json:"fieldsToIndex"`
-	FacetRelations  []FacetRelationGroup `json:"facetRelations"`
-	PopularityRules *ItemPopularityRules `json:"popularityRules"`
-	FacetGroups     []FacetGroup         `json:"facetGroups"`
+	mu               sync.RWMutex
+	SearchMergeLimit int                  `json:"searchMergeLimit"`
+	FieldsToIndex    []uint               `json:"fieldsToIndex"`
+	FacetRelations   []FacetRelationGroup `json:"facetRelations"`
+	PopularityRules  *ItemPopularityRules `json:"popularityRules"`
+	FacetGroups      []FacetGroup         `json:"facetGroups"`
 }
 
 type FacetGroup struct {
@@ -69,6 +70,7 @@ var CurrentSettings = &Settings{
 			Name: "Moderkort",
 		},
 	},
+	SearchMergeLimit: 10,
 	FieldsToIndex: []uint{
 		2,
 		31158,

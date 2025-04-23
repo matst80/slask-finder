@@ -204,11 +204,9 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 // TODO maybe two itemlists, one for exact and one for fuzzy
 
-const MERGE_LIMIT = 1
-
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}
-
+	mergeLimit := types.CurrentSettings.SearchMergeLimit
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
@@ -225,11 +223,11 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 		}
 		foundTrie := found
 
-		if !found || len(*res) <= MERGE_LIMIT {
+		if !found || len(*res) <= mergeLimit {
 
 			for j, match := range i.Trie.FindMatches(token) {
 				if len(*match.Items) > 0 {
-					if found || (len(*res) > MERGE_LIMIT && res.HasIntersection(match.Items)) {
+					if found || (len(*res) > mergeLimit && res.HasIntersection(match.Items)) {
 						res.Intersect(*match.Items)
 					} else {
 						res.Merge(match.Items)
@@ -248,12 +246,12 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				}
 			}
 		}
-		if !foundTrie || len(*res) <= MERGE_LIMIT {
+		if !foundTrie || len(*res) <= mergeLimit {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if ids, ok := i.TokenMap[match]; ok {
-					if found || (len(*res) > MERGE_LIMIT && res.HasIntersection(ids)) {
+					if found || (len(*res) > mergeLimit && res.HasIntersection(ids)) {
 						res.Intersect(*ids)
 					} else {
 						res.Merge(ids)
