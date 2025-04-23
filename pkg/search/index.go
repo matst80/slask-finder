@@ -223,6 +223,7 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				found = false
 			}
 		}
+		foundTrie := found
 
 		if !found || len(*res) <= MERGE_LIMIT {
 
@@ -233,8 +234,9 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 					} else {
 						res.Merge(match.Items)
 					}
+					foundTrie = true
 					//first = false
-					found = true
+
 					// } else if res.HasIntersection(match.Items) {
 					// 	res.Intersect(*match.Items)
 					// 	found = true
@@ -246,7 +248,7 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				}
 			}
 		}
-		if !found || len(*res) <= MERGE_LIMIT {
+		if !foundTrie || len(*res) <= MERGE_LIMIT {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
