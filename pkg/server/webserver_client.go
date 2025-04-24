@@ -199,7 +199,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
-		End:       end,
+		End:       min(l, end),
 		TotalHits: l,
 		Sort:      sr.Sort,
 	})
