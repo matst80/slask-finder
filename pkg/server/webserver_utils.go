@@ -268,13 +268,13 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 	c <- modifyResult(ret)
 }
 
-func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.Filters, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 	var base *types.BaseField
-	for _, s := range filters.StringFilter {
+	for _, s := range sr.StringFilter {
 		if f, ok := ws.Index.Facets[s.Id]; ok {
 			base = f.GetBaseField()
 
-			if !base.HideFacet {
+			if !base.HideFacet && !sr.IsIgnored(s.Id) {
 				wg.Add(1)
 
 				go func(otherFilters *types.Filters) {
@@ -289,12 +289,12 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.F
 						}
 						return facet
 					})
-				}(filters.WithOut(s.Id, base.CategoryLevel > 0))
+				}(sr.WithOut(s.Id, base.CategoryLevel > 0))
 			}
 		}
 	}
-	for _, r := range filters.RangeFilter {
-		if f, ok := ws.Index.Facets[r.Id]; ok {
+	for _, r := range sr.RangeFilter {
+		if f, ok := ws.Index.Facets[r.Id]; ok && !sr.IsIgnored(r.Id) {
 			wg.Add(1)
 			go func(otherFilters *types.Filters) {
 				matchIds := make(chan *types.ItemList)
@@ -306,7 +306,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, filters *types.F
 					}
 					return facet
 				})
-			}(filters.WithOut(r.Id, false))
+			}(sr.WithOut(r.Id, false))
 		}
 	}
 }

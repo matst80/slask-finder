@@ -104,7 +104,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 
 	ids := <-matchIds
 	ws.getOtherFacets(ids, sr, ch, wg)
-	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
+	ws.getSearchedFacets(baseIds, sr, ch, wg)
 
 	// todo optimize
 	go func() {
