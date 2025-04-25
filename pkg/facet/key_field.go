@@ -46,7 +46,7 @@ func (f *KeyField) match(value string) *types.ItemList {
 		return &ids
 	}
 
-	return nil
+	return &types.ItemList{}
 }
 
 func (f KeyField) Match(input interface{}) *types.ItemList {

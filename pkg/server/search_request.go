@@ -3,8 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -68,7 +70,7 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	if err != nil {
 		return err
 	}
-	result.Sanitize()
+
 	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
@@ -96,6 +98,8 @@ func facetQueryFromRequestQuery(query url.Values, result *types.FacetRequest) er
 
 func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) error {
 	var err error
+	key := map[uint]types.StringFilter{}
+	rng := map[uint]types.RangeFilter{}
 	for _, v := range query["str"] {
 		parts := strings.Split(v, ":")
 		if len(parts) != 2 {
@@ -107,15 +111,15 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 			continue
 		}
 		if strings.Contains(parts[1], "||") {
-			result.StringFilter = append(result.StringFilter, types.StringFilter{
+			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
 				Value: strings.Split(parts[1], "||"),
-			})
+			}
 		} else {
-			result.StringFilter = append(result.StringFilter, types.StringFilter{
+			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
 				Value: parts[1],
-			})
+			}
 		}
 	}
 
@@ -128,12 +132,14 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 		if err != nil {
 			continue
 		}
-		result.RangeFilter = append(result.RangeFilter, types.RangeFilter{
+		rng[id] = types.RangeFilter{
 			Id:  id,
 			Min: _min,
 			Max: _max,
-		})
+		}
 	}
+	result.RangeFilter = slices.Collect(maps.Values(rng))
+	result.StringFilter = slices.Collect(maps.Values(key))
 	result.Sanitize()
 	return err
 }

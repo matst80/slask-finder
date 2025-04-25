@@ -3,6 +3,7 @@ package index
 import (
 	"cmp"
 	"fmt"
+	"log"
 	"slices"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -30,11 +31,10 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 				level: level,
 			})
 
-			if level > 0 {
-				if level > maxLevel {
-					maxLevel = level
-				}
+			if level > maxLevel {
+				maxLevel = level
 			}
+
 		}
 	}
 
@@ -48,6 +48,7 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
+	log.Printf("Search %+v", search)
 
 	parseKeys := func(value interface{}, facet types.Facet) {
 		results <- facet.Match(value)
@@ -57,13 +58,16 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	}
 
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
+		// log.Printf("key facet %s, value %v", fld.GetBaseField().Name, fld.Value)
 		cnt++
 		go parseKeys(fld.Value, fld.Facet)
+
 	}
 
 	for _, fld := range search.RangeFilter {
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
 			cnt++
+			// log.Printf("range facet %s, value %v", f.GetBaseField().Name, fld)
 			go parseRange(fld, f)
 		}
 	}
