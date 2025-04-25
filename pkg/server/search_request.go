@@ -144,8 +144,9 @@ func makeBaseFacetRequest() *types.FacetRequest {
 			StringFilter: []types.StringFilter{},
 			RangeFilter:  []types.RangeFilter{},
 		},
-		Stock: []string{},
-		Query: "",
+		IgnoreFacets: []uint{},
+		Stock:        []string{},
+		Query:        "",
 	}
 }
 

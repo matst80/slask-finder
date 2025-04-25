@@ -21,6 +21,7 @@ func TestParseQueryValues(t *testing.T) {
 		Page:     0,
 		PageSize: 25,
 		FacetRequest: &types.FacetRequest{
+			IgnoreFacets: []uint{},
 			Filters: &types.Filters{
 				StringFilter: []types.StringFilter{},
 				RangeFilter:  []types.RangeFilter{},
