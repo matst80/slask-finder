@@ -141,40 +141,40 @@ func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
-	if ws.Sorting == nil {
-		log.Printf("Sorting not initialized in handleFieldSort")
-		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
-		return
-	}
-	if r.Method == "POST" {
-		defaultHeaders(w, r, true, "0")
-		sort := index.StaticPositions{}
-		err := json.NewDecoder(r.Body).Decode(&sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		err = ws.Sorting.SetStaticPositions(sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+// func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
+// 	if ws.Sorting == nil {
+// 		log.Printf("Sorting not initialized in handleFieldSort")
+// 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	if r.Method == "POST" {
+// 		defaultHeaders(w, r, true, "0")
+// 		sort := index.StaticPositions{}
+// 		err := json.NewDecoder(r.Body).Decode(&sort)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 			return
+// 		}
+// 		err = ws.Sorting.SetStaticPositions(sort)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 		}
+// 		w.WriteHeader(http.StatusOK)
+// 		return
+// 	}
 
-	sort := ws.Sorting.GetStaticPositions()
-	if sort == nil {
-		http.Error(w, "Sort not found", http.StatusNotFound)
-		return
-	}
-	defaultHeaders(w, r, true, "120")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(sort)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+// 	sort := ws.Sorting.GetStaticPositions()
+// 	if sort == nil {
+// 		http.Error(w, "Sort not found", http.StatusNotFound)
+// 		return
+// 	}
+// 	defaultHeaders(w, r, true, "120")
+// 	w.WriteHeader(http.StatusOK)
+// 	err := json.NewEncoder(w).Encode(sort)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
 
 func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	items := AddItemRequest{}

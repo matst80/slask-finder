@@ -30,8 +30,8 @@ type Sorting struct {
 	sessionOverrides      map[uint]*SortOverride
 	sessionFieldOverrides map[uint]*SortOverride
 	sortMethods           map[string]*types.ByValue
-	staticPositions       *StaticPositions
-	FieldSort             *types.ByValue
+	//staticPositions       *StaticPositions
+	FieldSort *types.ByValue
 	//popularityRules       *types.ItemPopularityRules
 	hasItemChanges bool
 }
@@ -72,8 +72,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 		sessionOverrides:      make(map[uint]*SortOverride),
 		sessionFieldOverrides: make(map[uint]*SortOverride),
 		fieldOverride:         &SortOverride{},
-		staticPositions:       &StaticPositions{},
-		popularMap:            &SortOverride{},
+		//staticPositions:       &StaticPositions{},
+		popularMap: &SortOverride{},
 
 		idx: nil,
 	}
@@ -83,8 +83,8 @@ func NewSorting(addr, password string, db int) *Sorting {
 }
 
 func (s *Sorting) GetSessionData(id uint) (*SortOverride, *SortOverride) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	itemData, ok := s.sessionOverrides[id]
 	fieldData, fieldOk := s.sessionFieldOverrides[id]
 	if !ok {
@@ -154,7 +154,7 @@ func ListenForSortOverride(rdb *redis.Client, channel string, key string, fn fun
 				fn(sortOverride)
 			}
 		}
-	}(rdb.Subscribe(context.Background(), channel))
+	}(rdb.Subscribe(ctx, channel))
 }
 
 func (s *Sorting) SetSessionItemOverride(sessionId int, sortOverride *SortOverride) {
@@ -172,7 +172,7 @@ func (s *Sorting) SetSessionFieldOverride(sessionId int, sortOverride *SortOverr
 
 func (s *Sorting) StartListeningForChanges() {
 	rdb := s.client
-	ctx := context.Background()
+	//ctx := context.Background()
 
 	go ListenForSessionMessage(rdb, REDIS_SESSION_POPULAR_CHANGE, s.SetSessionItemOverride)
 	go ListenForSessionMessage(rdb, REDIS_SESSION_FIELD_CHANGE, s.SetSessionFieldOverride)
@@ -180,28 +180,28 @@ func (s *Sorting) StartListeningForChanges() {
 	go ListenForSortOverride(rdb, REDIS_POPULAR_CHANGE, REDIS_POPULAR_KEY, s.addPopularOverride)
 	go ListenForSortOverride(rdb, REDIS_FIELD_CHANGE, REDIS_FIELD_KEY, s.setFieldSortOverride)
 
-	go func(sub *redis.PubSub) {
-		for {
-			_, err := sub.ReceiveMessage(ctx)
-			if err != nil {
+	// go func(sub *redis.PubSub) {
+	// 	for {
+	// 		_, err := sub.ReceiveMessage(ctx)
+	// 		if err != nil {
 
-				//fmt.Println("Received static positions change", msg.Channel, msg.Payload)
-				data, err := rdb.Get(ctx, REDIS_STATIC_KEY).Result()
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				staticPositions := StaticPositions{}
-				err = staticPositions.FromString(data)
-				if err != nil {
-					fmt.Println(err)
-					continue
-				}
-				s.setStaticPositions(staticPositions)
-			}
-		}
+	// 			//fmt.Println("Received static positions change", msg.Channel, msg.Payload)
+	// 			data, err := rdb.Get(ctx, REDIS_STATIC_KEY).Result()
+	// 			if err != nil {
+	// 				fmt.Println(err)
+	// 				continue
+	// 			}
+	// 			staticPositions := StaticPositions{}
+	// 			err = staticPositions.FromString(data)
+	// 			if err != nil {
+	// 				fmt.Println(err)
+	// 				continue
+	// 			}
+	// 			s.setStaticPositions(staticPositions)
+	// 		}
+	// 	}
 
-	}(rdb.Subscribe(ctx, REDIS_STATIC_CHANGE))
+	// }(rdb.Subscribe(ctx, REDIS_STATIC_CHANGE))
 }
 
 func (s *Sorting) IndexChanged(idx *Index) {
@@ -209,29 +209,29 @@ func (s *Sorting) IndexChanged(idx *Index) {
 	s.hasItemChanges = true
 }
 
-func (s *Sorting) GetStaticPositions() StaticPositions {
-	s.muStaticPos.RLock()
-	defer s.muStaticPos.RUnlock()
-	return *s.staticPositions
-}
+// func (s *Sorting) GetStaticPositions() StaticPositions {
+// 	s.muStaticPos.RLock()
+// 	defer s.muStaticPos.RUnlock()
+// 	return *s.staticPositions
+// }
 
-func (s *Sorting) SetStaticPositions(positions StaticPositions) error {
-	s.setStaticPositions(positions)
-	ctx := context.Background()
-	data := positions.ToString()
-	s.client.Set(ctx, REDIS_STATIC_KEY, data, 0)
-	_, err := s.client.Publish(ctx, REDIS_STATIC_CHANGE, "external").Result()
-	return err
-}
+// func (s *Sorting) SetStaticPositions(positions StaticPositions) error {
+// 	s.setStaticPositions(positions)
+// 	ctx := context.Background()
+// 	data := positions.ToString()
+// 	s.client.Set(ctx, REDIS_STATIC_KEY, data, 0)
+// 	_, err := s.client.Publish(ctx, REDIS_STATIC_CHANGE, "external").Result()
+// 	return err
+// }
 
-func (s *Sorting) setStaticPositions(positions StaticPositions) {
-	s.muStaticPos.Lock()
-	defer s.muStaticPos.Unlock()
-	s.staticPositions = &positions
-}
+// func (s *Sorting) setStaticPositions(positions StaticPositions) {
+// 	s.muStaticPos.Lock()
+// 	defer s.muStaticPos.Unlock()
+// 	s.staticPositions = &positions
+// }
 
 func (s *Sorting) InitializeWithIndex(idx *Index) {
-	ctx := context.Background()
+	// ctx := context.Background()
 	s.idx = idx
 
 	popularOverride, err := GetOverrideFromKey(s.client, REDIS_POPULAR_KEY)
@@ -248,14 +248,14 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 		s.muOverride.Unlock()
 	}
 
-	staticData, err := s.client.Get(ctx, REDIS_STATIC_KEY).Result()
-	if err == nil {
-		staticPositions := StaticPositions{}
-		err = staticPositions.FromString(staticData)
-		if err == nil {
-			s.setStaticPositions(staticPositions)
-		}
-	}
+	// staticData, err := s.client.Get(ctx, REDIS_STATIC_KEY).Result()
+	// if err == nil {
+	// 	staticPositions := StaticPositions{}
+	// 	err = staticPositions.FromString(staticData)
+	// 	if err == nil {
+	// 		s.setStaticPositions(staticPositions)
+	// 	}
+	// }
 	s.makeFieldSort(idx, *s.fieldOverride)
 	s.makeItemSortMaps()
 	s.hasItemChanges = false
