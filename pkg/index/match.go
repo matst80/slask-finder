@@ -3,7 +3,6 @@ package index
 import (
 	"cmp"
 	"fmt"
-	"log"
 	"slices"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -48,7 +47,7 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
-	log.Printf("Search %+v", search)
+	// log.Printf("Search %+v", search)
 
 	parseKeys := func(value interface{}, facet types.Facet) {
 		results <- facet.Match(value)

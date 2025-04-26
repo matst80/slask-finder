@@ -1,7 +1,6 @@
 package search
 
 import (
-	"log"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -223,7 +222,7 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			}
 		}
 		foundTrie := found
-		log.Printf("word: %s, found: %v, last: %v", token, found, last)
+		//log.Printf("word: %s, found: %v, last: %v", token, found, last)
 		if !found {
 			for _, match := range i.Trie.FindMatches(token) {
 				foundTrie = true
