@@ -240,7 +240,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	words := strings.Split(query, " ")
 	results := types.ItemList{}
 	lastWord := words[len(words)-1]
-	hasMoreWords := len(words) > 1
+
 	other := words[:len(words)-1]
 	go noSuggests.Inc()
 
@@ -248,12 +248,10 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	sortChan := make(chan *types.ByValue)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
-	var docResult *types.ItemList
-	if hasMoreWords {
-		docResult = ws.Index.Search.Search(query)
-		types.Merge(results, *docResult)
-		//results = *docResult
-	}
+
+	docResult := ws.Index.Search.Search(query)
+	types.Merge(results, *docResult)
+	//results = *docResult
 
 	go ws.Index.Search.FindTrieMatchesForWord(lastWord, wordMatchesChan)
 
