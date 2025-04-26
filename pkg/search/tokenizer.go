@@ -121,13 +121,13 @@ func NormalizeWord(text string) Token {
 // 	return res
 // }
 
-func SplitWords(text string, onWord func(word string, count int) bool) {
+func SplitWords(text string, onWord func(word string, count int, last bool) bool) {
 	count := 0
 	lastSplit := 0
 	for idx, chr := range text {
 		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' || chr == '/' {
 			if idx > lastSplit {
-				if !onWord(text[lastSplit:idx], count) {
+				if !onWord(text[lastSplit:idx], count, false) {
 					return
 				}
 				count++
@@ -137,15 +137,15 @@ func SplitWords(text string, onWord func(word string, count int) bool) {
 		}
 	}
 	if lastSplit < len(text) {
-		onWord(text[lastSplit:], count)
+		onWord(text[lastSplit:], count, true)
 	}
 }
 
-func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original string, count int) bool) {
+func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original string, count int, last bool) bool) {
 	//parts := make([]Token, 0, t.MaxTokens)
 	tokenNumber := 0
 	found := map[Token]struct{}{}
-	SplitWords(text, func(word string, count int) bool {
+	SplitWords(text, func(word string, count int, last bool) bool {
 
 		normalized := NormalizeWord(word)
 		if len(normalized) == 0 {
@@ -153,7 +153,7 @@ func (t *Tokenizer) Tokenize(text string, onToken func(token Token, original str
 		}
 		_, hasWord := found[Token(word)]
 		if !hasWord {
-			onToken(normalized, word, tokenNumber)
+			onToken(normalized, word, tokenNumber, last)
 			tokenNumber++
 		}
 		found[normalized] = struct{}{}

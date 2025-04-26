@@ -43,7 +43,7 @@ func (i *FreeTextIndex) CreateDocumentUnsafe(id uint, text ...string) {
 	//i.tokenizer.MakeDocument(id, text...)
 
 	for j, property := range text {
-		i.tokenizer.Tokenize(property, func(token Token, original string, _ int) bool {
+		i.tokenizer.Tokenize(property, func(token Token, original string, _ int, last bool) bool {
 			if j == 0 {
 				i.Trie.Insert(token, original, id)
 			}
@@ -210,7 +210,7 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
-	i.tokenizer.Tokenize(query, func(token Token, original string, count int) bool {
+	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
 		ids, found := i.TokenMap[token]
 		if found {
 			if count == 0 {
@@ -223,11 +223,11 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 		}
 		foundTrie := found
 
-		if !found || len(*res) <= mergeLimit {
+		if !found || len(*res) <= mergeLimit || last {
 
 			for j, match := range i.Trie.FindMatches(token) {
 				if len(*match.Items) > 0 {
-					if found || (len(*res) > mergeLimit && res.HasIntersection(match.Items)) {
+					if !last || found || (len(*res) > mergeLimit && res.HasIntersection(match.Items)) {
 						res.Intersect(*match.Items)
 					} else {
 						res.Merge(match.Items)
