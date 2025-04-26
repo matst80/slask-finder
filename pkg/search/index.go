@@ -1,6 +1,7 @@
 package search
 
 import (
+	"log"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -222,47 +223,31 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			}
 		}
 		foundTrie := found
+		log.Printf("word: %s, found: %v, last: %v", token, found, last)
+		if !found || last {
 
-		if !found || len(*res) <= mergeLimit || last {
-
-			for j, match := range i.Trie.FindMatches(token) {
-				if len(*match.Items) > 0 {
-					if !last || found || (len(*res) > mergeLimit && res.HasIntersection(match.Items)) {
-						res.Intersect(*match.Items)
-					} else {
-						res.Merge(match.Items)
-					}
-					foundTrie = true
-					//first = false
-
-					// } else if res.HasIntersection(match.Items) {
-					// 	res.Intersect(*match.Items)
-					// 	found = true
-					// 	break
-					// }
+			for _, match := range i.Trie.FindMatches(token) {
+				foundTrie = true
+				if last {
+					res.Merge(match.Items)
+					continue
 				}
-				if j > 64 {
-					break
+				if found && (len(*res) > mergeLimit && res.HasIntersection(match.Items)) {
+					res.Intersect(*match.Items)
+				} else {
+					res.Merge(match.Items)
 				}
+
 			}
 		}
-		if !foundTrie || len(*res) <= mergeLimit {
+		if !foundTrie {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if ids, ok := i.TokenMap[match]; ok {
-					if found || (len(*res) > mergeLimit && res.HasIntersection(ids)) {
-						res.Intersect(*ids)
-					} else {
-						res.Merge(ids)
-					}
-					//if first {
-					//res.Merge(i.TokenMap[match])
-					//first = false
-					// } else if res.HasIntersection(i.TokenMap[match]) {
-					// 	res.Intersect(*i.TokenMap[match])
-					// 	break
-					// }
+
+					res.Merge(ids)
+
 				}
 			}
 		}
