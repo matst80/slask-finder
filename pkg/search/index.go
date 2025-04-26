@@ -207,7 +207,7 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}
-	mergeLimit := types.CurrentSettings.SearchMergeLimit
+	//mergeLimit := types.CurrentSettings.SearchMergeLimit
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
@@ -224,20 +224,10 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 		}
 		foundTrie := found
 		log.Printf("word: %s, found: %v, last: %v", token, found, last)
-		if !found || last {
-
+		if !found {
 			for _, match := range i.Trie.FindMatches(token) {
 				foundTrie = true
-				if last {
-					res.Merge(match.Items)
-					continue
-				}
-				if found && (len(*res) > mergeLimit && res.HasIntersection(match.Items)) {
-					res.Intersect(*match.Items)
-				} else {
-					res.Merge(match.Items)
-				}
-
+				res.Merge(match.Items)
 			}
 		}
 		if !foundTrie {
@@ -245,9 +235,7 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if ids, ok := i.TokenMap[match]; ok {
-
 					res.Merge(ids)
-
 				}
 			}
 		}
