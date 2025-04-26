@@ -273,7 +273,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 			if !hasResults {
 				suggestResult.Hits = totalHits
 				err = enc.Encode(suggestResult)
-				results.Merge(s.Items)
+				//results.Merge(s.Items)
 			} else if results.HasIntersection(s.Items) {
 				suggestResult.Hits = results.IntersectionLen(*s.Items)
 				err = enc.Encode(suggestResult)
