@@ -173,6 +173,9 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 
 	for item := range fn {
 		idx++
+		if idx <= start {
+			continue
+		}
 		err = enc.Encode(item)
 		if err != nil {
 			break
