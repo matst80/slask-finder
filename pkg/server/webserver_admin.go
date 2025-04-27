@@ -730,6 +730,23 @@ func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request
 	}
 }
 
+func (ws *WebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetGroups)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		ws.Db.SaveSettings()
+	}
+	defaultHeaders(w, r, true, "1200")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetGroups)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) GetFacetList(w http.ResponseWriter, r *http.Request) {
 	publicHeaders(w, r, true, "10")
 
@@ -862,6 +879,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/relation-groups", ws.HandleRelationGroups)
+	srv.HandleFunc("/facet-groups", ws.HandleFacetGroups)
 	//srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
 	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
