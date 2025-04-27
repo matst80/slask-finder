@@ -746,6 +746,64 @@ func (ws *WebServer) GetFacetList(w http.ResponseWriter, r *http.Request) {
 	enc.Encode(res)
 }
 
+type FacetGroupingData struct {
+	GroupId   uint   `json:"group_id"`
+	GroupName string `json:"group_name"`
+	FacetIds  []uint `json:"facet_ids"`
+}
+
+func (ws *WebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
+	data := FacetGroupingData{}
+	json.NewDecoder(r.Body).Decode(&data)
+	if data.GroupId == 0 {
+		http.Error(w, "Group ID is required", http.StatusBadRequest)
+		return
+	}
+	changes := make([]types.FieldChange, 0)
+
+	types.CurrentSettings.Lock()
+	defer types.CurrentSettings.Unlock()
+	idx := slices.IndexFunc(types.CurrentSettings.FacetGroups, func(g types.FacetGroup) bool {
+		return g.Id == data.GroupId
+	})
+	if idx == -1 {
+		if len(data.GroupName) == 0 {
+			http.Error(w, "Group name is required", http.StatusBadRequest)
+			return
+		}
+		types.CurrentSettings.FacetGroups = append(types.CurrentSettings.FacetGroups, types.FacetGroup{
+			Id:   data.GroupId,
+			Name: data.GroupName,
+		})
+	}
+
+	for _, id := range data.FacetIds {
+		facet, ok := ws.Index.Facets[id]
+		if !ok {
+			continue
+		}
+		base := facet.GetBaseField()
+		if base != nil && base.GroupId != data.GroupId {
+			base.GroupId = data.GroupId
+
+			changes = append(changes, types.FieldChange{
+				Action:    types.UPDATE_FIELD,
+				BaseField: base,
+				FieldType: facet.GetType(),
+			})
+		}
+	}
+
+	if ws.Index.ChangeHandler != nil {
+		ws.Index.ChangeHandler.FieldsChanged(changes)
+	}
+	err := ws.Db.SaveFacets(ws.Index.Facets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -797,6 +855,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 	srv.HandleFunc("GET /settings", ws.GetSettings)
+	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
