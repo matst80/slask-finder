@@ -125,7 +125,6 @@ func (f IntegerField) Match(input interface{}) *types.ItemList {
 
 		if minOk && maxOk {
 			return f.MatchesRange(int(min), int(max))
-
 		}
 	}
 
@@ -133,7 +132,18 @@ func (f IntegerField) Match(input interface{}) *types.ItemList {
 }
 
 func (f *IntegerField) updateBaseField(field *types.BaseField) {
-	f.BaseField = field
+	f.BaseField.Id = field.Id
+	f.BaseField.Name = field.Name
+	f.BaseField.Description = field.Description
+	f.BaseField.Priority = field.Priority
+	f.BaseField.Type = field.Type
+	f.BaseField.LinkedId = field.LinkedId
+	f.BaseField.ValueSorting = field.ValueSorting
+	f.BaseField.Searchable = field.Searchable
+	f.BaseField.HideFacet = field.HideFacet
+	f.BaseField.CategoryLevel = field.CategoryLevel
+	f.BaseField.GroupId = field.GroupId
+	f.BaseField.KeySpecification = field.KeySpecification
 }
 
 func (f IntegerField) UpdateBaseField(field *types.BaseField) {

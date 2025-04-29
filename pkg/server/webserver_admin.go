@@ -646,6 +646,7 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	current.Priority = data.Priority
 	current.CategoryLevel = data.CategoryLevel
 	current.HideFacet = data.HideFacet
+	current.GroupId = data.GroupId
 	current.LinkedId = data.LinkedId
 	current.Searchable = data.Searchable
 	current.Type = data.Type
