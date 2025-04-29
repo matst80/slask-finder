@@ -126,9 +126,9 @@ const (
 )
 
 type FieldChange struct {
+	*BaseField
 	Action    FieldChangeAction `json:"action"`
 	FieldType uint              `json:"fieldType"`
-	*BaseField
 }
 
 func (s *Settings) Lock() {

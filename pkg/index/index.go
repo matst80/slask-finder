@@ -192,21 +192,32 @@ func (i *Index) removeItemValues(item types.Item) {
 func (i *Index) UpdateFields(changes []types.FieldChange) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	log.Printf("Updating fields %d", len(changes))
 	for _, change := range changes {
 		if change.Action == types.ADD_FIELD {
 			log.Println("not implemented add field")
 		} else {
 			if f, ok := i.Facets[change.Id]; ok {
 				if change.Action == types.UPDATE_FIELD {
-					targetBase := f.GetBaseField()
-					targetBase.CategoryLevel = change.CategoryLevel
-					targetBase.Type = change.Type
-					targetBase.HideFacet = change.HideFacet
-					targetBase.Priority = change.Priority
-					targetBase.Name = change.Name
-					targetBase.Searchable = change.Searchable
-					targetBase.LinkedId = change.LinkedId
-					targetBase.ValueSorting = change.ValueSorting
+					switch field := f.(type) {
+					case *facet.KeyField:
+						field.BaseField = change.BaseField
+					case *facet.DecimalField:
+						field.BaseField = change.BaseField
+					case *facet.IntegerField:
+						field.BaseField = change.BaseField
+					default:
+						log.Printf("Unknown field type %T", field)
+					}
+					// targetBase := f.GetBaseField()
+					// targetBase.CategoryLevel = change.CategoryLevel
+					// targetBase.Type = change.Type
+					// targetBase.HideFacet = change.HideFacet
+					// targetBase.Priority = change.Priority
+					// targetBase.Name = change.Name
+					// targetBase.Searchable = change.Searchable
+					// targetBase.LinkedId = change.LinkedId
+					// targetBase.ValueSorting = change.ValueSorting
 
 				} else if change.Action == types.REMOVE_FIELD {
 					delete(i.Facets, change.Id)
