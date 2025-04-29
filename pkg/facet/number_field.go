@@ -79,6 +79,14 @@ func (f DecimalField) Match(input interface{}) *types.ItemList {
 	return &types.ItemList{}
 }
 
+func (f *DecimalField) updateBaseField(field *types.BaseField) {
+	f.BaseField = field
+}
+
+func (f DecimalField) UpdateBaseField(field *types.BaseField) {
+	f.updateBaseField(field)
+}
+
 func (f DecimalField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }

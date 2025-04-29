@@ -49,6 +49,14 @@ func (f *KeyField) match(value string) *types.ItemList {
 	return &types.ItemList{}
 }
 
+func (f *KeyField) updateBaseField(field *types.BaseField) {
+	f.BaseField = field
+}
+
+func (f KeyField) UpdateBaseField(field *types.BaseField) {
+	f.updateBaseField(field)
+}
+
 func (f KeyField) Match(input interface{}) *types.ItemList {
 	if input == nil {
 		return &types.ItemList{}

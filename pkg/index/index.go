@@ -199,16 +199,7 @@ func (i *Index) UpdateFields(changes []types.FieldChange) {
 		} else {
 			if f, ok := i.Facets[change.Id]; ok {
 				if change.Action == types.UPDATE_FIELD {
-					switch field := f.(type) {
-					case *facet.KeyField:
-						field.BaseField = change.BaseField
-					case *facet.DecimalField:
-						field.BaseField = change.BaseField
-					case *facet.IntegerField:
-						field.BaseField = change.BaseField
-					default:
-						log.Printf("Unknown field type %T", field)
-					}
+					f.UpdateBaseField(change.BaseField)
 					// targetBase := f.GetBaseField()
 					// targetBase.CategoryLevel = change.CategoryLevel
 					// targetBase.Type = change.Type

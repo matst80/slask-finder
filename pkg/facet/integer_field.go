@@ -132,6 +132,14 @@ func (f IntegerField) Match(input interface{}) *types.ItemList {
 	return &types.ItemList{}
 }
 
+func (f *IntegerField) updateBaseField(field *types.BaseField) {
+	f.BaseField = field
+}
+
+func (f IntegerField) UpdateBaseField(field *types.BaseField) {
+	f.updateBaseField(field)
+}
+
 func (f IntegerField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }

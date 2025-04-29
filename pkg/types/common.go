@@ -114,6 +114,7 @@ type Facet interface {
 	GetBaseField() *BaseField
 	AddValueLink(value interface{}, id uint) bool
 	RemoveValueLink(value interface{}, id uint)
+	UpdateBaseField(data *BaseField)
 	GetValues() []interface{}
 }
 
