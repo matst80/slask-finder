@@ -49,24 +49,8 @@ func (f *KeyField) match(value string) *types.ItemList {
 	return &types.ItemList{}
 }
 
-func (f *KeyField) updateBaseField(field *types.BaseField) {
-	f.BaseField.Id = field.Id
-	f.BaseField.Name = field.Name
-	f.BaseField.Description = field.Description
-	f.BaseField.Priority = field.Priority
-	f.BaseField.Type = field.Type
-	f.BaseField.LinkedId = field.LinkedId
-	f.BaseField.ValueSorting = field.ValueSorting
-	f.BaseField.Searchable = field.Searchable
-	f.BaseField.HideFacet = field.HideFacet
-	f.BaseField.CategoryLevel = field.CategoryLevel
-	f.BaseField.GroupId = field.GroupId
-	f.BaseField.KeySpecification = field.KeySpecification
-
-}
-
 func (f KeyField) UpdateBaseField(field *types.BaseField) {
-	f.updateBaseField(field)
+	f.BaseField.UpdateFrom(field)
 }
 
 func (f KeyField) Match(input interface{}) *types.ItemList {

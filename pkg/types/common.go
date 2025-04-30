@@ -13,6 +13,7 @@ type BaseField struct {
 	CategoryLevel    int     `json:"categoryLevel,omitempty"`
 	GroupId          uint    `json:"groupId,omitempty"`
 	KeySpecification bool    `json:"isKey,omitempty"`
+	InternalOnly     bool    `json:"internal,omitempty"`
 	// IgnoreCategoryIfSearched bool    `json:"-"`
 	// IgnoreIfInSearch         bool    `json:"-"`
 }
@@ -28,6 +29,32 @@ func (s *FacetRequest) Sanitize() {
 	if (len(s.StringFilter) > 0 || len(s.RangeFilter) > 0) && s.Query == "*" {
 		s.Query = ""
 	}
+}
+
+func (b *BaseField) UpdateFrom(field *BaseField) {
+	if field == nil {
+		return
+	}
+	//b.Id = field.Id
+	if field.Name != "" {
+		b.Name = field.Name
+	}
+	if field.Description != "" {
+		b.Description = field.Description
+	}
+
+	b.Priority = field.Priority
+	if field.Type != "" {
+		b.Type = field.Type
+	}
+	b.LinkedId = field.LinkedId
+	b.ValueSorting = field.ValueSorting
+	b.Searchable = field.Searchable
+	b.HideFacet = field.HideFacet
+	b.CategoryLevel = field.CategoryLevel
+	b.GroupId = field.GroupId
+	b.KeySpecification = field.KeySpecification
+	b.InternalOnly = field.InternalOnly
 }
 
 func (f *FacetRequest) HasField(id uint) bool {

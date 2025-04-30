@@ -641,16 +641,8 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Facet not found", http.StatusNotFound)
 		return
 	}
-	current.Name = data.Name
-	current.Description = data.Description
-	current.Priority = data.Priority
-	current.CategoryLevel = data.CategoryLevel
-	current.HideFacet = data.HideFacet
-	current.GroupId = data.GroupId
-	current.LinkedId = data.LinkedId
-	current.Searchable = data.Searchable
-	current.Type = data.Type
-	current.ValueSorting = data.ValueSorting
+	current.UpdateFrom(&data)
+
 	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
