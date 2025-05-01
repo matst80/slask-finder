@@ -385,13 +385,16 @@ func (ws *WebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId i
 	defaultHeaders(w, r, true, "60")
 
 	w.WriteHeader(http.StatusOK)
-	for _, v := range sortedItems {
+	for j, v := range sortedItems {
 		item, ok := ws.Index.Items[v.Id]
 		if ok {
 			err := enc.Encode(item)
 			if err != nil {
 				return err
 			}
+		}
+		if j > 80 {
+			break
 		}
 	}
 	return nil
