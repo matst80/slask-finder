@@ -315,7 +315,8 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 
 	fieldIds := make(map[uint]struct{})
 	limit := 40
-	if len(*baseIds) > 65535 {
+	resultCount := len(*baseIds)
+	if resultCount > 65535 {
 		limit = 20
 		for id, f := range ws.Index.Facets {
 			if !f.GetBaseField().HideFacet && !sr.IsIgnored(id) {
@@ -332,35 +333,47 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 	}
 	count := 0
 	var base *types.BaseField = nil
-	//hasCat := sr.Filters.HasCategoryFilter()
-	for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
-		if count > limit {
-			break
+	if resultCount == 0 {
+		mainCat := ws.Index.Facets[10] // todo setting
+		if mainCat != nil {
+			base = mainCat.GetBaseField()
+			wg.Add(1)
+			go getFacetResult(mainCat, &ws.Index.All, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+				return facet
+			})
 		}
+	} else {
 
-		if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
-			if f, ok := ws.Index.Facets[id]; ok {
-				base = f.GetBaseField()
-				if base == nil || base.HideFacet {
-					continue
-				}
-				// if base.CategoryLevel > 0 && hasCat {
-				// 	continue
-				// }
-
-				wg.Add(1)
-				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					if facet != nil && !facet.Result.HasValues() && facet.CategoryLevel == 0 {
-						return nil
-					}
-					return facet
-				})
-				if base.Type != "fps" {
-					count++
-				}
+		//hasCat := sr.Filters.HasCategoryFilter()
+		for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
+			if count > limit {
+				break
 			}
-		} else {
-			// log.Printf("Facet %d is in filters", id)
+
+			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
+				if f, ok := ws.Index.Facets[id]; ok {
+					base = f.GetBaseField()
+					if base == nil || base.HideFacet {
+						continue
+					}
+					// if base.CategoryLevel > 0 && hasCat {
+					// 	continue
+					// }
+
+					wg.Add(1)
+					go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+						if facet != nil && !facet.Result.HasValues() && facet.CategoryLevel == 0 {
+							return nil
+						}
+						return facet
+					})
+					if base.Type != "fps" {
+						count++
+					}
+				}
+			} else {
+				// log.Printf("Facet %d is in filters", id)
+			}
 		}
 	}
 }
