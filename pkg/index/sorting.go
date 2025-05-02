@@ -102,6 +102,7 @@ func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionI
 		for {
 			msg, err := sub.ReceiveMessage(ctx)
 			if err == nil {
+				log.Printf("Received session message %s", msg.Payload)
 				idx := strings.LastIndex(msg.Payload, "_")
 				if idx == -1 {
 					log.Println("Invalid session override change message", msg.Payload)
