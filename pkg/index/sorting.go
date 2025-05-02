@@ -101,7 +101,7 @@ func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionI
 	go func(sub *redis.PubSub) {
 		for {
 			msg, err := sub.ReceiveMessage(ctx)
-			if err != nil {
+			if err == nil {
 				idx := strings.LastIndex(msg.Payload, "_")
 				if idx == -1 {
 					log.Println("Invalid session override change message", msg.Payload)
@@ -124,7 +124,10 @@ func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionI
 					continue
 				}
 				fn(sessionId, sortOverride)
+			} else {
+				log.Println("Error receiving session message", err)
 			}
+
 		}
 	}(rdb.Subscribe(ctx, channel))
 }
@@ -144,7 +147,7 @@ func ListenForSortOverride(rdb *redis.Client, channel string, key string, fn fun
 	go func(sub *redis.PubSub) {
 		for {
 			_, err := sub.ReceiveMessage(ctx)
-			if err != nil {
+			if err == nil {
 
 				sortOverride, err := GetOverrideFromKey(rdb, key)
 				if err != nil {
@@ -152,6 +155,8 @@ func ListenForSortOverride(rdb *redis.Client, channel string, key string, fn fun
 					continue
 				}
 				fn(sortOverride)
+			} else {
+				fmt.Println("Error receiving sort override message", err)
 			}
 		}
 	}(rdb.Subscribe(ctx, channel))
