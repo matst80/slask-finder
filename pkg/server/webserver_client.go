@@ -318,7 +318,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
-	ws.getOtherFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
+	ws.getSuggestFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
 
 	_, err = w.Write([]byte("\n"))
 

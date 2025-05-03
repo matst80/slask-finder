@@ -5,6 +5,7 @@ import "sync"
 type Settings struct {
 	mu               sync.RWMutex
 	SearchMergeLimit int                  `json:"searchMergeLimit"`
+	SuggestFacets    []uint               `json:"suggestFacets"`
 	FieldsToIndex    []uint               `json:"fieldsToIndex"`
 	FacetRelations   []FacetRelationGroup `json:"facetRelations"`
 	PopularityRules  *ItemPopularityRules `json:"popularityRules"`
@@ -79,6 +80,13 @@ var CurrentSettings = &Settings{
 		30290,
 		//11,
 		10,
+	},
+	SuggestFacets: []uint{
+		2,
+		31158,
+		30290,
+		10,
+		11,
 	},
 	FacetRelations: []FacetRelationGroup{
 		// CPU
