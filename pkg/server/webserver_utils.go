@@ -150,16 +150,16 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			}
 			ret.Result = r
 		case facet.IntegerField:
-			ret.Result = &index.IntegerFieldResult{
-				Count: uint(field.Max - field.Min),
-				Min:   field.Min,
-				Max:   field.Max,
+			ret.Result = &facet.IntegerFieldResult{
+				//Count: uint(field.Max - field.Min),
+				Min: field.Min,
+				Max: field.Max,
 			}
 		case facet.DecimalField:
-			ret.Result = &index.DecimalFieldResult{
-				Count: uint(field.Count),
-				Min:   field.Min,
-				Max:   field.Max,
+			ret.Result = &facet.DecimalFieldResult{
+				//Count: uint(field.Count),
+				Min: field.Min,
+				Max: field.Max,
 			}
 		}
 		c <- modifyResult(ret)
@@ -197,74 +197,20 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		}
 	case facet.IntegerField:
 
-		count := 0
-		minV := 9999999999999999
-		maxV := -9999999999999999
-
-		hasValues := false
-		v := 0
-		ok := false
-		for id := range matchIds {
-			if v, ok = field.AllValues[id]; ok {
-				count++
-				hasValues = true
-				minV = min(minV, v)
-				maxV = max(maxV, v)
-				// if v < minV {
-				// 	minV = v
-				// }
-				// if v > maxV {
-				// 	maxV = v
-				// }
-				// if useRealBuckets {
-				// 	values = append(values, uint(*value))
-				// }
-			}
-		}
-
-		// if useRealBuckets {
-		// 	slices.Sort(values)
-		// 	fieldResult.Buckets = facet.NormalizeResults(values)
-		// } else {
-		//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
-		//}
-		if !hasValues {
+		r := field.GetExtents(matchIds)
+		if r == nil {
 			c <- nil
 			return
 		}
-		ret.Result = &index.IntegerFieldResult{
-			Count: uint(count),
-			Min:   minV,
-			Max:   maxV,
-		}
+		ret.Result = r
 	case facet.DecimalField:
-		count := 0
-		min := 9999999999999999.0
-		max := -9999999999999999.0
-
-		hasResults := false
-
-		for id := range matchIds {
-			if value, ok := field.AllValues[id]; ok {
-				count++
-				hasResults = true
-				if value < min {
-					min = value
-				}
-				if value > max {
-					max = value
-				}
-			}
-		}
-		if !hasResults {
+		r := field.GetExtents(matchIds)
+		if r == nil {
 			c <- nil
 			return
 		}
-		ret.Result = &index.DecimalFieldResult{
-			Count: uint(count),
-			Min:   min,
-			Max:   max,
-		}
+		ret.Result = r
+
 	}
 	c <- modifyResult(ret)
 }

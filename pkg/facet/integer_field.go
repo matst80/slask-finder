@@ -7,6 +7,17 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
+type IntegerFieldResult struct {
+	//	Count   uint   `json:"count,omitempty"`
+	Min     int    `json:"min"`
+	Max     int    `json:"max"`
+	Buckets []uint `json:"buckets,omitempty"`
+}
+
+func (k *IntegerFieldResult) HasValues() bool {
+	return k.Min < k.Max
+}
+
 const (
 	EXPECTED_RESULT_SIZE = 20
 	MAX_RESULT_VALUE     = float64(100)
@@ -53,6 +64,35 @@ type IntegerField struct {
 	buckets   map[int]Bucket[int]
 	AllValues map[uint]int
 	Count     int `json:"count"`
+}
+
+func (f *IntegerField) GetExtents(matchIds types.ItemList) *IntegerFieldResult {
+
+	minV := 9999999999999999
+	maxV := -9999999999999999
+
+	//hasValues := false
+	v := 0
+	ok := false
+	for id := range matchIds {
+		if v, ok = f.AllValues[id]; ok {
+			minV = min(minV, v)
+			maxV = max(maxV, v)
+		}
+	}
+
+	// if useRealBuckets {
+	// 	slices.Sort(values)
+	// 	fieldResult.Buckets = facet.NormalizeResults(values)
+	// } else {
+	//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
+	//}
+
+	return &IntegerFieldResult{
+		//Count: uint(count),
+		Min: minV,
+		Max: maxV,
+	}
 }
 
 func (f *IntegerField) ValueForItemId(id uint) *int {

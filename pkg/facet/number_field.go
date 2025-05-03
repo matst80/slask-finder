@@ -19,6 +19,34 @@ type DecimalField struct {
 	Count int `json:"count"`
 }
 
+type DecimalFieldResult struct {
+	//Count uint    `json:"count,omitempty"`
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+}
+
+func (k *DecimalFieldResult) HasValues() bool {
+	return k.Min < k.Max
+}
+
+func (f DecimalField) GetExtents(matchIds types.ItemList) *DecimalFieldResult {
+	if matchIds == nil {
+		return nil
+	}
+	minV := f.Max
+	maxV := f.Min
+	for id := range matchIds {
+		if v, ok := f.AllValues[id]; ok {
+			minV = min(minV, v)
+			maxV = max(maxV, v)
+		}
+	}
+	return &DecimalFieldResult{
+		Min: minV,
+		Max: maxV,
+	}
+}
+
 // func (f *DecimalField) ValueForItemId(id uint) *float64 {
 // 	if v, ok := f.AllValues[id]; ok {
 // 		return &v
