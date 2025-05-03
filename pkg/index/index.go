@@ -331,6 +331,8 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		if i.Search != nil {
 			i.addItemValues(item)
 		}
+
+		item.UpdateBasePopularity(*types.CurrentSettings.PopularityRules)
 		// if i.AutoSuggest != nil {
 		// 	i.AutoSuggest.InsertItemUnsafe(item)
 		// }

@@ -77,6 +77,7 @@ func (l JsonTypes) MarshalJSON() ([]byte, error) {
 
 func GetPropertyValue(item interface{}, propertyName string) interface{} {
 	val := reflect.ValueOf(item).Elem()
+
 	field := val.FieldByName(propertyName)
 	if !field.IsValid() {
 		return nil

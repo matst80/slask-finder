@@ -520,14 +520,15 @@ func (s *Sorting) makeItemSortMaps() {
 	var id uint
 	var popular float64
 	var partPopular float64
-	rules := types.CurrentSettings.PopularityRules
+
 	for id, itm = range s.idx.Items {
 		item = *itm
 		if item.IsDeleted() {
 			continue
 		}
 		j += 0.0000000000001
-		popular = types.CollectPopularity(item, *rules...) + (overrides[id] * 100)
+
+		popular = item.GetBasePopularity() + (overrides[id] * 100)
 
 		partPopular = popular / 10000.0
 		if item.GetLastUpdated() == 0 {

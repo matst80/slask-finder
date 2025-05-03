@@ -24,6 +24,22 @@ func (m *MockItem) GetDiscount() int {
 	return 0
 }
 
+func (m *MockItem) GetStockLevel() string {
+	return ""
+}
+
+func (m *MockItem) GetBasePopularity() float64 {
+	return m.Popularity
+}
+
+func (m *MockItem) GetPropertyValue(name string) interface{} {
+	return nil
+}
+
+func (m *MockItem) UpdateBasePopularity(rules ItemPopularityRules) {
+	m.Popularity = 1
+}
+
 func (m *MockItem) GetRating() (int, int) {
 	return 20, 5
 }

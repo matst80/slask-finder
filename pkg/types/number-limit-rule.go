@@ -19,7 +19,7 @@ func (r RuleSource) GetSourceValue(item Item) interface{} {
 		if r.PropertyName == "" {
 			return nil
 		}
-		return GetPropertyValue(item, r.PropertyName)
+		return item.GetPropertyValue(r.PropertyName) // GetPropertyValue(item, r.PropertyName)
 	}
 }
 

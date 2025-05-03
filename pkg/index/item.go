@@ -73,6 +73,7 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 
 type BaseItem struct {
 	ItemProp
+	baseScore  float64
 	StockLevel string            `json:"stockLevel,omitempty"`
 	Stock      map[string]string `json:"stock"`
 	Id         uint              `json:"id"`
@@ -82,8 +83,8 @@ type BaseItem struct {
 
 type DataItem struct {
 	*BaseItem
-	Taxonomy []string         `json:"taxonomy"`
-	Fields   types.ItemFields `json:"values"`
+	//Taxonomy []string         `json:"taxonomy"`
+	Fields types.ItemFields `json:"values"`
 }
 
 func ToItemArray(items []DataItem) []types.Item {
@@ -112,6 +113,65 @@ func (item *DataItem) IsDeleted() bool {
 		return true
 	}
 	return item.SaleStatus == "MDD"
+}
+
+func (item *DataItem) GetStockLevel() string {
+	return item.StockLevel
+}
+
+func (item *DataItem) GetPropertyValue(name string) interface{} {
+	switch name {
+	case "Sku":
+		return item.Sku
+	case "Title":
+		return item.Title
+	case "BadgeUrl":
+		return item.BadgeUrl
+	case "Img":
+		return item.Img
+	case "StockLevel":
+		return item.StockLevel
+	case "Stock":
+		return item.Stock
+	case "Buyable":
+		return item.Buyable
+	case "BuyableInStore":
+		return item.BuyableInStore
+	case "BoxSize":
+		return item.BoxSize
+	case "EnergyRating":
+		return item.EnergyRating
+	case "BulletPoints":
+		return item.BulletPoints
+	case "Description":
+		return item.Description
+	case "ReleaseDate":
+		return item.ReleaseDate
+	case "SaleStatus":
+		return item.SaleStatus
+	case "OnlineSaleStatus":
+		return item.OnlineSaleStatus
+	case "MarginPercent":
+		return item.MarginPercent
+	case "Restock":
+		return item.Restock
+	case "PresaleDate":
+		return item.PresaleDate
+	case "AdvertisingText":
+		return item.AdvertisingText
+	case "Created":
+		return item.Created
+	case "LastUpdate":
+		return item.LastUpdate
+	case "CheapestBItem":
+		return item.CheapestBItem
+	case "AItem":
+		return item.AItem
+	case "ArticleType":
+		return item.ArticleType
+	default:
+		return nil
+	}
 }
 
 func (item *DataItem) IsSoftDeleted() bool {
@@ -341,8 +401,12 @@ func (item *DataItem) GetItem() interface{} {
 	return item.BaseItem
 }
 
-func (item *DataItem) GetStockLevel() string {
-	return item.StockLevel
+func (item *DataItem) GetBasePopularity() float64 {
+	return item.baseScore
+}
+
+func (item *DataItem) UpdateBasePopularity(rules types.ItemPopularityRules) {
+	item.baseScore = types.CollectPopularity(item, rules...)
 }
 
 func (item *DataItem) MergeKeyFields(updates []types.CategoryUpdate) bool {

@@ -111,9 +111,11 @@ type Item interface {
 	GetId() uint
 	GetSku() string
 	GetStock() map[string]string
+	GetStockLevel() string
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
 	IsSoftDeleted() bool
+	GetPropertyValue(name string) interface{}
 	GetPrice() int
 	GetDiscount() int
 	GetRating() (int, int)
@@ -126,6 +128,8 @@ type Item interface {
 	ToStringList() []string
 	GetBaseItem() BaseItem
 	MergeKeyFields(updates []CategoryUpdate) bool
+	GetBasePopularity() float64
+	UpdateBasePopularity(rules ItemPopularityRules)
 	GetItem() interface{}
 }
 

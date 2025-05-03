@@ -198,8 +198,8 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 	case facet.IntegerField:
 
 		count := 0
-		min := 9999999999999999
-		max := -9999999999999999
+		minV := 9999999999999999
+		maxV := -9999999999999999
 
 		hasValues := false
 		v := 0
@@ -208,13 +208,14 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			if v, ok = field.AllValues[id]; ok {
 				count++
 				hasValues = true
-
-				if v < min {
-					min = v
-				}
-				if v > max {
-					max = v
-				}
+				minV = min(minV, v)
+				maxV = max(maxV, v)
+				// if v < minV {
+				// 	minV = v
+				// }
+				// if v > maxV {
+				// 	maxV = v
+				// }
 				// if useRealBuckets {
 				// 	values = append(values, uint(*value))
 				// }
@@ -233,8 +234,8 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		}
 		ret.Result = &index.IntegerFieldResult{
 			Count: uint(count),
-			Min:   min,
-			Max:   max,
+			Min:   minV,
+			Max:   maxV,
 		}
 	case facet.DecimalField:
 		count := 0
