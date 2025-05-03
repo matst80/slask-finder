@@ -814,6 +814,56 @@ func (ws *WebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type MatchedRule struct {
+	Rule  interface{} `json:"rule"`
+	Score float64     `json:"score"`
+}
+
+type PopularityResult struct {
+	Popularity float64       `json:"popularity"`
+	Matches    []MatchedRule `json:"matches"`
+}
+
+func (ws *WebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	itemIdString := r.PathValue("id")
+	itemId, err := strconv.Atoi(itemIdString)
+	if err != nil {
+		http.Error(w, "Invalid item ID", http.StatusBadRequest)
+		return
+	}
+	item, ok := ws.Index.Items[uint(itemId)]
+	if !ok {
+		http.Error(w, "Item not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	ret := &PopularityResult{
+		Popularity: 0,
+		Matches:    make([]MatchedRule, 0),
+	}
+	rules := types.CurrentSettings.PopularityRules
+	for _, rule := range *rules {
+		if rule == nil {
+			continue
+		}
+		score := rule.GetValue(*item)
+		if score != 0 {
+			ret.Popularity += score
+			ret.Matches = append(ret.Matches, MatchedRule{
+				Rule:  rule,
+				Score: score,
+			})
+		}
+	}
+
+	err = json.NewEncoder(w).Encode(ret)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -861,6 +911,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
 	srv.HandleFunc("GET /index/facets", ws.AuthMiddleware(ws.GetSearchIndexedFacets))
 	srv.HandleFunc("POST /index/facets", ws.AuthMiddleware(ws.SetSearchIndexedFacets))
+	srv.HandleFunc("GET /item/{id}/popularity", ws.AuthMiddleware(ws.GetItemPopularity))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
