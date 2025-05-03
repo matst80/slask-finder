@@ -99,7 +99,7 @@ func (f *KeyField) addString(value string, id uint) {
 		v = "Ja"
 	} else if f.Type == "bool" {
 		low := strings.ToLower(v)
-		if low == "no" || low == "nej" || low == "" || low == "false" || low == "x" {
+		if low == "no" || low == "nej" || low == "" || low == "false" || low == "x" || low == "saknas" {
 			v = "Nej"
 		} else {
 			v = "Ja"
