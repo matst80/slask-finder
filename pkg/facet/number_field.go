@@ -37,8 +37,11 @@ func (f DecimalField) GetExtents(matchIds types.ItemList) *DecimalFieldResult {
 	maxV := f.Min
 	for id := range matchIds {
 		if v, ok := f.AllValues[id]; ok {
-			minV = min(minV, v)
-			maxV = max(maxV, v)
+			if v < minV {
+				minV = v
+			} else if v > maxV {
+				maxV = v
+			}
 		}
 	}
 	return &DecimalFieldResult{

@@ -1,6 +1,7 @@
 package facet
 
 import (
+	"log"
 	"maps"
 	"strconv"
 
@@ -78,6 +79,40 @@ func (f *IntegerField) GetExtents(matchIds types.ItemList) *IntegerFieldResult {
 		if v, ok = f.AllValues[id]; ok {
 			minV = min(minV, v)
 			maxV = max(maxV, v)
+		}
+	}
+
+	// if useRealBuckets {
+	// 	slices.Sort(values)
+	// 	fieldResult.Buckets = facet.NormalizeResults(values)
+	// } else {
+	//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
+	//}
+
+	return &IntegerFieldResult{
+		//Count: uint(count),
+		Min: minV,
+		Max: maxV,
+	}
+}
+
+func (f *IntegerField) GetExtents2(matchIds types.ItemList) *IntegerFieldResult {
+
+	minV := f.Max
+	maxV := f.Min
+
+	//hasValues := false
+	v := 0
+	ok := false
+	for id := range matchIds {
+		if v, ok = f.AllValues[id]; ok {
+			if v < minV {
+				minV = v
+			} else if v > maxV {
+				maxV = v
+			}
+			// minV = min(minV, v)
+			// maxV = max(maxV, v)
 		}
 	}
 
@@ -192,7 +227,7 @@ func (f IntegerField) GetValues() []interface{} {
 	return []interface{}{f.NumberRange}
 }
 
-func (f IntegerField) addValueLink(value int, itemId uint) {
+func (f *IntegerField) addValueLink(value int, itemId uint) {
 	f.Min = min(f.Min, value)
 	f.Max = max(f.Max, value)
 	f.Count++
@@ -224,6 +259,8 @@ func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
 			f.addValueLink(intValue, itemId)
 			return true
 		}
+	default:
+		log.Printf("IntegerField: AddValueLink: %T", value)
 	}
 
 	return false
