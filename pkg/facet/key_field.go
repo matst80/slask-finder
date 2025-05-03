@@ -89,6 +89,22 @@ func (f *KeyField) addString(value string, id uint) {
 	if v == "" {
 		return
 	}
+	if f.Type == "stock" {
+		if v == "0" {
+			return
+		}
+		if v == "" {
+			return
+		}
+		v = "Ja"
+	} else if f.Type == "bool" {
+		low := strings.ToLower(v)
+		if low == "no" || low == "nej" || low == "" || low == "false" || low == "x" {
+			v = "Nej"
+		} else {
+			v = "Ja"
+		}
+	}
 
 	if k, ok := f.Keys[v]; ok {
 		k.AddId(id)

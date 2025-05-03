@@ -73,6 +73,7 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue
 			}
+
 			idx.UpsertItemUnsafe(tmp)
 			tmp = &index.DataItem{}
 		}
