@@ -1,6 +1,9 @@
 package types
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 type Settings struct {
 	mu               sync.RWMutex
@@ -47,6 +50,80 @@ type FacetRelationGroup struct {
 	ItemRequirements  []ItemRequirement `json:"requiredForItem"`
 	AdditionalQueries []ItemRequirement `json:"additionalQueries"`
 	Relations         []FacetRelation   `json:"relations"`
+}
+
+func (f *FacetRelationGroup) GetFilter(item Item) *Filters {
+	result := &Filters{}
+	for _, additionalQuery := range f.AdditionalQueries {
+		result.StringFilter = append(result.StringFilter, StringFilter{
+			Id:    additionalQuery.FacetId,
+			Value: additionalQuery.Value,
+		})
+	}
+	for _, relation := range f.Relations {
+		itemValue, ok := item.GetFieldValue(relation.FacetId)
+		if !ok {
+			continue
+		}
+		result.StringFilter = append(result.StringFilter, StringFilter{
+			Id:    relation.DestinationFacetId,
+			Value: itemValue,
+		})
+	}
+	return result
+}
+
+func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
+	switch v := value.(type) {
+	case string:
+		if matchValue == nil {
+			return false
+		}
+		if v == matchValue {
+			return true
+		}
+	case []string:
+		if matchValue == nil {
+			return false
+		}
+		for _, val := range v {
+			if val == matchValue {
+				return true
+			}
+		}
+	case []uint:
+		if matchValue == nil {
+			return false
+		}
+		for _, val := range v {
+			if val == matchValue {
+				return true
+			}
+		}
+	default:
+		log.Printf("Unknown type %T", value)
+		return false
+	}
+	return false
+}
+
+func (f *FacetRelationGroup) Matches(item Item) bool {
+	for _, relation := range f.ItemRequirements {
+		itemValue, ok := item.GetFieldValue(relation.FacetId)
+		if !ok {
+			return false
+		}
+		if relation.Value != nil || !matchInterfaceValues(itemValue, relation.Value) {
+			return false
+		}
+	}
+	for _, relation := range f.Relations {
+		_, ok := item.GetFieldValue(relation.FacetId)
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 const (

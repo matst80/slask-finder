@@ -3,6 +3,7 @@ package index
 import (
 	"cmp"
 	"fmt"
+	"log"
 	"slices"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -100,40 +101,59 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
 	var base *types.BaseField
-	for id, itemField := range item.GetFields() {
-		field, ok := i.Facets[id]
-		if !ok || field.GetType() != types.FacetKeyType {
-			continue
-		}
-		base = field.GetBaseField()
-		if base.LinkedId == 0 {
-			continue
-		}
-		targetField, ok := i.Facets[base.LinkedId]
 
-		if ok {
-			fields = append(fields, KeyFieldWithValue{
-				Facet: targetField,
-				Value: itemField,
-			})
+	types.CurrentSettings.RLock()
+	defer types.CurrentSettings.RUnlock()
+	rel := types.CurrentSettings.FacetRelations
+	hasRealRelations := false
+	for _, relation := range rel {
+		if relation.Matches(item) {
+			// match all items for this relation
+			ids := make(chan *types.ItemList)
+			defer close(ids)
+			go i.Match(relation.GetFilter(item), nil, ids)
+			result.Merge(<-ids)
+			hasRealRelations = true
 		}
 	}
-	slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-		return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
-	})
-	if len(fields) == 0 {
-		return &result, nil
-	}
+	if !hasRealRelations {
+		log.Printf("No relations found for item %d", item.GetId())
+		for id, itemField := range item.GetFields() {
+			field, ok := i.Facets[id]
+			if !ok || field.GetType() != types.FacetKeyType {
+				continue
+			}
+			base = field.GetBaseField()
+			if base.LinkedId == 0 {
+				continue
+			}
+			targetField, ok := i.Facets[base.LinkedId]
 
-	result = types.ItemList{}
-	for _, field := range fields {
-		next := field.Match(field.Value)
-		if len(result) == 0 && next != nil {
-			result.Merge(next)
-			continue
+			if ok {
+				fields = append(fields, KeyFieldWithValue{
+					Facet: targetField,
+					Value: itemField,
+				})
+			}
 		}
-		if next != nil && result.HasIntersection(next) {
-			result.Intersect(*next)
+
+		slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
+			return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
+		})
+		if len(fields) == 0 {
+			return &result, nil
+		}
+
+		result = types.ItemList{}
+		for _, field := range fields {
+			next := field.Match(field.Value)
+			if next != nil {
+				result.Merge(next)
+				continue
+			}
+			// if next != nil && result.HasIntersection(next) {
+			// 	result.Intersect(*next)
+			// }
 		}
 	}
 	return &result, nil

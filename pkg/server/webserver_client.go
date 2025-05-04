@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"iter"
+	"log"
 	"maps"
 	"net/http"
 	"slices"
@@ -581,7 +582,8 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 				}
 			}
 		}
-
+		log.Printf("cart item ids %v", cartItemIds)
+		log.Printf("excluded product types %v", excludedProductTypes)
 	}
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
