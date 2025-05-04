@@ -114,6 +114,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			go i.Match(relation.GetFilter(item), nil, ids)
 			result.Merge(<-ids)
 			hasRealRelations = true
+			log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
 		}
 	}
 	if !hasRealRelations {
