@@ -607,7 +607,6 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 
 	sort := <-sortChan
 	for relatedId := range sort.SortMap(*related) {
-
 		item, ok := ws.Index.Items[relatedId]
 		if ok && item.GetId() != uint(id) {
 			if len(excludedProductTypes) > 0 {

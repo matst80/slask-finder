@@ -112,8 +112,8 @@ type KeyFieldWithValue struct {
 
 func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	i.Lock()
-	defer i.Unlock()
 	item, ok := i.Items[id]
+	i.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("item with id %d not found", id)
 	}
