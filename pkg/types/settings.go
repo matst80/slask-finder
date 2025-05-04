@@ -65,10 +65,12 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 		if !ok {
 			continue
 		}
-		result = append(result, StringFilter{
-			Id:    relation.DestinationFacetId,
-			Value: itemValue,
-		})
+		if relation.ValueConverter == NoConverter {
+			result = append(result, StringFilter{
+				Id:    relation.DestinationFacetId,
+				Value: itemValue,
+			})
+		}
 	}
 	return result
 }

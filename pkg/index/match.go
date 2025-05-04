@@ -54,7 +54,7 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemLis
 				log.Printf("No ids for key facet %s, value %v", f.GetBaseField().Name, fld.Value)
 				return
 			}
-			log.Printf("key facet %s, value %v, ids %v", f.GetBaseField().Name, fld.Value, len(*ids))
+			log.Printf("key facet %s, value %v, result length %v", f.GetBaseField().Name, fld.Value, len(*ids))
 
 			if res == nil {
 				res = &types.ItemList{}
@@ -132,14 +132,14 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	for _, relation := range rel {
 		if relation.Matches(item) {
 			// match all items for this relation
-			hasRealRelations = true
-			log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
+
 			relationResult := &types.ItemList{}
 
 			i.MatchStringsSync(relation.GetFilter(item), relationResult)
-			if relationResult != nil {
-				result.Merge(relationResult)
-			}
+
+			hasRealRelations = true
+			log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
+			result.Merge(relationResult)
 
 		}
 	}
