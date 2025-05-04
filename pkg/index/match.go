@@ -46,6 +46,7 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemList) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	first := true
 	for _, fld := range filter {
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
 			ids := f.Match(fld.Value)
@@ -56,8 +57,8 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemLis
 			}
 			log.Printf("key facet %s, value %v, result length %v", f.GetBaseField().Name, fld.Value, len(*ids))
 
-			if res == nil {
-				res = &types.ItemList{}
+			if first {
+				first = false
 				res.Merge(ids)
 			} else {
 				res.Intersect(*ids)
