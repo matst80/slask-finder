@@ -74,6 +74,9 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 }
 
 func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
+	if matchValue == nil {
+		return true
+	}
 	switch v := value.(type) {
 	case string:
 		if matchValue == nil {
@@ -102,7 +105,6 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 		}
 	default:
 		log.Printf("Unknown type %T", value)
-		return false
 	}
 	return false
 }
