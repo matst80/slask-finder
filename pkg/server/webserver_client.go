@@ -608,12 +608,13 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	sort := <-sortChan
 	for relatedId := range sort.SortMap(*related) {
 		item, ok := ws.Index.Items[relatedId]
-		if ok && item.GetId() != uint(id) {
+		if ok {
 			if len(excludedProductTypes) > 0 {
 				if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
 					if typeOk {
 						itemProductType := productType.(string)
 						if slices.Contains(excludedProductTypes, itemProductType) {
+							log.Printf("skipping %d %s", item.GetId(), itemProductType)
 							continue
 						}
 					}
@@ -623,7 +624,7 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 			err = enc.Encode(item)
 			i++
 		}
-		if i > 20 || err != nil {
+		if i > 40 || err != nil {
 			break
 		}
 	}
