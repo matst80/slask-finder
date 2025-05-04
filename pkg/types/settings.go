@@ -113,7 +113,7 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 		if !ok {
 			return false
 		}
-		if relation.Value != nil || !matchInterfaceValues(itemValue, relation.Value) {
+		if relation.Value != nil && !matchInterfaceValues(itemValue, relation.Value) {
 			return false
 		}
 	}
