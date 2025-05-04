@@ -100,7 +100,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
 	var base *types.BaseField
-	for id, itemField := range (*item).GetFields() {
+	for id, itemField := range item.GetFields() {
 		field, ok := i.Facets[id]
 		if !ok || field.GetType() != types.FacetKeyType {
 			continue
@@ -149,7 +149,7 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 	fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
 	var base *types.BaseField
-	for id, itemField := range (*item).GetFields() {
+	for id, itemField := range item.GetFields() {
 		field, ok := i.Facets[id]
 		if !ok || field.GetType() != types.FacetKeyType {
 			continue

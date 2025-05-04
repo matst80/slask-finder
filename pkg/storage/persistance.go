@@ -154,7 +154,7 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 	defer idx.Unlock()
 
 	for _, item := range idx.Items {
-		store, ok := (*item).(*index.DataItem)
+		store, ok := item.(*index.DataItem)
 		if !ok {
 			log.Fatalf("Could not convert item to DataItem")
 		}

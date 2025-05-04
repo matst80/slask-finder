@@ -377,10 +377,10 @@ func (s *Sorting) GetSort(id string) *types.ByValue {
 	return &types.ByValue{}
 }
 
-func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByValue, items *types.ItemList, start int, sortedItemsChan chan<- iter.Seq[*types.Item], overrides ...SortOverride) {
+func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByValue, items *types.ItemList, start int, sortedItemsChan chan<- iter.Seq[types.Item], overrides ...SortOverride) {
 	if precalculated != nil {
 		c := 0
-		fn := func(yield func(*types.Item) bool) {
+		fn := func(yield func(types.Item) bool) {
 			for _, v := range *precalculated {
 				if _, ok := (*items)[v.Id]; !ok {
 					continue
@@ -413,7 +413,7 @@ func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByV
 		}
 		go makeSortForItems(*s.popularMap, items, ch, overrides...)
 		c := 0
-		fn := func(yield func(*types.Item) bool) {
+		fn := func(yield func(types.Item) bool) {
 			defer close(ch)
 			for _, v := range <-ch {
 				if c < start {
@@ -516,13 +516,13 @@ func (s *Sorting) makeItemSortMaps() {
 	popularSearchMap := make(SortOverride)
 	i := 0
 	var item types.Item
-	var itm *types.Item
+
 	var id uint
 	var popular float64
 	var partPopular float64
 
-	for id, itm = range s.idx.Items {
-		item = *itm
+	for id, item = range s.idx.Items {
+
 		if item.IsDeleted() {
 			continue
 		}

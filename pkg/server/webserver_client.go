@@ -5,6 +5,7 @@ import (
 	"iter"
 	"maps"
 	"net/http"
+	"slices"
 
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
@@ -165,7 +166,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
 	result := <-resultChan
-	sortedItemsChan := make(chan iter.Seq[*types.Item])
+	sortedItemsChan := make(chan iter.Seq[types.Item])
 	go ws.Sorting.GetSortedItemsIterator(sessionId, result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
 
 	fn := <-sortedItemsChan
@@ -292,7 +293,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	// }
 	_, err = w.Write([]byte("\n"))
 
-	sortedItemsChan := make(chan iter.Seq[*types.Item])
+	sortedItemsChan := make(chan iter.Seq[types.Item])
 	// if docResult != nil {
 	// 	//o := index.SortOverride(docResult)
 	// 	go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan, o)
@@ -417,7 +418,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 	delete(*fields, 31158)
 	for id := range *items {
 		if item, ok := ws.Index.Items[id]; ok {
-			if itemType, typeOk := (*item).GetFields()[31158]; typeOk {
+			if itemType, typeOk := item.GetFields()[31158]; typeOk {
 				articleTypes[itemType.(string)]++
 			}
 		}
@@ -447,7 +448,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 				continue
 			}
 			if item, ok := ws.Index.Items[id]; ok {
-				similar.Items = append(similar.Items, *item)
+				similar.Items = append(similar.Items, item)
 				if len(similar.Items) >= limit {
 					break
 				}
@@ -555,7 +556,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 	for relatedId := range sort.SortMap(*related) {
 
 		item, ok := ws.Index.Items[relatedId]
-		if ok && (*item).GetId() != uint(id) {
+		if ok && item.GetId() != uint(id) {
 			err = enc.Encode(item)
 			i++
 		}
@@ -567,7 +568,21 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 }
 
 func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	excludedProductTypes := []string{}
+	if r.Method != http.MethodGet {
+		cartItemIds := make([]uint, 0)
+		err := json.NewDecoder(r.Body).Decode(&cartItemIds)
+		if err == nil {
+			for _, id := range cartItemIds {
+				if item, ok := ws.Index.Items[id]; ok {
+					if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+						excludedProductTypes = append(excludedProductTypes, productType.(string))
+					}
+				}
+			}
+		}
 
+	}
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
@@ -599,7 +614,18 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	for relatedId := range sort.SortMap(*related) {
 
 		item, ok := ws.Index.Items[relatedId]
-		if ok && (*item).GetId() != uint(id) {
+		if ok && item.GetId() != uint(id) {
+			if len(excludedProductTypes) > 0 {
+				if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+					if typeOk {
+						itemProductType := productType.(string)
+						if slices.Contains(excludedProductTypes, itemProductType) {
+							continue
+						}
+					}
+				}
+			}
+
 			err = enc.Encode(item)
 			i++
 		}

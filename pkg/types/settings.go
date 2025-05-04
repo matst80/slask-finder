@@ -6,6 +6,7 @@ type Settings struct {
 	mu               sync.RWMutex
 	SearchMergeLimit int                  `json:"searchMergeLimit"`
 	SuggestFacets    []uint               `json:"suggestFacets"`
+	ProductTypeId    uint                 `json:"productTypeId"`
 	FieldsToIndex    []uint               `json:"fieldsToIndex"`
 	FacetRelations   []FacetRelationGroup `json:"facetRelations"`
 	PopularityRules  *ItemPopularityRules `json:"popularityRules"`
@@ -71,6 +72,7 @@ var CurrentSettings = &Settings{
 			Name: "Moderkort",
 		},
 	},
+	ProductTypeId:    31158,
 	SearchMergeLimit: 10,
 	FieldsToIndex: []uint{
 		2,

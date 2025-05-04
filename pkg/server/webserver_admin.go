@@ -479,7 +479,7 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 		field.ItemCount = 0
 	}
 	for _, itemP := range ws.Index.Items {
-		item, ok := (*itemP).(*index.DataItem)
+		item, ok := itemP.(*index.DataItem)
 		if ok && !item.IsDeleted() {
 			for _, field := range ws.FieldData {
 				_, found := item.Fields[field.Id]
@@ -848,7 +848,7 @@ func (ws *WebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
 		if rule == nil {
 			continue
 		}
-		score := rule.GetValue(*item)
+		score := rule.GetValue(item)
 		if score != 0 {
 			ret.Popularity += score
 			ret.Matches = append(ret.Matches, MatchedRule{

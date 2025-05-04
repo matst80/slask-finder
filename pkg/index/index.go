@@ -50,7 +50,7 @@ type Index struct {
 	//categories    map[uint]*Category
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
-	Items        map[uint]*types.Item
+	Items        map[uint]types.Item
 	ItemsBySku   map[string]*types.Item
 	ItemsInStock map[string]types.ItemList
 	IsMaster     bool
@@ -69,7 +69,7 @@ func NewIndex() *Index {
 		ItemsBySku:   make(map[string]*types.Item),
 		ItemFieldIds: make(map[uint]types.ItemList),
 		Facets:       make(map[uint]types.Facet),
-		Items:        make(map[uint]*types.Item),
+		Items:        make(map[uint]types.Item),
 		ItemsInStock: make(map[string]types.ItemList),
 	}
 }
@@ -225,9 +225,9 @@ func (i *Index) UpdateCategoryValues(ids []uint, updates []types.CategoryUpdate)
 	for _, id := range ids {
 		item, ok := i.Items[id]
 		if ok {
-			if (*item).MergeKeyFields(updates) {
-				i.UpsertItemUnsafe(*item)
-				items = append(items, *item)
+			if item.MergeKeyFields(updates) {
+				i.UpsertItemUnsafe(item)
+				items = append(items, item)
 			}
 		}
 	}
@@ -293,7 +293,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		delete(i.ItemFieldIds, id)
 		if item.IsSoftDeleted() {
 			if isUpdate {
-				i.removeItemValues(*current)
+				i.removeItemValues(current)
 			}
 			return
 		}
@@ -310,10 +310,10 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		// if new_price < old_price {
 		// 	price_lowered = true
 		// }
-		i.removeItemValues(*current)
+		i.removeItemValues(current)
 	}
 
-	i.Items[id] = &item
+	i.Items[id] = item
 	if i.IsMaster {
 		return
 	} else {
@@ -345,7 +345,7 @@ func (i *Index) deleteItemUnsafe(id uint) {
 	item, ok := i.Items[id]
 	if ok {
 		noDeletes.Inc()
-		i.removeItemValues(*item)
+		i.removeItemValues(item)
 		delete(i.Items, id)
 		// delete(i.AllItems, id)
 		if i.ChangeHandler != nil {
