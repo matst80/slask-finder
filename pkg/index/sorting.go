@@ -590,19 +590,6 @@ func cloneReversed(arr *types.ByValue) *types.ByValue {
 	return &n
 }
 
-// func (s *Sorting) SetPopularityRules(rules *types.ItemPopularityRules) {
-// 	s.muOverride.Lock()
-// 	defer s.muOverride.Unlock()
-// 	s.popularityRules = rules
-// 	s.hasItemChanges = true
-// }
-
-// func (s *Sorting) GetPopularityRules() *types.ItemPopularityRules {
-// 	s.muOverride.RLock()
-// 	defer s.muOverride.RUnlock()
-// 	return s.popularityRules
-// }
-
 func (s *Sorting) setFieldSortOverride(sort *SortOverride) {
 	if s.idx != nil {
 		go s.makeFieldSort(s.idx, *sort)
@@ -612,14 +599,14 @@ func (s *Sorting) setFieldSortOverride(sort *SortOverride) {
 	s.fieldOverride = sort
 }
 
-func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {
-	ctx := context.Background()
-	data := sort.ToString()
-	log.Printf("Setting field sort %d", len(data))
-	s.client.Set(ctx, REDIS_FIELD_KEY, data, 0)
-	err := s.client.Publish(ctx, REDIS_FIELD_CHANGE, REDIS_FIELD_KEY)
-	if err != nil {
-		s.setFieldSortOverride(sort)
-	}
+// func (s *Sorting) SetFieldSortOverride(sort *SortOverride) {
+// 	ctx := context.Background()
+// 	data := sort.ToString()
+// 	log.Printf("Setting field sort %d", len(data))
+// 	s.client.Set(ctx, REDIS_FIELD_KEY, data, 0)
+// 	err := s.client.Publish(ctx, REDIS_FIELD_CHANGE, REDIS_FIELD_KEY)
+// 	if err != nil {
+// 		s.setFieldSortOverride(sort)
+// 	}
 
-}
+// }

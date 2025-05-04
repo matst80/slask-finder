@@ -109,37 +109,37 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
-	if ws.Sorting == nil {
-		log.Printf("Sorting not initialized in handleFieldSort")
-		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
-		return
-	}
-	if r.Method == "POST" {
-		defaultHeaders(w, r, true, "0")
-		sort := index.SortOverride{}
-		err := json.NewDecoder(r.Body).Decode(&sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		ws.Sorting.SetFieldSortOverride(&sort)
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+// func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
+// 	if ws.Sorting == nil {
+// 		log.Printf("Sorting not initialized in handleFieldSort")
+// 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	if r.Method == "POST" {
+// 		defaultHeaders(w, r, true, "0")
+// 		sort := index.SortOverride{}
+// 		err := json.NewDecoder(r.Body).Decode(&sort)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 			return
+// 		}
+// 		ws.Sorting.SetFieldSortOverride(&sort)
+// 		w.WriteHeader(http.StatusOK)
+// 		return
+// 	}
 
-	sort := ws.Sorting.FieldSort
-	if sort == nil {
-		http.Error(w, "Sort not found", http.StatusNotFound)
-		return
-	}
-	defaultHeaders(w, r, true, "120")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(sort)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+// 	sort := ws.Sorting.FieldSort
+// 	if sort == nil {
+// 		http.Error(w, "Sort not found", http.StatusNotFound)
+// 		return
+// 	}
+// 	defaultHeaders(w, r, true, "120")
+// 	w.WriteHeader(http.StatusOK)
+// 	err := json.NewEncoder(w).Encode(sort)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
 
 // func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
 // 	if ws.Sorting == nil {
@@ -925,6 +925,6 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/relation-groups", ws.HandleRelationGroups)
 	srv.HandleFunc("/facet-groups", ws.HandleFacetGroups)
 	//srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
-	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
+	//srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
 }

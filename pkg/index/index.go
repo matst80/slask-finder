@@ -101,9 +101,6 @@ func (i *Index) addItemValues(item types.Item) {
 		return
 	}
 	itemId := item.GetId()
-	for _, stock := range i.ItemsInStock {
-		delete(stock, itemId)
-	}
 
 	for id, stock := range item.GetStock() {
 		if stock == "" || stock == "0" {
@@ -180,7 +177,11 @@ func (i *Index) removeItemValues(item types.Item) {
 	if i.IsMaster {
 		return
 	}
+
 	itemId := item.GetId()
+	for _, stock := range i.ItemsInStock {
+		delete(stock, itemId)
+	}
 	for fieldId, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[fieldId]; ok {
 			f.RemoveValueLink(fieldValue, itemId)
@@ -200,15 +201,6 @@ func (i *Index) UpdateFields(changes []types.FieldChange) {
 			if f, ok := i.Facets[change.Id]; ok {
 				if change.Action == types.UPDATE_FIELD {
 					f.UpdateBaseField(change.BaseField)
-					// targetBase := f.GetBaseField()
-					// targetBase.CategoryLevel = change.CategoryLevel
-					// targetBase.Type = change.Type
-					// targetBase.HideFacet = change.HideFacet
-					// targetBase.Priority = change.Priority
-					// targetBase.Name = change.Name
-					// targetBase.Searchable = change.Searchable
-					// targetBase.LinkedId = change.LinkedId
-					// targetBase.ValueSorting = change.ValueSorting
 
 				} else if change.Action == types.REMOVE_FIELD {
 					delete(i.Facets, change.Id)
