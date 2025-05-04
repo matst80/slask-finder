@@ -590,28 +590,21 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	if err != nil {
 		return err
 	}
-	relatedChan := make(chan *types.ItemList)
-	defer close(relatedChan)
+
 	sortChan := make(chan *types.ByValue)
 	defer close(sortChan)
 
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
-	go func(ch chan *types.ItemList) {
-		related, err := ws.Index.Compatible(uint(id))
-		if err != nil {
-			ch <- &types.ItemList{}
-			return
-		}
-		ch <- related
-	}(relatedChan)
+
 	go ws.Sorting.GetSorting("popular", sortChan)
+	related, err := ws.Index.Compatible(uint(id))
 
 	i := 0
 
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	related := <-relatedChan
+
 	sort := <-sortChan
 	for relatedId := range sort.SortMap(*related) {
 

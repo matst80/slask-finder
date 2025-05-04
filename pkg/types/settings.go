@@ -52,10 +52,10 @@ type FacetRelationGroup struct {
 	Relations         []FacetRelation   `json:"relations"`
 }
 
-func (f *FacetRelationGroup) GetFilter(item Item) *Filters {
-	result := &Filters{}
+func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
+	result := make([]StringFilter, 0)
 	for _, additionalQuery := range f.AdditionalQueries {
-		result.StringFilter = append(result.StringFilter, StringFilter{
+		result = append(result, StringFilter{
 			Id:    additionalQuery.FacetId,
 			Value: additionalQuery.Value,
 		})
@@ -65,7 +65,7 @@ func (f *FacetRelationGroup) GetFilter(item Item) *Filters {
 		if !ok {
 			continue
 		}
-		result.StringFilter = append(result.StringFilter, StringFilter{
+		result = append(result, StringFilter{
 			Id:    relation.DestinationFacetId,
 			Value: itemValue,
 		})

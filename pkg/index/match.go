@@ -43,6 +43,25 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 	})
 }
 
+func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemList) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	for _, fld := range filter {
+		if f, ok := i.Facets[fld.Id]; ok && f != nil {
+			ids := f.Match(fld.Value)
+			if ids == nil {
+				return
+			}
+			if res == nil {
+				res = &types.ItemList{}
+				res.Merge(ids)
+			} else {
+				res.Intersect(*ids)
+			}
+		}
+	}
+}
+
 func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
 	cnt := 0
 	i.mu.Lock()
@@ -109,12 +128,15 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	for _, relation := range rel {
 		if relation.Matches(item) {
 			// match all items for this relation
-			ids := make(chan *types.ItemList)
-			defer close(ids)
-			go i.Match(relation.GetFilter(item), nil, ids)
-			result.Merge(<-ids)
 			hasRealRelations = true
 			log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
+			relationResult := &types.ItemList{}
+
+			i.MatchStringsSync(relation.GetFilter(item), relationResult)
+			if relationResult != nil && len(*relationResult) > 0 {
+				result.Merge(relationResult)
+			}
+
 		}
 	}
 	if !hasRealRelations {
