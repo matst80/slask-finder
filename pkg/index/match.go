@@ -48,7 +48,7 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	results := make(chan *types.ItemList)
-	// log.Printf("Search %+v", search)
+	log.Printf("Search %+v", search)
 
 	parseKeys := func(value interface{}, facet types.Facet) {
 		results <- facet.Match(value)
@@ -102,9 +102,9 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	result := types.ItemList{}
 	var base *types.BaseField
 
-	types.CurrentSettings.RLock()
-	defer types.CurrentSettings.RUnlock()
+	//types.CurrentSettings.RLock()
 	rel := types.CurrentSettings.FacetRelations
+	//types.CurrentSettings.RUnlock()
 	hasRealRelations := false
 	for _, relation := range rel {
 		if relation.Matches(item) {
