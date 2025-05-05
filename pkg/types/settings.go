@@ -81,25 +81,29 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 	}
 	switch v := value.(type) {
 	case string:
-		if matchValue == nil {
-			return false
+		if v[0] == '!' {
+			v = v[1:]
+			if v == matchValue {
+				return false
+			}
 		}
 		if v == matchValue {
 			return true
 		}
 	case []string:
-		if matchValue == nil {
-			return false
-		}
 		for _, val := range v {
+			if val[0] == '!' {
+				val = val[1:]
+				if val == matchValue {
+					return false
+				}
+			}
 			if val == matchValue {
 				return true
 			}
 		}
 	case []uint:
-		if matchValue == nil {
-			return false
-		}
+
 		for _, val := range v {
 			if val == matchValue {
 				return true
