@@ -1,7 +1,6 @@
 package index
 
 import (
-	"cmp"
 	"fmt"
 	"log"
 	"slices"
@@ -51,30 +50,35 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemList) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	first := true
+	qm := types.NewQueryMerger(res)
+	//first := true
 	for _, fld := range filter {
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
-			keyFacet, ok := f.(*facet.KeyField)
+			keyFacet, ok := f.(facet.KeyField)
 			if !ok {
 				log.Printf("Key facet %s not found", f.GetBaseField().Name)
 				continue
 			}
-			ids := keyFacet.Match(fld.Value)
-
-			if ids == nil {
-				log.Printf("No ids for key facet %s, value %v", f.GetBaseField().Name, fld.Value)
-				return
-			}
-			log.Printf("key facet %s, value %v, result length %v", f.GetBaseField().Name, fld.Value, len(*ids))
-
-			if first {
-				first = false
-				res.Merge(ids)
-			} else {
-				res.Intersect(*ids)
-			}
+			qm.Add(func() *types.ItemList {
+				return keyFacet.MatchFilterValue(fld.Value)
+			})
+			//ids := keyFacet.MatchFilterValue(fld.Value)
+			//
+			//if ids == nil {
+			//	log.Printf("No ids for key facet %s, value %v", f.GetBaseField().Name, fld.Value)
+			//	return
+			//}
+			//log.Printf("key facet %s, value %v, result length %v", f.GetBaseField().Name, fld.Value, len(*ids))
+			//
+			//if first {
+			//	first = false
+			//	res.Merge(ids)
+			//} else {
+			//	res.Intersect(*ids)
+			//}
 		}
 	}
+	qm.Wait()
 }
 
 func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
@@ -170,24 +174,31 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	if !ok {
 		return nil, fmt.Errorf("item with id %d not found", id)
 	}
-	fields := make([]KeyFieldWithValue, 0)
+	//fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
 
 	//types.CurrentSettings.RLock()
 	rel := types.CurrentSettings.FacetRelations
 	//types.CurrentSettings.RUnlock()
 	hasRealRelations := false
+
+	outerMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
+		current.Merge(next)
+	})
+
 	for _, relation := range rel {
 		if relation.Matches(item) {
 			// match all items for this relation
 
-			relationResult := &types.ItemList{}
-
-			i.MatchStringsSync(relation.GetFilter(item), relationResult)
+			outerMerger.Add(func() *types.ItemList {
+				relationResult := &types.ItemList{}
+				i.MatchStringsSync(relation.GetFilter(item), relationResult)
+				return relationResult
+			})
 
 			hasRealRelations = true
-			log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
-			result.Merge(relationResult)
+			//log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
+			//result.Merge(relationResult)
 
 		} else {
 			log.Printf("No relation %+v for item %+v", relation, item)
@@ -219,55 +230,65 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 				continue
 			}
 
-			fields = append(fields, KeyFieldWithValue{
-				KeyField: targetField,
-				Value:    keyValue,
+			outerMerger.Add(func() *types.ItemList {
+				return targetField.MatchFilterValue(keyValue)
 			})
 
+			//fields = append(fields, KeyFieldWithValue{
+			//	KeyField: targetField,
+			//	Value:    keyValue,
+			//})
+
 		}
 
-		slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-			return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
-		})
-		if len(fields) == 0 {
-			return &result, nil
-		}
-
-		result = types.ItemList{}
-		for _, field := range fields {
-			next := field.Match(field.Value)
-			if next != nil {
-				result.Merge(next)
-				continue
-			}
-			// if next != nil && result.HasIntersection(next) {
-			// 	result.Intersect(*next)
-			// }
-		}
+		//slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
+		//	return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
+		//})
+		//if len(fields) == 0 {
+		//	return &result, nil
+		//}
+		//
+		//result = types.ItemList{}
+		//for _, field := range fields {
+		//	next := field.Match(field.Value)
+		//	if next != nil {
+		//		result.Merge(next)
+		//		continue
+		//	}
+		//	// if next != nil && result.HasIntersection(next) {
+		//	// 	result.Intersect(*next)
+		//	// }
+		//}
 	}
+	outerMerger.Wait()
 	return &result, nil
 }
 
 func (i *Index) Related(id uint) (*types.ItemList, error) {
 	i.Lock()
-	defer i.Unlock()
 	item, ok := i.Items[id]
+	i.Unlock()
 	if !ok {
 		return nil, fmt.Errorf("item with id %d not found", id)
 	}
-	fields := make([]KeyFieldWithValue, 0)
+	//fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
 	var base *types.BaseField
+	qm := types.NewCustomMerger(&result, func(current, next *types.ItemList, isFirst bool) {
+		if len(*current) < 10 && next != nil {
+			result.Merge(next)
+			return
+		}
+		if next != nil && result.IntersectionLen(*next) > 10 {
+			result.Intersect(*next)
+		}
+	})
 	for id, itemField := range item.GetFields() {
-		field, ok := i.Facets[id]
-		if !ok || field.GetType() != types.FacetKeyType {
-			continue
-		}
-		keyFacet, ok := field.(*facet.KeyField)
+		field, ok := i.GetKeyFacet(id)
 		if !ok {
-			log.Printf("Key facet %d not found", id)
 			continue
 		}
+
 		keyValue, ok := types.AsKeyFilterValue(itemField)
 		if !ok {
 			log.Printf("Not a valid key filter %v", itemField)
@@ -275,32 +296,36 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 		}
 		base = field.GetBaseField()
 		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
-			fields = append(fields, KeyFieldWithValue{
-				KeyField: keyFacet,
-				Value:    keyValue,
+			qm.Add(func() *types.ItemList {
+				return field.MatchFilterValue(keyValue)
 			})
+			//fields = append(fields, KeyFieldWithValue{
+			//	KeyField: field,
+			//	Value:    keyValue,
+			//})
 		}
 	}
-	slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-		return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
-	})
-	if len(fields) == 0 {
-		return &result, nil
-	}
-
-	result = types.ItemList{}
-	for _, field := range fields {
-		next := field.Match(field.Value)
-		if len(result) == 0 && next != nil {
-			result.Merge(next)
-			continue
-		}
-		if next != nil && result.HasIntersection(next) {
-			result.Intersect(*next)
-		}
-		if len(result) <= 50 {
-			break
-		}
-	}
+	//slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
+	//	return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
+	//})
+	//if len(fields) == 0 {
+	//	return &result, nil
+	//}
+	//
+	//result = types.ItemList{}
+	//for _, field := range fields {
+	//	next := field.Match(field.Value)
+	//	if len(result) == 0 && next != nil {
+	//		result.Merge(next)
+	//		continue
+	//	}
+	//	if next != nil && result.HasIntersection(next) && len(*next) > 10 {
+	//		result.Intersect(*next)
+	//	}
+	//	if len(result) <= 70 {
+	//		break
+	//	}
+	//}
+	qm.Wait()
 	return &result, nil
 }

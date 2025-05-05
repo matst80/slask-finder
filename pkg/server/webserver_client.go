@@ -497,7 +497,7 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	res := make(map[uint]int)
 	for _, f := range ws.Index.Facets {
 
-		keyFacet, ok := f.(*facet.KeyField)
+		keyFacet, ok := f.(facet.KeyField)
 		if !ok {
 			continue
 		}
@@ -764,33 +764,33 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId 
 // 	}
 // 	return err
 // }
-
-func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	defaultHeaders(w, r, true, "1200")
-	ret := make(map[string]uint)
-	for id, facet := range ws.Index.Facets {
-		base := facet.GetBaseField()
-		if (base.Type != "" || base.CategoryLevel > 0) && !base.HideFacet && facet.GetType() == types.FacetKeyType {
-			for _, line := range facet.GetValues() {
-				switch values := line.(type) {
-				case []string:
-					for _, v := range values {
-						if len(v) > 2 {
-							ret[v] = id
-						}
-					}
-				case string:
-					if len(values) > 2 {
-						ret[values] = id
-					}
-				}
-			}
-		}
-	}
-	w.WriteHeader(http.StatusOK)
-	enc.Encode(ret)
-	return nil
-}
+//
+//func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+//	defaultHeaders(w, r, true, "1200")
+//	ret := make(map[string]uint)
+//	for id, f := range ws.Index.Facets {
+//		base := f.GetBaseField()
+//		if (base.Type != "" || base.CategoryLevel > 0) && !base.HideFacet && f.GetType() == types.FacetKeyType {
+//			for _, line := range f.GetValues() {
+//				switch values := line.(type) {
+//				case []string:
+//					for _, v := range values {
+//						if len(v) > 2 {
+//							ret[v] = id
+//						}
+//					}
+//				case string:
+//					if len(values) > 2 {
+//						ret[values] = id
+//					}
+//				}
+//			}
+//		}
+//	}
+//	w.WriteHeader(http.StatusOK)
+//	enc.Encode(ret)
+//	return nil
+//}
 
 func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "1200")
@@ -818,7 +818,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/compatible/{id}", JsonHandler(ws.Tracking, ws.Compatible))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
-	srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
+	//srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
 	srv.HandleFunc("/find-related", JsonHandler(ws.Tracking, ws.FindRelated))

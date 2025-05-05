@@ -7,20 +7,37 @@ type QueryMerger struct {
 	MergeFirst bool
 	isFirst    bool
 	l          sync.Mutex
+	merger     Merger
 	result     *ItemList
 	exclude    *ItemList
 }
 
+type Merger = func(current *ItemList, next *ItemList, isFirst bool)
+
 func NewQueryMerger(result *ItemList) *QueryMerger {
-	wg := &sync.WaitGroup{}
-	res := &QueryMerger{
-		wg:         wg,
-		MergeFirst: true,
-		isFirst:    true,
-		result:     result,
-		exclude:    &ItemList{},
+	return &QueryMerger{
+		wg:      &sync.WaitGroup{},
+		isFirst: true,
+		result:  result,
+		merger: func(current *ItemList, next *ItemList, isFirst bool) {
+			if isFirst {
+				current.Merge(next)
+			} else {
+				current.Intersect(*next)
+			}
+		},
+		exclude: &ItemList{},
 	}
-	return res
+}
+
+func NewCustomMerger(result *ItemList, merger Merger) *QueryMerger {
+	return &QueryMerger{
+		wg:      &sync.WaitGroup{},
+		isFirst: true,
+		result:  result,
+		merger:  merger,
+		exclude: &ItemList{},
+	}
 }
 
 func (m *QueryMerger) Add(getResult func() *ItemList) {
@@ -30,12 +47,13 @@ func (m *QueryMerger) Add(getResult func() *ItemList) {
 		defer m.wg.Done()
 		m.l.Lock()
 		defer m.l.Unlock()
-		if m.MergeFirst && m.isFirst {
-			m.isFirst = false
-			m.result.Merge(items)
-		} else {
-			m.result.Intersect(*items)
-		}
+		m.merger(m.result, items, m.isFirst)
+		//if m.MergeFirst && m.isFirst {
+		//	m.isFirst = false
+		//	m.result.Merge(items)
+		//} else {
+		//	m.result.Intersect(*items)
+		//}
 	}()
 }
 
