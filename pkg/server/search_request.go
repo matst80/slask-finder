@@ -123,12 +123,14 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 		if strings.Contains(value, "||") {
 			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
+				Not:   exclude,
 				Value: strings.Split(value, "||"),
 			}
 		} else {
 
 			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
+				Not:   exclude,
 				Value: []string{value},
 			}
 
