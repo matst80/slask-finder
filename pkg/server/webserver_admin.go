@@ -711,6 +711,9 @@ func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request
 		types.CurrentSettings.Lock()
 		defer types.CurrentSettings.Unlock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
+		for _, j := range types.CurrentSettings.FacetRelations {
+			log.Printf("additional %+v", j.AdditionalQueries)
+		}
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return

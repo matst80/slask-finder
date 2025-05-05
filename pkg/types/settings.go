@@ -235,7 +235,7 @@ var CurrentSettings = &Settings{
 				Source:  FieldId,
 				FieldId: 2,
 			},
-			ValueIfMatch: 2100,
+			ValueIfMatch: 1100,
 		},
 		&MatchRule{
 			Match: "Outlet",
