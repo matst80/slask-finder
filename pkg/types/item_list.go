@@ -127,7 +127,7 @@ type FilterResult struct {
 	Exlude bool
 }
 
-func MakeIntersectResult(r chan *FilterResult, len int) *ItemList {
+func MakeIntersectResult(r chan FilterResult, len int) *ItemList {
 	defer close(r)
 	first := &ItemList{}
 	if len == 0 {

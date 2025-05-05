@@ -84,17 +84,17 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	results := make(chan FilterResult)
+	results := make(chan types.FilterResult)
 	log.Printf("Search %+v", search)
 
 	parseKeys := func(value types.StringFilterValue, exclude bool, f *facet.KeyField) {
-		results <- FilterResult{
+		results <- types.FilterResult{
 			Ids:    f.Match(value),
 			Exlude: exclude,
 		}
 	}
 	parseRange := func(field types.RangeFilter, f types.Facet) {
-		results <- FilterResult{
+		results <- types.FilterResult{
 			Ids:    f.Match(field),
 			Exlude: false,
 		}
@@ -130,7 +130,7 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 		}
 		cnt++
 		go func() {
-			results <- FilterResult{
+			results <- types.FilterResult{
 				Ids:    initialIds,
 				Exlude: false,
 			}
