@@ -74,6 +74,17 @@ func (f KeyField) Match(input interface{}) *types.ItemList {
 	switch val := input.(type) {
 	case string:
 		return f.match(val)
+	case []interface{}:
+		ret := make(types.ItemList)
+		for _, v := range val {
+			if str, ok := v.(string); ok {
+				r := f.match(str)
+				if r != nil {
+					ret.Merge(r)
+				}
+			}
+		}
+		return &ret
 	case []string:
 		ret := make(types.ItemList)
 		for _, v := range val {
