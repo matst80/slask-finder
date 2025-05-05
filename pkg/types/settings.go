@@ -38,12 +38,10 @@ const (
 )
 
 type FacetRelation struct {
-	Name               string `json:"name,omitempty"`
-	FacetId            uint   `json:"fromId"`
-	DestinationFacetId uint   `json:"toId"`
-	//ItemRequirements   []ItemRequirement `json:"requiredForItem"`
-	//AdditionalQueries  []ItemRequirement `json:"additionalQueries"`
-	ValueConverter ValueConverter `json:"converter"`
+	Name               string         `json:"name,omitempty"`
+	FacetId            uint           `json:"fromId"`
+	DestinationFacetId uint           `json:"toId"`
+	ValueConverter     ValueConverter `json:"converter"`
 }
 
 type FacetRelationGroup struct {
