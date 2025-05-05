@@ -141,7 +141,7 @@ const FacetTreeType = 4
 type Facet interface {
 	GetType() uint
 	Match(data interface{}) *ItemList
-	MatchAsync(data interface{}, results chan<- *ItemList)
+	// MatchAsync(data interface{}, results chan<- *ItemList)
 	GetBaseField() *BaseField
 	AddValueLink(value interface{}, id uint) bool
 	RemoveValueLink(value interface{}, id uint)

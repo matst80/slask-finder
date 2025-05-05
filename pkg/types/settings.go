@@ -56,9 +56,14 @@ type FacetRelationGroup struct {
 func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 	result := make([]StringFilter, 0)
 	for _, additionalQuery := range f.AdditionalQueries {
+		keyValue, ok := AsKeyFilterValue(additionalQuery.Value)
+		if !ok {
+			log.Printf("Failed to convert %v to key filter value", additionalQuery.Value)
+			continue
+		}
 		result = append(result, StringFilter{
 			Id:    additionalQuery.FacetId,
-			Value: additionalQuery.Value,
+			Value: keyValue,
 		})
 	}
 	for _, relation := range f.Relations {
@@ -66,10 +71,15 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 		if !ok {
 			continue
 		}
+		keyValue, ok := AsKeyFilterValue(itemValue)
+		if !ok {
+			log.Printf("Failed to convert %v to key filter value", itemValue)
+			continue
+		}
 		if relation.ValueConverter == NoConverter {
 			result = append(result, StringFilter{
 				Id:    relation.DestinationFacetId,
-				Value: itemValue,
+				Value: keyValue,
 			})
 		}
 	}

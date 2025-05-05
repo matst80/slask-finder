@@ -6,13 +6,15 @@ import (
 	"log"
 	"slices"
 
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type CleanKeyFacet struct {
-	types.Facet
-	level int
-	Value interface{} `json:"value"`
+	Facet   *facet.KeyField
+	level   int
+	Exclude bool
+	Value   types.StringFilterValue `json:"value"`
 }
 
 func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilter) []CleanKeyFacet {
@@ -24,11 +26,17 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 			continue
 		}
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
+			keyFacet, ok := f.(*facet.KeyField)
+			if !ok {
+				log.Printf("Key facet %d not found", fld.Id)
+				continue
+			}
 			level := f.GetBaseField().CategoryLevel
 			ret = append(ret, CleanKeyFacet{
-				Facet: f,
-				Value: fld.Value,
-				level: level,
+				Facet:   keyFacet,
+				Exclude: fld.Not,
+				Value:   fld.Value,
+				level:   level,
 			})
 
 			if level > maxLevel {
@@ -49,7 +57,12 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemLis
 	first := true
 	for _, fld := range filter {
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
-			ids := f.Match(fld.Value)
+			keyFacet, ok := f.(*facet.KeyField)
+			if !ok {
+				log.Printf("Key facet %s not found", f.GetBaseField().Name)
+				continue
+			}
+			ids := keyFacet.Match(fld.Value)
 
 			if ids == nil {
 				log.Printf("No ids for key facet %s, value %v", f.GetBaseField().Name, fld.Value)
@@ -71,20 +84,31 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 	cnt := 0
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	results := make(chan *types.ItemList)
+	results := make(chan FilterResult)
 	log.Printf("Search %+v", search)
 
-	parseKeys := func(value interface{}, facet types.Facet) {
-		results <- facet.Match(value)
+	parseKeys := func(value types.StringFilterValue, exclude bool, f *facet.KeyField) {
+		results <- FilterResult{
+			Ids:    f.Match(value),
+			Exlude: exclude,
+		}
 	}
-	parseRange := func(field types.RangeFilter, facet types.Facet) {
-		results <- facet.Match(field)
+	parseRange := func(field types.RangeFilter, f types.Facet) {
+		results <- FilterResult{
+			Ids:    f.Match(field),
+			Exlude: false,
+		}
 	}
-
+	excludeQueries := make([]CleanKeyFacet, 0)
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
 		// log.Printf("key facet %s, value %v", fld.GetBaseField().Name, fld.Value)
+		if fld.Exclude {
+			excludeQueries = append(excludeQueries, fld)
+			continue
+		}
 		cnt++
-		go parseKeys(fld.Value, fld.Facet)
+
+		go parseKeys(fld.Value, false, fld.Facet)
 
 	}
 
@@ -95,6 +119,10 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 			go parseRange(fld, f)
 		}
 	}
+	for _, fld := range excludeQueries {
+		cnt++
+		go parseKeys(fld.Value, true, fld.Facet)
+	}
 	if initialIds != nil {
 		if cnt == 0 {
 			idList <- initialIds
@@ -102,7 +130,10 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 		}
 		cnt++
 		go func() {
-			results <- initialIds
+			results <- FilterResult{
+				Ids:    initialIds,
+				Exlude: false,
+			}
 		}()
 	}
 
@@ -111,8 +142,8 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 }
 
 type KeyFieldWithValue struct {
-	types.Facet
-	Value interface{}
+	*facet.KeyField
+	Value types.StringFilterValue
 }
 
 func (i *Index) Compatible(id uint) (*types.ItemList, error) {
@@ -150,19 +181,41 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		log.Printf("No relations found for item %d", item.GetId())
 		for id, itemField := range item.GetFields() {
 			field, ok := i.Facets[id]
+
 			if !ok || field.GetType() != types.FacetKeyType {
 				continue
 			}
-			base = field.GetBaseField()
+			keyFacet, ok := field.(*facet.KeyField)
+			if !ok {
+				log.Printf("Key facet %d not found", id)
+				continue
+			}
+			base = keyFacet.BaseField
 			if base.LinkedId == 0 {
 				continue
 			}
 			targetField, ok := i.Facets[base.LinkedId]
+			if !ok {
+				log.Printf("Target facet %d not found", base.LinkedId)
+				continue
+			}
+
+			keyValue, ok := types.AsKeyFilterValue(itemField)
+			if !ok {
+				log.Printf("Not a valid key filter", id)
+				continue
+			}
+
+			targetKeyFacet, ok := targetField.(*facet.KeyField)
+			if !ok {
+				log.Printf("Key facet %d not found", base.LinkedId)
+				continue
+			}
 
 			if ok {
 				fields = append(fields, KeyFieldWithValue{
-					Facet: targetField,
-					Value: itemField,
+					KeyField: targetKeyFacet,
+					Value:    keyValue,
 				})
 			}
 		}
@@ -204,11 +257,21 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 		if !ok || field.GetType() != types.FacetKeyType {
 			continue
 		}
+		keyFacet, ok := field.(*facet.KeyField)
+		if !ok {
+			log.Printf("Key facet %d not found", id)
+			continue
+		}
+		keyValue, ok := types.AsKeyFilterValue(itemField)
+		if !ok {
+			log.Printf("Not a valid key filter %v", itemField)
+			continue
+		}
 		base = field.GetBaseField()
 		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
 			fields = append(fields, KeyFieldWithValue{
-				Facet: field,
-				Value: itemField,
+				KeyField: keyFacet,
+				Value:    keyValue,
 			})
 		}
 	}

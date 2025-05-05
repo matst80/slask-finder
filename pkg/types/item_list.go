@@ -122,7 +122,12 @@ func (a ItemList) IntersectionLen(b ItemList) int {
 	return count
 }
 
-func MakeIntersectResult(r chan *ItemList, len int) *ItemList {
+type FilterResult struct {
+	Ids    *ItemList
+	Exlude bool
+}
+
+func MakeIntersectResult(r chan *FilterResult, len int) *ItemList {
 	defer close(r)
 	first := &ItemList{}
 	if len == 0 {
@@ -130,14 +135,18 @@ func MakeIntersectResult(r chan *ItemList, len int) *ItemList {
 	}
 
 	next := <-r
-	if next != nil {
-		first.Merge(next)
+	if next.Ids != nil {
+		first.Merge(next.Ids)
 	}
 
 	for i := 1; i < len; i++ {
 		next = <-r
-		if next != nil {
-			first.Intersect(*next)
+		if next.Ids != nil {
+			if next.Exlude {
+				first.Exclude(next.Ids)
+			} else {
+				first.Intersect(*next.Ids)
+			}
 		} else {
 			return &ItemList{}
 		}

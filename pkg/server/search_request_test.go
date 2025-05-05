@@ -50,7 +50,7 @@ func TestParseQueryValues(t *testing.T) {
 	if sr.PageSize != 10 {
 		t.Errorf("Expected page size to be 10, got %v", sr.PageSize)
 	}
-	if sr.StringFilter[0].Id != 10 || sr.StringFilter[0].Value != "tio" {
+	if sr.StringFilter[0].Id != 10 || sr.StringFilter[0].Value[0] != "tio" {
 		t.Errorf("Expected string filter to be [10:tio], got %v", sr.StringFilter)
 	}
 	if sr.RangeFilter[0].Id != 12 || sr.RangeFilter[0].Min != 12.0 || sr.RangeFilter[0].Max != 12.0 {
@@ -62,7 +62,7 @@ func TestParseQueryValues(t *testing.T) {
 }
 
 func TestRealUrl(t *testing.T) {
-	realUrl := "https://slask-finder.knatofs.se/api/stream?page=0&size=120&sort=popular&query=&rng=36307%3A65-9999&str=32077%3ASocket+AM5&str=31158%3ACPU+AIO-vattenkylare%7C%7CVattenkylning"
+	realUrl := "https://slask-finder.knatofs.se/api/stream?page=0&size=120&sort=popular&query=&rng=36307%3A65-9999&str=32077%3ASocket+AM5&str=31158%3ACPU+AIO-vattenkylare%7C%7CVattenkylning&str=30303%3A!hej"
 	parsedUrl, err := url.Parse(realUrl)
 	if err != nil {
 		t.Fatalf("Failed to parse URL: %v", err)
@@ -82,10 +82,31 @@ func TestRealUrl(t *testing.T) {
 	}
 	queryFromRequestQuery(parsedUrl.Query(), &sr)
 	t.Logf("%+v", sr)
-	if sr.FacetRequest.Filters.StringFilter[0].Value != "Socket AM5" {
+	if sr.FacetRequest.Filters.StringFilter[0].Value[0] != "Socket AM5" {
 		t.Errorf("Expected string filter to be [32077:Socket AM5], got %v", sr.FacetRequest.Filters.StringFilter[0])
 	}
-	// if sr.FacetRequest.Filters.StringFilter[1].Value != "Vattenkylning" {
-	// 	t.Errorf("Expected string filter to be [32077:Socket AM5], got %v", sr.FacetRequest.Filters.StringFilter[0])
-	// }
+	if sr.FacetRequest.Filters.StringFilter[1].Value[0] != "CPU AIO-vattenkylare" {
+		t.Errorf("Expected string filter to be [31158:CPU AIO-vattenkylare], got %v", sr.FacetRequest.Filters.StringFilter[1])
+	}
+	if sr.FacetRequest.Filters.StringFilter[1].Value[1] != "Vattenkylning" {
+		t.Errorf("Expected string filter to be [31158:CPU AIO-vattenkylare], got %v", sr.FacetRequest.Filters.StringFilter[1])
+	}
+	if sr.FacetRequest.Filters.RangeFilter[0].Id != 36307 {
+		t.Errorf("Expected range filter to be [36307:65-9999], got %v", sr.FacetRequest.Filters.RangeFilter[0])
+	}
+	if sr.FacetRequest.Filters.RangeFilter[0].Min != 65.0 {
+		t.Errorf("Expected range filter to be [36307:65-9999], got %v", sr.FacetRequest.Filters.RangeFilter[0])
+	}
+	if sr.FacetRequest.Filters.RangeFilter[0].Max != 9999.0 {
+		t.Errorf("Expected range filter to be [36307:65-9999], got %v", sr.FacetRequest.Filters.RangeFilter[0])
+	}
+	if sr.FacetRequest.Filters.StringFilter[2].Value[0] != "hej" {
+		t.Errorf("Expected string filter to be [30303:hej], got %v", sr.FacetRequest.Filters.StringFilter[2])
+	}
+	if sr.FacetRequest.Filters.StringFilter[2].Not != true {
+		t.Errorf("Expected string filter to be [30303:hej], got %v", sr.FacetRequest.Filters.StringFilter[2])
+	}
+	if sr.FacetRequest.Filters.StringFilter[2].Id != 30303 {
+		t.Errorf("Expected string filter to be [30303:hej], got %v", sr.FacetRequest.Filters.StringFilter[2])
+	}
 }

@@ -1,14 +1,41 @@
 package types
 
+import "log"
+
+type StringFilterValue = []string
+
 type StringFilter struct {
-	Id    uint        `json:"id"`
-	Value interface{} `json:"value"`
+	Id    uint              `json:"id"`
+	Not   bool              `json:"not"`
+	Value StringFilterValue `json:"value"`
 }
 
 type RangeFilter struct {
 	Min interface{} `json:"min"`
 	Max interface{} `json:"max"`
 	Id  uint        `json:"id"`
+}
+
+func AsKeyFilterValue(value interface{}) (StringFilterValue, bool) {
+	switch v := value.(type) {
+	case string:
+		return StringFilterValue{v}, true
+	case []string:
+		return v, true
+	case []interface{}:
+		ret := make(StringFilterValue, len(v))
+		for i, val := range v {
+			if str, ok := val.(string); ok {
+				ret[i] = str
+			} else {
+				ret[i] = ""
+			}
+		}
+		return ret, true
+	default:
+		log.Printf("Unknown type %T", v)
+		return nil, false
+	}
 }
 
 type FilterIds map[uint]struct{}

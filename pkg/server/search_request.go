@@ -105,20 +105,34 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 		if len(parts) != 2 {
 			continue
 		}
-		id, err := strconv.Atoi(parts[0])
+		idKey := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if idKey == "" || value == "" {
+			continue
+		}
+
+		id, err := strconv.Atoi(idKey)
 
 		if err != nil {
 			continue
 		}
-		if strings.Contains(parts[1], "||") {
+		if strings.Contains(value, "||") {
 			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
-				Value: strings.Split(parts[1], "||"),
+				Value: strings.Split(value, "||"),
 			}
 		} else {
-			key[uint(id)] = types.StringFilter{
-				Id:    uint(id),
-				Value: parts[1],
+			if strings.HasPrefix(value, "!") {
+				key[uint(id)] = types.StringFilter{
+					Id:    uint(id),
+					Not:   true,
+					Value: []string{strings.TrimPrefix(value, "!")},
+				}
+			} else {
+				key[uint(id)] = types.StringFilter{
+					Id:    uint(id),
+					Value: []string{value},
+				}
 			}
 		}
 	}

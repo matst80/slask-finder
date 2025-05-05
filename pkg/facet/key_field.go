@@ -67,43 +67,66 @@ func (f KeyField) UpdateBaseField(field *types.BaseField) {
 	f.BaseField.UpdateFrom(field)
 }
 
-func (f KeyField) Match(input interface{}) *types.ItemList {
-	if input == nil {
+func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemList {
+	// todo implement
+	if value == nil {
 		return &types.ItemList{}
 	}
-	switch val := input.(type) {
-	case string:
-		return f.match(val)
-	case []interface{}:
-		ret := make(types.ItemList)
-		for _, v := range val {
-			if str, ok := v.(string); ok {
-				r := f.match(str)
-				if r != nil {
-					ret.Merge(r)
-				}
-			}
-		}
-		return &ret
-	case []string:
-		ret := make(types.ItemList)
-		for _, v := range val {
-			r := f.match(v)
+	ret := make(types.ItemList)
+	for _, v := range value {
+		r := f.match(v)
 
-			if r != nil {
-				ret.Merge(r)
-			}
-
+		if r != nil {
+			ret.Merge(r)
 		}
-		return &ret
+
 	}
-
-	return &types.ItemList{}
+	return &ret
 }
 
-func (f KeyField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
-	ch <- f.Match(input)
+func (f KeyField) Match(input interface{}) *types.ItemList {
+	value, ok := types.AsKeyFilterValue(input)
+	if !ok {
+		log.Printf("KeyField: Match: Unknown type %T", input)
+		return &types.ItemList{}
+	}
+	return f.MatchFilterValue(value)
+	// if input == nil {
+	// 	return &types.ItemList{}
+	// }
+	// switch val := input.(type) {
+	// case string:
+	// 	return f.match(val)
+	// case []interface{}:
+	// 	ret := make(types.ItemList)
+	// 	for _, v := range val {
+	// 		if str, ok := v.(string); ok {
+	// 			r := f.match(str)
+	// 			if r != nil {
+	// 				ret.Merge(r)
+	// 			}
+	// 		}
+	// 	}
+	// 	return &ret
+	// case []string:
+	// 	ret := make(types.ItemList)
+	// 	for _, v := range val {
+	// 		r := f.match(v)
+
+	// 		if r != nil {
+	// 			ret.Merge(r)
+	// 		}
+
+	// 	}
+	// 	return &ret
+	// }
+
+	// return &types.ItemList{}
 }
+
+// func (f KeyField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+// 	ch <- f.Match(input)
+// }
 
 func (f KeyField) GetBaseField() *types.BaseField {
 	return f.BaseField

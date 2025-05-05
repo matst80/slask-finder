@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"slices"
 
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -430,7 +431,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		defer wg.Done()
 		filter := types.Filters{
 			StringFilter: []types.StringFilter{
-				{Id: 31158, Value: articleType},
+				{Id: 31158, Value: []string{articleType}},
 			},
 		}
 
@@ -494,17 +495,24 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	var base types.BaseField
 	var l int
 	res := make(map[uint]int)
-	for _, facet := range ws.Index.Facets {
+	for _, f := range ws.Index.Facets {
 
-		if facet.GetType() != types.FacetKeyType {
+		keyFacet, ok := f.(*facet.KeyField)
+		if !ok {
 			continue
 		}
-		base = *facet.GetBaseField()
+		// if f.GetType() != types.FacetKeyType {
+		// 	continue
+		// }
+		base = *keyFacet.BaseField
 		if base.Id == query.Id || !base.Searchable {
 			continue
 		}
-
-		matches := facet.Match(query.Value)
+		keyValue, ok := types.AsKeyFilterValue(query.Value)
+		if !ok {
+			continue
+		}
+		matches := keyFacet.Match(keyValue)
 
 		if matches != nil {
 			l = len(*matches)

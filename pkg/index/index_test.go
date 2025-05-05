@@ -49,7 +49,7 @@ func TestIndexMatch(t *testing.T) {
 	}
 	i.UpsertItem(&item)
 	query := types.Filters{
-		StringFilter: []types.StringFilter{{Id: 1, Value: "test"}},
+		StringFilter: []types.StringFilter{{Id: 1, Value: []string{"test"}}},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
 	ch := make(chan *types.ItemList)
@@ -116,7 +116,7 @@ func TestHasFields(t *testing.T) {
 func TestMultipleIndexMatch(t *testing.T) {
 	i := CreateIndex()
 	query := types.Filters{
-		StringFilter: []types.StringFilter{{Id: 1, Value: "test"}},
+		StringFilter: []types.StringFilter{{Id: 1, Value: []string{"test"}}},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
 	ch := make(chan *types.ItemList)
@@ -131,7 +131,7 @@ func TestMultipleIndexMatch(t *testing.T) {
 func TestGetMatchItems(t *testing.T) {
 	i := CreateIndex()
 	query := types.Filters{
-		StringFilter: []types.StringFilter{{Id: 1, Value: "test"}},
+		StringFilter: []types.StringFilter{{Id: 1, Value: []string{"test"}}},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
 	ch := make(chan *types.ItemList)
