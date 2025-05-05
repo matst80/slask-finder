@@ -17,19 +17,19 @@ import (
 )
 
 type Sorting struct {
-	quit                  chan struct{}
-	idx                   *Index
-	mu                    sync.RWMutex
-	muStaticPos           sync.RWMutex
-	muOverride            sync.RWMutex
-	client                *redis.Client
-	fieldOverride         *SortOverride
-	popularOverrides      *SortOverride
-	popularMap            *SortOverride
-	fieldMap              *SortOverride
-	sessionOverrides      map[uint]*SortOverride
-	sessionFieldOverrides map[uint]*SortOverride
-	sortMethods           map[string]*types.ByValue
+	quit             chan struct{}
+	idx              *Index
+	mu               sync.RWMutex
+	muStaticPos      sync.RWMutex
+	muOverride       sync.RWMutex
+	client           *redis.Client
+	fieldOverride    *SortOverride
+	popularOverrides *SortOverride
+	popularMap       *SortOverride
+	fieldMap         *SortOverride
+	sessionOverrides map[uint]*SortOverride
+	//sessionFieldOverrides map[uint]*SortOverride
+	sortMethods map[string]*types.ByValue
 	//staticPositions       *StaticPositions
 	FieldSort *types.ByValue
 	//popularityRules       *types.ItemPopularityRules
@@ -64,14 +64,14 @@ func NewSorting(addr, password string, db int) *Sorting {
 
 	instance := &Sorting{
 
-		client:                rdb,
-		sortMethods:           make(map[string]*types.ByValue),
-		FieldSort:             &types.ByValue{},
-		popularOverrides:      &SortOverride{},
-		fieldMap:              &SortOverride{},
-		sessionOverrides:      make(map[uint]*SortOverride),
-		sessionFieldOverrides: make(map[uint]*SortOverride),
-		fieldOverride:         &SortOverride{},
+		client:           rdb,
+		sortMethods:      make(map[string]*types.ByValue),
+		FieldSort:        &types.ByValue{},
+		popularOverrides: &SortOverride{},
+		fieldMap:         &SortOverride{},
+		sessionOverrides: make(map[uint]*SortOverride),
+		//sessionFieldOverrides: make(map[uint]*SortOverride),
+		fieldOverride: &SortOverride{},
 		//staticPositions:       &StaticPositions{},
 		popularMap: &SortOverride{},
 
@@ -86,14 +86,14 @@ func (s *Sorting) GetSessionData(id uint) (*SortOverride, *SortOverride) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	itemData, ok := s.sessionOverrides[id]
-	fieldData, fieldOk := s.sessionFieldOverrides[id]
+	//fieldData, fieldOk := s.sessionFieldOverrides[id]
 	if !ok {
 		itemData = s.popularOverrides
 	}
-	if !fieldOk {
-		fieldData = s.fieldOverride
-	}
-	return itemData, fieldData
+	//if !fieldOk {
+	//	fieldData =
+	//}
+	return itemData, s.fieldOverride
 }
 
 func ListenForSessionMessage(rdb *redis.Client, channel string, fn func(sessionId int, sortOverride *SortOverride)) {
@@ -170,18 +170,18 @@ func (s *Sorting) SetSessionItemOverride(sessionId int, sortOverride *SortOverri
 	s.hasItemChanges = true
 }
 
-func (s *Sorting) SetSessionFieldOverride(sessionId int, sortOverride *SortOverride) {
-	s.muOverride.Lock()
-	defer s.muOverride.Unlock()
-	s.sessionFieldOverrides[uint(sessionId)] = sortOverride
-}
+//func (s *Sorting) SetSessionFieldOverride(sessionId int, sortOverride *SortOverride) {
+//	s.muOverride.Lock()
+//	defer s.muOverride.Unlock()
+//	s.sessionFieldOverrides[uint(sessionId)] = sortOverride
+//}
 
 func (s *Sorting) StartListeningForChanges() {
 	rdb := s.client
 	//ctx := context.Background()
 
 	go ListenForSessionMessage(rdb, REDIS_SESSION_POPULAR_CHANGE, s.SetSessionItemOverride)
-	go ListenForSessionMessage(rdb, REDIS_SESSION_FIELD_CHANGE, s.SetSessionFieldOverride)
+	//go ListenForSessionMessage(rdb, REDIS_SESSION_FIELD_CHANGE, s.SetSessionFieldOverride)
 
 	go ListenForSortOverride(rdb, REDIS_POPULAR_CHANGE, REDIS_POPULAR_KEY, s.addPopularOverride)
 	go ListenForSortOverride(rdb, REDIS_FIELD_CHANGE, REDIS_FIELD_KEY, s.setFieldSortOverride)

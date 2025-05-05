@@ -87,18 +87,15 @@ func (i *Index) AddIntegerField(field *types.BaseField) {
 }
 
 func (i *Index) GetKeyFacet(id uint) (*facet.KeyField, bool) {
-	f, ok := i.Facets[id]
-	if !ok {
-		return nil, false
+	if f, ok := i.Facets[id]; ok {
+		switch tf := f.(type) {
+		case facet.KeyField:
+			return &tf, true
+		case *facet.KeyField:
+			return tf, true
+		}
 	}
-	switch tf := f.(type) {
-	case facet.KeyField:
-		return &tf, true
-	case *facet.KeyField:
-		return tf, true
-	default:
-		return nil, false
-	}
+	return nil, false
 }
 
 // func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
