@@ -614,7 +614,7 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 					if typeOk {
 						itemProductType := productType.(string)
 						if slices.Contains(excludedProductTypes, itemProductType) {
-							log.Printf("skipping %d %s", item.GetId(), itemProductType)
+							//log.Printf("skipping %d %s", item.GetId(), itemProductType)
 							continue
 						}
 					}
