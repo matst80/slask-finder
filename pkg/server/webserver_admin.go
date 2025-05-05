@@ -708,12 +708,18 @@ func (ws *WebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Reque
 
 func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
+		types.CurrentSettings.Lock()
+		defer types.CurrentSettings.Unlock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		ws.Db.SaveSettings()
+		err = ws.Db.SaveSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
@@ -725,12 +731,18 @@ func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request
 
 func (ws *WebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
+		types.CurrentSettings.Lock()
+		defer types.CurrentSettings.Unlock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetGroups)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		ws.Db.SaveSettings()
+		err = ws.Db.SaveSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 	}
 	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
