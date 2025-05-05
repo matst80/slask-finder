@@ -197,11 +197,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			})
 
 			hasRealRelations = true
-			//log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
-			//result.Merge(relationResult)
 
-		} else {
-			log.Printf("No relation %+v for item %+v", relation, item)
 		}
 	}
 	if !hasRealRelations {
@@ -220,7 +216,6 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			}
 			targetField, ok := i.GetKeyFacet(linkedTo)
 			if !ok {
-				log.Printf("Target key facet %d not found", linkedTo)
 				continue
 			}
 
@@ -234,31 +229,8 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 				return targetField.MatchFilterValue(keyValue)
 			})
 
-			//fields = append(fields, KeyFieldWithValue{
-			//	KeyField: targetField,
-			//	Value:    keyValue,
-			//})
-
 		}
 
-		//slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-		//	return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
-		//})
-		//if len(fields) == 0 {
-		//	return &result, nil
-		//}
-		//
-		//result = types.ItemList{}
-		//for _, field := range fields {
-		//	next := field.Match(field.Value)
-		//	if next != nil {
-		//		result.Merge(next)
-		//		continue
-		//	}
-		//	// if next != nil && result.HasIntersection(next) {
-		//	// 	result.Intersect(*next)
-		//	// }
-		//}
 	}
 	outerMerger.Wait()
 	return &result, nil
@@ -271,7 +243,7 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 	if !ok {
 		return nil, fmt.Errorf("item with id %d not found", id)
 	}
-	//fields := make([]KeyFieldWithValue, 0)
+
 	result := types.ItemList{}
 	var base *types.BaseField
 	qm := types.NewCustomMerger(&result, func(current, next *types.ItemList, isFirst bool) {
@@ -289,43 +261,15 @@ func (i *Index) Related(id uint) (*types.ItemList, error) {
 			continue
 		}
 
-		keyValue, ok := types.AsKeyFilterValue(itemField)
-		if !ok {
-			log.Printf("Not a valid key filter %v", itemField)
-			continue
-		}
 		base = field.GetBaseField()
 		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
-			qm.Add(func() *types.ItemList {
-				return field.MatchFilterValue(keyValue)
-			})
-			//fields = append(fields, KeyFieldWithValue{
-			//	KeyField: field,
-			//	Value:    keyValue,
-			//})
+			if keyValue, ok := types.AsKeyFilterValue(itemField); ok {
+				qm.Add(func() *types.ItemList {
+					return field.MatchFilterValue(keyValue)
+				})
+			}
 		}
 	}
-	//slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {
-	//	return cmp.Compare(b.GetBaseField().Priority, a.GetBaseField().Priority)
-	//})
-	//if len(fields) == 0 {
-	//	return &result, nil
-	//}
-	//
-	//result = types.ItemList{}
-	//for _, field := range fields {
-	//	next := field.Match(field.Value)
-	//	if len(result) == 0 && next != nil {
-	//		result.Merge(next)
-	//		continue
-	//	}
-	//	if next != nil && result.HasIntersection(next) && len(*next) > 10 {
-	//		result.Intersect(*next)
-	//	}
-	//	if len(result) <= 70 {
-	//		break
-	//	}
-	//}
 	qm.Wait()
 	return &result, nil
 }
