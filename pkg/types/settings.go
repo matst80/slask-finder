@@ -86,77 +86,45 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 	return result
 }
 
+func AsStringArray(value interface{}) []string {
+	itemValues := []string{}
+	switch input := value.(type) {
+	case []string:
+		for _, item := range input {
+			itemValues = append(itemValues, item)
+		}
+	case []interface{}:
+		for _, item := range input {
+			if v, ok := item.(string); ok {
+				itemValues = append(itemValues, v)
+			}
+		}
+	case string:
+		itemValues = append(itemValues, input)
+	}
+	return itemValues
+}
+
 func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
+	if value == nil {
+		return false
+	}
 	if matchValue == nil {
+
 		return true
 	}
-	toMatch := ""
-	switch mv := matchValue.(type) {
-	case []interface{}:
-		for _, v := range mv {
-			str, ok := v.(string)
-			if !ok {
-				log.Printf("Match %v is not a string", v)
-				return false
-			}
-			toMatch = str
-			break
-		}
-	case string:
-		toMatch = mv
-	case []string:
-		for _, v := range mv {
-			toMatch = v
-			break
-		}
-	}
 
-	switch v := value.(type) {
-	case string:
-		if toMatch[0] == '!' {
-			toMatch = toMatch[1:]
-			if v == toMatch {
-				log.Printf("Match %s != %s", v, toMatch)
-				return false
-			}
-		}
-		// if v[0] == '!' {
-		// 	v = v[1:]
-		// 	if v == matchValue {
-		// 		log.Printf("Match %s != %s", v, matchValue)
-		// 		return false
-		// 	}
-		// }
-		if v == toMatch {
+	itemValues := AsStringArray(value)
+
+	matchItems := AsStringArray(matchValue)
+
+	for _, item := range itemValues {
+		if slices.Contains(matchItems, item) {
 			return true
 		}
-	case []string:
-		return slices.Contains(v, toMatch)
-		// for _, val := range v {
-		// 	if val[0] == '!' {
-		// 		val = val[1:]
-		// 		if val == matchValue {
-		// 			log.Printf("Match %s != %s", val, matchValue)
-		// 			return false
-		// 		}
-		// 	}
-		// 	if val == matchValue {
-		// 		return true
-		// 	}
-		// }
-	case []uint:
-		log.Printf("not implemented yet, match int")
-		return false
-		// for _, val := range v {
-		// 	if val == matchValue {
-		// 		return true
-		// 	}
-		// }
-	default:
-		log.Printf("Unknown type %T", value)
 	}
-	log.Printf("Match %v != %v, type a: %T type b: %T", value, matchValue, value, matchValue)
 	return false
+
 }
 
 func (f *FacetRelationGroup) Matches(item Item) bool {
@@ -166,9 +134,11 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 			log.Printf("Item %d does not have field %d", item.GetId(), relation.FacetId)
 			return false
 		}
-		if relation.Value != nil && !matchInterfaceValues(itemValue, relation.Value) {
-			return false
+		matches := matchInterfaceValues(itemValue, relation.Value)
+		if relation.Exclude {
+			return !matches
 		}
+		return matches
 	}
 	for _, relation := range f.Relations {
 		_, ok := item.GetFieldValue(relation.FacetId)
