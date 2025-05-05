@@ -2,6 +2,7 @@ package types
 
 import (
 	"log"
+	"slices"
 	"sync"
 )
 
@@ -79,38 +80,68 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 	if matchValue == nil {
 		return true
 	}
+	toMatch := ""
+	switch mv := matchValue.(type) {
+	case []interface{}:
+		for _, v := range mv {
+			str, ok := v.(string)
+			if !ok {
+				log.Printf("Match %v is not a string", v)
+				return false
+			}
+			toMatch = str
+			break
+		}
+	case string:
+		toMatch = mv
+	case []string:
+		for _, v := range mv {
+			toMatch = v
+			break
+		}
+	}
+
 	switch v := value.(type) {
 	case string:
-		if v[0] == '!' {
-			v = v[1:]
-			if v == matchValue {
-				log.Printf("Match %s != %s", v, matchValue)
+		if toMatch[0] == '!' {
+			toMatch = toMatch[1:]
+			if v == toMatch {
+				log.Printf("Match %s != %s", v, toMatch)
 				return false
 			}
 		}
-		if v == matchValue {
+		// if v[0] == '!' {
+		// 	v = v[1:]
+		// 	if v == matchValue {
+		// 		log.Printf("Match %s != %s", v, matchValue)
+		// 		return false
+		// 	}
+		// }
+		if v == toMatch {
 			return true
 		}
 	case []string:
-		for _, val := range v {
-			if val[0] == '!' {
-				val = val[1:]
-				if val == matchValue {
-					log.Printf("Match %s != %s", val, matchValue)
-					return false
-				}
-			}
-			if val == matchValue {
-				return true
-			}
-		}
+		return slices.Contains(v, toMatch)
+		// for _, val := range v {
+		// 	if val[0] == '!' {
+		// 		val = val[1:]
+		// 		if val == matchValue {
+		// 			log.Printf("Match %s != %s", val, matchValue)
+		// 			return false
+		// 		}
+		// 	}
+		// 	if val == matchValue {
+		// 		return true
+		// 	}
+		// }
 	case []uint:
-
-		for _, val := range v {
-			if val == matchValue {
-				return true
-			}
-		}
+		log.Printf("not implemented yet, match int")
+		return false
+		// for _, val := range v {
+		// 	if val == matchValue {
+		// 		return true
+		// 	}
+		// }
 	default:
 		log.Printf("Unknown type %T", value)
 	}
