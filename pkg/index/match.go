@@ -25,15 +25,12 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 		if fld.Value == nil {
 			continue
 		}
-		if f, ok := i.Facets[fld.Id]; ok && f != nil {
-			keyFacet, ok := f.(*facet.KeyField)
-			if !ok {
-				log.Printf("Key facet %d not found", fld.Id)
-				continue
-			}
+
+		if f, ok := i.GetKeyFacet(fld.Id); ok {
+
 			level := f.GetBaseField().CategoryLevel
 			ret = append(ret, CleanKeyFacet{
-				Facet:   keyFacet,
+				Facet:   f,
 				Exclude: fld.Not,
 				Value:   fld.Value,
 				level:   level,
@@ -81,63 +78,83 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemLis
 }
 
 func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
-	cnt := 0
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	results := make(chan types.FilterResult)
-	log.Printf("Search %+v", search)
+	//cnt := 0
 
-	parseKeys := func(value types.StringFilterValue, exclude bool, f *facet.KeyField) {
-		results <- types.FilterResult{
-			Ids:     f.MatchFilterValue(value),
-			Exclude: exclude,
-		}
+	//results := make(chan types.FilterResult)
+	log.Printf("Search %+v", search)
+	result := make(types.ItemList)
+	qm := types.NewQueryMerger(&result)
+	if initialIds != nil {
+		qm.Add(func() *types.ItemList {
+			return initialIds
+		})
 	}
-	parseRange := func(field types.RangeFilter, f types.Facet) {
-		results <- types.FilterResult{
-			Ids:     f.Match(field),
-			Exclude: false,
-		}
-	}
-	excludeQueries := make([]CleanKeyFacet, 0)
+	// parseKeys := func(value types.StringFilterValue, exclude bool, f *facet.KeyField) {
+	// 	results <- types.FilterResult{
+	// 		Ids:     f.MatchFilterValue(value),
+	// 		Exclude: exclude,
+	// 	}
+	// }
+	// parseRange := func(field types.RangeFilter, f types.Facet) {
+	// 	results <- types.FilterResult{
+	// 		Ids:     f.Match(field),
+	// 		Exclude: false,
+	// 	}
+	// }
+	// excludeQueries := make([]CleanKeyFacet, 0)
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
 		// log.Printf("key facet %s, value %v", fld.GetBaseField().Name, fld.Value)
 		if fld.Exclude {
-			excludeQueries = append(excludeQueries, fld)
-			continue
-		}
-		cnt++
+			// log.Printf("key facet %s, value %v", fld.GetBaseField().Name, fld.Value)
+			qm.Exclude(func() *types.ItemList {
 
-		go parseKeys(fld.Value, false, fld.Facet)
+				return fld.Facet.MatchFilterValue(fld.Value)
+			})
+
+		} else {
+			// log.Printf("key facet %s, value %v", fld.GetBaseField().Name, fld.Value)
+			qm.Add(func() *types.ItemList {
+
+				return fld.Facet.MatchFilterValue(fld.Value)
+			})
+		}
 
 	}
 
 	for _, fld := range search.RangeFilter {
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
-			cnt++
-			// log.Printf("range facet %s, value %v", f.GetBaseField().Name, fld)
-			go parseRange(fld, f)
-		}
-	}
-	for _, fld := range excludeQueries {
-		cnt++
-		go parseKeys(fld.Value, true, fld.Facet)
-	}
-	if initialIds != nil {
-		if cnt == 0 {
-			idList <- initialIds
-			return
-		}
-		cnt++
-		go func() {
-			results <- types.FilterResult{
-				Ids:     initialIds,
-				Exclude: false,
-			}
-		}()
-	}
 
-	idList <- types.MakeIntersectResult(results, cnt)
+			qm.Add(func() *types.ItemList {
+				return f.Match(fld)
+			})
+
+			// cnt++
+			// // log.Printf("range facet %s, value %v", f.GetBaseField().Name, fld)
+			// go parseRange(fld, f)
+		}
+	}
+	// for _, fld := range excludeQueries {
+	// 	cnt++
+	// 	go parseKeys(fld.Value, true, fld.Facet)
+	// }
+	// if initialIds != nil {
+	// 	if cnt == 0 {
+	// 		idList <- initialIds
+	// 		return
+	// 	}
+	// 	cnt++
+	// 	go func() {
+	// 		results <- types.FilterResult{
+	// 			Ids:     initialIds,
+	// 			Exclude: false,
+	// 		}
+	// 	}()
+	// }
+
+	//idList <- types.MakeIntersectResult(results, cnt)
+
+	qm.Wait()
+	idList <- &result
 
 }
 
