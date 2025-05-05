@@ -142,6 +142,8 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			log.Printf("Found relation %s for item %d", relation.Name, item.GetId())
 			result.Merge(relationResult)
 
+		} else {
+			log.Printf("No relation %+v for item %+v", relation, item)
 		}
 	}
 	if !hasRealRelations {
