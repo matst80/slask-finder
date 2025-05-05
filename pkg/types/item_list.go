@@ -4,6 +4,15 @@ import "maps"
 
 type ItemList map[uint]struct{}
 
+func (a ItemList) Exclude(b *ItemList) {
+	for id := range *b {
+		_, ok := a[id]
+		if ok {
+			delete(a, id)
+		}
+	}
+}
+
 func (i *ItemList) Add(item Item) {
 	(*i)[item.GetId()] = struct{}{}
 }
