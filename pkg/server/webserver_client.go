@@ -125,7 +125,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	defaultHeaders(w, r, true, "60")
 	w.WriteHeader(http.StatusOK)
 
-	return enc.Encode(ws.Sorting.GetSortedFields(sessionId, ret))
+	return enc.Encode(ws.Sorting.GetSortedFields(ret))
 }
 
 func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {

@@ -433,17 +433,17 @@ func (s *Sorting) GetSortedItemsIterator(sessionId int, precalculated *types.ByV
 	}
 }
 
-func (s *Sorting) GetSortedFields(sessionId int, items []*JsonFacet) []*JsonFacet {
+func (s *Sorting) GetSortedFields(items []*JsonFacet) []*JsonFacet {
 
-	var sessionOverride *SortOverride
-	if sessionId > 0 {
-		if o, ok := s.sessionOverrides[uint(sessionId)]; ok {
-			sessionOverride = o
-		}
-	}
+	//var sessionOverride *SortOverride
+	//if sessionId > 0 {
+	//	if o, ok := s.sessionOverrides[uint(sessionId)]; ok {
+	//		sessionOverride = o
+	//	}
+	//}
 	base := s.fieldMap
 	slices.SortFunc(items, func(a, b *JsonFacet) int {
-		return cmp.Compare(SumOverrides(b.Id, base, sessionOverride), SumOverrides(a.Id, base, sessionOverride))
+		return cmp.Compare(SumOverrides(b.Id, base), SumOverrides(a.Id, base))
 	})
 	return items
 }
