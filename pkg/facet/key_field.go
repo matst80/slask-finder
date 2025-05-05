@@ -49,6 +49,10 @@ func (f *KeyField) match(value string) *types.ItemList {
 			}
 			ret.Merge(&ids)
 		}
+		exclude, found := f.Keys[value]
+		if found {
+			ret.Exclude(&exclude)
+		}
 		return &ret
 	}
 	ids, ok := f.Keys[value]
