@@ -52,26 +52,26 @@ func publicHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTim
 //	return r
 //}
 
-func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *types.ItemList {
+// func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *types.ItemList {
 
-	ch := make(chan *types.ItemList)
-	sortChan := make(chan *types.SortIndex)
-	defer close(sortChan)
-	defer close(ch)
-	for i := 0; i < len(categories); i++ {
-		keyValue, ok := types.AsKeyFilterValue(categories[i])
-		if !ok {
-			log.Printf("Failed to convert %v to key filter value", categories[i])
-			continue
-		}
-		sr.Filters.StringFilter = append(sr.Filters.StringFilter, types.StringFilter{
-			Id:    categoryStartId + uint(i),
-			Value: keyValue,
-		})
-	}
-	go ws.Index.Match(sr.Filters, nil, ch)
-	return <-ch
-}
+// 	ch := make(chan *types.ItemList)
+// 	sortChan := make(chan *types.SortIndex)
+// 	defer close(sortChan)
+// 	defer close(ch)
+// 	for i := 0; i < len(categories); i++ {
+// 		keyValue, ok := types.AsKeyFilterValue(categories[i])
+// 		if !ok {
+// 			log.Printf("Failed to convert %v to key filter value", categories[i])
+// 			continue
+// 		}
+// 		sr.Filters.StringFilter = append(sr.Filters.StringFilter, types.StringFilter{
+// 			Id:    categoryStartId + uint(i),
+// 			Value: keyValue,
+// 		})
+// 	}
+// 	go ws.Index.Match(sr.Filters, nil, ch)
+// 	return <-ch
+// }
 
 //func getCacheKey(sr *SearchRequest) string {
 //	fields := sr.Query

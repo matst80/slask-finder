@@ -89,14 +89,14 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 
 	parseKeys := func(value types.StringFilterValue, exclude bool, f *facet.KeyField) {
 		results <- types.FilterResult{
-			Ids:    f.Match(value),
-			Exlude: exclude,
+			Ids:     f.MatchFilterValue(value),
+			Exclude: exclude,
 		}
 	}
 	parseRange := func(field types.RangeFilter, f types.Facet) {
 		results <- types.FilterResult{
-			Ids:    f.Match(field),
-			Exlude: false,
+			Ids:     f.Match(field),
+			Exclude: false,
 		}
 	}
 	excludeQueries := make([]CleanKeyFacet, 0)
@@ -131,8 +131,8 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 		cnt++
 		go func() {
 			results <- types.FilterResult{
-				Ids:    initialIds,
-				Exlude: false,
+				Ids:     initialIds,
+				Exclude: false,
 			}
 		}()
 	}

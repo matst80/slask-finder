@@ -123,8 +123,8 @@ func (a ItemList) IntersectionLen(b ItemList) int {
 }
 
 type FilterResult struct {
-	Ids    *ItemList
-	Exlude bool
+	Ids     *ItemList
+	Exclude bool
 }
 
 func MakeIntersectResult(r chan FilterResult, len int) *ItemList {
@@ -142,7 +142,7 @@ func MakeIntersectResult(r chan FilterResult, len int) *ItemList {
 	for i := 1; i < len; i++ {
 		next = <-r
 		if next.Ids != nil {
-			if next.Exlude {
+			if next.Exclude {
 				first.Exclude(next.Ids)
 			} else {
 				first.Intersect(*next.Ids)
