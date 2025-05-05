@@ -709,8 +709,8 @@ func (ws *WebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Reque
 func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		types.CurrentSettings.Lock()
-		defer types.CurrentSettings.Unlock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
+		types.CurrentSettings.Unlock()
 		for _, j := range types.CurrentSettings.FacetRelations {
 			log.Printf("additional %+v", j.AdditionalQueries)
 		}
@@ -735,8 +735,8 @@ func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request
 func (ws *WebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		types.CurrentSettings.Lock()
-		defer types.CurrentSettings.Unlock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetGroups)
+		types.CurrentSettings.Unlock()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
