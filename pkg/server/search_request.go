@@ -116,24 +116,22 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 		if err != nil {
 			continue
 		}
+		exclude := strings.HasPrefix(value, "!")
+		if exclude {
+			value = strings.TrimPrefix(value, "!")
+		}
 		if strings.Contains(value, "||") {
 			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
 				Value: strings.Split(value, "||"),
 			}
 		} else {
-			if strings.HasPrefix(value, "!") {
-				key[uint(id)] = types.StringFilter{
-					Id:    uint(id),
-					Not:   true,
-					Value: []string{strings.TrimPrefix(value, "!")},
-				}
-			} else {
-				key[uint(id)] = types.StringFilter{
-					Id:    uint(id),
-					Value: []string{value},
-				}
+
+			key[uint(id)] = types.StringFilter{
+				Id:    uint(id),
+				Value: []string{value},
 			}
+
 		}
 	}
 
