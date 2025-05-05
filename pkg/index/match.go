@@ -172,7 +172,6 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	}
 	fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
-	var base *types.BaseField
 
 	//types.CurrentSettings.RLock()
 	rel := types.CurrentSettings.FacetRelations
@@ -197,23 +196,20 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	if !hasRealRelations {
 		log.Printf("No relations found for item %d", item.GetId())
 		for id, itemField := range item.GetFields() {
-			field, ok := i.Facets[id]
 
-			if !ok || field.GetType() != types.FacetKeyType {
-				continue
-			}
-			keyFacet, ok := field.(*facet.KeyField)
+			field, ok := i.GetKeyFacet(id)
+
 			if !ok {
-				log.Printf("Key facet %d not found", id)
 				continue
 			}
-			base = keyFacet.BaseField
-			if base.LinkedId == 0 {
+
+			linkedTo := field.BaseField.LinkedId
+			if linkedTo == 0 {
 				continue
 			}
-			targetField, ok := i.Facets[base.LinkedId]
+			targetField, ok := i.GetKeyFacet(linkedTo)
 			if !ok {
-				log.Printf("Target facet %d not found", base.LinkedId)
+				log.Printf("Target key facet %d not found", linkedTo)
 				continue
 			}
 
@@ -223,18 +219,11 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 				continue
 			}
 
-			targetKeyFacet, ok := targetField.(*facet.KeyField)
-			if !ok {
-				log.Printf("Key facet %d not found", base.LinkedId)
-				continue
-			}
+			fields = append(fields, KeyFieldWithValue{
+				KeyField: targetField,
+				Value:    keyValue,
+			})
 
-			if ok {
-				fields = append(fields, KeyFieldWithValue{
-					KeyField: targetKeyFacet,
-					Value:    keyValue,
-				})
-			}
 		}
 
 		slices.SortFunc(fields, func(a, b KeyFieldWithValue) int {

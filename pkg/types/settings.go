@@ -25,6 +25,7 @@ type FacetGroup struct {
 
 type ItemRequirement struct {
 	FacetId uint        `json:"facetId"`
+	Exclude bool        `json:"exclude"`
 	Value   interface{} `json:"value"`
 }
 
@@ -63,6 +64,7 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 		}
 		result = append(result, StringFilter{
 			Id:    additionalQuery.FacetId,
+			Not:   additionalQuery.Exclude,
 			Value: keyValue,
 		})
 	}
