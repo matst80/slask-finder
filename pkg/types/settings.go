@@ -135,10 +135,12 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 			return false
 		}
 		matches := matchInterfaceValues(itemValue, relation.Value)
-		if relation.Exclude {
-			return !matches
+		if relation.Exclude && matches {
+			return false
 		}
-		return matches
+		if !matches {
+			return false
+		}
 	}
 	for _, relation := range f.Relations {
 		_, ok := item.GetFieldValue(relation.FacetId)

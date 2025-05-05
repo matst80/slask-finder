@@ -6,7 +6,7 @@ type StringFilterValue = []string
 
 type StringFilter struct {
 	Id    uint              `json:"id"`
-	Not   bool              `json:"not"`
+	Not   bool              `json:"exclude"`
 	Value StringFilterValue `json:"value"`
 }
 
@@ -23,12 +23,10 @@ func AsKeyFilterValue(value interface{}) (StringFilterValue, bool) {
 	case []string:
 		return v, true
 	case []interface{}:
-		ret := make(StringFilterValue, len(v))
-		for i, val := range v {
+		ret := make(StringFilterValue, 0)
+		for _, val := range v {
 			if str, ok := val.(string); ok {
-				ret[i] = str
-			} else {
-				ret[i] = ""
+				ret = append(ret, str)
 			}
 		}
 		return ret, true
