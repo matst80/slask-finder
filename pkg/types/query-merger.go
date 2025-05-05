@@ -48,6 +48,7 @@ func (m *QueryMerger) Add(getResult func() *ItemList) {
 		m.l.Lock()
 		defer m.l.Unlock()
 		m.merger(m.result, items, m.isFirst)
+		m.isFirst = false
 		//if m.MergeFirst && m.isFirst {
 		//	m.isFirst = false
 		//	m.result.Merge(items)
