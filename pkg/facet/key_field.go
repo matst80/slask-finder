@@ -40,6 +40,16 @@ func (f *KeyField) match(value string) *types.ItemList {
 			ret.Merge(&ids)
 		}
 		return &ret
+	} else if value[0] == '!' {
+		value = value[1:]
+		ret := make(types.ItemList)
+		for v, ids := range f.Keys {
+			if v == value {
+				continue
+			}
+			ret.Merge(&ids)
+		}
+		return &ret
 	}
 	ids, ok := f.Keys[value]
 	if ok {
