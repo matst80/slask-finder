@@ -84,6 +84,7 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 		if v[0] == '!' {
 			v = v[1:]
 			if v == matchValue {
+				log.Printf("Match %s != %s", v, matchValue)
 				return false
 			}
 		}
@@ -95,6 +96,7 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 			if val[0] == '!' {
 				val = val[1:]
 				if val == matchValue {
+					log.Printf("Match %s != %s", val, matchValue)
 					return false
 				}
 			}
@@ -112,6 +114,7 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 	default:
 		log.Printf("Unknown type %T", value)
 	}
+	log.Printf("Match %v != %v, type a: %T type b: %T", value, matchValue, value, matchValue)
 	return false
 }
 
@@ -119,6 +122,7 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 	for _, relation := range f.ItemRequirements {
 		itemValue, ok := item.GetFieldValue(relation.FacetId)
 		if !ok {
+			log.Printf("Item %d does not have field %d", item.GetId(), relation.FacetId)
 			return false
 		}
 		if relation.Value != nil && !matchInterfaceValues(itemValue, relation.Value) {
@@ -128,6 +132,7 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 	for _, relation := range f.Relations {
 		_, ok := item.GetFieldValue(relation.FacetId)
 		if !ok {
+			log.Printf("Item %d does not have related field %d", item.GetId(), relation.FacetId)
 			return false
 		}
 	}
