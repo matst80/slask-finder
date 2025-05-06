@@ -54,7 +54,7 @@ func (m *QueryMerger) Add(getResult func() *ItemList) {
 	}()
 }
 
-func (m *QueryMerger) Intersect(getResult func() *ItemList) *ItemList {
+func (m *QueryMerger) Intersect(getResult func() *ItemList) {
 	m.wg.Add(1)
 	go func() {
 		items := getResult()
