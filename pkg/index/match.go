@@ -118,7 +118,6 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	//types.CurrentSettings.RLock()
 	rel := types.CurrentSettings.FacetRelations
 	//types.CurrentSettings.RUnlock()
-	hasRealRelations := false
 
 	outerMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		current.Merge(next)
@@ -154,44 +153,58 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 				})
 			}
 
-			hasRealRelations = true
+			outerMerger.Wait()
+			return &result, nil
 
 		}
 	}
-	if !hasRealRelations {
-		log.Printf("No relations found for item %d", item.GetId())
-		for id, itemField := range item.GetFields() {
-
-			field, ok := i.GetKeyFacet(id)
-
-			if !ok {
-				continue
+	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
+		if len(*current) == 0 && next != nil {
+			current.Merge(next)
+			return
+		}
+		if next != nil && len(*next) > 0 {
+			l := current.IntersectionLen(*next)
+			if l > 5 {
+				current.Intersect(*next)
+			} else {
+				current.Merge(next)
 			}
+		}
+	})
+	log.Printf("No relations found for item %d", item.GetId())
+	for id, itemField := range item.GetFields() {
 
-			linkedTo := field.BaseField.LinkedId
-			if linkedTo == 0 {
-				continue
-			}
-			targetField, ok := i.GetKeyFacet(linkedTo)
-			if !ok {
-				continue
-			}
+		field, ok := i.GetKeyFacet(id)
 
-			keyValue, ok := types.AsKeyFilterValue(itemField)
-			if !ok {
-				log.Printf("Not a valid key filter", id)
-				continue
-			}
-
-			outerMerger.Add(func() *types.ItemList {
-				return targetField.MatchFilterValue(keyValue)
-			})
-
+		if !ok {
+			continue
 		}
 
+		linkedTo := field.BaseField.LinkedId
+		if linkedTo == 0 {
+			continue
+		}
+		targetField, ok := i.GetKeyFacet(linkedTo)
+		if !ok {
+			continue
+		}
+
+		keyValue, ok := types.AsKeyFilterValue(itemField)
+		if !ok {
+			log.Printf("Not a valid key filter", id)
+			continue
+		}
+
+		maybeMerger.Add(func() *types.ItemList {
+			return targetField.MatchFilterValue(keyValue)
+		})
+
 	}
-	outerMerger.Wait()
+
+	maybeMerger.Wait()
 	return &result, nil
+
 }
 
 func (i *Index) Related(id uint) (*types.ItemList, error) {
