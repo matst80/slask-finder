@@ -49,6 +49,8 @@ type FacetRelationGroup struct {
 	GroupId           int               `json:"groupId"`
 	ItemRequirements  []ItemRequirement `json:"requiredForItem"`
 	AdditionalQueries []ItemRequirement `json:"additionalQueries"`
+	Include           []uint            `json:"include_ids"`
+	Exclude           []uint            `json:"exclude_ids"`
 	Relations         []FacetRelation   `json:"relations"`
 }
 

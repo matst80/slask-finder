@@ -577,7 +577,15 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 }
 
 func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	excludedProductTypes := []string{}
+	excludedProductTypes := make([]string, 0)
+	maxItems := 60
+	limitString := r.URL.Query().Get("limit")
+	if limitString != "" {
+		limit, err := strconv.Atoi(limitString)
+		if err != nil {
+			maxItems = limit
+		}
+	}
 	if r.Method != http.MethodGet {
 		cartItemIds := make([]uint, 0)
 		err := json.NewDecoder(r.Body).Decode(&cartItemIds)
@@ -607,7 +615,9 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 
 	go ws.Sorting.GetSorting("popular", sortChan)
 	related, err := ws.Index.Compatible(uint(id))
-
+	if err != nil {
+		return err
+	}
 	i := 0
 
 	ws.Index.Lock()
@@ -619,20 +629,20 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 		if ok {
 			if len(excludedProductTypes) > 0 {
 				if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
-					if typeOk {
-						itemProductType := productType.(string)
-						if slices.Contains(excludedProductTypes, itemProductType) {
-							//log.Printf("skipping %d %s", item.GetId(), itemProductType)
-							continue
-						}
+
+					itemProductType := productType.(string)
+					if slices.Contains(excludedProductTypes, itemProductType) {
+						//log.Printf("skipping %d %s", item.GetId(), itemProductType)
+						continue
 					}
+
 				}
 			}
 
 			err = enc.Encode(item)
 			i++
 		}
-		if i > 40 || err != nil {
+		if i > maxItems || err != nil {
 			break
 		}
 	}

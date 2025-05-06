@@ -134,6 +134,26 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 				return relationResult
 			})
 
+			if len(relation.Include) > 0 {
+				outerMerger.Add(func() *types.ItemList {
+					ret := &types.ItemList{}
+					for _, id := range relation.Include {
+						ret.AddId(id)
+					}
+					return ret
+				})
+			}
+
+			if len(relation.Exclude) > 0 {
+				outerMerger.Exclude(func() *types.ItemList {
+					ret := &types.ItemList{}
+					for _, id := range relation.Exclude {
+						ret.AddId(id)
+					}
+					return ret
+				})
+			}
+
 			hasRealRelations = true
 
 		}
