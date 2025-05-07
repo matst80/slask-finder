@@ -133,7 +133,7 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 	for _, relation := range f.ItemRequirements {
 		itemValue, ok := item.GetFieldValue(relation.FacetId)
 		if !ok {
-			log.Printf("Item %d does not have field %d", item.GetId(), relation.FacetId)
+			// log.Printf("Item %d does not have field %d", item.GetId(), relation.FacetId)
 			return false
 		}
 		matches := matchInterfaceValues(itemValue, relation.Value)
@@ -147,7 +147,7 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 	for _, relation := range f.Relations {
 		_, ok := item.GetFieldValue(relation.FacetId)
 		if !ok {
-			log.Printf("Item %d does not have related field %d", item.GetId(), relation.FacetId)
+			// log.Printf("Item %d does not have related field %d", item.GetId(), relation.FacetId)
 			return false
 		}
 	}
