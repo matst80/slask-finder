@@ -122,7 +122,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	outerMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		current.Merge(next)
 	})
-
+	hasRealRelations := false
 	for _, relation := range rel {
 		if relation.Matches(item) {
 			// match all items for this relation
@@ -153,10 +153,13 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 				})
 			}
 
-			outerMerger.Wait()
-			return &result, nil
+			hasRealRelations = true
 
 		}
+	}
+	if hasRealRelations {
+		outerMerger.Wait()
+		return &result, nil
 	}
 	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if len(*current) == 0 && next != nil {
