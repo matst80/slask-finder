@@ -7,6 +7,7 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
@@ -150,7 +151,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId in
 }
 
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
+	s := time.Now()
 	sr, err := GetQueryFromRequest(r)
 	if err != nil {
 		return err
@@ -202,6 +203,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	}
 
 	return enc.Encode(SearchResponse{
+		Duration:  time.Since(s),
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
