@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"iter"
 	"log"
 	"maps"
@@ -91,7 +92,7 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessi
 }
 
 func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
+	s := time.Now()
 	sr, err := GetFacetQueryFromRequest(r)
 	if err != nil {
 		return err
@@ -124,6 +125,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	}
 
 	defaultHeaders(w, r, true, "60")
+	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
 	w.WriteHeader(http.StatusOK)
 
 	return enc.Encode(ws.Sorting.GetSortedFields(ret))
