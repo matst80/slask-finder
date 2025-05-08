@@ -24,8 +24,8 @@ func (m *MockItem) GetDiscount() int {
 	return 0
 }
 
-func (m *MockItem) GetStockLevel() string {
-	return ""
+func (m *MockItem) HasStock() bool {
+	return true
 }
 
 func (m *MockItem) GetBasePopularity() float64 {

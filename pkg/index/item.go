@@ -73,12 +73,12 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 
 type BaseItem struct {
 	ItemProp
-	baseScore  float64
-	StockLevel string            `json:"stockLevel,omitempty"`
-	Stock      map[string]string `json:"stock"`
-	Id         uint              `json:"id"`
-	Sku        string            `json:"sku"`
-	Title      string            `json:"title"`
+	baseScore float64
+	//StockLevel string            `json:"stockLevel,omitempty"`
+	Stock map[string]string `json:"stock"`
+	Id    uint              `json:"id"`
+	Sku   string            `json:"sku"`
+	Title string            `json:"title"`
 }
 
 type DataItem struct {
@@ -115,8 +115,9 @@ func (item *DataItem) IsDeleted() bool {
 	return item.SaleStatus == "MDD"
 }
 
-func (item *DataItem) GetStockLevel() string {
-	return item.StockLevel
+func (item *DataItem) HasStock() bool {
+	v, ok := item.GetFieldValue(3)
+	return ok && v != nil
 }
 
 func (item *DataItem) GetPropertyValue(name string) interface{} {
@@ -129,8 +130,8 @@ func (item *DataItem) GetPropertyValue(name string) interface{} {
 		return item.BadgeUrl
 	case "Img":
 		return item.Img
-	case "StockLevel":
-		return item.StockLevel
+	//case "StockLevel":
+	//	return item.StockLevel
 	case "Stock":
 		return item.Stock
 	case "Buyable":

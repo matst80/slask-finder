@@ -111,7 +111,7 @@ type Item interface {
 	GetId() uint
 	GetSku() string
 	GetStock() map[string]string
-	GetStockLevel() string
+	HasStock() bool
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
 	IsSoftDeleted() bool
