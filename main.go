@@ -216,7 +216,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 
 		done = true
 	}()
-
 }
 
 func main() {
@@ -247,6 +246,14 @@ func main() {
 		mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
 
 		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+
+		go func() {
+			log.Println("Starting mcp server")
+			err := srv.StartMcpServer()
+			if err != nil {
+				log.Print(err)
+			}
+		}()
 
 		log.Printf("Starting server %v", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, mux))
