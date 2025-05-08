@@ -47,10 +47,7 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 	})
 }
 
-func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemList) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	qm := types.NewQueryMerger(res)
+func (i *Index) MatchStringsSync(filter []types.StringFilter, qm *types.QueryMerger) {
 
 	for _, fld := range filter {
 		if keyFacet, ok := i.GetKeyFacet(fld.Id); ok {
@@ -59,19 +56,10 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemLis
 			})
 		}
 	}
-	qm.Wait()
+
 }
 
-func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
-
-	log.Printf("Search %+v", search)
-	result := make(types.ItemList)
-	qm := types.NewQueryMerger(&result)
-	if initialIds != nil {
-		qm.Add(func() *types.ItemList {
-			return initialIds
-		})
-	}
+func (i *Index) Match(search *types.Filters, qm *types.QueryMerger) {
 
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
 		if fld.Exclude {
@@ -94,9 +82,6 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 			})
 		}
 	}
-
-	qm.Wait()
-	idList <- &result
 
 }
 
@@ -129,7 +114,9 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 
 			outerMerger.Add(func() *types.ItemList {
 				relationResult := &types.ItemList{}
-				i.MatchStringsSync(relation.GetFilter(item), relationResult)
+				merger := types.NewQueryMerger(relationResult)
+				i.MatchStringsSync(relation.GetFilter(item), merger)
+				merger.Wait()
 				return relationResult
 			})
 

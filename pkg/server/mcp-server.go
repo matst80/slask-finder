@@ -22,8 +22,8 @@ func (ws *WebServer) StartMcpServer() error {
 	// Create server with the HTTP transport
 	server := mcp.NewServer(transport)
 
-	err := server.RegisterTool("hello", "Say hello to a person", func(arguments MyFunctionsArguments) (*mcp.ToolResponse, error) {
-		//mcp.NewToolResponse(mcp.)
+	err := server.RegisterTool("search", "Search for a product", func(arguments MyFunctionsArguments) (*mcp.ToolResponse, error) {
+
 		return mcp.NewToolResponse(mcp.NewTextContent(fmt.Sprintf("Hello, %s server!", arguments.Submitter))), nil
 	})
 	if err != nil {

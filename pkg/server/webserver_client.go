@@ -39,11 +39,22 @@ var (
 	})
 	facetSearches = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "slaskfinder_facets_total",
-		Help: "The total number of processed searches",
+		Help: "The total number facets",
 	})
 )
 
-func (ws *WebServer) getInitialIds(sr *types.FacetRequest) *types.ItemList {
+func (ws *WebServer) getStockResult(stockLocations []string) *types.ItemList {
+	resultStockIds := &types.ItemList{}
+	for _, stockId := range stockLocations {
+		stockIds, ok := ws.Index.ItemsInStock[stockId]
+		if ok {
+			resultStockIds.Merge(&stockIds)
+		}
+	}
+	return resultStockIds
+}
+
+func (ws *WebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.ItemList {
 	var initialIds *types.ItemList = nil
 	//var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
@@ -60,18 +71,12 @@ func (ws *WebServer) getInitialIds(sr *types.FacetRequest) *types.ItemList {
 	}
 
 	if len(sr.Stock) > 0 {
-		resultStockIds := types.ItemList{}
-		for _, stockId := range sr.Stock {
-			stockIds, ok := ws.Index.ItemsInStock[stockId]
-			if ok {
-				resultStockIds.Merge(&stockIds)
-			}
-		}
+		resultStockIds := ws.getStockResult(sr.Stock)
 
 		if initialIds == nil {
-			initialIds = &resultStockIds
+			initialIds = resultStockIds
 		} else {
-			initialIds.Intersect(resultStockIds)
+			initialIds.Intersect(*resultStockIds)
 		}
 	}
 
@@ -98,16 +103,22 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 		return err
 	}
 	go facetSearches.Inc()
+	baseIds := &types.ItemList{}
+	ids := &types.ItemList{}
 
-	matchIds := make(chan *types.ItemList)
-	defer close(matchIds)
-	baseIds := ws.getInitialIds(sr)
-	go ws.Index.Match(sr.Filters, baseIds, matchIds)
+	qm := types.NewQueryMerger(ids)
+	qm.Add(func() *types.ItemList {
+		baseIds = ws.getSearchAndStockResult(sr)
+		return baseIds
+	})
+
+	ws.Index.Match(sr.Filters, qm)
 
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
-	ids := <-matchIds
+	qm.Wait()
+
 	ws.getOtherFacets(ids, sr, ch, wg)
 	ws.getSearchedFacets(baseIds, sr, ch, wg)
 
@@ -418,29 +429,30 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 	items, fields := ws.Sorting.GetSessionData(uint(sessionId))
 	articleTypes := map[string]float64{}
 	itemChan := make(chan *Similar)
-
+	productTypeId := types.CurrentSettings.ProductTypeId
 	wg := &sync.WaitGroup{}
 	pop := ws.Sorting.GetSort("popular")
-	delete(*fields, 31158)
+	delete(*fields, productTypeId)
 	for id := range *items {
 		if item, ok := ws.Index.Items[id]; ok {
-			if itemType, typeOk := item.GetFields()[31158]; typeOk {
+			if itemType, typeOk := item.GetFields()[productTypeId]; typeOk {
 				articleTypes[itemType.(string)]++
 			}
 		}
 	}
 	getSimilar := func(articleType string, ret chan *Similar, wg *sync.WaitGroup, sort *types.ByValue, popularity float64) {
-		ids := make(chan *types.ItemList)
-		defer close(ids)
-		defer wg.Done()
-		filter := types.Filters{
+		//ids := make(chan *types.ItemList)
+		//defer close(ids)
+		//defer wg.Done()
+		filter := &types.Filters{
 			StringFilter: []types.StringFilter{
-				{Id: 31158, Value: []string{articleType}},
+				{Id: productTypeId, Value: []string{articleType}},
 			},
 		}
-
-		go ws.Index.Match(&filter, nil, ids)
-		resultIds := <-ids
+		resultIds := &types.ItemList{}
+		qm := types.NewQueryMerger(resultIds)
+		ws.Index.Match(filter, qm)
+		qm.Wait()
 		l := len(*resultIds)
 		limit := min(l, 40)
 		similar := Similar{

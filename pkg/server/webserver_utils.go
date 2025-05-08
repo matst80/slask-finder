@@ -42,61 +42,18 @@ func publicHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTim
 	genericHeaders(w, r, isJson)
 }
 
-//func removeEmptyStrings(s []string) []string {
-//	var r []string
-//	for _, str := range s {
-//		if str != "" {
-//			r = append(r, str)
-//		}
-//	}
-//	return r
-//}
-
-// func (ws *WebServer) getCategoryItemIds(categories []string, sr *SearchRequest, categoryStartId uint) *types.ItemList {
-
-// 	ch := make(chan *types.ItemList)
-// 	sortChan := make(chan *types.SortIndex)
-// 	defer close(sortChan)
-// 	defer close(ch)
-// 	for i := 0; i < len(categories); i++ {
-// 		keyValue, ok := types.AsKeyFilterValue(categories[i])
-// 		if !ok {
-// 			log.Printf("Failed to convert %v to key filter value", categories[i])
-// 			continue
-// 		}
-// 		sr.Filters.StringFilter = append(sr.Filters.StringFilter, types.StringFilter{
-// 			Id:    categoryStartId + uint(i),
-// 			Value: keyValue,
-// 		})
-// 	}
-// 	go ws.Index.Match(sr.Filters, nil, ch)
-// 	return <-ch
-// }
-
-//func getCacheKey(sr *SearchRequest) string {
-//	fields := sr.Query
-//	for _, f := range sr.Filters.StringFilter {
-//		fields += strconv.Itoa(int(f.Id)) + "_" + fmt.Sprintf("%v", f.Value)
-//	}
-//	for _, f := range sr.Filters.RangeFilter {
-//		fields += strconv.Itoa(int(f.Id)) + "_" + fmt.Sprintf("%v_%v", f.Min, f.Max)
-//	}
-//	// for _, f := range sr.Filters.IntegerFilter {
-//	// 	fields += strconv.Itoa(int(f.Id)) + "_" + strconv.Itoa(f.Min) + "_" + strconv.Itoa(f.Max)
-//	// }
-//	return fmt.Sprintf("facets_%s_%s", sr.Query, fields)
-//}
-
 func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
-	matchingChan := make(chan *types.ItemList)
+	ids := &types.ItemList{}
 	sortChan := make(chan *types.ByValue)
 	go noSearches.Inc()
 
-	defer close(matchingChan)
 	defer close(sortChan)
+	qm := types.NewQueryMerger(ids)
+	qm.Add(func() *types.ItemList {
+		return ws.getSearchAndStockResult(sr.FacetRequest)
+	})
 
-	initialIds := ws.getInitialIds(sr.FacetRequest)
-	go ws.Index.Match(sr.Filters, initialIds, matchingChan)
+	ws.Index.Match(sr.Filters, qm)
 	isPopular := sr.Sort == "popular" || sr.Sort == ""
 
 	if isPopular && sr.Query != "*" {
@@ -107,17 +64,9 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 		go ws.Sorting.GetSorting(sr.Sort, sortChan)
 	}
 
-	// if documentResult != nil {
-	// 	queryOverride := index.SortOverride(*documentResult)
-	// 	result <- searchResult{
-	// 		matching:      <-matchingChan,
-	// 		sortOverrides: []index.SortOverride{queryOverride},
-	// 		sort:          <-sortChan,
-	// 	}
-	// 	return
-	// }
+	qm.Wait()
 	result <- searchResult{
-		matching:      <-matchingChan,
+		matching:      ids,
 		sort:          <-sortChan,
 		sortOverrides: []index.SortOverride{},
 	}
@@ -222,6 +171,15 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 
 func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 	var base *types.BaseField
+	makeQm := func(list *types.ItemList) *types.QueryMerger {
+		qm := types.NewQueryMerger(list)
+		if baseIds != nil {
+			qm.Add(func() *types.ItemList {
+				return baseIds
+			})
+		}
+		return qm
+	}
 	for _, s := range sr.StringFilter {
 		if f, ok := ws.Index.Facets[s.Id]; ok {
 			base = f.GetBaseField()
@@ -230,12 +188,11 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 				wg.Add(1)
 
 				go func(otherFilters *types.Filters) {
-					matchIds := make(chan *types.ItemList)
-					defer close(matchIds)
-
-					go ws.Index.Match(otherFilters, baseIds, matchIds)
-
-					go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+					matchIds := &types.ItemList{}
+					qm := makeQm(matchIds)
+					ws.Index.Match(otherFilters, qm)
+					qm.Wait()
+					go getFacetResult(f, matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
 						if facet != nil {
 							facet.Selected = s.Value
 						}
@@ -249,10 +206,11 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 		if f, ok := ws.Index.Facets[r.Id]; ok && !sr.IsIgnored(r.Id) {
 			wg.Add(1)
 			go func(otherFilters *types.Filters) {
-				matchIds := make(chan *types.ItemList)
-				defer close(matchIds)
-				go ws.Index.Match(otherFilters, baseIds, matchIds)
-				go getFacetResult(f, <-matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
+				matchIds := &types.ItemList{}
+				qm := makeQm(matchIds)
+				ws.Index.Match(otherFilters, qm)
+				qm.Wait()
+				go getFacetResult(f, matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
 					if facet != nil {
 						facet.Selected = r
 					}
