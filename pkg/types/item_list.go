@@ -31,16 +31,16 @@ func (a ItemList) Intersect(b ItemList) {
 	}
 }
 
-func (a ItemList) ToIntersected(b ItemList) (*ItemList, bool) {
-	result := make(ItemList)
-
-	for id := range a {
-		if _, ok := b[id]; ok {
-			result[id] = struct{}{}
-		}
-	}
-	return &result, len(result) > 0
-}
+//func (a ItemList) ToIntersected(b ItemList) (*ItemList, bool) {
+//	result := make(ItemList)
+//
+//	for id := range a {
+//		if _, ok := b[id]; ok {
+//			result[id] = struct{}{}
+//		}
+//	}
+//	return &result, len(result) > 0
+//}
 
 func (a ItemList) OnIntersect(b ItemList, onMatch func(id uint) bool) {
 	al := len(a)
@@ -122,35 +122,35 @@ func (a ItemList) IntersectionLen(b ItemList) int {
 	return count
 }
 
-type FilterResult struct {
-	Ids     *ItemList
-	Exclude bool
-}
-
-func MakeIntersectResult(r chan FilterResult, len int) *ItemList {
-	defer close(r)
-	first := &ItemList{}
-	if len == 0 {
-		return first
-	}
-
-	next := <-r
-	if next.Ids != nil {
-		first.Merge(next.Ids)
-	}
-
-	for i := 1; i < len; i++ {
-		next = <-r
-		if next.Ids != nil {
-			if next.Exclude {
-				first.Exclude(next.Ids)
-			} else {
-				first.Intersect(*next.Ids)
-			}
-		} else {
-			return &ItemList{}
-		}
-	}
-
-	return first
-}
+//type FilterResult struct {
+//	Ids     *ItemList
+//	Exclude bool
+//}
+//
+//func MakeIntersectResult(r chan FilterResult, len int) *ItemList {
+//	defer close(r)
+//	first := &ItemList{}
+//	if len == 0 {
+//		return first
+//	}
+//
+//	next := <-r
+//	if next.Ids != nil {
+//		first.Merge(next.Ids)
+//	}
+//
+//	for i := 1; i < len; i++ {
+//		next = <-r
+//		if next.Ids != nil {
+//			if next.Exclude {
+//				first.Exclude(next.Ids)
+//			} else {
+//				first.Intersect(*next.Ids)
+//			}
+//		} else {
+//			return &ItemList{}
+//		}
+//	}
+//
+//	return first
+//}

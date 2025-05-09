@@ -40,7 +40,7 @@ func (f KeyField) GetValues() []interface{} {
 
 func (f *KeyField) match(value string) *types.ItemList {
 	if value == "!nil" {
-		ret := make(types.ItemList)
+		ret := make(types.ItemList, 8000)
 		for v, ids := range f.Keys {
 			if v == "" {
 				continue
@@ -66,7 +66,7 @@ func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemLi
 	if value == nil {
 		return &types.ItemList{}
 	}
-	ret := make(types.ItemList)
+	ret := make(types.ItemList, 10000)
 	for _, v := range value {
 		r := f.match(v)
 
@@ -135,9 +135,6 @@ func (f *KeyField) addString(value string, id uint) {
 		if v == "0" {
 			return
 		}
-		if v == "" {
-			return
-		}
 		v = "Ja"
 	} else if f.Type == "bool" {
 		low := strings.ToLower(v)
@@ -151,7 +148,9 @@ func (f *KeyField) addString(value string, id uint) {
 	if k, ok := f.Keys[v]; ok {
 		k.AddId(id)
 	} else {
-		f.Keys[v] = types.ItemList{id: struct{}{}}
+		l := make(types.ItemList, 8000)
+		l.AddId(id)
+		f.Keys[v] = l
 	}
 
 }
