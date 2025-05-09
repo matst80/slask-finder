@@ -1,6 +1,7 @@
 package search
 
 import (
+	"log"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -209,6 +210,7 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 	defer i.mu.RUnlock()
 
 	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
+		log.Printf("filter on token %s", token)
 		ids, found := i.TokenMap[token]
 		if found {
 			if res.HasIntersection(ids) {
