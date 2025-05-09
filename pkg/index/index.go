@@ -126,24 +126,8 @@ func (i *Index) addItemValues(item types.Item) {
 		}
 	}
 
-	//tree := make([]*Category, 0)
-	//var base *types.BaseField
-	// test virtual category
-
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
-
-			// if base.CategoryLevel > 0 {
-			// 	value, ok := fieldValue.(string)
-			// 	if ok {
-			// 		cid := makeCategoryId(base.CategoryLevel, value)
-			// 		if i.categories[cid] == nil {
-			// 			i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}
-			// 		}
-			// 		tree = append(tree, i.categories[cid])
-			// 	}
-			// }
-
 			if f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil && !f.IsExcludedFromFacets() {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
 					fids[id] = struct{}{}
@@ -152,38 +136,9 @@ func (i *Index) addItemValues(item types.Item) {
 				}
 			}
 
-		} else {
-			//delete(i.Facets, id)
 		}
 	}
-
-	// if len(tree) > 0 {
-	// 	slices.SortFunc(tree, func(a, b *Category) int {
-	// 		return cmp.Compare(a.level, b.level)
-	// 	})
-	// 	for i := 0; i < len(tree)-1; i++ {
-
-	// 		if tree[i].Children == nil {
-	// 			tree[i].Children = make(map[uint]*Category, 0)
-	// 		}
-	// 		id := makeCategoryId(tree[i+1].level, *tree[i+1].Value)
-	// 		tree[i].Children[id] = tree[i+1]
-	// 		tree[i+1].parent = tree[i]
-	// 	}
-	// }
 }
-
-// func (i *Index) GetCategories() []*Category {
-// 	i.Lock()
-// 	defer i.Unlock()
-// 	categories := make([]*Category, 0)
-// 	for _, category := range i.categories {
-// 		if category.parent == nil && category.level == 1 {
-// 			categories = append(categories, category)
-// 		}
-// 	}
-// 	return categories
-// }
 
 func (i *Index) removeItemValues(item types.Item) {
 	if i.IsMaster {
@@ -329,7 +284,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 	if i.IsMaster {
 		return
 	} else {
-		i.ItemFieldIds[id] = make(types.ItemList)
+		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))
 		i.All.AddId(id)
 		i.ItemsBySku[item.GetSku()] = &item
 		if i.Search != nil {
