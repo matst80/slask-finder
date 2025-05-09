@@ -127,7 +127,7 @@ func SplitWords(text string, onWord func(word string, count int, last bool) bool
 	count := 0
 	lastSplit := 0
 	sp := types.CurrentSettings.SplitWords
-	mappings := types.CurrentSettings.WordMappings
+
 	for idx, chr := range text {
 		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' || chr == '/' {
 			if idx > lastSplit {
@@ -139,12 +139,6 @@ func SplitWords(text string, onWord func(word string, count int, last bool) bool
 						}
 						count++
 					}
-				}
-				if mapped, ok := mappings[string(word)]; ok {
-					if !onWord(mapped, count, false) {
-						return
-					}
-					count++
 				}
 
 				if !onWord(word, count, false) {
