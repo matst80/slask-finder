@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"time"
@@ -232,6 +233,20 @@ func generateStateOauthCookie() string {
 }
 
 var secretKey = []byte("slask-62541337!-banansecret")
+var serverApiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
+
+func init() {
+	hash := os.Getenv("SLASK_TOKEN_HASH")
+	if hash == "" {
+		log.Fatal("SLASK_TOKEN_HASH environment variable not set")
+	}
+	secretKey = []byte(hash)
+	_key := os.Getenv("SLASK_API_KEY")
+	if _key == "" {
+		log.Fatal("SLASK_API_KEY environment variable not set")
+	}
+	serverApiKey = _key
+}
 
 func createToken(username string, name string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
@@ -265,7 +280,6 @@ type UserData struct {
 }
 
 const tokenCookieName = "sf-admin"
-const apiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
 
 func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{
@@ -279,7 +293,7 @@ func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if auth != apiKey {
+		if auth != serverApiKey {
 			cookie, err := r.Cookie(tokenCookieName)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
