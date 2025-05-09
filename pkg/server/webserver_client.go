@@ -544,8 +544,7 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	}
 
 	w.WriteHeader(http.StatusOK)
-	enc.Encode(res)
-	return nil
+	return enc.Encode(res)
 }
 
 func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {

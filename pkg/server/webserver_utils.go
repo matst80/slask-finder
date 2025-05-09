@@ -276,22 +276,12 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 }
 
 func (ws *WebServer) getSuggestFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-
 	for _, id := range types.CurrentSettings.SuggestFacets {
-		if f, ok := ws.Index.Facets[id]; ok {
-			base := f.GetBaseField()
-			if base != nil {
-				wg.Add(1)
-				go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					// if facet != nil {
-					// 	facet.Selected = s.Value
-					// }
-					return facet
-				})
-			}
+		if f, ok := ws.Index.Facets[id]; ok && !f.IsExcludedFromFacets() {
+			wg.Add(1)
+			go getFacetResult(f, baseIds, ch, wg, nil)
 		}
 	}
-
 }
 
 func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
@@ -357,7 +347,6 @@ func JsonHandler(trk tracking.Tracking, fn func(w http.ResponseWriter, r *http.R
 		err := fn(w, r, sessionId, json.NewEncoder(w))
 		if err != nil {
 			log.Printf("Error handling request: %v", err)
-			http.Error(w, err.Error(), http.StatusBadRequest)
 		}
 	}
 }
