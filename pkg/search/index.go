@@ -224,7 +224,9 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 
 			for _, match := range i.Trie.FindMatches(token) {
 				if match.Items != nil {
-					tries.Merge(match.Items)
+					if res.HasIntersection(match.Items) {
+						tries.Merge(match.Items)
+					}
 					found = true
 				}
 			}
@@ -234,7 +236,9 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 			for _, match := range fuzzyMatches {
 				if fuzzyIds, ok := i.TokenMap[match]; ok {
 					if fuzzyIds != nil {
-						tries.Merge(fuzzyIds)
+						if res.HasIntersection(fuzzyIds) {
+							tries.Merge(fuzzyIds)
+						}
 					}
 				}
 			}
