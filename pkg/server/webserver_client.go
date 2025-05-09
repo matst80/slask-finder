@@ -135,7 +135,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 		}
 	}
 
-	defaultHeaders(w, r, true, "60")
+	publicHeaders(w, r, true, "600")
 	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
 	w.WriteHeader(http.StatusOK)
 
