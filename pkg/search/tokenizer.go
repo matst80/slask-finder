@@ -1,6 +1,8 @@
 package search
 
 import (
+	"github.com/matst80/slask-finder/pkg/types"
+	"strings"
 	"unicode"
 )
 
@@ -124,10 +126,21 @@ func NormalizeWord(text string) Token {
 func SplitWords(text string, onWord func(word string, count int, last bool) bool) {
 	count := 0
 	lastSplit := 0
+	sp := types.CurrentSettings.SplitWords
 	for idx, chr := range text {
 		if chr == ' ' || chr == '\n' || chr == '\t' || chr == ',' || chr == ':' || chr == '.' || chr == '!' || chr == '?' || chr == ';' || chr == '(' || chr == ')' || chr == '[' || chr == ']' || chr == '{' || chr == '}' || chr == '"' || chr == '\'' || chr == '/' {
 			if idx > lastSplit {
-				if !onWord(text[lastSplit:idx], count, false) {
+				word := text[lastSplit:idx]
+				for _, split := range sp {
+					if strings.Contains(word, split) {
+						if !onWord(split, count, false) {
+							return
+						}
+						count++
+					}
+				}
+
+				if !onWord(word, count, false) {
 					return
 				}
 				count++
