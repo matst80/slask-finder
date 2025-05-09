@@ -219,26 +219,27 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 				found = false
 			}
 		}
-
+		tries := types.ItemList{}
 		if !found {
+
 			for _, match := range i.Trie.FindMatches(token) {
-				if match.Items != nil && res.HasIntersection(match.Items) {
-					res.Intersect(*match.Items)
+				if match.Items != nil {
+					tries.Merge(match.Items)
 					found = true
 				}
 			}
-		}
-		if !found {
+
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if fuzzyIds, ok := i.TokenMap[match]; ok {
-					if fuzzyIds != nil && res.HasIntersection(fuzzyIds) {
-						res.Intersect(*fuzzyIds)
+					if fuzzyIds != nil {
+						tries.Merge(fuzzyIds)
 					}
 				}
 			}
 		}
+		res.Intersect(tries)
 
 		return len(*res) > 0
 	})
