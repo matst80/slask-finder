@@ -66,7 +66,7 @@ func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemLi
 	if value == nil {
 		return &types.ItemList{}
 	}
-	ret := make(types.ItemList, 10000)
+	ret := make(types.ItemList, 1000)
 	for _, v := range value {
 		r := f.match(v)
 
