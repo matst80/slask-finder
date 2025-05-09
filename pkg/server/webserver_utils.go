@@ -59,6 +59,7 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 
 	qm.Wait()
 	if sr.Filter != "" {
+		log.Printf("apply filter %s", sr.Filter)
 		ws.Index.Search.Filter(sr.Query, ids)
 	}
 	result <- searchResult{

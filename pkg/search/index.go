@@ -222,6 +222,18 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 			for _, match := range i.Trie.FindMatches(token) {
 				if res.HasIntersection(ids) {
 					res.Intersect(*match.Items)
+					found = true
+				}
+			}
+		}
+		if !found {
+			// fuzzy
+			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
+			for _, match := range fuzzyMatches {
+				if fuzzyIds, ok := i.TokenMap[match]; ok {
+					if res.HasIntersection(fuzzyIds) {
+						res.Intersect(*fuzzyIds)
+					}
 				}
 			}
 		}
@@ -259,8 +271,8 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
-				if ids, ok := i.TokenMap[match]; ok {
-					res.Merge(ids)
+				if fuzzyIds, ok := i.TokenMap[match]; ok {
+					res.Merge(fuzzyIds)
 				}
 			}
 		}
