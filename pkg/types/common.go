@@ -8,20 +8,20 @@ type BaseField struct {
 	Type             string  `json:"valueType,omitempty"`
 	LinkedId         uint    `json:"linkedId,omitempty"`
 	ValueSorting     uint    `json:"sorting,omitempty"`
-	Searchable       bool    `json:"searchable,omitempty"`
-	HideFacet        bool    `json:"hide,omitempty"`
-	CategoryLevel    int     `json:"categoryLevel,omitempty"`
 	GroupId          uint    `json:"groupId,omitempty"`
+	CategoryLevel    int     `json:"categoryLevel,omitempty"`
+	HideFacet        bool    `json:"hide,omitempty"`
 	KeySpecification bool    `json:"isKey,omitempty"`
 	InternalOnly     bool    `json:"internal,omitempty"`
+	Searchable       bool    `json:"searchable,omitempty"`
 	// IgnoreCategoryIfSearched bool    `json:"-"`
 	// IgnoreIfInSearch         bool    `json:"-"`
 }
 
 type FacetRequest struct {
 	*Filters
-	Stock        []string `json:"stock" schema:"stock"`
 	Query        string   `json:"query" schema:"query"`
+	Stock        []string `json:"stock" schema:"stock"`
 	IgnoreFacets []uint   `json:"skipFacets" schema:"sf"`
 }
 

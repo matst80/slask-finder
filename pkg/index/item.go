@@ -29,18 +29,16 @@ type MarginPercent float64
 
 type ItemProp struct {
 	Url string `json:"url"`
-	//Tree            []string      `json:"tree"`
+
 	Disclaimer       string        `json:"disclaimer,omitempty"`
 	ReleaseDate      string        `json:"releaseDate,omitempty"`
 	SaleStatus       string        `json:"saleStatus"`
 	OnlineSaleStatus string        `json:"onlineSaleStatus"`
-	MarginPercent    MarginPercent `json:"mp,omitempty"`
 	PresaleDate      string        `json:"presaleDate,omitempty"`
 	Restock          string        `json:"restock,omitempty"`
 	AdvertisingText  string        `json:"advertisingText,omitempty"`
 	Img              string        `json:"img,omitempty"`
 	BadgeUrl         string        `json:"badgeUrl,omitempty"`
-	EnergyRating     *EnergyRating `json:"energyRating,omitempty"`
 	BulletPoints     string        `json:"bp,omitempty"`
 	LastUpdate       int64         `json:"lastUpdate,omitempty"`
 	Created          int64         `json:"created,omitempty"`
@@ -48,9 +46,11 @@ type ItemProp struct {
 	Description      string        `json:"description,omitempty"`
 	BuyableInStore   bool          `json:"buyableInStore"`
 	BoxSize          string        `json:"boxSize,omitempty"`
+	ArticleType      string        `json:"articleType,omitempty"`
 	CheapestBItem    *OutletItem   `json:"bItem,omitempty"`
 	AItem            *OutletItem   `json:"aItem,omitempty"`
-	ArticleType      string        `json:"articleType,omitempty"`
+	EnergyRating     *EnergyRating `json:"energyRating,omitempty"`
+	MarginPercent    MarginPercent `json:"mp,omitempty"`
 }
 
 var AllowConditionalData = false
@@ -73,12 +73,12 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 
 type BaseItem struct {
 	ItemProp
-	baseScore float64
 	//StockLevel string            `json:"stockLevel,omitempty"`
-	Stock map[string]string `json:"stock"`
-	Id    uint              `json:"id"`
-	Sku   string            `json:"sku"`
-	Title string            `json:"title"`
+	Stock     map[string]string `json:"stock"`
+	Sku       string            `json:"sku"`
+	Title     string            `json:"title"`
+	Id        uint              `json:"id"`
+	baseScore float64
 }
 
 type DataItem struct {
