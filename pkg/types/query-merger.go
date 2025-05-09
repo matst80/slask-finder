@@ -26,6 +26,14 @@ func NewQueryMerger(result *ItemList) *QueryMerger {
 		isFirst: true,
 		result:  result,
 		merger: func(current *ItemList, next *ItemList, isFirst bool) {
+			if next == nil {
+				if isFirst {
+					return
+				} else {
+					current = &ItemList{}
+					return
+				}
+			}
 			if isFirst {
 				current.Merge(next)
 			} else {
