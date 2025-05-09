@@ -346,7 +346,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 		close(ch)
 	}()
 	for jsonFacet := range ch {
-		if jsonFacet != nil {
+		if jsonFacet != nil && (jsonFacet.Result.HasValues() || jsonFacet.Selected != nil) {
 			err = enc.Encode(jsonFacet)
 		}
 	}
