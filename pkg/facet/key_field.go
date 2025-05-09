@@ -20,6 +20,10 @@ func (f KeyField) Len() int {
 	return len(f.Keys)
 }
 
+func (f KeyField) IsExcludedFromFacets() bool {
+	return f.BaseField.HideFacet || f.BaseField.InternalOnly
+}
+
 func (f KeyField) GetValues() []interface{} {
 	ret := make([]interface{}, len(f.Keys))
 	idx := 0

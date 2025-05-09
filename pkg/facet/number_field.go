@@ -29,13 +29,13 @@ func (k *DecimalFieldResult) HasValues() bool {
 	return k.Min < k.Max
 }
 
-func (f DecimalField) GetExtents(matchIds types.ItemList) *DecimalFieldResult {
+func (f DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
 	if matchIds == nil {
 		return nil
 	}
 	minV := f.Max
 	maxV := f.Min
-	for id := range matchIds {
+	for id := range *matchIds {
 		if v, ok := f.AllValues[id]; ok {
 			if v < minV {
 				minV = v
@@ -56,6 +56,10 @@ func (f DecimalField) GetExtents(matchIds types.ItemList) *DecimalFieldResult {
 // 	}
 // 	return nil
 // }
+
+func (f DecimalField) IsExcludedFromFacets() bool {
+	return f.HideFacet || f.BaseField.InternalOnly
+}
 
 func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
 	if minValue > maxValue {

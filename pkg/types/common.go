@@ -147,6 +147,7 @@ type Facet interface {
 	RemoveValueLink(value interface{}, id uint)
 	UpdateBaseField(data *BaseField)
 	GetValues() []interface{}
+	IsExcludedFromFacets() bool
 }
 
 type FieldChangeAction = string

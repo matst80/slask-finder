@@ -72,70 +72,120 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	}
 }
 
-const (
-	BucketSections = 20
-)
+//
+//const (
+//	BucketSections = 20
+//)
+//
+//type ResultBucket struct {
+//	bucket [BucketSections]uint
+//}
+//func (r *ResultBucket) AddValue(value uint) {
+//}
 
-type ResultBucket struct {
-	bucket [BucketSections]uint
+type FacetResultHandler struct {
+	wg       *sync.WaitGroup
+	c        chan *index.JsonFacet
+	ids      *types.ItemList
+	modifier func(*index.JsonFacet) *index.JsonFacet
 }
 
-func (r *ResultBucket) AddValue(value uint) {
+func NewFacetResultHandler(modifyResult func(*index.JsonFacet) *index.JsonFacet) *FacetResultHandler {
+	return &FacetResultHandler{
+		wg:       &sync.WaitGroup{},
+		c:        make(chan *index.JsonFacet),
+		modifier: modifyResult,
+	}
 }
 
-func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFacet, wg *sync.WaitGroup, modifyResult func(*index.JsonFacet) *index.JsonFacet) {
-	defer wg.Done()
-	if baseIds == nil || len(*baseIds) == 0 {
-		baseField := f.GetBaseField()
-		if baseField.HideFacet {
-			c <- nil
-			return
+func (fh *FacetResultHandler) HandleKeyField(f facet.KeyField, ids *types.ItemList, selected interface{}) {
+	defer fh.wg.Done()
+	hasValues := false
+	r := make(map[string]int, len(f.Keys))
+	count := 0
+
+	for key, sourceIds := range f.Keys {
+
+		count = sourceIds.IntersectionLen(*ids)
+
+		if count > 0 {
+			hasValues = true
+			r[key] = count
 		}
-		ret := &index.JsonFacet{
-			BaseField: baseField,
-		}
-		switch field := f.(type) {
-		case facet.KeyField:
-			r := &index.KeyFieldResult{
-				Values: make(map[string]uint),
-			}
-			for keyId, idList := range field.Keys {
-				r.Values[string(keyId)] = uint(len(idList))
-			}
-			ret.Result = r
-		case facet.IntegerField:
-			ret.Result = &facet.IntegerFieldResult{
-				//Count: uint(field.Max - field.Min),
-				Min: field.Min,
-				Max: field.Max,
-			}
-		case facet.DecimalField:
-			ret.Result = &facet.DecimalFieldResult{
-				//Count: uint(field.Count),
-				Min: field.Min,
-				Max: field.Max,
-			}
-		}
-		c <- modifyResult(ret)
+	}
+	if !hasValues {
+		fh.c <- nil
 		return
 	}
-	matchIds := *baseIds
+	fh.c <- fh.modifier(&index.JsonFacet{
+		BaseField: f.BaseField,
+		Selected:  selected,
+		Result:    &index.KeyFieldResult{Values: r},
+	})
+}
+
+func (fh *FacetResultHandler) HandleIntegerField(f facet.IntegerField, ids *types.ItemList, selected interface{}) {
+	defer fh.wg.Done()
+	r := f.GetExtents(ids)
+	if r == nil {
+		fh.c <- nil
+		return
+	}
+	fh.c <- fh.modifier(&index.JsonFacet{
+		BaseField: f.BaseField,
+		Selected:  selected,
+		Result:    r,
+	})
+}
+
+func (fh *FacetResultHandler) HandleDecimalField(f facet.DecimalField, ids *types.ItemList, selected interface{}) {
+	defer fh.wg.Done()
+	r := f.GetExtents(ids)
+	if r == nil {
+		fh.c <- nil
+		return
+	}
+	fh.c <- fh.modifier(&index.JsonFacet{
+		BaseField: f.BaseField,
+		Selected:  selected,
+		Result:    r,
+	})
+}
+
+func (fh *FacetResultHandler) Handle(f types.Facet, selected interface{}) {
+	if f.IsExcludedFromFacets() {
+		return
+	}
+	switch field := f.(type) {
+	case facet.KeyField:
+		fh.wg.Add(1)
+		go fh.HandleKeyField(field, fh.ids, selected)
+	case facet.DecimalField:
+		fh.wg.Add(1)
+		go fh.HandleDecimalField(field, fh.ids, selected)
+	case facet.IntegerField:
+		fh.wg.Add(1)
+		go fh.HandleIntegerField(field, fh.ids, selected)
+	}
+}
+
+func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFacet, wg *sync.WaitGroup, selected interface{}) {
+	defer wg.Done()
+
 	baseField := f.GetBaseField()
 	if baseField.HideFacet {
 		c <- nil
 		return
 	}
-	ret := &index.JsonFacet{
-		BaseField: baseField,
-	}
+
 	switch field := f.(type) {
 	case facet.KeyField:
 		hasValues := false
-		r := make(map[string]uint, len(field.Keys))
-		count := uint(0)
+		r := make(map[string]int, len(field.Keys))
+		count := 0
 		//var ok bool
 		for key, sourceIds := range field.Keys {
-			count = uint(sourceIds.IntersectionLen(matchIds))
+			count = sourceIds.IntersectionLen(*baseIds)
 
 			if count > 0 {
 				hasValues = true
@@ -146,31 +196,43 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 			c <- nil
 			return
 		}
-		ret.Result = &index.KeyFieldResult{
-			Values: r,
+		c <- &index.JsonFacet{
+			BaseField: baseField,
+			Selected:  selected,
+			Result: &index.KeyFieldResult{
+				Values: r,
+			},
 		}
+
 	case facet.IntegerField:
 
-		r := field.GetExtents(matchIds)
+		r := field.GetExtents(baseIds)
 		if r == nil {
 			c <- nil
 			return
 		}
-		ret.Result = r
+		c <- &index.JsonFacet{
+			BaseField: baseField,
+			Selected:  selected,
+			Result:    r,
+		}
 	case facet.DecimalField:
-		r := field.GetExtents(matchIds)
+		r := field.GetExtents(baseIds)
 		if r == nil {
 			c <- nil
 			return
 		}
-		ret.Result = r
+		c <- &index.JsonFacet{
+			BaseField: baseField,
+			Selected:  selected,
+			Result:    r,
+		}
 
 	}
-	c <- modifyResult(ret)
 }
 
 func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-	var base *types.BaseField
+
 	makeQm := func(list *types.ItemList) *types.QueryMerger {
 		qm := types.NewQueryMerger(list)
 		if baseIds != nil {
@@ -181,25 +243,22 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 		return qm
 	}
 	for _, s := range sr.StringFilter {
-		if f, ok := ws.Index.Facets[s.Id]; ok {
-			base = f.GetBaseField()
+		if sr.IsIgnored(s.Id) {
+			continue
+		}
+		if f, ok := ws.Index.Facets[s.Id]; ok && !f.IsExcludedFromFacets() {
 
-			if !base.HideFacet && !sr.IsIgnored(s.Id) {
-				wg.Add(1)
+			wg.Add(1)
 
-				go func(otherFilters *types.Filters) {
-					matchIds := &types.ItemList{}
-					qm := makeQm(matchIds)
-					ws.Index.Match(otherFilters, qm)
-					qm.Wait()
-					go getFacetResult(f, matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-						if facet != nil {
-							facet.Selected = s.Value
-						}
-						return facet
-					})
-				}(sr.WithOut(s.Id, base.CategoryLevel > 0))
-			}
+			go func(otherFilters *types.Filters) {
+				matchIds := &types.ItemList{}
+				qm := makeQm(matchIds)
+				ws.Index.Match(otherFilters, qm)
+				qm.Wait()
+
+				getFacetResult(f, matchIds, ch, wg, s.Value)
+			}(sr.WithOut(s.Id))
+
 		}
 	}
 	for _, r := range sr.RangeFilter {
@@ -210,13 +269,8 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 				qm := makeQm(matchIds)
 				ws.Index.Match(otherFilters, qm)
 				qm.Wait()
-				go getFacetResult(f, matchIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-					if facet != nil {
-						facet.Selected = r
-					}
-					return facet
-				})
-			}(sr.WithOut(r.Id, false))
+				go getFacetResult(f, matchIds, ch, wg, r)
+			}(sr.WithOut(r.Id))
 		}
 	}
 }
@@ -261,44 +315,29 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 		}
 	}
 	count := 0
-	var base *types.BaseField = nil
+	//var base *types.BaseField = nil
 	if resultCount == 0 {
 		mainCat := ws.Index.Facets[10] // todo setting
 		if mainCat != nil {
-			base = mainCat.GetBaseField()
+			//base = mainCat.GetBaseField()
 			wg.Add(1)
-			go getFacetResult(mainCat, &ws.Index.All, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-				return facet
-			})
+			go getFacetResult(mainCat, &ws.Index.All, ch, wg, nil)
 		}
 	} else {
 
-		//hasCat := sr.Filters.HasCategoryFilter()
 		for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
 			if count > limit {
 				break
 			}
 
 			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
-				if f, ok := ws.Index.Facets[id]; ok {
-					base = f.GetBaseField()
-					if base == nil || base.HideFacet {
-						continue
-					}
-					// if base.CategoryLevel > 0 && hasCat {
-					// 	continue
-					// }
+				if f, ok := ws.Index.Facets[id]; ok && !f.IsExcludedFromFacets() {
 
 					wg.Add(1)
-					go getFacetResult(f, baseIds, ch, wg, func(facet *index.JsonFacet) *index.JsonFacet {
-						if facet != nil && !(facet.Result.HasValues() || facet.Type != "") && facet.CategoryLevel == 0 {
-							return nil
-						}
-						return facet
-					})
-					if base.Type != "fps" {
-						count++
-					}
+					go getFacetResult(f, baseIds, ch, wg, nil)
+
+					count++
+
 				}
 			} else {
 				// log.Printf("Facet %d is in filters", id)

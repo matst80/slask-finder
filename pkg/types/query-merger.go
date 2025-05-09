@@ -2,6 +2,12 @@ package types
 
 import "sync"
 
+type IQueryMerger interface {
+	Add(func() *ItemList)
+	Intersect(func() *ItemList)
+	Exclude(func() *ItemList)
+}
+
 type QueryMerger struct {
 	wg         *sync.WaitGroup
 	MergeFirst bool

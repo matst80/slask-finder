@@ -12,7 +12,7 @@ type FieldResult interface {
 }
 
 type KeyFieldResult struct {
-	Values map[string]uint `json:"values,omitempty"`
+	Values map[string]int `json:"values,omitempty"`
 }
 
 // func (k *KeyFieldResult) AddValue(input interface{}) {
