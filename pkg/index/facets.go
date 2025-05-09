@@ -7,7 +7,6 @@ import (
 type Facets map[uint]FieldResult
 
 type FieldResult interface {
-	//AddValue(value interface{})
 	HasValues() bool
 }
 
