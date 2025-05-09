@@ -247,14 +247,6 @@ func main() {
 
 		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
 
-		go func() {
-			log.Println("Starting mcp server")
-			err := srv.StartMcpServer()
-			if err != nil {
-				log.Print(err)
-			}
-		}()
-
 		log.Printf("Starting server %v", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, mux))
 
