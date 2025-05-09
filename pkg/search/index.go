@@ -219,9 +219,9 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 				found = false
 			}
 		}
-		tries := types.ItemList{}
-		if !found {
 
+		if !found {
+			tries := types.ItemList{}
 			for _, match := range i.Trie.FindMatches(token) {
 				if match.Items != nil {
 					if res.HasIntersection(match.Items) {
@@ -242,8 +242,8 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 					}
 				}
 			}
+			res.Intersect(tries)
 		}
-		res.Intersect(tries)
 
 		return len(*res) > 0
 	})
