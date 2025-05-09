@@ -212,7 +212,7 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
 		log.Printf("filter on token %s", token)
 		ids, found := i.TokenMap[token]
-		if found {
+		if found && ids != nil {
 			if res.HasIntersection(ids) {
 				res.Intersect(*ids)
 			} else {
@@ -222,7 +222,7 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 
 		if !found {
 			for _, match := range i.Trie.FindMatches(token) {
-				if res.HasIntersection(ids) {
+				if match.Items != nil && res.HasIntersection(match.Items) {
 					res.Intersect(*match.Items)
 					found = true
 				}
@@ -233,7 +233,7 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if fuzzyIds, ok := i.TokenMap[match]; ok {
-					if res.HasIntersection(fuzzyIds) {
+					if fuzzyIds != nil && res.HasIntersection(fuzzyIds) {
 						res.Intersect(*fuzzyIds)
 					}
 				}
