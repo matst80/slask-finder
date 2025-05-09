@@ -54,17 +54,13 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 	})
 
 	ws.Index.Match(sr.Filters, qm)
-	isPopular := sr.Sort == "popular" || sr.Sort == ""
 
-	if isPopular && sr.Query != "*" {
-		go func() {
-			sortChan <- nil
-		}()
-	} else {
-		go ws.Sorting.GetSorting(sr.Sort, sortChan)
-	}
+	go ws.Sorting.GetSorting(sr.Sort, sortChan)
 
 	qm.Wait()
+	if sr.Filter != "" {
+		ws.Index.Search.Filter(sr.Query, ids)
+	}
 	result <- searchResult{
 		matching:      ids,
 		sort:          <-sortChan,

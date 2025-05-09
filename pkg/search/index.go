@@ -204,6 +204,32 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 // TODO maybe two itemlists, one for exact and one for fuzzy
 
+func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+
+	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
+		ids, found := i.TokenMap[token]
+		if found {
+			if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
+			}
+		}
+
+		if !found {
+			for _, match := range i.Trie.FindMatches(token) {
+				if res.HasIntersection(ids) {
+					res.Intersect(*match.Items)
+				}
+			}
+		}
+
+		return len(*res) > 0
+	})
+}
+
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}
 	//mergeLimit := types.CurrentSettings.SearchMergeLimit
