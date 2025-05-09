@@ -66,10 +66,10 @@ func NewIndex() *Index {
 		mu:  sync.RWMutex{},
 		All: types.ItemList{},
 		//categories:   make(map[uint]*Category),
-		ItemsBySku:   make(map[string]*types.Item),
-		ItemFieldIds: make(map[uint]types.ItemList),
-		Facets:       make(map[uint]types.Facet),
-		Items:        make(map[uint]types.Item),
+		ItemsBySku: make(map[string]*types.Item, 100_000),
+		//ItemFieldIds: make(map[uint]types.ItemList),
+		Facets:       make(map[uint]types.Facet, 3_000),
+		Items:        make(map[uint]types.Item, 100_000),
 		ItemsInStock: make(map[string]types.ItemList),
 	}
 }

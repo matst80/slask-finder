@@ -148,9 +148,7 @@ func (f *KeyField) addString(value string, id uint) {
 	if k, ok := f.Keys[v]; ok {
 		k.AddId(id)
 	} else {
-		l := make(types.ItemList, 800)
-		l.AddId(id)
-		f.Keys[v] = l
+		f.Keys[v] = types.ItemList{id: struct{}{}}
 	}
 
 }
