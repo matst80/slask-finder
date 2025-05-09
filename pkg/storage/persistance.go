@@ -233,6 +233,9 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 
 	for _, ff := range toStore {
 		//ff.BaseField.Searchable = true
+		if ff.BaseField.Type == "fps" {
+			ff.BaseField.HideFacet = true
+		}
 		switch ff.Type {
 		case 1:
 			if ff.BaseField.LinkedId != 0 {
@@ -240,6 +243,7 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 			}
 			idx.AddKeyField(ff.BaseField)
 		case 3:
+
 			idx.AddIntegerField(ff.BaseField)
 		case 2:
 			idx.AddDecimalField(ff.BaseField)
