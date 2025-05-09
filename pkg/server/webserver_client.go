@@ -216,7 +216,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	}
 
 	return enc.Encode(SearchResponse{
-		Duration:  time.Since(s),
+		Duration:  fmt.Sprintf("%v", time.Since(s)),
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
