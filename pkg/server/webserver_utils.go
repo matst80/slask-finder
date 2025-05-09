@@ -286,7 +286,7 @@ func (ws *WebServer) getSuggestFacets(baseIds *types.ItemList, sr *types.FacetRe
 func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	fieldIds := make(map[uint]struct{})
-	limit := 50
+	limit := 30
 	resultCount := len(*baseIds)
 	//if resultCount > 65535 {
 	//limit = 20
