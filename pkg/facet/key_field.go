@@ -40,14 +40,14 @@ func (f KeyField) GetValues() []interface{} {
 
 func (f *KeyField) match(value string) *types.ItemList {
 	if value == "!nil" {
-		ret := make(types.ItemList, 8000)
+		ret := &types.ItemList{}
 		for v, ids := range f.Keys {
 			if v == "" {
 				continue
 			}
 			ret.Merge(&ids)
 		}
-		return &ret
+		return ret
 	}
 	ids, ok := f.Keys[value]
 	if ok {
@@ -66,7 +66,7 @@ func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemLi
 	if value == nil {
 		return &types.ItemList{}
 	}
-	ret := make(types.ItemList, 1000)
+	ret := make(types.ItemList)
 	for _, v := range value {
 		r := f.match(v)
 
