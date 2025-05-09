@@ -225,8 +225,7 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 			ids, found = i.TokenMap[Token(word)]
 			if res.HasIntersection(ids) {
 				res.Intersect(*ids)
-			} else {
-				found = false
+				found = true
 			}
 		}
 
@@ -265,10 +264,22 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
+	mappings := types.CurrentSettings.WordMappings
+
 	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
 		ids, found := i.TokenMap[token]
 		if found {
 			if count == 0 {
+				res.Merge(ids)
+			} else if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
+			}
+		}
+		if word, ok := mappings[string(token)]; ok {
+			ids, found = i.TokenMap[Token(word)]
+			if !found || count == 0 {
 				res.Merge(ids)
 			} else if res.HasIntersection(ids) {
 				res.Intersect(*ids)
