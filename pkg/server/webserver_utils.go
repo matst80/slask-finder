@@ -257,7 +257,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 				qm.Wait()
 
 				getFacetResult(f, matchIds, ch, wg, s.Value)
-			}(sr.WithOut(s.Id))
+			}(sr.WithOut(s.Id, f.IsCategory()))
 
 		}
 	}
@@ -270,7 +270,7 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 				ws.Index.Match(otherFilters, qm)
 				qm.Wait()
 				go getFacetResult(f, matchIds, ch, wg, r)
-			}(sr.WithOut(r.Id))
+			}(sr.WithOut(r.Id, false))
 		}
 	}
 }

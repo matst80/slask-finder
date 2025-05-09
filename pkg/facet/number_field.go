@@ -61,6 +61,10 @@ func (f DecimalField) IsExcludedFromFacets() bool {
 	return f.HideFacet || f.BaseField.InternalOnly
 }
 
+func (f DecimalField) IsCategory() bool {
+	return false
+}
+
 func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
 	if minValue > maxValue {
 		return &types.ItemList{}

@@ -100,6 +100,10 @@ func (f *IntegerField) GetExtents(matchIds *types.ItemList) *IntegerFieldResult 
 	}
 }
 
+func (f IntegerField) IsCategory() bool {
+	return false
+}
+
 func (f *IntegerField) GetExtents2(matchIds types.ItemList) *IntegerFieldResult {
 
 	minV := f.Max

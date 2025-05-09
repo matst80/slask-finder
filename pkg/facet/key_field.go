@@ -24,6 +24,10 @@ func (f KeyField) IsExcludedFromFacets() bool {
 	return f.BaseField.HideFacet || f.BaseField.InternalOnly
 }
 
+func (f KeyField) IsCategory() bool {
+	return f.CategoryLevel > 0
+}
+
 func (f KeyField) GetValues() []interface{} {
 	ret := make([]interface{}, len(f.Keys))
 	idx := 0

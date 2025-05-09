@@ -44,10 +44,10 @@ type Filters struct {
 	RangeFilter  []RangeFilter  `json:"range" schema:"-"`
 }
 
-func (f *Filters) WithOut(id uint) *Filters {
-	/*if dontExclude {
+func (f *Filters) WithOut(id uint, dontExclude bool) *Filters {
+	if dontExclude {
 		return f
-	}*/
+	}
 	result := Filters{
 		StringFilter: make([]StringFilter, 0, len(f.StringFilter)),
 		RangeFilter:  make([]RangeFilter, 0, len(f.RangeFilter)),

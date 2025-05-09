@@ -148,6 +148,7 @@ type Facet interface {
 	UpdateBaseField(data *BaseField)
 	GetValues() []interface{}
 	IsExcludedFromFacets() bool
+	IsCategory() bool
 }
 
 type FieldChangeAction = string
