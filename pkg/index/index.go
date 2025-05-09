@@ -48,8 +48,8 @@ type UpdateHandler interface {
 type Index struct {
 	mu sync.RWMutex
 	//categories    map[uint]*Category
-	Facets       map[uint]types.Facet
-	ItemFieldIds map[uint]types.ItemList
+	Facets map[uint]types.Facet
+	//ItemFieldIds map[uint]types.ItemList
 	Items        map[uint]types.Item
 	ItemsBySku   map[string]*types.Item
 	ItemsInStock map[string]types.ItemList
@@ -66,8 +66,8 @@ func NewIndex() *Index {
 		mu:  sync.RWMutex{},
 		All: types.ItemList{},
 		//categories:   make(map[uint]*Category),
-		ItemsBySku:   make(map[string]*types.Item),
-		ItemFieldIds: make(map[uint]types.ItemList),
+		ItemsBySku: make(map[string]*types.Item),
+		//ItemFieldIds: make(map[uint]types.ItemList),
 		Facets:       make(map[uint]types.Facet),
 		Items:        make(map[uint]types.Item),
 		ItemsInStock: make(map[string]types.ItemList),
@@ -126,34 +126,9 @@ func (i *Index) addItemValues(item types.Item) {
 		}
 	}
 
-	//tree := make([]*Category, 0)
-	var base *types.BaseField
-	// test virtual category
-
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
-			base = f.GetBaseField()
-			// if base.CategoryLevel > 0 {
-			// 	value, ok := fieldValue.(string)
-			// 	if ok {
-			// 		cid := makeCategoryId(base.CategoryLevel, value)
-			// 		if i.categories[cid] == nil {
-			// 			i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}
-			// 		}
-			// 		tree = append(tree, i.categories[cid])
-			// 	}
-			// }
-
-			if f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil && !base.HideFacet {
-				if fids, ok := i.ItemFieldIds[itemId]; ok {
-					fids[base.Id] = struct{}{}
-				} else {
-					log.Printf("No field for item id: %d", itemId)
-				}
-			}
-
-		} else {
-			//delete(i.Facets, id)
+			f.AddValueLink(fieldValue, itemId)
 		}
 	}
 
@@ -302,7 +277,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 	if item.IsDeleted() {
 		delete(i.All, id)
 		delete(i.ItemsBySku, item.GetSku())
-		delete(i.ItemFieldIds, id)
+		//delete(i.ItemFieldIds, id)
 		if item.IsSoftDeleted() {
 			if isUpdate {
 				i.removeItemValues(current)
@@ -329,7 +304,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 	if i.IsMaster {
 		return
 	} else {
-		i.ItemFieldIds[id] = make(types.ItemList)
+		//i.ItemFieldIds[id] = make(types.ItemList)
 		i.All.AddId(id)
 		i.ItemsBySku[item.GetSku()] = &item
 		if i.Search != nil {
