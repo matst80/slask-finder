@@ -166,6 +166,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId in
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	s := time.Now()
 	sr, err := GetQueryFromRequest(r)
+	log.Printf("search streamed %+v", sr)
 	if err != nil {
 		return err
 	}
