@@ -1,16 +1,33 @@
 package types
 
-import "sync"
+import (
+	"log"
+	"slices"
+	"sync"
+)
 
 type Settings struct {
-	mu              sync.RWMutex
-	FieldsToIndex   []uint               `json:"fieldsToIndex"`
-	FacetRelations  []FacetRelationGroup `json:"facetRelations"`
-	PopularityRules *ItemPopularityRules `json:"popularityRules"`
+	mu               sync.RWMutex
+	SearchMergeLimit int                  `json:"searchMergeLimit"`
+	SplitWords       []string             `json:"splitWords"`
+	WordMappings     map[string]string    `json:"wordMappings"`
+	SuggestFacets    []uint               `json:"suggestFacets"`
+	ProductTypeId    uint                 `json:"productTypeId"`
+	FieldsToIndex    []uint               `json:"fieldsToIndex"`
+	FacetRelations   []FacetRelationGroup `json:"facetRelations"`
+	PopularityRules  *ItemPopularityRules `json:"popularityRules"`
+	FacetGroups      []FacetGroup         `json:"facetGroups"`
+}
+
+type FacetGroup struct {
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
 }
 
 type ItemRequirement struct {
 	FacetId uint        `json:"facetId"`
+	Exclude bool        `json:"exclude,omitempty"`
 	Value   interface{} `json:"value"`
 }
 
@@ -23,12 +40,10 @@ const (
 )
 
 type FacetRelation struct {
-	Name               string `json:"name,omitempty"`
-	FacetId            uint   `json:"fromId"`
-	DestinationFacetId uint   `json:"toId"`
-	//ItemRequirements   []ItemRequirement `json:"requiredForItem"`
-	//AdditionalQueries  []ItemRequirement `json:"additionalQueries"`
-	ValueConverter ValueConverter `json:"converter"`
+	Name               string         `json:"name,omitempty"`
+	FacetId            uint           `json:"fromId"`
+	DestinationFacetId uint           `json:"toId"`
+	ValueConverter     ValueConverter `json:"converter"`
 }
 
 type FacetRelationGroup struct {
@@ -36,22 +51,121 @@ type FacetRelationGroup struct {
 	GroupId           int               `json:"groupId"`
 	ItemRequirements  []ItemRequirement `json:"requiredForItem"`
 	AdditionalQueries []ItemRequirement `json:"additionalQueries"`
+	Include           []uint            `json:"include_ids"`
+	Exclude           []uint            `json:"exclude_ids"`
 	Relations         []FacetRelation   `json:"relations"`
 }
 
-const (
-	MB_GROUP             = 1
-	RAM_GROUP            = 2
-	CPU_GROUP            = 3
-	LIQUID_COOLING_GROUP = 4
-	AIR_COOLING_GROUP    = 5
-	PSU_GROUP            = 6
-	M2_GROUP             = 7
-	PHONE_CASES_GROUP    = 10
-)
+func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
+	result := make([]StringFilter, 0)
+	for _, additionalQuery := range f.AdditionalQueries {
+		keyValue, ok := AsKeyFilterValue(additionalQuery.Value)
+		if !ok {
+			log.Printf("Failed to convert %v to key filter value", additionalQuery.Value)
+			continue
+		}
+		result = append(result, StringFilter{
+			Id:    additionalQuery.FacetId,
+			Not:   additionalQuery.Exclude,
+			Value: keyValue,
+		})
+	}
+	for _, relation := range f.Relations {
+		itemValue, ok := item.GetFieldValue(relation.FacetId)
+		if !ok {
+			continue
+		}
+		keyValue, ok := AsKeyFilterValue(itemValue)
+		if !ok {
+			log.Printf("Failed to convert %v to key filter value", itemValue)
+			continue
+		}
+		if relation.ValueConverter == NoConverter {
+			result = append(result, StringFilter{
+				Id:    relation.DestinationFacetId,
+				Value: keyValue,
+			})
+		}
+	}
+	return result
+}
+
+func AsStringArray(value interface{}) []string {
+	itemValues := []string{}
+	switch input := value.(type) {
+	case []string:
+		for _, item := range input {
+			itemValues = append(itemValues, item)
+		}
+	case []interface{}:
+		for _, item := range input {
+			if v, ok := item.(string); ok {
+				itemValues = append(itemValues, v)
+			}
+		}
+	case string:
+		itemValues = append(itemValues, input)
+	}
+	return itemValues
+}
+
+func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
+	if value == nil {
+		return false
+	}
+	if matchValue == nil {
+
+		return true
+	}
+
+	itemValues := AsStringArray(value)
+
+	matchItems := AsStringArray(matchValue)
+
+	for _, item := range itemValues {
+		if slices.Contains(matchItems, item) {
+			return true
+		}
+	}
+	return false
+
+}
+
+func (f *FacetRelationGroup) Matches(item Item) bool {
+	for _, relation := range f.ItemRequirements {
+		itemValue, ok := item.GetFieldValue(relation.FacetId)
+		if !ok {
+			// log.Printf("Item %d does not have field %d", item.GetId(), relation.FacetId)
+			return false
+		}
+		matches := matchInterfaceValues(itemValue, relation.Value)
+		if relation.Exclude && matches {
+			return false
+		}
+		if !matches {
+			return false
+		}
+	}
+	for _, relation := range f.Relations {
+		_, ok := item.GetFieldValue(relation.FacetId)
+		if !ok {
+			// log.Printf("Item %d does not have related field %d", item.GetId(), relation.FacetId)
+			return false
+		}
+	}
+	return true
+}
 
 var CurrentSettings = &Settings{
-	mu: sync.RWMutex{},
+	mu:               sync.RWMutex{},
+	FacetGroups:      []FacetGroup{},
+	ProductTypeId:    31158,
+	SearchMergeLimit: 10,
+	SplitWords:       []string{"X3D"},
+	WordMappings: map[string]string{
+		"vilfa":   "wilfa",
+		"earpods": "airpods",
+	},
 	FieldsToIndex: []uint{
 		2,
 		31158,
@@ -59,245 +173,16 @@ var CurrentSettings = &Settings{
 		//13,
 		30290,
 		//11,
-		//10,
+		10,
 	},
-	FacetRelations: []FacetRelationGroup{
-		// CPU
-		{
-			Name:    "Passande vattenkylare",
-			GroupId: LIQUID_COOLING_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT272",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 33,
-					Value:   "PT1302",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            35990,
-					DestinationFacetId: 36307,
-					ValueConverter:     ValueToMin,
-				},
-			},
-		},
-		{
-			Name:    "Passande moderkort",
-			GroupId: MB_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT272",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT264",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            32103,
-					DestinationFacetId: 32103,
-					ValueConverter:     NoConverter,
-				},
-				{
-					FacetId:            36202,
-					DestinationFacetId: 30276,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
-		// RAM
-		{
-			Name:    "Passande minne",
-			GroupId: RAM_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT272",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT269",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            35980,
-					DestinationFacetId: 31191,
-					ValueConverter:     ValueToMin,
-				},
-			},
-		},
-		// Motherboard
-		{
-			Name:    "Passande CPU",
-			GroupId: CPU_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT264",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT272",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            32103,
-					DestinationFacetId: 32103,
-					ValueConverter:     NoConverter,
-				},
-				{
-					FacetId:            30276,
-					DestinationFacetId: 36202,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
-		{
-			Name:    "Passande minne",
-			GroupId: RAM_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT264",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT269",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            35921,
-					DestinationFacetId: 35921,
-					ValueConverter:     NoConverter,
-				},
-				{
-					FacetId:            30857,
-					DestinationFacetId: 30857,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
-		{
-			Name:    "Passande vattenkylare",
-			GroupId: LIQUID_COOLING_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT264",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 33,
-					Value:   "PT1302",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            35980,
-					DestinationFacetId: 32077,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
-		{
-			Name:    "Passande luftkylare",
-			GroupId: LIQUID_COOLING_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT264",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 33,
-					Value:   "PT1303",
-				},
-			},
-			Relations: []FacetRelation{
-				{
-					FacetId:            35980,
-					DestinationFacetId: 32077,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
-		{
-			Name:    "Passande skal",
-			GroupId: PHONE_CASES_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 31,
-					Value:   "PT238",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT245",
-				},
-			},
-			Relations: []FacetRelation{
-				// {
-				// 	FacetId:            31158,
-				// 	DestinationFacetId: 31782,
-				// 	ValueConverter:     NoConverter,
-				// },
-				{
-					FacetId:            30879,
-					DestinationFacetId: 30303,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
-		{
-			Name:    "Passar till",
-			GroupId: PHONE_CASES_GROUP,
-			ItemRequirements: []ItemRequirement{
-				{
-					FacetId: 32,
-					Value:   "PT245",
-				},
-			},
-			AdditionalQueries: []ItemRequirement{
-				{
-					FacetId: 31,
-					Value:   "PT238",
-				},
-			},
-			Relations: []FacetRelation{
-				// {
-				// 	FacetId:            31782,
-				// 	DestinationFacetId: 31158,
-				// 	ValueConverter:     NoConverter,
-				// },
-				{
-					FacetId:            30303,
-					DestinationFacetId: 30879,
-					ValueConverter:     NoConverter,
-				},
-			},
-		},
+	SuggestFacets: []uint{
+		2,
+		31158,
+		30290,
+		10,
+		11,
 	},
+	FacetRelations: []FacetRelationGroup{},
 	PopularityRules: &ItemPopularityRules{
 		&MatchRule{
 			Match: "Elgiganten",
@@ -361,7 +246,7 @@ var CurrentSettings = &Settings{
 				Source:  FieldId,
 				FieldId: 2,
 			},
-			ValueIfMatch: 2100,
+			ValueIfMatch: 1100,
 		},
 		&MatchRule{
 			Match: "Outlet",

@@ -1,24 +1,27 @@
 package types
 
 type BaseField struct {
-	Id            uint    `json:"id"`
-	Name          string  `json:"name"`
-	Description   string  `json:"description,omitempty"`
-	Priority      float64 `json:"prio,omitempty"`
-	Type          string  `json:"valueType,omitempty"`
-	LinkedId      uint    `json:"linkedId,omitempty"`
-	ValueSorting  uint    `json:"sorting,omitempty"`
-	Searchable    bool    `json:"searchable,omitempty"`
-	HideFacet     bool    `json:"hide,omitempty"`
-	CategoryLevel int     `json:"categoryLevel,omitempty"`
+	Id               uint    `json:"id"`
+	Name             string  `json:"name"`
+	Description      string  `json:"description,omitempty"`
+	Priority         float64 `json:"prio,omitempty"`
+	Type             string  `json:"valueType,omitempty"`
+	LinkedId         uint    `json:"linkedId,omitempty"`
+	ValueSorting     uint    `json:"sorting,omitempty"`
+	GroupId          uint    `json:"groupId,omitempty"`
+	CategoryLevel    int     `json:"categoryLevel,omitempty"`
+	HideFacet        bool    `json:"hide,omitempty"`
+	KeySpecification bool    `json:"isKey,omitempty"`
+	InternalOnly     bool    `json:"internal,omitempty"`
+	Searchable       bool    `json:"searchable,omitempty"`
 	// IgnoreCategoryIfSearched bool    `json:"-"`
 	// IgnoreIfInSearch         bool    `json:"-"`
 }
 
 type FacetRequest struct {
 	*Filters
-	Stock        []string `json:"stock" schema:"stock"`
 	Query        string   `json:"query" schema:"query"`
+	Stock        []string `json:"stock" schema:"stock"`
 	IgnoreFacets []uint   `json:"skipFacets" schema:"sf"`
 }
 
@@ -26,6 +29,32 @@ func (s *FacetRequest) Sanitize() {
 	if (len(s.StringFilter) > 0 || len(s.RangeFilter) > 0) && s.Query == "*" {
 		s.Query = ""
 	}
+}
+
+func (b *BaseField) UpdateFrom(field *BaseField) {
+	if field == nil {
+		return
+	}
+	//b.Id = field.Id
+	if field.Name != "" {
+		b.Name = field.Name
+	}
+	if field.Description != "" {
+		b.Description = field.Description
+	}
+
+	b.Priority = field.Priority
+	if field.Type != "" {
+		b.Type = field.Type
+	}
+	b.LinkedId = field.LinkedId
+	b.ValueSorting = field.ValueSorting
+	b.Searchable = field.Searchable
+	b.HideFacet = field.HideFacet
+	b.CategoryLevel = field.CategoryLevel
+	b.GroupId = field.GroupId
+	b.KeySpecification = field.KeySpecification
+	b.InternalOnly = field.InternalOnly
 }
 
 func (f *FacetRequest) HasField(id uint) bool {
@@ -82,9 +111,11 @@ type Item interface {
 	GetId() uint
 	GetSku() string
 	GetStock() map[string]string
+	HasStock() bool
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
 	IsSoftDeleted() bool
+	GetPropertyValue(name string) interface{}
 	GetPrice() int
 	GetDiscount() int
 	GetRating() (int, int)
@@ -97,6 +128,8 @@ type Item interface {
 	ToStringList() []string
 	GetBaseItem() BaseItem
 	MergeKeyFields(updates []CategoryUpdate) bool
+	GetBasePopularity() float64
+	UpdateBasePopularity(rules ItemPopularityRules)
 	GetItem() interface{}
 }
 
@@ -108,11 +141,14 @@ const FacetTreeType = 4
 type Facet interface {
 	GetType() uint
 	Match(data interface{}) *ItemList
-	MatchAsync(data interface{}, results chan<- *ItemList)
+	// MatchAsync(data interface{}, results chan<- *ItemList)
 	GetBaseField() *BaseField
 	AddValueLink(value interface{}, id uint) bool
 	RemoveValueLink(value interface{}, id uint)
+	UpdateBaseField(data *BaseField)
 	GetValues() []interface{}
+	IsExcludedFromFacets() bool
+	IsCategory() bool
 }
 
 type FieldChangeAction = string
@@ -124,9 +160,9 @@ const (
 )
 
 type FieldChange struct {
+	*BaseField
 	Action    FieldChangeAction `json:"action"`
 	FieldType uint              `json:"fieldType"`
-	*BaseField
 }
 
 func (s *Settings) Lock() {

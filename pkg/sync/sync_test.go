@@ -147,7 +147,7 @@ func TestSync(t *testing.T) {
 		return
 	}
 
-	if (*firstItem1).GetFields()[0] != "Test2" {
+	if firstItem1.GetFields()[0] != "Test2" {
 		t.Error("Item not updated on client 1")
 	}
 

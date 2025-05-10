@@ -20,6 +20,14 @@ func (f KeyField) Len() int {
 	return len(f.Keys)
 }
 
+func (f KeyField) IsExcludedFromFacets() bool {
+	return f.BaseField.HideFacet || f.BaseField.InternalOnly
+}
+
+func (f KeyField) IsCategory() bool {
+	return f.CategoryLevel > 0
+}
+
 func (f KeyField) GetValues() []interface{} {
 	ret := make([]interface{}, len(f.Keys))
 	idx := 0
@@ -32,49 +40,87 @@ func (f KeyField) GetValues() []interface{} {
 
 func (f *KeyField) match(value string) *types.ItemList {
 	if value == "!nil" {
-		ret := make(types.ItemList)
+		ret := &types.ItemList{}
 		for v, ids := range f.Keys {
 			if v == "" {
 				continue
 			}
 			ret.Merge(&ids)
 		}
-		return &ret
+		return ret
 	}
 	ids, ok := f.Keys[value]
 	if ok {
 		return &ids
 	}
 
-	return nil
-}
-
-func (f KeyField) Match(input interface{}) *types.ItemList {
-	if input == nil {
-		return &types.ItemList{}
-	}
-	switch val := input.(type) {
-	case string:
-		return f.match(val)
-	case []string:
-		ret := make(types.ItemList)
-		for _, v := range val {
-			r := f.match(v)
-
-			if r != nil {
-				ret.Merge(r)
-			}
-
-		}
-		return &ret
-	}
-
 	return &types.ItemList{}
 }
 
-func (f KeyField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
-	ch <- f.Match(input)
+func (f KeyField) UpdateBaseField(field *types.BaseField) {
+	f.BaseField.UpdateFrom(field)
 }
+
+func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemList {
+	// todo implement
+	if value == nil {
+		return &types.ItemList{}
+	}
+	ret := make(types.ItemList)
+	for _, v := range value {
+		r := f.match(v)
+
+		if r != nil {
+			ret.Merge(r)
+		}
+
+	}
+	return &ret
+}
+
+func (f KeyField) Match(input interface{}) *types.ItemList {
+	value, ok := types.AsKeyFilterValue(input)
+	if !ok {
+		log.Printf("KeyField: Match: Unknown type %T", input)
+		return &types.ItemList{}
+	}
+	return f.MatchFilterValue(value)
+	// if input == nil {
+	// 	return &types.ItemList{}
+	// }
+	// switch val := input.(type) {
+	// case string:
+	// 	return f.match(val)
+	// case []interface{}:
+	// 	ret := make(types.ItemList)
+	// 	for _, v := range val {
+	// 		if str, ok := v.(string); ok {
+	// 			r := f.match(str)
+	// 			if r != nil {
+	// 				ret.Merge(r)
+	// 			}
+	// 		}
+	// 	}
+	// 	return &ret
+	// case []string:
+	// 	ret := make(types.ItemList)
+	// 	for _, v := range val {
+	// 		r := f.match(v)
+
+	// 		if r != nil {
+	// 			ret.Merge(r)
+	// 		}
+
+	// 	}
+	// 	return &ret
+	// }
+
+	// return &types.ItemList{}
+}
+
+// func (f KeyField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+// 	ch <- f.Match(input)
+// }
 
 func (f KeyField) GetBaseField() *types.BaseField {
 	return f.BaseField
@@ -84,6 +130,19 @@ func (f *KeyField) addString(value string, id uint) {
 	v := strings.TrimSpace(value)
 	if v == "" {
 		return
+	}
+	if f.Type == "stock" {
+		if v == "0" {
+			return
+		}
+		v = "Ja"
+	} else if f.Type == "bool" {
+		low := strings.ToLower(v)
+		if low == "no" || low == "nej" || low == "" || low == "false" || low == "x" || low == "saknas" {
+			v = "Nej"
+		} else {
+			v = "Ja"
+		}
 	}
 
 	if k, ok := f.Keys[v]; ok {

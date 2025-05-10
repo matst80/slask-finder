@@ -1,6 +1,7 @@
 package server
 
 type SearchResponse struct {
+	Duration  string `json:"duration"`
 	Page      int    `json:"page"`
 	PageSize  int    `json:"pageSize"`
 	Sort      string `json:"sort"`

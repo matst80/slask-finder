@@ -19,12 +19,51 @@ type DecimalField struct {
 	Count int `json:"count"`
 }
 
+type DecimalFieldResult struct {
+	//Count uint    `json:"count,omitempty"`
+	Min float64 `json:"min"`
+	Max float64 `json:"max"`
+}
+
+func (k *DecimalFieldResult) HasValues() bool {
+	return k.Min < k.Max
+}
+
+func (f DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
+	if matchIds == nil {
+		return nil
+	}
+	minV := f.Max
+	maxV := f.Min
+	for id := range *matchIds {
+		if v, ok := f.AllValues[id]; ok {
+			if v < minV {
+				minV = v
+			} else if v > maxV {
+				maxV = v
+			}
+		}
+	}
+	return &DecimalFieldResult{
+		Min: minV,
+		Max: maxV,
+	}
+}
+
 // func (f *DecimalField) ValueForItemId(id uint) *float64 {
 // 	if v, ok := f.AllValues[id]; ok {
 // 		return &v
 // 	}
 // 	return nil
 // }
+
+func (f DecimalField) IsExcludedFromFacets() bool {
+	return f.HideFacet || f.BaseField.InternalOnly
+}
+
+func (f DecimalField) IsCategory() bool {
+	return false
+}
 
 func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
 	if minValue > maxValue {
@@ -77,6 +116,14 @@ func (f DecimalField) Match(input interface{}) *types.ItemList {
 	}
 
 	return &types.ItemList{}
+}
+
+func (f *DecimalField) updateBaseField(field *types.BaseField) {
+	f.BaseField.UpdateFrom(field)
+}
+
+func (f DecimalField) UpdateBaseField(field *types.BaseField) {
+	f.updateBaseField(field)
 }
 
 func (f DecimalField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {

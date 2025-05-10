@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	httpprof "net/http/pprof"
@@ -33,13 +34,15 @@ var listenAddress = ":8080"
 var debugAddress = ":8081"
 var clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 var callbackUrl = os.Getenv("CALLBACK_URL")
+var contentFile = os.Getenv("CONTENT_FILE")
+var topicPrefix = os.Getenv("TOPIC_PREFIX")
 
 var rabbitConfig = ffSync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
-	FieldChangeTopic:   "field_change",
-	ItemsUpsertedTopic: "items_added",
-	ItemDeletedTopic:   "item_deleted",
-	PriceLoweredTopic:  "price_lowered",
+	FieldChangeTopic:   fmt.Sprintf("%sfield_change", topicPrefix),
+	ItemsUpsertedTopic: fmt.Sprintf("%sitems_added", topicPrefix),
+	ItemDeletedTopic:   fmt.Sprintf("%sitem_deleted", topicPrefix),
+	PriceLoweredTopic:  fmt.Sprintf("%sprice_lowered", topicPrefix),
 	VHost:              os.Getenv("RABBIT_HOST"),
 	Url:                rabbitUrl,
 }
@@ -71,8 +74,14 @@ func init() {
 		log.Fatalf("No redis url provided")
 	}
 
+	clientId := os.Getenv("GOOGLE_CLIENT_ID")
+	if clientId == "" {
+		log.Printf("GOOGLE_CLIENT_ID not provided")
+		clientId = "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com"
+	}
+
 	authConfig := &oauth2.Config{
-		ClientID:     "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com",
+		ClientID:     clientId,
 		ClientSecret: clientSecret,
 		RedirectURL:  callbackUrl,
 		Scopes: []string{
@@ -102,42 +111,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 		log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 	}
 
-	// idx.AddKeyField(&types.BaseField{Id: 1, Name: "Article Type", HideFacet: true, Priority: 0}) // 949259
-	// idx.AddKeyField(&types.BaseField{Id: 2, Name: "Märke", Description: "Tillverkarens namn", Priority: 119999.0, Type: "brand", ValueSorting: 1})
-	// idx.AddKeyField(&types.BaseField{Id: 3, Name: "Lager", Description: "Lagerstatus", Priority: 99999.0})
-	// idx.AddKeyField(&types.BaseField{Id: 9, Name: "Säljs av", Description: "", Priority: 199999.0})
-
-	// idx.AddKeyField(&types.BaseField{Id: 10, Name: "Huvudkategori", Description: "Category", Priority: 399999.0, IgnoreIfInSearch: true, CategoryLevel: 1})
-	// idx.AddKeyField(&types.BaseField{Id: 11, Name: "Underkaterori", Description: "Sub category", Priority: 299999.0, IgnoreIfInSearch: true, CategoryLevel: 2})
-	// idx.AddKeyField(&types.BaseField{Id: 12, Name: "Kategori", Description: "Tillhör kategori", Priority: 199999.0, IgnoreIfInSearch: true, CategoryLevel: 3})
-	// idx.AddKeyField(&types.BaseField{Id: 13, Name: "Kategori", Description: "Extra kategori", Priority: 199999.0, IgnoreIfInSearch: true, CategoryLevel: 4})
-
-	// idx.AddKeyField(&types.BaseField{Id: 20, Name: "Skick", Description: "Outlet rating", Priority: 111999.0, Type: "bgrade"})
-	// idx.AddKeyField(&types.BaseField{Id: 21, Name: "Promotion", Description: "", Priority: 9999.0, Type: "virtual"})
-	// idx.AddKeyField(&types.BaseField{Id: 22, Name: "Virtual category", Description: "", Priority: 99.0, Type: "virtual"})
-
-	// idx.AddKeyField(&types.BaseField{Id: 23, Name: "Assigned taxonomy id", HideFacet: true, Description: "", Priority: 99.0})
-	// idx.AddKeyField(&types.BaseField{Id: 24, Name: "Seller id", HideFacet: true, Description: "", Priority: 99.0})
-
-	// //idx.AddBoolField(&types.BaseField{Id: 21, Name: "Discounted", Description: "",Priority: 999999999.0})
-	// idx.AddIntegerField(&types.BaseField{Id: 4, Name: "Pris", Priority: 1099999995.5, Type: "currency"})
-	// idx.AddIntegerField(&types.BaseField{Id: 5, Name: "Tidigare pris", HideFacet: true, Priority: 1999, Type: "currency"})
-	// idx.AddIntegerField(&types.BaseField{Id: 6, Name: "Betyg", Description: "Average rating", Priority: 999999.0, Type: "rating"})
-	// idx.AddIntegerField(&types.BaseField{Id: 7, Name: "Antal betyg", Description: "Total number of reviews", Priority: 999998.0})
-	// idx.AddIntegerField(&types.BaseField{Id: 8, Name: "Rabatt", Description: "Discount value", Priority: 999.0, Type: "currency"})
-	// idx.AddIntegerField(&types.BaseField{Id: 14, Name: "Klubb pris", HideFacet: true, Priority: 99.4, Type: "currency"})
-	// //idx.AddKeyField(&types.BaseField{Id: 15, Name: "Article type", HideFacet: true, Priority: 99.3})
-
-	// idx.AddKeyField(&types.BaseField{Id: 30, Name: "PT 1", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
-	// idx.AddKeyField(&types.BaseField{Id: 31, Name: "PT 2", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
-	// idx.AddKeyField(&types.BaseField{Id: 32, Name: "PT 3", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
-	// idx.AddKeyField(&types.BaseField{Id: 33, Name: "PT 4", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
-
-	// idx.AddKeyField(&types.BaseField{Id: 35, Name: "CGM", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
-	// idx.AddKeyField(&types.BaseField{Id: 36, Name: "Category group", HideFacet: true, Priority: 0, IgnoreIfInSearch: true, IgnoreCategoryIfSearched: true})
-
-	// addDbFields(idx)
-
 	if rabbitUrl != "" {
 		trk, err := tracking.NewRabbitTracking(tracking.RabbitTrackingConfig{
 			TrackingTopic: "tracking",
@@ -155,7 +128,10 @@ func LoadIndex(wg *sync.WaitGroup) {
 			if err != nil {
 				log.Fatal(err)
 			}
-			pprof.StartCPUProfile(f)
+			err = pprof.StartCPUProfile(f)
+			if err != nil {
+				log.Fatal(err)
+			}
 			defer pprof.StopCPUProfile()
 		}
 		defer wg.Done()
@@ -199,9 +175,10 @@ func LoadIndex(wg *sync.WaitGroup) {
 				}
 				srv.Sorting.InitializeWithIndex(idx)
 				srv.Sorting.StartListeningForChanges()
-
-				wg.Add(1)
-				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
+				if contentFile != "" {
+					wg.Add(1)
+					go populateContentFromCsv(contentIdx, "data/content.csv", wg)
+				}
 
 				// go func() {
 				// 	idx.Lock()
@@ -216,7 +193,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 
 		done = true
 	}()
-
 }
 
 func main() {

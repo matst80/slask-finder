@@ -50,7 +50,7 @@ type Index struct {
 	//categories    map[uint]*Category
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
-	Items        map[uint]*types.Item
+	Items        map[uint]types.Item
 	ItemsBySku   map[string]*types.Item
 	ItemsInStock map[string]types.ItemList
 	IsMaster     bool
@@ -69,7 +69,7 @@ func NewIndex() *Index {
 		ItemsBySku:   make(map[string]*types.Item),
 		ItemFieldIds: make(map[uint]types.ItemList),
 		Facets:       make(map[uint]types.Facet),
-		Items:        make(map[uint]*types.Item),
+		Items:        make(map[uint]types.Item),
 		ItemsInStock: make(map[string]types.ItemList),
 	}
 }
@@ -84,6 +84,18 @@ func (i *Index) AddDecimalField(field *types.BaseField) {
 
 func (i *Index) AddIntegerField(field *types.BaseField) {
 	i.Facets[field.Id] = facet.EmptyIntegerField(field)
+}
+
+func (i *Index) GetKeyFacet(id uint) (*facet.KeyField, bool) {
+	if f, ok := i.Facets[id]; ok {
+		switch tf := f.(type) {
+		case facet.KeyField:
+			return &tf, true
+		case *facet.KeyField:
+			return tf, true
+		}
+	}
+	return nil, false
 }
 
 // func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
@@ -101,9 +113,6 @@ func (i *Index) addItemValues(item types.Item) {
 		return
 	}
 	itemId := item.GetId()
-	for _, stock := range i.ItemsInStock {
-		delete(stock, itemId)
-	}
 
 	for id, stock := range item.GetStock() {
 		if stock == "" || stock == "0" {
@@ -117,70 +126,29 @@ func (i *Index) addItemValues(item types.Item) {
 		}
 	}
 
-	//tree := make([]*Category, 0)
-	var base *types.BaseField
-	// test virtual category
-
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
-			base = f.GetBaseField()
-			// if base.CategoryLevel > 0 {
-			// 	value, ok := fieldValue.(string)
-			// 	if ok {
-			// 		cid := makeCategoryId(base.CategoryLevel, value)
-			// 		if i.categories[cid] == nil {
-			// 			i.categories[cid] = &Category{Value: &value, level: base.CategoryLevel, id: id}
-			// 		}
-			// 		tree = append(tree, i.categories[cid])
-			// 	}
-			// }
-
-			if f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil && !base.HideFacet {
+			if f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil && !f.IsExcludedFromFacets() {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
-					fids[base.Id] = struct{}{}
+					fids[id] = struct{}{}
 				} else {
 					log.Printf("No field for item id: %d", itemId)
 				}
 			}
 
-		} else {
-			//delete(i.Facets, id)
 		}
 	}
-
-	// if len(tree) > 0 {
-	// 	slices.SortFunc(tree, func(a, b *Category) int {
-	// 		return cmp.Compare(a.level, b.level)
-	// 	})
-	// 	for i := 0; i < len(tree)-1; i++ {
-
-	// 		if tree[i].Children == nil {
-	// 			tree[i].Children = make(map[uint]*Category, 0)
-	// 		}
-	// 		id := makeCategoryId(tree[i+1].level, *tree[i+1].Value)
-	// 		tree[i].Children[id] = tree[i+1]
-	// 		tree[i+1].parent = tree[i]
-	// 	}
-	// }
 }
-
-// func (i *Index) GetCategories() []*Category {
-// 	i.Lock()
-// 	defer i.Unlock()
-// 	categories := make([]*Category, 0)
-// 	for _, category := range i.categories {
-// 		if category.parent == nil && category.level == 1 {
-// 			categories = append(categories, category)
-// 		}
-// 	}
-// 	return categories
-// }
 
 func (i *Index) removeItemValues(item types.Item) {
 	if i.IsMaster {
 		return
 	}
+
 	itemId := item.GetId()
+	for _, stock := range i.ItemsInStock {
+		delete(stock, itemId)
+	}
 	for fieldId, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[fieldId]; ok {
 			f.RemoveValueLink(fieldValue, itemId)
@@ -192,21 +160,14 @@ func (i *Index) removeItemValues(item types.Item) {
 func (i *Index) UpdateFields(changes []types.FieldChange) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
+	log.Printf("Updating fields %d", len(changes))
 	for _, change := range changes {
 		if change.Action == types.ADD_FIELD {
 			log.Println("not implemented add field")
 		} else {
 			if f, ok := i.Facets[change.Id]; ok {
 				if change.Action == types.UPDATE_FIELD {
-					targetBase := f.GetBaseField()
-					targetBase.CategoryLevel = change.CategoryLevel
-					targetBase.Type = change.Type
-					targetBase.HideFacet = change.HideFacet
-					targetBase.Priority = change.Priority
-					targetBase.Name = change.Name
-					targetBase.Searchable = change.Searchable
-					targetBase.LinkedId = change.LinkedId
-					targetBase.ValueSorting = change.ValueSorting
+					f.UpdateBaseField(change.BaseField)
 
 				} else if change.Action == types.REMOVE_FIELD {
 					delete(i.Facets, change.Id)
@@ -231,9 +192,9 @@ func (i *Index) UpdateCategoryValues(ids []uint, updates []types.CategoryUpdate)
 	for _, id := range ids {
 		item, ok := i.Items[id]
 		if ok {
-			if (*item).MergeKeyFields(updates) {
-				i.UpsertItemUnsafe(*item)
-				items = append(items, *item)
+			if item.MergeKeyFields(updates) {
+				i.UpsertItemUnsafe(item)
+				items = append(items, item)
 			}
 		}
 	}
@@ -299,7 +260,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		delete(i.ItemFieldIds, id)
 		if item.IsSoftDeleted() {
 			if isUpdate {
-				i.removeItemValues(*current)
+				i.removeItemValues(current)
 			}
 			return
 		}
@@ -316,19 +277,21 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		// if new_price < old_price {
 		// 	price_lowered = true
 		// }
-		i.removeItemValues(*current)
+		i.removeItemValues(current)
 	}
 
-	i.Items[id] = &item
+	i.Items[id] = item
 	if i.IsMaster {
 		return
 	} else {
-		i.ItemFieldIds[id] = make(types.ItemList)
+		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))
 		i.All.AddId(id)
 		i.ItemsBySku[item.GetSku()] = &item
 		if i.Search != nil {
 			i.addItemValues(item)
 		}
+
+		item.UpdateBasePopularity(*types.CurrentSettings.PopularityRules)
 		// if i.AutoSuggest != nil {
 		// 	i.AutoSuggest.InsertItemUnsafe(item)
 		// }
@@ -349,7 +312,7 @@ func (i *Index) deleteItemUnsafe(id uint) {
 	item, ok := i.Items[id]
 	if ok {
 		noDeletes.Inc()
-		i.removeItemValues(*item)
+		i.removeItemValues(item)
 		delete(i.Items, id)
 		// delete(i.AllItems, id)
 		if i.ChangeHandler != nil {

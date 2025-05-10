@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"time"
@@ -109,72 +110,72 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
-	if ws.Sorting == nil {
-		log.Printf("Sorting not initialized in handleFieldSort")
-		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
-		return
-	}
-	if r.Method == "POST" {
-		defaultHeaders(w, r, true, "0")
-		sort := index.SortOverride{}
-		err := json.NewDecoder(r.Body).Decode(&sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		ws.Sorting.SetFieldSortOverride(&sort)
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+// func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
+// 	if ws.Sorting == nil {
+// 		log.Printf("Sorting not initialized in handleFieldSort")
+// 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	if r.Method == "POST" {
+// 		defaultHeaders(w, r, true, "0")
+// 		sort := index.SortOverride{}
+// 		err := json.NewDecoder(r.Body).Decode(&sort)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 			return
+// 		}
+// 		ws.Sorting.SetFieldSortOverride(&sort)
+// 		w.WriteHeader(http.StatusOK)
+// 		return
+// 	}
 
-	sort := ws.Sorting.FieldSort
-	if sort == nil {
-		http.Error(w, "Sort not found", http.StatusNotFound)
-		return
-	}
-	defaultHeaders(w, r, true, "120")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(sort)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+// 	sort := ws.Sorting.FieldSort
+// 	if sort == nil {
+// 		http.Error(w, "Sort not found", http.StatusNotFound)
+// 		return
+// 	}
+// 	defaultHeaders(w, r, true, "120")
+// 	w.WriteHeader(http.StatusOK)
+// 	err := json.NewEncoder(w).Encode(sort)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
 
-func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
-	if ws.Sorting == nil {
-		log.Printf("Sorting not initialized in handleFieldSort")
-		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
-		return
-	}
-	if r.Method == "POST" {
-		defaultHeaders(w, r, true, "0")
-		sort := index.StaticPositions{}
-		err := json.NewDecoder(r.Body).Decode(&sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		err = ws.Sorting.SetStaticPositions(sort)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-		}
-		w.WriteHeader(http.StatusOK)
-		return
-	}
+// func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
+// 	if ws.Sorting == nil {
+// 		log.Printf("Sorting not initialized in handleFieldSort")
+// 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
+// 		return
+// 	}
+// 	if r.Method == "POST" {
+// 		defaultHeaders(w, r, true, "0")
+// 		sort := index.StaticPositions{}
+// 		err := json.NewDecoder(r.Body).Decode(&sort)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 			return
+// 		}
+// 		err = ws.Sorting.SetStaticPositions(sort)
+// 		if err != nil {
+// 			http.Error(w, err.Error(), http.StatusBadRequest)
+// 		}
+// 		w.WriteHeader(http.StatusOK)
+// 		return
+// 	}
 
-	sort := ws.Sorting.GetStaticPositions()
-	if sort == nil {
-		http.Error(w, "Sort not found", http.StatusNotFound)
-		return
-	}
-	defaultHeaders(w, r, true, "120")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(sort)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+// 	sort := ws.Sorting.GetStaticPositions()
+// 	if sort == nil {
+// 		http.Error(w, "Sort not found", http.StatusNotFound)
+// 		return
+// 	}
+// 	defaultHeaders(w, r, true, "120")
+// 	w.WriteHeader(http.StatusOK)
+// 	err := json.NewEncoder(w).Encode(sort)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
 
 func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	items := AddItemRequest{}
@@ -232,6 +233,20 @@ func generateStateOauthCookie() string {
 }
 
 var secretKey = []byte("slask-62541337!-banansecret")
+var serverApiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
+
+func init() {
+	hash := os.Getenv("SLASK_TOKEN_HASH")
+	if hash == "" {
+		log.Fatal("SLASK_TOKEN_HASH environment variable not set")
+	}
+	secretKey = []byte(hash)
+	_key := os.Getenv("SLASK_API_KEY")
+	if _key == "" {
+		log.Fatal("SLASK_API_KEY environment variable not set")
+	}
+	serverApiKey = _key
+}
 
 func createToken(username string, name string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
@@ -265,7 +280,6 @@ type UserData struct {
 }
 
 const tokenCookieName = "sf-admin"
-const apiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
 
 func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{
@@ -279,7 +293,7 @@ func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if auth != apiKey {
+		if auth != serverApiKey {
 			cookie, err := r.Cookie(tokenCookieName)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -479,7 +493,7 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 		field.ItemCount = 0
 	}
 	for _, itemP := range ws.Index.Items {
-		item, ok := (*itemP).(*index.DataItem)
+		item, ok := itemP.(*index.DataItem)
 		if ok && !item.IsDeleted() {
 			for _, field := range ws.FieldData {
 				_, found := item.Fields[field.Id]
@@ -499,6 +513,11 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 				if base != nil {
 					base.Name = field.Name
 					base.Description = field.Description
+					if slices.Index(field.Purpose, "Key Specification") == -1 {
+						base.KeySpecification = false
+					} else {
+						base.KeySpecification = true
+					}
 				}
 			} else {
 				log.Printf("Field %s not found in index", key)
@@ -530,6 +549,11 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 				}
 				if slices.Index(field.Purpose, "UL Benchmarking") != -1 {
 					base.Type = "fps"
+				}
+				if slices.Index(field.Purpose, "Key Specification") == -1 {
+					base.KeySpecification = false
+				} else {
+					base.KeySpecification = true
 				}
 			}
 			if field.ItemCount < 5 {
@@ -631,15 +655,8 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Facet not found", http.StatusNotFound)
 		return
 	}
-	current.Name = data.Name
-	current.Description = data.Description
-	current.Priority = data.Priority
-	current.CategoryLevel = data.CategoryLevel
-	current.HideFacet = data.HideFacet
-	current.LinkedId = data.LinkedId
-	current.Searchable = data.Searchable
-	current.Type = data.Type
-	current.ValueSorting = data.ValueSorting
+	current.UpdateFrom(&data)
+
 	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -681,18 +698,70 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request) {
+func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "5")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings.FieldsToIndex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *WebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
 	if r.Method == "POST" {
-		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FieldsToIndex)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		ws.Db.SaveSettings()
 	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		types.CurrentSettings.Lock()
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
+		types.CurrentSettings.Unlock()
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		err = ws.Db.SaveSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
 	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetRelations)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *WebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "POST" {
+		types.CurrentSettings.Lock()
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetGroups)
+		types.CurrentSettings.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		err = ws.Db.SaveSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	defaultHeaders(w, r, true, "1200")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetGroups)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -712,6 +781,114 @@ func (ws *WebServer) GetFacetList(w http.ResponseWriter, r *http.Request) {
 	enc := json.NewEncoder(w)
 
 	enc.Encode(res)
+}
+
+type FacetGroupingData struct {
+	GroupId   uint   `json:"group_id"`
+	GroupName string `json:"group_name"`
+	FacetIds  []uint `json:"facet_ids"`
+}
+
+func (ws *WebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
+	data := FacetGroupingData{}
+	json.NewDecoder(r.Body).Decode(&data)
+	if data.GroupId == 0 {
+		http.Error(w, "Group ID is required", http.StatusBadRequest)
+		return
+	}
+	changes := make([]types.FieldChange, 0)
+
+	types.CurrentSettings.Lock()
+	defer types.CurrentSettings.Unlock()
+	idx := slices.IndexFunc(types.CurrentSettings.FacetGroups, func(g types.FacetGroup) bool {
+		return g.Id == data.GroupId
+	})
+	if idx == -1 {
+		if len(data.GroupName) == 0 {
+			http.Error(w, "Group name is required", http.StatusBadRequest)
+			return
+		}
+		types.CurrentSettings.FacetGroups = append(types.CurrentSettings.FacetGroups, types.FacetGroup{
+			Id:   data.GroupId,
+			Name: data.GroupName,
+		})
+	}
+
+	for _, id := range data.FacetIds {
+		facet, ok := ws.Index.Facets[id]
+		if !ok {
+			continue
+		}
+		base := facet.GetBaseField()
+		if base != nil && base.GroupId != data.GroupId {
+			base.GroupId = data.GroupId
+
+			changes = append(changes, types.FieldChange{
+				Action:    types.UPDATE_FIELD,
+				BaseField: base,
+				FieldType: facet.GetType(),
+			})
+		}
+	}
+
+	if ws.Index.ChangeHandler != nil {
+		ws.Index.ChangeHandler.FieldsChanged(changes)
+	}
+	err := ws.Db.SaveFacets(ws.Index.Facets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+type MatchedRule struct {
+	Rule  interface{} `json:"rule"`
+	Score float64     `json:"score"`
+}
+
+type PopularityResult struct {
+	Popularity float64       `json:"popularity"`
+	Matches    []MatchedRule `json:"matches"`
+}
+
+func (ws *WebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	itemIdString := r.PathValue("id")
+	itemId, err := strconv.Atoi(itemIdString)
+	if err != nil {
+		http.Error(w, "Invalid item ID", http.StatusBadRequest)
+		return
+	}
+	item, ok := ws.Index.Items[uint(itemId)]
+	if !ok {
+		http.Error(w, "Item not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	ret := &PopularityResult{
+		Popularity: 0,
+		Matches:    make([]MatchedRule, 0),
+	}
+	rules := types.CurrentSettings.PopularityRules
+	for _, rule := range *rules {
+		if rule == nil {
+			continue
+		}
+		score := rule.GetValue(item)
+		if score != 0 {
+			ret.Popularity += score
+			ret.Matches = append(ret.Matches, MatchedRule{
+				Rule:  rule,
+				Score: score,
+			})
+		}
+	}
+
+	err = json.NewEncoder(w).Encode(ret)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
@@ -759,17 +936,22 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("DELETE /facets/{id}", ws.AuthMiddleware(ws.DeleteFacet))
 	srv.HandleFunc("GET /facets", ws.GetFacetList)
 	srv.HandleFunc("PUT /facets/{id}", ws.AuthMiddleware(ws.UpdateFacet))
+	srv.HandleFunc("GET /index/facets", ws.AuthMiddleware(ws.GetSearchIndexedFacets))
+	srv.HandleFunc("POST /index/facets", ws.AuthMiddleware(ws.SetSearchIndexedFacets))
+	srv.HandleFunc("GET /item/{id}/popularity", ws.AuthMiddleware(ws.GetItemPopularity))
 	srv.HandleFunc("GET /fields/{id}/add", ws.AuthMiddleware(ws.CreateFacetFromField))
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 	srv.HandleFunc("GET /settings", ws.GetSettings)
+	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/relation-groups", ws.HandleRelationGroups)
+	srv.HandleFunc("/facet-groups", ws.HandleFacetGroups)
 	//srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
-	srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
+	//srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
 }

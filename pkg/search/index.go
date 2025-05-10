@@ -1,6 +1,7 @@
 package search
 
 import (
+	"log"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -43,7 +44,7 @@ func (i *FreeTextIndex) CreateDocumentUnsafe(id uint, text ...string) {
 	//i.tokenizer.MakeDocument(id, text...)
 
 	for j, property := range text {
-		i.tokenizer.Tokenize(property, func(token Token, original string, _ int) bool {
+		i.tokenizer.Tokenize(property, func(token Token, original string, _ int, last bool) bool {
 			if j == 0 {
 				i.Trie.Insert(token, original, id)
 			}
@@ -115,7 +116,7 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 	score := 0.0
 	found := false
-	for i, _ := range i.TokenMap {
+	for i := range i.TokenMap {
 		il := len(i)
 		if il < tl {
 			continue
@@ -204,15 +205,68 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 // TODO maybe two itemlists, one for exact and one for fuzzy
 
-const MERGE_LIMIT = 40
-
-func (i *FreeTextIndex) Search(query string) *types.ItemList {
-	res := &types.ItemList{}
-
+func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
-	i.tokenizer.Tokenize(query, func(token Token, original string, count int) bool {
+	mappings := types.CurrentSettings.WordMappings
+
+	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
+		log.Printf("filter on token %s", token)
+		ids, found := i.TokenMap[token]
+		if found && ids != nil {
+			if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
+			}
+		}
+		if word, ok := mappings[string(token)]; ok {
+			ids, found = i.TokenMap[Token(word)]
+			if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+				found = true
+			}
+		}
+
+		if !found {
+			tries := types.ItemList{}
+			for _, match := range i.Trie.FindMatches(token) {
+				if match.Items != nil {
+					if res.HasIntersection(match.Items) {
+						tries.Merge(match.Items)
+					}
+					found = true
+				}
+			}
+
+			// fuzzy
+			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
+			for _, match := range fuzzyMatches {
+				if fuzzyIds, ok := i.TokenMap[match]; ok {
+					if fuzzyIds != nil {
+						if res.HasIntersection(fuzzyIds) {
+							tries.Merge(fuzzyIds)
+						}
+					}
+				}
+			}
+			res.Intersect(tries)
+		}
+
+		return len(*res) > 0
+	})
+}
+
+func (i *FreeTextIndex) Search(query string) *types.ItemList {
+	res := &types.ItemList{}
+	//mergeLimit := types.CurrentSettings.SearchMergeLimit
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+
+	mappings := types.CurrentSettings.WordMappings
+
+	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
 		ids, found := i.TokenMap[token]
 		if found {
 			if count == 0 {
@@ -223,47 +277,30 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 				found = false
 			}
 		}
-
-		if !found || len(*res) <= MERGE_LIMIT {
-
-			for j, match := range i.Trie.FindMatches(token) {
-				if len(*match.Items) > 0 {
-					if len(*res) > MERGE_LIMIT && res.HasIntersection(match.Items) {
-						res.Intersect(*match.Items)
-					} // } else {
-					// 	res.Merge(match.Items)
-					// }
-					//first = false
-					found = true
-					// } else if res.HasIntersection(match.Items) {
-					// 	res.Intersect(*match.Items)
-					// 	found = true
-					// 	break
-					// }
-				}
-				if j > 20 {
-					break
-				}
+		if word, ok := mappings[string(token)]; ok {
+			ids, found = i.TokenMap[Token(word)]
+			if !found || count == 0 {
+				res.Merge(ids)
+			} else if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
 			}
 		}
-		if !found || len(*res) <= MERGE_LIMIT {
+		foundTrie := found
+		//log.Printf("word: %s, found: %v, last: %v", token, found, last)
+		if !found {
+			for _, match := range i.Trie.FindMatches(token) {
+				foundTrie = true
+				res.Merge(match.Items)
+			}
+		}
+		if !foundTrie {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
-				if ids, ok := i.TokenMap[match]; ok {
-					if len(*res) > MERGE_LIMIT && res.HasIntersection(ids) {
-						res.Intersect(*ids)
-					}
-					// else {
-					// 	res.Merge(ids)
-					// }
-					//if first {
-					//res.Merge(i.TokenMap[match])
-					//first = false
-					// } else if res.HasIntersection(i.TokenMap[match]) {
-					// 	res.Intersect(*i.TokenMap[match])
-					// 	break
-					// }
+				if fuzzyIds, ok := i.TokenMap[match]; ok {
+					res.Merge(fuzzyIds)
 				}
 			}
 		}
@@ -272,139 +309,5 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	})
 
 	return res
-	// score := 0.0
-	// wordIdx := 0
-	// lastIndex := 0
-	// var missing int
-	// var word Token
-	// for _, doc := range result {
-	// 	score = 50.0
-	// 	wordIdx = 0
-	// 	lastIndex = 0
-	// 	missing = len(tokens)
-	// 	word = tokens[wordIdx]
-	// 	for i, t := range doc.Tokens {
-	// 		if word == t {
-	// 			score += max(1, 20.0-(2.0*float64(absDiffInt(i, lastIndex))))
-	// 			lastIndex = i
-	// 			wordIdx++
-	// 			missing--
-	// 			if wordIdx >= len(tokens) {
-	// 				break
-	// 			}
-	// 			word = tokens[wordIdx]
-	// 		}
-	// 	}
-	// 	res[doc.Id] = score - float64(missing)*0.2
-	// 	// if res[doc.Id] > 0 {
-	// 	// 	//l := float64(len(tokens))
-	// 	// 	//dl := float64(len(doc.Tokens))
-	// 	// 	// base := 0.0
-	// 	// 	// if i.BaseSortMap != nil {
-	// 	// 	// 	if v, ok := i.BaseSortMap[doc.Id]; ok {
-	// 	// 	// 		base = v
-	// 	// 	// 	}
-	// 	// 	// }
-	// 	// 	hits := res[doc.Id]
-	// 	// 	res[doc.Id] = (hits * 1000.0)
-	// 	// }
-	// }
 
-	// return &res
 }
-
-// func (d *DocumentResult) ToSortIndex() []types.Lookup {
-// 	// l := len(*d)
-
-// 	// sortMap := make(types.ByValue, l)
-// 	// idx := 0
-// 	// for id, score := range *d {
-// 	// 	sortMap[idx] = types.Lookup{Id: id, Value: score}
-// 	// 	idx++
-// 	// }
-// 	return slices.SortedFunc(func(yield func(types.Lookup) bool) {
-// 		for id, score := range *d {
-// 			if !yield(types.Lookup{Id: id, Value: score}) {
-// 				break
-// 			}
-// 		}
-// 	}, types.LookUpReversed)
-
-// }
-
-// func (d *DocumentResult) ToSortIndexWithAdditionalItems(additionalIds *types.ItemList, baseMap map[uint]float64) *types.ByValue {
-
-// 	l := len(*d)
-
-// 	if (*additionalIds) != nil {
-// 		l += len(*additionalIds)
-// 	}
-
-// 	sortMap := make(types.ByValue, l)
-// 	idx := 0
-// 	for id, score := range *d {
-// 		sortMap[idx] = types.Lookup{Id: id, Value: score}
-// 		idx++
-// 	}
-// 	if (*additionalIds) != nil {
-// 		for id := range *additionalIds {
-// 			if _, ok := (*d)[id]; !ok {
-// 				sortMap[idx] = types.Lookup{Id: id, Value: baseMap[id]}
-// 				idx++
-// 			}
-
-// 		}
-// 	}
-// 	sort.Sort(sort.Reverse(sortMap[:idx]))
-
-// 	return &sortMap
-// }
-
-// func (d *DocumentResult) ToSortIndexAll(inputMap map[uint]float64) *types.SortIndex {
-// 	l := len(inputMap)
-
-// 	sortMap := make(types.ByValue, l)
-// 	copy(sortMap, types.ByValue{})
-// 	idx := 0
-// 	for id, score := range *d {
-// 		sortMap[idx] = types.Lookup{Id: id, Value: score + inputMap[id]}
-// 		idx++
-// 	}
-// 	sort.Sort(sort.Reverse(sortMap))
-// 	sortIndex := make(types.SortIndex, l)
-// 	for idx, item := range sortMap {
-// 		sortIndex[idx] = item.Id
-// 	}
-// 	return &sortIndex
-// }
-
-// type ResultWithSort struct {
-// 	*types.IdList
-// 	SortIndex types.SortIndex
-// }
-
-// func (d *DocumentResult) ToResult() *types.ItemList {
-// 	res := types.ItemList{}
-
-// 	for id := range *d {
-// 		res[id] = struct{}{}
-// 	}
-// 	return &res
-// }
-
-// func (d *DocumentResult) IntersectTo(items *types.ItemList) {
-// 	for id := range *items {
-// 		if _, ok := (*d)[id]; !ok {
-// 			delete(*items, id)
-// 		}
-// 	}
-// }
-
-// func (d *DocumentResult) GetSorting(sortChan chan<- *types.ByValue) {
-// 	v := types.ByValue(d.ToSortIndex())
-// 	sortChan <- &v
-// }
-
-// func (d *DocumentResult) GetSortingWithAdditionalItems(idList *types.ItemList, sortMap map[uint]float64, sortChan chan<- *types.ByValue) {
-// 	sortChan <- d.ToSortIndexWithAdditionalItems(idList, sortMap)
-// }

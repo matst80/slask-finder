@@ -53,8 +53,12 @@ func (s *SortOverride) ToString() string {
 	return ret
 }
 
+func (s *SortOverride) Set(id uint, value float64) {
+	(*s)[id] = value
+}
+
 func (s *SortOverride) FromString(data string) error {
-	*s = make(map[uint]float64)
+
 	for _, item := range strings.Split(data, ",") {
 		var key uint
 		var value float64
@@ -65,7 +69,7 @@ func (s *SortOverride) FromString(data string) error {
 			}
 			return err
 		}
-		(*s)[key] = value
+		s.Set(key, value)
 	}
 	return nil
 }

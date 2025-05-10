@@ -2,10 +2,15 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"iter"
+	"log"
 	"maps"
 	"net/http"
+	"slices"
+	"time"
 
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -34,11 +39,22 @@ var (
 	})
 	facetSearches = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "slaskfinder_facets_total",
-		Help: "The total number of processed searches",
+		Help: "The total number facets",
 	})
 )
 
-func (ws *WebServer) getInitialIds(sr *types.FacetRequest) *types.ItemList {
+func (ws *WebServer) getStockResult(stockLocations []string) *types.ItemList {
+	resultStockIds := &types.ItemList{}
+	for _, stockId := range stockLocations {
+		stockIds, ok := ws.Index.ItemsInStock[stockId]
+		if ok {
+			resultStockIds.Merge(&stockIds)
+		}
+	}
+	return resultStockIds
+}
+
+func (ws *WebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.ItemList {
 	var initialIds *types.ItemList = nil
 	//var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
@@ -55,18 +71,12 @@ func (ws *WebServer) getInitialIds(sr *types.FacetRequest) *types.ItemList {
 	}
 
 	if len(sr.Stock) > 0 {
-		resultStockIds := types.ItemList{}
-		for _, stockId := range sr.Stock {
-			stockIds, ok := ws.Index.ItemsInStock[stockId]
-			if ok {
-				resultStockIds.Merge(&stockIds)
-			}
-		}
+		resultStockIds := ws.getStockResult(sr.Stock)
 
 		if initialIds == nil {
-			initialIds = &resultStockIds
+			initialIds = resultStockIds
 		} else {
-			initialIds.Intersect(resultStockIds)
+			initialIds.Intersect(*resultStockIds)
 		}
 	}
 
@@ -87,24 +97,30 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessi
 }
 
 func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
+	s := time.Now()
 	sr, err := GetFacetQueryFromRequest(r)
 	if err != nil {
 		return err
 	}
 	go facetSearches.Inc()
+	baseIds := &types.ItemList{}
+	ids := &types.ItemList{}
 
-	matchIds := make(chan *types.ItemList)
-	defer close(matchIds)
-	baseIds := ws.getInitialIds(sr)
-	go ws.Index.Match(sr.Filters, baseIds, matchIds)
+	qm := types.NewQueryMerger(ids)
+	qm.Add(func() *types.ItemList {
+		baseIds = ws.getSearchAndStockResult(sr)
+		return baseIds
+	})
+
+	ws.Index.Match(sr.Filters, qm)
 
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
-	ids := <-matchIds
+	qm.Wait()
+
 	ws.getOtherFacets(ids, sr, ch, wg)
-	ws.getSearchedFacets(baseIds, sr.Filters, ch, wg)
+	ws.getSearchedFacets(baseIds, sr, ch, wg)
 
 	// todo optimize
 	go func() {
@@ -114,15 +130,16 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 
 	ret := make([]*index.JsonFacet, 0)
 	for item := range ch {
-		if item != nil {
+		if item != nil && (item.Result.HasValues() || item.Selected != nil) {
 			ret = append(ret, item)
 		}
 	}
 
-	defaultHeaders(w, r, true, "60")
+	publicHeaders(w, r, true, "600")
+	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
 	w.WriteHeader(http.StatusOK)
 
-	return enc.Encode(ws.Sorting.GetSortedFields(sessionId, ret))
+	return enc.Encode(ws.Sorting.GetSortedFields(ret))
 }
 
 func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -147,7 +164,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId in
 }
 
 func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
+	s := time.Now()
 	sr, err := GetQueryFromRequest(r)
 	if err != nil {
 		return err
@@ -165,7 +182,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
 	result := <-resultChan
-	sortedItemsChan := make(chan iter.Seq[*types.Item])
+	sortedItemsChan := make(chan iter.Seq[types.Item])
 	go ws.Sorting.GetSortedItemsIterator(sessionId, result.sort, result.matching, start, sortedItemsChan, result.sortOverrides...)
 
 	fn := <-sortedItemsChan
@@ -173,6 +190,9 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 
 	for item := range fn {
 		idx++
+		if idx <= start {
+			continue
+		}
 		err = enc.Encode(item)
 		if err != nil {
 			break
@@ -196,10 +216,11 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	}
 
 	return enc.Encode(SearchResponse{
+		Duration:  fmt.Sprintf("%v", time.Since(s)),
 		Page:      sr.Page,
 		PageSize:  sr.PageSize,
 		Start:     start,
-		End:       end,
+		End:       min(l, end),
 		TotalHits: l,
 		Sort:      sr.Sort,
 	})
@@ -237,7 +258,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	words := strings.Split(query, " ")
 	results := types.ItemList{}
 	lastWord := words[len(words)-1]
-	hasMoreWords := len(words) > 1
+
 	other := words[:len(words)-1]
 	go noSuggests.Inc()
 
@@ -245,12 +266,10 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	sortChan := make(chan *types.ByValue)
 	defer close(wordMatchesChan)
 	defer close(sortChan)
-	var docResult *types.ItemList
-	if hasMoreWords {
-		docResult = ws.Index.Search.Search(query)
-		types.Merge(results, *docResult)
-		//results = *docResult
-	}
+
+	docResult := ws.Index.Search.Search(query)
+	types.Merge(results, *docResult)
+	//results = *docResult
 
 	go ws.Index.Search.FindTrieMatchesForWord(lastWord, wordMatchesChan)
 
@@ -270,7 +289,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 			if !hasResults {
 				suggestResult.Hits = totalHits
 				err = enc.Encode(suggestResult)
-				results.Merge(s.Items)
+				//results.Merge(s.Items)
 			} else if results.HasIntersection(s.Items) {
 				suggestResult.Hits = results.IntersectionLen(*s.Items)
 				err = enc.Encode(suggestResult)
@@ -291,7 +310,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	// }
 	_, err = w.Write([]byte("\n"))
 
-	sortedItemsChan := make(chan iter.Seq[*types.Item])
+	sortedItemsChan := make(chan iter.Seq[types.Item])
 	// if docResult != nil {
 	// 	//o := index.SortOverride(docResult)
 	// 	go ws.Sorting.GetSortedItemsIterator(sessionId, nil, &results, 0, sortedItemsChan, o)
@@ -317,7 +336,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
 
-	ws.getOtherFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
+	ws.getSuggestFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
 
 	_, err = w.Write([]byte("\n"))
 
@@ -327,7 +346,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 		close(ch)
 	}()
 	for jsonFacet := range ch {
-		if jsonFacet != nil {
+		if jsonFacet != nil && (jsonFacet.Result.HasValues() || jsonFacet.Selected != nil) {
 			err = enc.Encode(jsonFacet)
 		}
 	}
@@ -384,13 +403,16 @@ func (ws *WebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId i
 	defaultHeaders(w, r, true, "60")
 
 	w.WriteHeader(http.StatusOK)
-	for _, v := range sortedItems {
+	for j, v := range sortedItems {
 		item, ok := ws.Index.Items[v.Id]
 		if ok {
 			err := enc.Encode(item)
 			if err != nil {
 				return err
 			}
+		}
+		if j > 80 {
+			break
 		}
 	}
 	return nil
@@ -407,29 +429,30 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 	items, fields := ws.Sorting.GetSessionData(uint(sessionId))
 	articleTypes := map[string]float64{}
 	itemChan := make(chan *Similar)
-
+	productTypeId := types.CurrentSettings.ProductTypeId
 	wg := &sync.WaitGroup{}
 	pop := ws.Sorting.GetSort("popular")
-	delete(*fields, 31158)
+	delete(*fields, productTypeId)
 	for id := range *items {
 		if item, ok := ws.Index.Items[id]; ok {
-			if itemType, typeOk := (*item).GetFields()[31158]; typeOk {
+			if itemType, typeOk := item.GetFields()[productTypeId]; typeOk {
 				articleTypes[itemType.(string)]++
 			}
 		}
 	}
 	getSimilar := func(articleType string, ret chan *Similar, wg *sync.WaitGroup, sort *types.ByValue, popularity float64) {
-		ids := make(chan *types.ItemList)
-		defer close(ids)
-		defer wg.Done()
-		filter := types.Filters{
+		//ids := make(chan *types.ItemList)
+		//defer close(ids)
+		//defer wg.Done()
+		filter := &types.Filters{
 			StringFilter: []types.StringFilter{
-				{Id: 31158, Value: articleType},
+				{Id: productTypeId, Value: []string{articleType}},
 			},
 		}
-
-		go ws.Index.Match(&filter, nil, ids)
-		resultIds := <-ids
+		resultIds := &types.ItemList{}
+		qm := types.NewQueryMerger(resultIds)
+		ws.Index.Match(filter, qm)
+		qm.Wait()
 		l := len(*resultIds)
 		limit := min(l, 40)
 		similar := Similar{
@@ -443,7 +466,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 				continue
 			}
 			if item, ok := ws.Index.Items[id]; ok {
-				similar.Items = append(similar.Items, *item)
+				similar.Items = append(similar.Items, item)
 				if len(similar.Items) >= limit {
 					break
 				}
@@ -488,17 +511,24 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	var base types.BaseField
 	var l int
 	res := make(map[uint]int)
-	for _, facet := range ws.Index.Facets {
+	for _, f := range ws.Index.Facets {
 
-		if facet.GetType() != types.FacetKeyType {
+		keyFacet, ok := f.(facet.KeyField)
+		if !ok {
 			continue
 		}
-		base = *facet.GetBaseField()
+		// if f.GetType() != types.FacetKeyType {
+		// 	continue
+		// }
+		base = *keyFacet.BaseField
 		if base.Id == query.Id || !base.Searchable {
 			continue
 		}
-
-		matches := facet.Match(query.Value)
+		keyValue, ok := types.AsKeyFilterValue(query.Value)
+		if !ok {
+			continue
+		}
+		matches := keyFacet.Match(keyValue)
 
 		if matches != nil {
 			l = len(*matches)
@@ -514,8 +544,7 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	}
 
 	w.WriteHeader(http.StatusOK)
-	enc.Encode(res)
-	return nil
+	return enc.Encode(res)
 }
 
 func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -551,7 +580,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 	for relatedId := range sort.SortMap(*related) {
 
 		item, ok := ws.Index.Items[relatedId]
-		if ok && (*item).GetId() != uint(id) {
+		if ok && item.GetId() != uint(id) {
 			err = enc.Encode(item)
 			i++
 		}
@@ -563,43 +592,72 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 }
 
 func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
+	excludedProductTypes := make([]string, 0)
+	maxItems := 60
+	limitString := r.URL.Query().Get("limit")
+	if limitString != "" {
+		limit, err := strconv.Atoi(limitString)
+		if err != nil {
+			maxItems = limit
+		}
+	}
+	if r.Method != http.MethodGet {
+		cartItemIds := make([]uint, 0)
+		err := json.NewDecoder(r.Body).Decode(&cartItemIds)
+		if err == nil {
+			for _, id := range cartItemIds {
+				if item, ok := ws.Index.Items[id]; ok {
+					if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+						excludedProductTypes = append(excludedProductTypes, productType.(string))
+					}
+				}
+			}
+		}
+		log.Printf("cart item ids %v", cartItemIds)
+		log.Printf("excluded product types %v", excludedProductTypes)
+	}
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
 		return err
 	}
-	relatedChan := make(chan *types.ItemList)
-	defer close(relatedChan)
+
 	sortChan := make(chan *types.ByValue)
 	defer close(sortChan)
 
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
-	go func(ch chan *types.ItemList) {
-		related, err := ws.Index.Compatible(uint(id))
-		if err != nil {
-			ch <- &types.ItemList{}
-			return
-		}
-		ch <- related
-	}(relatedChan)
-	go ws.Sorting.GetSorting("popular", sortChan)
 
+	go ws.Sorting.GetSorting("popular", sortChan)
+	related, err := ws.Index.Compatible(uint(id))
+	if err != nil {
+		return err
+	}
 	i := 0
 
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
-	related := <-relatedChan
+
 	sort := <-sortChan
 	for relatedId := range sort.SortMap(*related) {
-
 		item, ok := ws.Index.Items[relatedId]
-		if ok && (*item).GetId() != uint(id) {
+		if ok {
+			if len(excludedProductTypes) > 0 {
+				if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+
+					itemProductType := productType.(string)
+					if slices.Contains(excludedProductTypes, itemProductType) {
+						//log.Printf("skipping %d %s", item.GetId(), itemProductType)
+						continue
+					}
+
+				}
+			}
+
 			err = enc.Encode(item)
 			i++
 		}
-		if i > 20 || err != nil {
+		if i > maxItems || err != nil {
 			break
 		}
 	}
@@ -731,33 +789,33 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId 
 // 	}
 // 	return err
 // }
-
-func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	defaultHeaders(w, r, true, "1200")
-	ret := make(map[string]uint)
-	for id, facet := range ws.Index.Facets {
-		base := facet.GetBaseField()
-		if (base.Type != "" || base.CategoryLevel > 0) && !base.HideFacet && facet.GetType() == types.FacetKeyType {
-			for _, line := range facet.GetValues() {
-				switch values := line.(type) {
-				case []string:
-					for _, v := range values {
-						if len(v) > 2 {
-							ret[v] = id
-						}
-					}
-				case string:
-					if len(values) > 2 {
-						ret[values] = id
-					}
-				}
-			}
-		}
-	}
-	w.WriteHeader(http.StatusOK)
-	enc.Encode(ret)
-	return nil
-}
+//
+//func (ws *WebServer) TriggerWords(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+//	defaultHeaders(w, r, true, "1200")
+//	ret := make(map[string]uint)
+//	for id, f := range ws.Index.Facets {
+//		base := f.GetBaseField()
+//		if (base.Type != "" || base.CategoryLevel > 0) && !base.HideFacet && f.GetType() == types.FacetKeyType {
+//			for _, line := range f.GetValues() {
+//				switch values := line.(type) {
+//				case []string:
+//					for _, v := range values {
+//						if len(v) > 2 {
+//							ret[v] = id
+//						}
+//					}
+//				case string:
+//					if len(values) > 2 {
+//						ret[values] = id
+//					}
+//				}
+//			}
+//		}
+//	}
+//	w.WriteHeader(http.StatusOK)
+//	enc.Encode(ret)
+//	return nil
+//}
 
 func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "1200")
@@ -785,12 +843,13 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/compatible/{id}", JsonHandler(ws.Tracking, ws.Compatible))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
-	srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
+	//srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
 	srv.HandleFunc("/find-related", JsonHandler(ws.Tracking, ws.FindRelated))
 	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
+	srv.HandleFunc("GET /settings", ws.GetSettings)
 	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))
 	srv.HandleFunc("/reload-settings", JsonHandler(ws.Tracking, ws.ReloadSettings))
 	srv.HandleFunc("GET /relation-groups", ws.HandleRelationGroups)

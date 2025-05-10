@@ -3,8 +3,10 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -14,6 +16,7 @@ import (
 
 type SearchRequest struct {
 	*types.FacetRequest
+	Filter       string `json:"filter" schema:"filter"`
 	SkipTracking bool   `json:"skipTracking" schema:"nt"`
 	Sort         string `json:"sort" schema:"sort,default:popular"`
 	Page         int    `json:"page" schema:"page"`
@@ -68,7 +71,7 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	if err != nil {
 		return err
 	}
-	result.Sanitize()
+
 	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
@@ -96,26 +99,42 @@ func facetQueryFromRequestQuery(query url.Values, result *types.FacetRequest) er
 
 func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) error {
 	var err error
+	key := map[uint]types.StringFilter{}
+	rng := map[uint]types.RangeFilter{}
 	for _, v := range query["str"] {
 		parts := strings.Split(v, ":")
 		if len(parts) != 2 {
 			continue
 		}
-		id, err := strconv.Atoi(parts[0])
+		idKey := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		if idKey == "" || value == "" {
+			continue
+		}
+
+		id, err := strconv.Atoi(idKey)
 
 		if err != nil {
 			continue
 		}
-		if strings.Contains(parts[1], "||") {
-			result.StringFilter = append(result.StringFilter, types.StringFilter{
+		exclude := strings.HasPrefix(value, "!")
+		if exclude {
+			value = strings.TrimPrefix(value, "!")
+		}
+		if strings.Contains(value, "||") {
+			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
-				Value: strings.Split(parts[1], "||"),
-			})
+				Not:   exclude,
+				Value: strings.Split(value, "||"),
+			}
 		} else {
-			result.StringFilter = append(result.StringFilter, types.StringFilter{
+
+			key[uint(id)] = types.StringFilter{
 				Id:    uint(id),
-				Value: parts[1],
-			})
+				Not:   exclude,
+				Value: []string{value},
+			}
+
 		}
 	}
 
@@ -128,12 +147,14 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 		if err != nil {
 			continue
 		}
-		result.RangeFilter = append(result.RangeFilter, types.RangeFilter{
+		rng[id] = types.RangeFilter{
 			Id:  id,
 			Min: _min,
 			Max: _max,
-		})
+		}
 	}
+	result.RangeFilter = slices.Collect(maps.Values(rng))
+	result.StringFilter = slices.Collect(maps.Values(key))
 	result.Sanitize()
 	return err
 }
@@ -144,8 +165,9 @@ func makeBaseFacetRequest() *types.FacetRequest {
 			StringFilter: []types.StringFilter{},
 			RangeFilter:  []types.RangeFilter{},
 		},
-		Stock: []string{},
-		Query: "",
+		IgnoreFacets: []uint{},
+		Stock:        []string{},
+		Query:        "",
 	}
 }
 

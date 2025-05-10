@@ -38,7 +38,7 @@ func populateContentFromCsv(idx *index.ContentIndex, file string, group *sync.Wa
 		if err == nil {
 			idx.AddItem(itm)
 		} else {
-			log.Println(err)
+			log.Printf("Error loading content: ", err)
 		}
 	}
 }

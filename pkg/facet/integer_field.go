@@ -1,11 +1,23 @@
 package facet
 
 import (
+	"log"
 	"maps"
 	"strconv"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
+
+type IntegerFieldResult struct {
+	//	Count   uint   `json:"count,omitempty"`
+	Min     int    `json:"min"`
+	Max     int    `json:"max"`
+	Buckets []uint `json:"buckets,omitempty"`
+}
+
+func (k *IntegerFieldResult) HasValues() bool {
+	return k.Min < k.Max
+}
 
 const (
 	EXPECTED_RESULT_SIZE = 20
@@ -53,6 +65,77 @@ type IntegerField struct {
 	buckets   map[int]Bucket[int]
 	AllValues map[uint]int
 	Count     int `json:"count"`
+}
+
+func (f IntegerField) IsExcludedFromFacets() bool {
+	return f.HideFacet || f.BaseField.InternalOnly
+}
+
+func (f *IntegerField) GetExtents(matchIds *types.ItemList) *IntegerFieldResult {
+
+	minV := 9999999999999999
+	maxV := -9999999999999999
+
+	//hasValues := false
+	v := 0
+	ok := false
+	for id := range *matchIds {
+		if v, ok = f.AllValues[id]; ok {
+			minV = min(minV, v)
+			maxV = max(maxV, v)
+		}
+	}
+
+	// if useRealBuckets {
+	// 	slices.Sort(values)
+	// 	fieldResult.Buckets = facet.NormalizeResults(values)
+	// } else {
+	//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
+	//}
+
+	return &IntegerFieldResult{
+		//Count: uint(count),
+		Min: minV,
+		Max: maxV,
+	}
+}
+
+func (f IntegerField) IsCategory() bool {
+	return false
+}
+
+func (f *IntegerField) GetExtents2(matchIds types.ItemList) *IntegerFieldResult {
+
+	minV := f.Max
+	maxV := f.Min
+
+	//hasValues := false
+	v := 0
+	ok := false
+	for id := range matchIds {
+		if v, ok = f.AllValues[id]; ok {
+			if v < minV {
+				minV = v
+			} else if v > maxV {
+				maxV = v
+			}
+			// minV = min(minV, v)
+			// maxV = max(maxV, v)
+		}
+	}
+
+	// if useRealBuckets {
+	// 	slices.Sort(values)
+	// 	fieldResult.Buckets = facet.NormalizeResults(values)
+	// } else {
+	//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
+	//}
+
+	return &IntegerFieldResult{
+		//Count: uint(count),
+		Min: minV,
+		Max: maxV,
+	}
 }
 
 func (f *IntegerField) ValueForItemId(id uint) *int {
@@ -125,11 +208,14 @@ func (f IntegerField) Match(input interface{}) *types.ItemList {
 
 		if minOk && maxOk {
 			return f.MatchesRange(int(min), int(max))
-
 		}
 	}
 
 	return &types.ItemList{}
+}
+
+func (f IntegerField) UpdateBaseField(field *types.BaseField) {
+	f.BaseField.UpdateFrom(field)
 }
 
 func (f IntegerField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
@@ -149,7 +235,7 @@ func (f IntegerField) GetValues() []interface{} {
 	return []interface{}{f.NumberRange}
 }
 
-func (f IntegerField) addValueLink(value int, itemId uint) {
+func (f *IntegerField) addValueLink(value int, itemId uint) {
 	f.Min = min(f.Min, value)
 	f.Max = max(f.Max, value)
 	f.Count++
@@ -181,6 +267,8 @@ func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
 			f.addValueLink(intValue, itemId)
 			return true
 		}
+	default:
+		log.Printf("IntegerField: AddValueLink: %T", value)
 	}
 
 	return false

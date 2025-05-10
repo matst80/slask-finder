@@ -58,7 +58,7 @@ func (c *Cache) Get(key string, out any) error {
 	// if rv.Kind() != reflect.Pointer || rv.IsNil() {
 	// 	return &json.InvalidUnmarshalError{reflect.TypeOf(out)}
 	// }
-	// local, found := c.memCache[key]
+	// local, found := c.memCache[serverApiKey]
 	// if found {
 	// 	if local.Expires.Before(time.Now()) {
 
@@ -66,7 +66,7 @@ func (c *Cache) Get(key string, out any) error {
 	// 		//out = local.Data
 	// 		return nil
 	// 	} else {
-	// 		delete(c.memCache, key)
+	// 		delete(c.memCache, serverApiKey)
 	// 	}
 
 	// }
@@ -80,7 +80,7 @@ func (c *Cache) Get(key string, out any) error {
 		return err
 	}
 	// if out != nil {
-	// 	c.memCache[key] = LocalEntry{Expires: time.Now().Add(time.Minute), Data: out}
+	// 	c.memCache[serverApiKey] = LocalEntry{Expires: time.Now().Add(time.Minute), Data: out}
 	// }
 	return nil
 }
@@ -90,7 +90,7 @@ func (c *Cache) Set(key string, value any, expiration time.Duration) error {
 	if err != nil {
 		return err
 	}
-	//c.memCache[key] = LocalEntry{Expires: time.Now().Add(expiration), Data: value}
+	//c.memCache[serverApiKey] = LocalEntry{Expires: time.Now().Add(expiration), Data: value}
 	return c.client.Set(c.ctx, key, data, expiration).Err()
 }
 
