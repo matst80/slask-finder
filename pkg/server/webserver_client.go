@@ -130,7 +130,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 
 	ret := make([]*index.JsonFacet, 0)
 	for item := range ch {
-		if item != nil {
+		if item != nil && (item.Result.HasValues() || item.Selected != nil) {
 			ret = append(ret, item)
 		}
 	}
