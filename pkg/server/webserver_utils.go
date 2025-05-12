@@ -25,7 +25,7 @@ func genericHeaders(w http.ResponseWriter, r *http.Request, isJson bool) {
 	if isJson {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	} else {
-		w.Header().Set("Content-Type", "application/jsonlines; charset=UTF-8")
+		w.Header().Set("Content-Type", "application/jsonl+json; charset=UTF-8")
 	}
 	origin := r.Header.Get("Origin")
 	if origin != "" {
