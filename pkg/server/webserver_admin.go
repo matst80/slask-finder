@@ -353,7 +353,8 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		Name:     tokenCookieName,
 		Value:    ownToken,
 		Path:     "/",
-		MaxAge:   7 * 86400,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	})
 
