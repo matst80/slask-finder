@@ -362,7 +362,7 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(tokenCookieName)
-	if err != nil {
+	if err != nil || cookie.Value == "" {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
