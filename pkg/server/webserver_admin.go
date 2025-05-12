@@ -363,7 +363,7 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(tokenCookieName)
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -371,7 +371,7 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 		return secretKey, nil
 	})
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -382,7 +382,7 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, "No claims found", http.StatusBadRequest)
 		return
 	}
 
@@ -390,8 +390,9 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(claims)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("error sending user response: %v", err)
 	}
+
 }
 
 //func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
