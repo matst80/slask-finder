@@ -893,6 +893,34 @@ func (ws *WebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type WordReplacementConfig struct {
+	SplitWords   []string          `json:"splitWords"`
+	WordMappings map[string]string `json:"wordMappings"`
+}
+
+func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost || r.Method == http.MethodPut {
+		data := WordReplacementConfig{}
+		err := json.NewDecoder(r.Body).Decode(&data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+
+		types.CurrentSettings.Lock()
+		defer types.CurrentSettings.Unlock()
+		types.CurrentSettings.WordMappings = data.WordMappings
+		types.CurrentSettings.SplitWords = data.SplitWords
+	}
+	ret := WordReplacementConfig{
+		WordMappings: types.CurrentSettings.WordMappings,
+		SplitWords:   types.CurrentSettings.SplitWords,
+	}
+	err := json.NewEncoder(w).Encode(ret)
+	if err != nil {
+		log.Printf("unable to respond: %v", err)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -946,6 +974,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 	srv.HandleFunc("GET /settings", ws.GetSettings)
 	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
+	srv.HandleFunc("/words", ws.AuthMiddleware(ws.HandleWordReplacements))
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
