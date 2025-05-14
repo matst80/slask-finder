@@ -146,7 +146,9 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	}
 	if hasRealRelations {
 		outerMerger.Wait()
-		return &result, nil
+		if len(result) > 0 {
+			return &result, nil
+		}
 	}
 	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if len(*current) == 0 && next != nil {
