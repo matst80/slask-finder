@@ -285,21 +285,18 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 	fieldIds := make(map[uint]struct{})
 	limit := 30
 	resultCount := len(*baseIds)
-	if resultCount > 32000 {
-		limit = 20
-		for id, f := range ws.Index.Facets {
-			if !f.IsExcludedFromFacets() && !sr.IsIgnored(id) {
-				fieldIds[id] = struct{}{}
-			}
+	t := 0
+	for id := range *baseIds {
+		itemFieldIds, ok := ws.Index.ItemFieldIds[id]
+		if ok {
+			maps.Copy(fieldIds, itemFieldIds)
+			t++
 		}
-	} else {
-		for id := range *baseIds {
-			itemFieldIds, ok := ws.Index.ItemFieldIds[id]
-			if ok {
-				maps.Copy(fieldIds, itemFieldIds)
-			}
+		if t > 1500 {
+			break
 		}
 	}
+
 	count := 0
 	//var base *types.BaseField = nil
 	if resultCount == 0 {
