@@ -71,7 +71,7 @@ func (f IntegerField) IsExcludedFromFacets() bool {
 	return f.HideFacet || f.BaseField.InternalOnly
 }
 
-func (f *IntegerField) GetExtents(matchIds *types.ItemList) *IntegerFieldResult {
+func (f *IntegerField) GetExtents2(matchIds *types.ItemList) *IntegerFieldResult {
 
 	minV := 9999999999999999
 	maxV := -9999999999999999
@@ -104,7 +104,7 @@ func (f IntegerField) IsCategory() bool {
 	return false
 }
 
-func (f *IntegerField) GetExtents2(matchIds types.ItemList) *IntegerFieldResult {
+func (f *IntegerField) GetExtents(matchIds *types.ItemList) *IntegerFieldResult {
 
 	minV := f.Max
 	maxV := f.Min
@@ -112,7 +112,7 @@ func (f *IntegerField) GetExtents2(matchIds types.ItemList) *IntegerFieldResult 
 	//hasValues := false
 	v := 0
 	ok := false
-	for id := range matchIds {
+	for id := range *matchIds {
 		if v, ok = f.AllValues[id]; ok {
 			if v < minV {
 				minV = v

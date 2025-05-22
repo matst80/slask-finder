@@ -73,6 +73,13 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue
 			}
+			cgm, ok := tmp.Fields[35]
+			if ok {
+				cgmString, isString := cgm.(string)
+				if isString {
+					tmp.Fields[37] = cgmString[:3]
+				}
+			}
 
 			idx.UpsertItemUnsafe(tmp)
 			tmp = &index.DataItem{}
@@ -230,7 +237,21 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 	if err = json.NewDecoder(file).Decode(&toStore); err != nil {
 		return err
 	}
-
+	idx.AddKeyField(&types.BaseField{
+		Id:               37,
+		Name:             "CGM parent",
+		Description:      "",
+		Priority:         0,
+		Type:             "cgm-parent",
+		LinkedId:         0,
+		ValueSorting:     0,
+		GroupId:          0,
+		CategoryLevel:    0,
+		HideFacet:        true,
+		KeySpecification: false,
+		InternalOnly:     false,
+		Searchable:       true,
+	})
 	for _, ff := range toStore {
 		//ff.BaseField.Searchable = true
 		if ff.BaseField.Type == "fps" {

@@ -85,13 +85,13 @@ func BenchmarkRangeFunction(b *testing.B) {
 
 	b.Run(fmt.Sprintf("Extents min %d", total), func(b *testing.B) {
 
-		c := NumberField.GetExtents(*ids)
+		c := NumberField.GetExtents(ids)
 		b.Logf("Extents %d %d, id len: %d", c.Min, c.Max, len(*ids))
 	})
 
 	b.Run(fmt.Sprintf("Extents if %d", total), func(b *testing.B) {
 
-		c := NumberField.GetExtents2(*ids)
+		c := NumberField.GetExtents2(ids)
 		b.Logf("Extents %d %d, id len: %d", c.Min, c.Max, len(*ids))
 	})
 
