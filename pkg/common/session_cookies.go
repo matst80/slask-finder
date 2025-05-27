@@ -15,6 +15,23 @@ func generateSessionId() int {
 }
 
 func setSessionCookie(w http.ResponseWriter, r *http.Request, sessionId int) {
+	ca, err := r.Cookie("ca")
+	if err != nil {
+		return
+	}
+	if ca.Value != "all" {
+		http.SetCookie(w, &http.Cookie{
+			Name:     "sid",
+			Value:    "",
+			Domain:   strings.TrimPrefix(r.Host, "."),
+			SameSite: http.SameSiteNoneMode,
+			Secure:   true,
+			HttpOnly: true,
+			MaxAge:   0,
+			Path:     "/", //MaxAge: 7200
+		})
+		return
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     "sid",
 		Value:    fmt.Sprintf("%d", sessionId),

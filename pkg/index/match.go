@@ -146,28 +146,33 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	}
 	if hasRealRelations {
 		outerMerger.Wait()
-		return &result, nil
+		if len(result) > 0 {
+			return &result, nil
+		}
 	}
+	mergedProperties := 0
 	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if len(*current) == 0 && next != nil {
 			current.Merge(next)
+			mergedProperties++
 			return
 		}
 		if next != nil && len(*next) > 0 {
 			l := current.IntersectionLen(*next)
-			if l > 5 {
+			if l >= 2 {
 				current.Intersect(*next)
+				mergedProperties++
 			} else {
 				current.Merge(next)
 			}
 		}
 	})
 	log.Printf("No relations found for item %d", item.GetId())
+	var field *facet.KeyField
+	var target *facet.KeyField
 	for id, itemField := range item.GetFields() {
 
-		field, ok := i.GetKeyFacet(id)
-
-		if !ok {
+		if field, ok = i.GetKeyFacet(id); !ok {
 			continue
 		}
 
@@ -175,8 +180,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		if linkedTo == 0 {
 			continue
 		}
-		targetField, ok := i.GetKeyFacet(linkedTo)
-		if !ok {
+		if target, ok = i.GetKeyFacet(linkedTo); !ok {
 			continue
 		}
 
@@ -187,14 +191,16 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		}
 
 		maybeMerger.Add(func() *types.ItemList {
-			return targetField.MatchFilterValue(keyValue)
+			return target.MatchFilterValue(keyValue)
 		})
 
 	}
 
 	maybeMerger.Wait()
-	return &result, nil
-
+	if mergedProperties > 1 {
+		return &result, nil
+	}
+	return &types.ItemList{}, nil
 }
 
 func (i *Index) Related(id uint) (*types.ItemList, error) {

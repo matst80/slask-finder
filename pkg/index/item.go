@@ -377,7 +377,7 @@ func (item *DataItem) ToStringList() []string {
 	fieldValues := make([]string, 0)
 	fieldValues = append(fieldValues, item.Title)
 	fieldValues = append(fieldValues, item.Sku)
-
+	fieldValues = append(fieldValues, item.BulletPoints)
 	for _, id := range types.CurrentSettings.FieldsToIndex {
 		fieldValues = append(fieldValues, getStringValues(item.GetFieldValue(id))...)
 	}
