@@ -150,15 +150,18 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			return &result, nil
 		}
 	}
+	mergedProperties := 0
 	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if len(*current) == 0 && next != nil {
 			current.Merge(next)
+			mergedProperties++
 			return
 		}
 		if next != nil && len(*next) > 0 {
 			l := current.IntersectionLen(*next)
-			if l > 5 {
+			if l >= 2 {
 				current.Intersect(*next)
+				mergedProperties++
 			} else {
 				current.Merge(next)
 			}
@@ -195,8 +198,10 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	}
 
 	maybeMerger.Wait()
-	return &result, nil
-
+	if mergedProperties > 1 {
+		return &result, nil
+	}
+	return &types.ItemList{}, nil
 }
 
 func (i *Index) Related(id uint) (*types.ItemList, error) {
