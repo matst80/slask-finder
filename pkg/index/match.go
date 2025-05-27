@@ -168,11 +168,11 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		}
 	})
 	log.Printf("No relations found for item %d", item.GetId())
+	var field *facet.KeyField
+	var target *facet.KeyField
 	for id, itemField := range item.GetFields() {
 
-		field, ok := i.GetKeyFacet(id)
-
-		if !ok {
+		if field, ok = i.GetKeyFacet(id); !ok {
 			continue
 		}
 
@@ -180,8 +180,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		if linkedTo == 0 {
 			continue
 		}
-		targetField, ok := i.GetKeyFacet(linkedTo)
-		if !ok {
+		if target, ok = i.GetKeyFacet(linkedTo); !ok {
 			continue
 		}
 
@@ -192,7 +191,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		}
 
 		maybeMerger.Add(func() *types.ItemList {
-			return targetField.MatchFilterValue(keyValue)
+			return target.MatchFilterValue(keyValue)
 		})
 
 	}
