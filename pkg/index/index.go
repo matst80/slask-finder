@@ -81,7 +81,7 @@ type IndexOptions struct {
 func DefaultIndexOptions(engine types.EmbeddingsEngine) IndexOptions {
 	return IndexOptions{
 		EmbeddingsEngine:    engine,
-		EmbeddingsWorkers:   2,       // Default to 2 workers
+		EmbeddingsWorkers:   4,       // Default to 2 workers
 		EmbeddingsQueueSize: 1000000, // Use a very large queue size (effectively unlimited)
 		EmbeddingsRateLimit: 0.0,     // No rate limit
 	}
