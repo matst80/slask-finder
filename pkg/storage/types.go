@@ -1,6 +1,7 @@
 package storage
 
 type DataRepository struct {
-	File         string
-	FreeTextFile string
+	File           string
+	FreeTextFile   string
+	EmbeddingsFile string
 }

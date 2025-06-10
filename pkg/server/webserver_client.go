@@ -1,6 +1,7 @@
 package server
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"iter"
@@ -829,6 +830,101 @@ func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sess
 	return enc.Encode(types.CurrentSettings)
 }
 
+func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	query := r.URL.Query().Get("q")
+	query = strings.TrimSpace(query)
+
+	if query == "" {
+		defaultHeaders(w, r, true, "1200")
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("query parameter 'q' is required")
+	}
+
+	// Check if embeddings engine is available
+	if ws.Index.EmbeddingsEngine == nil {
+		return fmt.Errorf("embeddings engine not initialized")
+	}
+
+	// Generate embeddings for the query
+	queryEmbeddings, err := ws.Index.EmbeddingsEngine.GenerateEmbeddings(query)
+	if err != nil {
+		return fmt.Errorf("failed to generate embeddings: %w", err)
+	}
+
+	// Find similar items using cosine similarity
+	matches := make(types.ItemList)
+	sortedItems := make(types.ByValue, 0)
+
+	similarityThreshold := 0.5 // Configurable threshold
+
+	// Convert queryEmbeddings (float32) to float64 for cosine similarity calculation
+
+	// Lock the index for read access
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
+
+	// Find items with similar embeddings
+	for itemID, itemEmb := range ws.Index.Embeddings {
+		// Convert item embeddings (float32) to float64 for cosine similarity calculation
+
+		similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
+
+		if similarity > similarityThreshold {
+			item, exists := ws.Index.Items[itemID]
+			if !exists || item.IsSoftDeleted() {
+				continue
+			}
+
+			matches.AddId(itemID)
+			sortedItems = append(sortedItems, types.Lookup{
+				Id:    itemID,
+				Value: similarity,
+			})
+		}
+	}
+
+	// Sort by similarity (highest first)
+	slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
+		return cmp.Compare(b.Value, a.Value)
+	})
+
+	defaultHeaders(w, r, true, "120")
+	w.WriteHeader(http.StatusOK)
+
+	// Prepare limit on results
+	limit := 30
+	limitParam := r.URL.Query().Get("limit")
+	if limitParam != "" {
+		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	// Stream the results to the client
+	count := 0
+	for _, match := range sortedItems {
+		if count >= limit {
+			break
+		}
+
+		item, ok := ws.Index.Items[match.Id]
+		if ok {
+			err := enc.Encode(item)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+	}
+
+	// Track search if tracking is enabled
+	if ws.Tracking != nil {
+		go ws.Tracking.TrackSearch(sessionId, nil, len(matches), query, 0, r)
+	}
+
+	return nil
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -844,6 +940,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
 	srv.HandleFunc("/compatible/{id}", JsonHandler(ws.Tracking, ws.Compatible))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
+	srv.HandleFunc("/natural", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
 	//srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))

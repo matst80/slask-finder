@@ -101,6 +101,13 @@ func (m *MockItem) ToStringList() []string {
 	return []string{m.Title}
 }
 
+func (m *MockItem) CanHaveEmbeddings() bool {
+	return true
+}
+func (m *MockItem) GetEmbeddingsText() (string, error) {
+	return m.Title, nil
+}
+
 func (m *MockItem) GetBaseItem() BaseItem {
 	return BaseItem{
 		Id:    m.Id,

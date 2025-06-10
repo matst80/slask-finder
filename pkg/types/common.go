@@ -131,12 +131,21 @@ type Item interface {
 	GetBasePopularity() float64
 	UpdateBasePopularity(rules ItemPopularityRules)
 	GetItem() interface{}
+	CanHaveEmbeddings() bool
+	GetEmbeddingsText() (string, error)
 }
 
 const FacetKeyType = 1
 const FacetNumberType = 2
 const FacetIntegerType = 3
 const FacetTreeType = 4
+
+type Embeddings []float32
+
+type EmbeddingsEngine interface {
+	GenerateEmbeddings(text string) (Embeddings, error)
+	GenerateEmbeddingsFromItem(item Item, fields map[uint]Facet) (Embeddings, error)
+}
 
 type Facet interface {
 	GetType() uint

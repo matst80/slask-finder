@@ -17,10 +17,13 @@ func NewPersistance() *DataRepository {
 	gob.Register(index.DataItem{})
 	gob.Register([]string{})
 	gob.Register(types.ItemFields{})
+	gob.Register(types.Embeddings{})
+	gob.Register(map[uint]types.Embeddings{})
 	// gob.Register([]interface{}(nil))
 	return &DataRepository{
-		File:         "data/index-v2.jz",
-		FreeTextFile: "data/freetext.dbz",
+		File:           "data/index-v2.jz",
+		FreeTextFile:   "data/freetext.dbz",
+		EmbeddingsFile: "data/embeddings.gob.gz",
 	}
 }
 
@@ -50,6 +53,12 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 	err := p.LoadFacets(idx)
 	if err != nil {
 		return err
+	}
+
+	// Load embeddings if available
+	if err := p.LoadEmbeddings(idx); err != nil {
+		log.Printf("Error loading embeddings: %v", err)
+		// Continue loading even if embeddings failed to load
 	}
 	file, err := os.Open(p.File)
 	if err != nil {
@@ -176,6 +185,13 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 
 	go p.SaveSettings()
 
+	// Save embeddings in a separate process to not block
+	go func() {
+		if err := p.SaveEmbeddings(idx.Embeddings); err != nil {
+			log.Printf("Error saving embeddings: %v", err)
+		}
+	}()
+
 	if err != nil {
 		return err
 	}
@@ -273,5 +289,72 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 		}
 	}
 
+	return nil
+}
+
+func (p *DataRepository) SaveEmbeddings(embeddings map[uint]types.Embeddings) error {
+	if len(embeddings) == 0 {
+		log.Println("No embeddings to save")
+		return nil
+	}
+
+	file, err := os.Create(p.EmbeddingsFile + ".tmp")
+	if err != nil {
+		return err
+	}
+
+	defer runtime.GC()
+	defer file.Close()
+	zipWriter := gzip.NewWriter(file)
+	enc := gob.NewEncoder(zipWriter)
+	defer zipWriter.Close()
+
+	err = enc.Encode(embeddings)
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(p.EmbeddingsFile+".tmp", p.EmbeddingsFile)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Saved %d embeddings", len(embeddings))
+	return nil
+}
+
+func (p *DataRepository) LoadEmbeddings(idx *index.Index) error {
+	file, err := os.Open(p.EmbeddingsFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			log.Println("No embeddings file found, skipping")
+			return nil
+		}
+		return err
+	}
+
+	defer runtime.GC()
+	defer file.Close()
+
+	zipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer zipReader.Close()
+
+	dec := gob.NewDecoder(zipReader)
+
+	var embeddings map[uint]types.Embeddings
+	err = dec.Decode(&embeddings)
+	if err != nil {
+		return err
+	}
+
+	// Update the index embeddings map with loaded data
+	for id, emb := range embeddings {
+		idx.Embeddings[id] = emb
+	}
+
+	log.Printf("Loaded %d embeddings", len(embeddings))
 	return nil
 }

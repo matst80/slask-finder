@@ -29,6 +29,40 @@ Instructions on how to install and set up your project.
 
 Instructions on how to use your project, including examples and screenshots if applicable.
 
+### Using Ollama Embeddings
+
+The project now supports generating embeddings using Ollama's HTTP API with the "mxbai-embed-large" model. This enables more accurate semantic search and item similarity matching.
+
+To use the Ollama embeddings engine:
+
+```go
+import "github.com/matst80/slask-finder/pkg/embeddings"
+
+// Create a new Ollama embeddings engine with default configuration
+// (uses "mxbai-embed-large" model and http://10.10.10.100:11434/api/embeddings endpoint)
+embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
+
+// Or create with custom configuration
+customEngine := embeddings.NewOllamaEmbeddingsEngineWithConfig(
+    "nomic-embed-text", 
+    "http://custom-endpoint:11434/api/embeddings",
+)
+
+// Generate embeddings for text
+embeddings, err := embeddingsEngine.GenerateEmbeddings("text to generate embeddings for")
+if err != nil {
+    // Handle error
+}
+
+// Generate embeddings from an item
+itemEmbeddings, err := embeddingsEngine.GenerateEmbeddingsFromItem(item)
+if err != nil {
+    // Handle error
+}
+```
+
+Make sure the Ollama server is running and accessible at the configured endpoint.
+
 ## Contributing
 
 Guidelines for contributing to your project, including how to report issues and submit pull requests.

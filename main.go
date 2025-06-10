@@ -10,8 +10,10 @@ import (
 	"runtime/pprof"
 	"sync"
 
+	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/types"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/oauth2"
@@ -48,7 +50,11 @@ var rabbitConfig = ffSync.RabbitConfig{
 }
 var token = search.Tokenizer{MaxTokens: 128}
 
-var idx = index.NewIndex()
+// Ollama embeddings engine for semantic search capability
+var embeddingsEngine types.EmbeddingsEngine = embeddings.NewOllamaEmbeddingsEngine()
+
+// Initialize index with embeddings engine
+var idx = index.NewIndex(embeddingsEngine)
 var db = storage.NewPersistance()
 
 // var embeddingsIndex = embeddings.NewEmbeddingsIndex()

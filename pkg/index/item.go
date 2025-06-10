@@ -233,6 +233,15 @@ func (item *DataItem) GetRating() (int, int) {
 	return getNumberValue[int](average), getNumberValue[int](grades)
 }
 
+func (item *DataItem) CanHaveEmbeddings() bool {
+	// log.Printf("Checking if item %s can have embeddings", item.Sku)
+	// log.Printf("Item fields: %v, %v", item.Fields[10], item.Fields[9])
+	return item.Fields[10] != "Outlet" && item.Fields[9] == "Elgiganten"
+}
+func (item *DataItem) GetEmbeddingsText() (string, error) {
+	return item.Title + "\n" + item.BulletPoints + "\n" + item.Description, nil
+}
+
 func (item *DataItem) GetLastUpdated() int64 {
 	return item.LastUpdate
 }
