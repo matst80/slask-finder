@@ -348,9 +348,7 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 	if i.IsMaster {
 		var embeddingCandidates []types.Item
 		_, hasEmbeddings := i.Embeddings[item.GetId()]
-		if hasEmbeddings {
-			log.Printf("Item %d already has embeddings, skipping embeddings queue", item.GetId())
-		}
+
 		if !hasEmbeddings && i.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
 			embeddingCandidates = append(embeddingCandidates, item)
 		}
