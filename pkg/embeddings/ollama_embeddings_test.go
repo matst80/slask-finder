@@ -130,7 +130,7 @@ func TestGenerateEmbeddingsFromItem(t *testing.T) {
 	}
 
 	// Generate embeddings from item
-	embeddings, err := engine.GenerateEmbeddingsFromItem(&mockItem)
+	embeddings, err := engine.GenerateEmbeddingsFromItem(&mockItem, make(map[uint]types.Facet))
 
 	// Check for errors
 	if err != nil {
@@ -158,7 +158,7 @@ func TestBuildItemRepresentation(t *testing.T) {
 	}
 
 	// Get the string representation
-	representation := buildItemRepresentation(mockItem)
+	representation := buildItemRepresentation(mockItem, make(map[uint]types.Facet))
 
 	// Check that it contains the title (twice because we give it higher weight)
 	expectedPrefix := "Test Product Test Product"

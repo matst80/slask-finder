@@ -700,6 +700,29 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	if r.Method == "POST" {
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		types.CurrentSettings.Lock()
+		defer types.CurrentSettings.Unlock()
+		err = ws.Db.SaveSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "5")
 	w.WriteHeader(http.StatusOK)
@@ -973,6 +996,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 	srv.HandleFunc("GET /settings", ws.GetSettings)
+	srv.HandleFunc("PUT /settings", ws.AuthMiddleware(ws.UpdateSettings))
 	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
 	srv.HandleFunc("/words", ws.AuthMiddleware(ws.HandleWordReplacements))
 
