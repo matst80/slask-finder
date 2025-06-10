@@ -346,16 +346,6 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 
 	i.Items[id] = item
 	if i.IsMaster {
-		return
-	} else {
-		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))
-		i.All.AddId(id)
-		i.ItemsBySku[item.GetSku()] = &item
-		if i.Search != nil {
-			i.addItemValues(item)
-		}
-		// Check if this item should have embeddings
-
 		var embeddingCandidates []types.Item
 		_, hasEmbeddings := i.Embeddings[item.GetId()]
 		if hasEmbeddings {
@@ -374,6 +364,16 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 				}
 			}(embeddingCandidates)
 		}
+		return
+	} else {
+		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))
+		i.All.AddId(id)
+		i.ItemsBySku[item.GetSku()] = &item
+		if i.Search != nil {
+			i.addItemValues(item)
+		}
+		// Check if this item should have embeddings
+
 		item.UpdateBasePopularity(*types.CurrentSettings.PopularityRules)
 
 		// Note: Embeddings generation is now handled at the batch level in UpsertItems
