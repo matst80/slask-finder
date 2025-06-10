@@ -200,7 +200,7 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 		return err
 	}
 	log.Println("Saved index")
-	return p.SaveFacets(idx.Facets)
+	return nil //p.SaveFacets(idx.Facets)
 }
 
 func (p *DataRepository) SaveSettings() error {
