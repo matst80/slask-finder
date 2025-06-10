@@ -702,7 +702,7 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
-	if r.Method == "POST" {
+	if r.Method == http.MethodPut {
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
