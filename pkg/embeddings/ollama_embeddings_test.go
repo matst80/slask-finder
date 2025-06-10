@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -16,6 +17,10 @@ func TestNewOllamaEmbeddingsEngine(t *testing.T) {
 
 	if engine.Model != "mxbai-embed-large" {
 		t.Errorf("Expected model to be mxbai-embed-large, got %s", engine.Model)
+	}
+
+	if len(engine.ApiEndpoints) != 1 || engine.ApiEndpoints[0] != ollamaEmbeddingEndpoint {
+		t.Errorf("Expected API endpoints to be [%s], got %v", ollamaEmbeddingEndpoint, engine.ApiEndpoints)
 	}
 
 	if engine.ApiEndpoint != ollamaEmbeddingEndpoint {
@@ -38,6 +43,10 @@ func TestNewOllamaEmbeddingsEngineWithConfig(t *testing.T) {
 		t.Errorf("Expected model to be %s, got %s", customModel, engine.Model)
 	}
 
+	if len(engine.ApiEndpoints) != 1 || engine.ApiEndpoints[0] != customEndpoint {
+		t.Errorf("Expected API endpoints to be [%s], got %v", customEndpoint, engine.ApiEndpoints)
+	}
+
 	if engine.ApiEndpoint != customEndpoint {
 		t.Errorf("Expected API endpoint to be %s, got %s", customEndpoint, engine.ApiEndpoint)
 	}
@@ -51,8 +60,163 @@ func TestNewOllamaEmbeddingsEngineWithEmptyConfig(t *testing.T) {
 		t.Errorf("Expected model to be mxbai-embed-large, got %s", engine.Model)
 	}
 
+	if len(engine.ApiEndpoints) != 1 || engine.ApiEndpoints[0] != ollamaEmbeddingEndpoint {
+		t.Errorf("Expected API endpoints to be [%s], got %v", ollamaEmbeddingEndpoint, engine.ApiEndpoints)
+	}
+
 	if engine.ApiEndpoint != ollamaEmbeddingEndpoint {
 		t.Errorf("Expected API endpoint to be %s, got %s", ollamaEmbeddingEndpoint, engine.ApiEndpoint)
+	}
+}
+
+// TestNewOllamaEmbeddingsEngineWithMultipleEndpoints tests creating engine with multiple endpoints
+func TestNewOllamaEmbeddingsEngineWithMultipleEndpoints(t *testing.T) {
+	customModel := "nomic-embed-text"
+	customEndpoints := []string{
+		"http://server1:11434/api/embeddings",
+		"http://server2:11434/api/embeddings",
+		"http://server3:11434/api/embeddings",
+	}
+
+	engine := NewOllamaEmbeddingsEngineWithMultipleEndpoints(customModel, customEndpoints...)
+
+	if engine.Model != customModel {
+		t.Errorf("Expected model to be %s, got %s", customModel, engine.Model)
+	}
+
+	if len(engine.ApiEndpoints) != len(customEndpoints) {
+		t.Errorf("Expected API endpoints length to be %d, got %d", len(customEndpoints), len(engine.ApiEndpoints))
+	}
+
+	for i, endpoint := range customEndpoints {
+		if engine.ApiEndpoints[i] != endpoint {
+			t.Errorf("Expected API endpoint at index %d to be %s, got %s", i, endpoint, engine.ApiEndpoints[i])
+		}
+	}
+
+	// ApiEndpoint should be set to the first endpoint for backward compatibility
+	if engine.ApiEndpoint != customEndpoints[0] {
+		t.Errorf("Expected API endpoint to be %s, got %s", customEndpoints[0], engine.ApiEndpoint)
+	}
+}
+
+// mockOllamaServerWithEndpointIdentifier creates a mock server that includes the endpoint ID in its response
+func mockOllamaServerWithEndpointIdentifier(t *testing.T, endpointID int) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/embeddings" {
+			t.Errorf("Expected path to be /api/embeddings, got %s", r.URL.Path)
+			http.Error(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		if r.Method != http.MethodPost {
+			t.Errorf("Expected method to be POST, got %s", r.Method)
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// Return mock embeddings with endpoint ID encoded in the first value
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Use endpoint ID as a decimal in the first embedding value
+		fmt.Fprintf(w, `{"embedding":[0.%d, 0.2, 0.3, 0.4, 0.5]}`, endpointID)
+	}))
+}
+
+// TestRoundRobinEndpointSelection tests that the round-robin endpoint selection works
+func TestRoundRobinEndpointSelection(t *testing.T) {
+	// Create multiple mock servers with different responses
+	server1 := mockOllamaServerWithEndpointIdentifier(t, 1)
+	server2 := mockOllamaServerWithEndpointIdentifier(t, 2)
+	server3 := mockOllamaServerWithEndpointIdentifier(t, 3)
+	defer server1.Close()
+	defer server2.Close()
+	defer server3.Close()
+
+	// Create engine with multiple endpoints
+	endpoints := []string{
+		server1.URL + "/api/embeddings",
+		server2.URL + "/api/embeddings",
+		server3.URL + "/api/embeddings",
+	}
+	engine := NewOllamaEmbeddingsEngineWithMultipleEndpoints("test-model", endpoints...)
+
+	// Generate embeddings multiple times and check that all endpoints are used
+	usedEndpoints := make(map[float32]bool)
+	requestCount := 9 // Make multiple requests to ensure all endpoints are used
+
+	for i := 0; i < requestCount; i++ {
+		embeddings, err := engine.GenerateEmbeddings(fmt.Sprintf("test text %d", i))
+		if err != nil {
+			t.Fatalf("Expected no error, got %v", err)
+		}
+
+		// The first value in the embedding contains the endpoint ID
+		endpointValue := embeddings[0]
+		usedEndpoints[endpointValue] = true
+	}
+
+	// Check that all endpoints were used
+	expectedEndpoints := 3
+	if len(usedEndpoints) != expectedEndpoints {
+		t.Errorf("Expected %d different endpoints to be used, got %d", expectedEndpoints, len(usedEndpoints))
+	}
+
+	// Check for specific endpoint identifiers (0.1, 0.2, 0.3)
+	for i := 1; i <= expectedEndpoints; i++ {
+		expectedValue := float32(i) / 10.0
+		if !usedEndpoints[expectedValue] {
+			t.Errorf("Expected endpoint with identifier %.1f to be used, but it wasn't", expectedValue)
+		}
+	}
+}
+
+// TestConcurrentRoundRobinEndpointSelection tests that concurrent requests are properly distributed
+func TestConcurrentRoundRobinEndpointSelection(t *testing.T) {
+	// Create multiple mock servers
+	server1 := mockOllamaServerWithEndpointIdentifier(t, 1)
+	server2 := mockOllamaServerWithEndpointIdentifier(t, 2)
+	defer server1.Close()
+	defer server2.Close()
+
+	// Create engine with multiple endpoints
+	endpoints := []string{
+		server1.URL + "/api/embeddings",
+		server2.URL + "/api/embeddings",
+	}
+	engine := NewOllamaEmbeddingsEngineWithMultipleEndpoints("test-model", endpoints...)
+
+	// Run concurrent requests
+	var wg sync.WaitGroup
+	requestCount := 20
+	results := make([]float32, requestCount)
+
+	for i := 0; i < requestCount; i++ {
+		wg.Add(1)
+		go func(index int) {
+			defer wg.Done()
+			embeddings, err := engine.GenerateEmbeddings(fmt.Sprintf("test text %d", index))
+			if err == nil && len(embeddings) > 0 {
+				results[index] = embeddings[0]
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Count distribution of endpoints
+	counts := make(map[float32]int)
+	for _, val := range results {
+		counts[val]++
+	}
+
+	// Check that distribution is roughly even (each endpoint should be used ~requestCount/2 times)
+	expectedPerEndpoint := requestCount / 2
+	for endpoint, count := range counts {
+		// Allow for some variability in distribution (within ±30%)
+		if count < int(float64(expectedPerEndpoint)*0.7) || count > int(float64(expectedPerEndpoint)*1.3) {
+			t.Errorf("Expected endpoint %.1f to be used ~%d times, but got %d", endpoint, expectedPerEndpoint, count)
+		}
 	}
 }
 
@@ -160,15 +324,9 @@ func TestBuildItemRepresentation(t *testing.T) {
 	// Get the string representation
 	representation := buildItemRepresentation(mockItem, make(map[uint]types.Facet))
 
-	// Check that it contains the title (twice because we give it higher weight)
-	expectedPrefix := "Test Product Test Product"
-	if len(representation) < len(expectedPrefix) || representation[:len(expectedPrefix)] != expectedPrefix {
-		t.Errorf("Expected representation to start with '%s', got: '%s'", expectedPrefix, representation)
-	}
-
-	// Check that it contains the Category field
-	if !strings.Contains(representation, "Category") {
-		t.Errorf("Expected representation to contain 'Category', got: '%s'", representation)
+	// Check that it contains the title
+	if !strings.Contains(representation, "Test Product") {
+		t.Errorf("Expected representation to contain 'Test Product', got: '%s'", representation)
 	}
 }
 

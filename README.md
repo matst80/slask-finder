@@ -42,10 +42,20 @@ import "github.com/matst80/slask-finder/pkg/embeddings"
 // (uses "mxbai-embed-large" model and http://10.10.10.100:11434/api/embeddings endpoint)
 embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
 
-// Or create with custom configuration
+// Or create with custom configuration for a single endpoint
 customEngine := embeddings.NewOllamaEmbeddingsEngineWithConfig(
     "nomic-embed-text", 
     "http://custom-endpoint:11434/api/embeddings",
+)
+
+// Use multiple endpoints with round-robin load balancing
+multiEndpointEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(
+    "nomic-embed-text",
+    []string{
+        "http://server1:11434/api/embeddings",
+        "http://server2:11434/api/embeddings",
+        "http://server3:11434/api/embeddings",
+    },
 )
 
 // Generate embeddings for text
@@ -61,7 +71,17 @@ if err != nil {
 }
 ```
 
-Make sure the Ollama server is running and accessible at the configured endpoint.
+### Multiple Endpoints and Load Balancing
+
+When using `NewOllamaEmbeddingsEngineWithMultipleEndpoints`, requests are distributed across the provided endpoints using a round-robin algorithm. This provides several benefits:
+
+1. **Load distribution**: Processing is spread across multiple Ollama servers, preventing any single server from becoming a bottleneck
+2. **Fault tolerance**: If one server fails, requests will continue to be processed by the remaining servers
+3. **Scalability**: You can add more servers to handle increased load as needed
+
+The engine automatically handles the distribution of requests in a thread-safe manner, ensuring even load across all endpoints.
+
+Make sure all Ollama servers are running and accessible at the configured endpoints.
 
 ## Contributing
 

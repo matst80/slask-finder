@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync/atomic"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -31,18 +32,24 @@ type OllamaEmbeddingResponse struct {
 // OllamaEmbeddingsEngine implements the types.EmbeddingsEngine interface
 // using Ollama's HTTP API for generating embeddings
 type OllamaEmbeddingsEngine struct {
-	Model       string
+	Model        string
+	ApiEndpoints []string
+	HttpClient   *http.Client
+	counter      uint32 // Used for round-robin endpoint selection
+
+	// For backward compatibility
 	ApiEndpoint string
-	HttpClient  *http.Client
 }
 
 // NewOllamaEmbeddingsEngine creates a new instance of OllamaEmbeddingsEngine
 // with default configuration
 func NewOllamaEmbeddingsEngine() *OllamaEmbeddingsEngine {
 	return &OllamaEmbeddingsEngine{
-		Model:       defaultEmbeddingModel,
-		ApiEndpoint: ollamaEmbeddingEndpoint,
-		HttpClient:  &http.Client{},
+		Model:        defaultEmbeddingModel,
+		ApiEndpoints: []string{ollamaEmbeddingEndpoint},
+		ApiEndpoint:  ollamaEmbeddingEndpoint, // For backward compatibility
+		HttpClient:   &http.Client{},
+		counter:      0,
 	}
 }
 
@@ -55,10 +62,34 @@ func NewOllamaEmbeddingsEngineWithConfig(model, endpoint string) *OllamaEmbeddin
 	if endpoint == "" {
 		endpoint = ollamaEmbeddingEndpoint
 	}
+
 	return &OllamaEmbeddingsEngine{
-		Model:       model,
-		ApiEndpoint: endpoint,
-		HttpClient:  &http.Client{},
+		Model:        model,
+		ApiEndpoints: []string{endpoint},
+		ApiEndpoint:  endpoint, // For backward compatibility
+		HttpClient:   &http.Client{},
+		counter:      0,
+	}
+}
+
+// NewOllamaEmbeddingsEngineWithMultipleEndpoints creates a new instance of OllamaEmbeddingsEngine
+// with multiple API endpoints for round-robin load balancing
+func NewOllamaEmbeddingsEngineWithMultipleEndpoints(model string, endpoints ...string) *OllamaEmbeddingsEngine {
+	if model == "" {
+		model = defaultEmbeddingModel
+	}
+
+	// If no endpoints provided, use the default
+	if len(endpoints) == 0 {
+		endpoints = []string{ollamaEmbeddingEndpoint}
+	}
+
+	return &OllamaEmbeddingsEngine{
+		Model:        model,
+		ApiEndpoints: endpoints,
+		ApiEndpoint:  endpoints[0], // For backward compatibility
+		HttpClient:   &http.Client{},
+		counter:      0,
 	}
 }
 
@@ -76,8 +107,20 @@ func (o *OllamaEmbeddingsEngine) GenerateEmbeddings(text string) (types.Embeddin
 		return nil, fmt.Errorf("error marshaling request: %w", err)
 	}
 
+	// Select an endpoint using round-robin
+	var endpoint string
+
+	// Use ApiEndpoints if available (for round-robin), otherwise fall back to single ApiEndpoint
+	if len(o.ApiEndpoints) > 0 {
+		// Get the next index using atomic counter for thread safety
+		idx := atomic.AddUint32(&o.counter, 1) % uint32(len(o.ApiEndpoints))
+		endpoint = o.ApiEndpoints[idx]
+	} else {
+		endpoint = o.ApiEndpoint
+	}
+
 	// Create the HTTP request
-	req, err := http.NewRequest("POST", o.ApiEndpoint, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %w", err)
 	}
