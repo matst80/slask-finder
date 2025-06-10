@@ -703,13 +703,14 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 func (ws *WebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	if r.Method == http.MethodPut {
+		types.CurrentSettings.Lock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings)
+		types.CurrentSettings.Unlock()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		types.CurrentSettings.Lock()
-		defer types.CurrentSettings.Unlock()
+
 		err = ws.Db.SaveSettings()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
