@@ -307,7 +307,7 @@ func (p *DataRepository) SaveEmbeddings(embeddings map[uint]types.Embeddings) er
 		return err
 	}
 
-	defer runtime.GC()
+	//defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
@@ -315,9 +315,10 @@ func (p *DataRepository) SaveEmbeddings(embeddings map[uint]types.Embeddings) er
 
 	err = enc.Encode(embeddings)
 	if err != nil {
+		log.Printf("Error encoding embeddings: %v", err)
 		return err
 	}
-
+	log.Printf("Encoded %d embeddings", len(embeddings))
 	err = os.Rename(p.EmbeddingsFile+".tmp", p.EmbeddingsFile)
 	if err != nil {
 		return err
