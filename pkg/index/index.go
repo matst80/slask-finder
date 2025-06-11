@@ -346,22 +346,14 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 
 	i.Items[id] = item
 	if i.IsMaster {
-		var embeddingCandidates []types.Item
+
 		_, hasEmbeddings := i.Embeddings[item.GetId()]
 
 		if !hasEmbeddings && i.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
-			embeddingCandidates = append(embeddingCandidates, item)
+			i.EmbeddingsQueue.QueueItem(item)
+
 		}
-		// Queue embedding candidates in batches
-		if len(embeddingCandidates) > 0 && i.EmbeddingsQueue != nil {
-			go func(candidates []types.Item) {
-				count := i.EmbeddingsQueue.QueueItems(candidates)
-				if count < len(candidates) {
-					log.Printf("Warning: Only queued %d/%d items for embeddings generation",
-						count, len(candidates))
-				}
-			}(embeddingCandidates)
-		}
+
 		return
 	} else {
 		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))

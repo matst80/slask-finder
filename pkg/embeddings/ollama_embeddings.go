@@ -176,7 +176,7 @@ func buildItemRepresentation(item types.Item, fields map[uint]types.Facet) strin
 		return item.GetTitle()
 	}
 	builder.WriteString(text)
-	builder.WriteString("\n")
+	builder.WriteString(" ")
 
 	for fieldId, value := range item.GetFields() {
 		f, ok := fields[fieldId]
@@ -184,7 +184,7 @@ func buildItemRepresentation(item types.Item, fields map[uint]types.Facet) strin
 			continue
 		}
 		b := f.GetBaseField()
-		if b.HideFacet {
+		if b.HideFacet || b.InternalOnly || !b.Searchable {
 			continue
 		}
 
@@ -193,7 +193,7 @@ func buildItemRepresentation(item types.Item, fields map[uint]types.Facet) strin
 			builder.WriteString(": ")
 		}
 		builder.WriteString(fmt.Sprintf("%v", value))
-		builder.WriteString("\n")
+		builder.WriteString(" ")
 	}
 	// Add other string representations
 	// strList := item.ToStringList()

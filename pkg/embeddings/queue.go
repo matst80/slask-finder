@@ -29,6 +29,7 @@ var (
 type EmbeddingJob struct {
 	Item      types.Item
 	CreatedAt time.Time
+	StartedAt time.Time
 }
 
 // EmbeddingsQueue manages a queue of items for embedding generation
@@ -122,6 +123,7 @@ func (eq *EmbeddingsQueue) QueueItem(item types.Item) bool {
 	case eq.queue <- EmbeddingJob{
 		Item:      item,
 		CreatedAt: time.Now(),
+		StartedAt: time.Now(),
 	}:
 		embedQueueSize.Inc()
 		return true
@@ -129,22 +131,7 @@ func (eq *EmbeddingsQueue) QueueItem(item types.Item) bool {
 		// Queue is full, but try with a timeout before giving up
 		log.Printf("Embeddings queue full, waiting to add item %d...", item.GetId())
 	}
-
-	// Try again with a timeout
-	timeout := time.After(5 * time.Second)
-	select {
-	case eq.queue <- EmbeddingJob{
-		Item:      item,
-		CreatedAt: time.Now(),
-	}:
-		embedQueueSize.Inc()
-		log.Printf("Successfully added item %d to embeddings queue after waiting", item.GetId())
-		return true
-	case <-timeout:
-		// Timeout expired, log and return false
-		log.Printf("Failed to add item %d to embeddings queue: timeout after waiting", item.GetId())
-		return false
-	}
+	return false
 }
 
 // QueueItemBlocking adds an item to the embeddings generation queue and blocks until it succeeds
@@ -328,10 +315,6 @@ func (eq *EmbeddingsQueue) worker(id int) {
 
 			// Process the job
 			itemId := job.Item.GetId()
-
-			if !job.Item.CanHaveEmbeddings() {
-				continue
-			}
 
 			embeddings, err := eq.engine.GenerateEmbeddingsFromItem(job.Item, eq.facets)
 			if err != nil {

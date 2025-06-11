@@ -239,7 +239,7 @@ func (item *DataItem) CanHaveEmbeddings() bool {
 	return item.Fields[10] != "Outlet" && item.Fields[9] == "Elgiganten"
 }
 func (item *DataItem) GetEmbeddingsText() (string, error) {
-	return item.Title + "\n" + item.BulletPoints + "\n" + item.Description, nil
+	return item.Title + "\n" + item.BulletPoints, nil
 }
 
 func (item *DataItem) GetLastUpdated() int64 {
