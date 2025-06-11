@@ -53,40 +53,54 @@ func FindTopSimilarEmbeddings(query Embeddings, embeddings map[uint]Embeddings, 
 		similarity float64
 	}
 
-	// Create a slice to hold all similarities
-	results := make([]result, 0, len(embeddings))
+	// If topN is invalid or zero, calculate for all embeddings
+	if topN <= 0 || topN > len(embeddings) {
+		topN = len(embeddings)
+	}
 
-	// Calculate similarities
+	// Create a slice to hold only the top N results
+	results := make([]result, 0, topN)
+
+	// Calculate similarities and insert in sorted position
 	for id, vec := range embeddings {
 		sim := CosineSimilarity(query, vec)
-		results = append(results, result{id, sim})
-	}
 
-	// Sort by similarity (descending)
-	resultsSorted := make([]result, len(results))
-	copy(resultsSorted, results)
-
-	for i := 0; i < len(resultsSorted); i++ {
-		maxIdx := i
-		for j := i + 1; j < len(resultsSorted); j++ {
-			if resultsSorted[j].similarity > resultsSorted[maxIdx].similarity {
-				maxIdx = j
+		if len(results) < topN {
+			// If we haven't filled our results slice yet, add the new result
+			// in the correct sorted position
+			inserted := false
+			for i, r := range results {
+				if sim > r.similarity {
+					// Insert at position i
+					results = append(results, result{}) // Make space
+					copy(results[i+1:], results[i:])    // Shift elements to the right
+					results[i] = result{id, sim}        // Insert new element
+					inserted = true
+					break
+				}
 			}
+			if !inserted {
+				// If we didn't insert in the middle, append to the end
+				results = append(results, result{id, sim})
+			}
+		} else if sim > results[len(results)-1].similarity {
+			// If our results slice is full but this similarity is higher than the lowest one
+			// Find the right position to insert
+			pos := len(results) - 1
+			for pos > 0 && sim > results[pos-1].similarity {
+				pos--
+			}
+			// Shift elements and insert
+			copy(results[pos+1:], results[pos:len(results)-1]) // Shift elements to the right
+			results[pos] = result{id, sim}                     // Insert new element
 		}
-		// Swap
-		resultsSorted[i], resultsSorted[maxIdx] = resultsSorted[maxIdx], resultsSorted[i]
-	}
-
-	// Limit to topN results
-	if topN > 0 && topN < len(resultsSorted) {
-		resultsSorted = resultsSorted[:topN]
 	}
 
 	// Extract IDs and similarities
-	ids := make([]uint, len(resultsSorted))
-	similarities := make([]float64, len(resultsSorted))
+	ids := make([]uint, len(results))
+	similarities := make([]float64, len(results))
 
-	for i, r := range resultsSorted {
+	for i, r := range results {
 		ids[i] = r.id
 		similarities[i] = r.similarity
 	}

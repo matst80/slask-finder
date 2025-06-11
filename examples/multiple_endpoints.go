@@ -13,11 +13,10 @@ func main() {
 	// Create engine with multiple Ollama endpoints for round-robin load balancing
 	engine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(
 		"nomic-embed-text", // Model to use
-		[]string{
-			"http://server1:11434/api/embeddings",
-			"http://server2:11434/api/embeddings",
-			"http://server3:11434/api/embeddings",
-		},
+
+		"http://server1:11434/api/embeddings",
+		"http://server2:11434/api/embeddings",
+		"http://server3:11434/api/embeddings",
 	)
 
 	// Initialize index with the embeddings engine

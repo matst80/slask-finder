@@ -17,11 +17,10 @@ func TestMultipleEndpointsLoadTesting(t *testing.T) {
 	// Create engine with multiple Ollama endpoints
 	engine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(
 		"nomic-embed-text",
-		[]string{
-			"http://server1:11434/api/embeddings",
-			"http://server2:11434/api/embeddings",
-			"http://server3:11434/api/embeddings",
-		},
+
+		"http://server1:11434/api/embeddings",
+		"http://server2:11434/api/embeddings",
+		"http://server3:11434/api/embeddings",
 	)
 
 	// Number of concurrent requests to simulate
