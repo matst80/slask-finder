@@ -349,8 +349,9 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 	i.Items[id] = item
 	if i.IsMaster {
 
+		i.EmbeddingsMu.RLock()
 		_, hasEmbeddings := i.Embeddings[item.GetId()]
-
+		i.EmbeddingsMu.RUnlock()
 		if !hasEmbeddings && i.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
 			i.EmbeddingsQueue.QueueItem(item)
 
