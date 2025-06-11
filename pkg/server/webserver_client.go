@@ -844,12 +844,13 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 	if ws.Index.EmbeddingsEngine == nil {
 		return fmt.Errorf("embeddings engine not initialized")
 	}
-
+	start := time.Now()
 	// Generate embeddings for the query
 	queryEmbeddings, err := ws.Index.EmbeddingsEngine.GenerateEmbeddings(query)
 	if err != nil {
 		return fmt.Errorf("failed to generate embeddings: %w", err)
 	}
+	embeddingsDuration := time.Since(start)
 
 	// Find similar items using cosine similarity
 	matches := make(types.ItemList)
@@ -864,14 +865,15 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 	defer ws.Index.Unlock()
 
 	// Find items with similar embeddings
+	start = time.Now()
 	for itemID, itemEmb := range ws.Index.Embeddings {
 		// Convert item embeddings (float32) to float64 for cosine similarity calculation
 
 		similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
 
 		if similarity > similarityThreshold {
-			item, exists := ws.Index.Items[itemID]
-			if !exists || item.IsSoftDeleted() {
+			_, exists := ws.Index.Items[itemID]
+			if !exists {
 				continue
 			}
 
@@ -887,12 +889,14 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 	slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
 		return cmp.Compare(b.Value, a.Value)
 	})
-
+	matchDuration := time.Since(start)
 	defaultHeaders(w, r, true, "120")
+	w.Header().Set("x-embeddings-duration", fmt.Sprintf("%v", embeddingsDuration))
+	w.Header().Set("x-match-duration", fmt.Sprintf("%v", matchDuration))
 	w.WriteHeader(http.StatusOK)
 
 	// Prepare limit on results
-	limit := 30
+	limit := 60
 	limitParam := r.URL.Query().Get("limit")
 	if limitParam != "" {
 		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 {
