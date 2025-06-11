@@ -23,7 +23,7 @@ func NewPersistance() *DataRepository {
 	return &DataRepository{
 		File:           "data/index-v2.jz",
 		FreeTextFile:   "data/freetext.dbz",
-		EmbeddingsFile: "data/embeddings-nomic.gob.gz",
+		EmbeddingsFile: "data/embeddings.gob.gz",
 	}
 }
 
