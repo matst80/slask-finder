@@ -936,7 +936,8 @@ func (ws *WebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessi
 		w.WriteHeader(http.StatusBadRequest)
 		return fmt.Errorf("invalid id: %s", idString)
 	}
-	item, ok := ws.Index.Embeddings[uint(id)]
+	iid := uint(id)
+	item, ok := ws.Index.Embeddings[iid]
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
 		return fmt.Errorf("item not found with id: %d", id)
@@ -946,8 +947,11 @@ func (ws *WebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessi
 	ids, _ := types.FindTopSimilarEmbeddings(item, ws.Index.Embeddings, 30)
 	// Stream the results to the client
 
-	for _, id := range ids {
-		item, ok := ws.Index.Items[id]
+	for _, rid := range ids {
+		if rid == iid {
+			continue // Skip the item itself
+		}
+		item, ok := ws.Index.Items[rid]
 		if ok {
 			err := enc.Encode(item)
 			if err != nil {
