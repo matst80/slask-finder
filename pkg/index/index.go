@@ -113,8 +113,9 @@ func NewIndexWithOptions(opts IndexOptions) *Index {
 		// Create a store function that safely stores embeddings in the index
 		storeFunc := func(itemId uint, emb types.Embeddings) {
 			idx.EmbeddingsMu.Lock()
+			defer idx.EmbeddingsMu.Unlock()
 			idx.Embeddings[itemId] = emb
-			idx.EmbeddingsMu.Unlock()
+
 		}
 
 		// Create the embeddings queue with configured workers and effectively unlimited queue size
