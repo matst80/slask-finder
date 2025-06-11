@@ -1,7 +1,6 @@
 package server
 
 import (
-	"cmp"
 	"encoding/json"
 	"fmt"
 	"iter"
@@ -854,9 +853,9 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 
 	// Find similar items using cosine similarity
 	matches := make(types.ItemList)
-	sortedItems := make(types.ByValue, 0)
+	// sortedItems := make(types.ByValue, 0)
 
-	similarityThreshold := 0.5 // Configurable threshold
+	// similarityThreshold := 0.5 // Configurable threshold
 
 	// Convert queryEmbeddings (float32) to float64 for cosine similarity calculation
 
@@ -866,29 +865,30 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 
 	// Find items with similar embeddings
 	start = time.Now()
-	for itemID, itemEmb := range ws.Index.Embeddings {
-		// Convert item embeddings (float32) to float64 for cosine similarity calculation
+	ids, _ := types.FindTopSimilarEmbeddings(queryEmbeddings, ws.Index.Embeddings, 60)
+	// for itemID, itemEmb := range ws.Index.Embeddings {
+	// 	// Convert item embeddings (float32) to float64 for cosine similarity calculation
 
-		similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
+	// 	similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
 
-		if similarity > similarityThreshold {
-			_, exists := ws.Index.Items[itemID]
-			if !exists {
-				continue
-			}
+	// 	if similarity > similarityThreshold {
+	// 		_, exists := ws.Index.Items[itemID]
+	// 		if !exists {
+	// 			continue
+	// 		}
 
-			matches.AddId(itemID)
-			sortedItems = append(sortedItems, types.Lookup{
-				Id:    itemID,
-				Value: similarity,
-			})
-		}
-	}
+	// 		matches.AddId(itemID)
+	// 		sortedItems = append(sortedItems, types.Lookup{
+	// 			Id:    itemID,
+	// 			Value: similarity,
+	// 		})
+	// 	}
+	// }
 
-	// Sort by similarity (highest first)
-	slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
-		return cmp.Compare(b.Value, a.Value)
-	})
+	// // Sort by similarity (highest first)
+	// slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
+	// 	return cmp.Compare(b.Value, a.Value)
+	// })
 	matchDuration := time.Since(start)
 	defaultHeaders(w, r, true, "120")
 	w.Header().Set("x-embeddings-duration", fmt.Sprintf("%v", embeddingsDuration))
@@ -906,12 +906,12 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 
 	// Stream the results to the client
 	count := 0
-	for _, match := range sortedItems {
+	for _, matchId := range ids {
 		if count >= limit {
 			break
 		}
 
-		item, ok := ws.Index.Items[match.Id]
+		item, ok := ws.Index.Items[matchId]
 		if ok {
 			err := enc.Encode(item)
 			if err != nil {
