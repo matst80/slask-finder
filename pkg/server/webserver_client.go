@@ -929,6 +929,36 @@ func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, se
 	return nil
 }
 
+func (ws *WebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("invalid id: %s", idString)
+	}
+	item, ok := ws.Index.Embeddings[uint(id)]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return fmt.Errorf("item not found with id: %d", id)
+	}
+	defaultHeaders(w, r, true, "120")
+	w.WriteHeader(http.StatusOK)
+	ids, _ := types.FindTopSimilarEmbeddings(item, ws.Index.Embeddings, 30)
+	// Stream the results to the client
+
+	for _, id := range ids {
+		item, ok := ws.Index.Items[id]
+		if ok {
+			err := enc.Encode(item)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+	return nil
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -946,6 +976,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
 	srv.HandleFunc("/natural", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
+	srv.HandleFunc("/cosine-similar/{id}", JsonHandler(ws.Tracking, ws.CosineSimilar))
 	//srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
