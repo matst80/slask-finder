@@ -51,7 +51,8 @@ type UpdateHandler interface {
 // }
 
 type Index struct {
-	mu sync.RWMutex
+	mu           sync.RWMutex
+	EmbeddingsMu sync.RWMutex
 	//categories    map[uint]*Category
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
@@ -94,8 +95,9 @@ func NewIndex(engine types.EmbeddingsEngine) *Index {
 
 func NewIndexWithOptions(opts IndexOptions) *Index {
 	idx := &Index{
-		mu:  sync.RWMutex{},
-		All: types.ItemList{},
+		mu:           sync.RWMutex{},
+		EmbeddingsMu: sync.RWMutex{},
+		All:          types.ItemList{},
 		//categories:   make(map[uint]*Category),
 		Embeddings:       make(map[uint]types.Embeddings),
 		ItemsBySku:       make(map[string]*types.Item),
@@ -110,9 +112,9 @@ func NewIndexWithOptions(opts IndexOptions) *Index {
 	if opts.EmbeddingsEngine != nil {
 		// Create a store function that safely stores embeddings in the index
 		storeFunc := func(itemId uint, emb types.Embeddings) {
-			idx.mu.Lock()
+			idx.EmbeddingsMu.Lock()
 			idx.Embeddings[itemId] = emb
-			idx.mu.Unlock()
+			idx.EmbeddingsMu.Unlock()
 		}
 
 		// Create the embeddings queue with configured workers and effectively unlimited queue size
