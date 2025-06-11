@@ -922,6 +922,16 @@ type WordReplacementConfig struct {
 	WordMappings map[string]string `json:"wordMappings"`
 }
 
+func (ws *WebServer) SaveEmbeddings(w http.ResponseWriter, r *http.Request) {
+	if err := ws.Db.SaveEmbeddings(ws.Index.Embeddings); err != nil {
+		log.Printf("Error saving embeddings: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defaultHeaders(w, r, false, "0")
+	w.WriteHeader(http.StatusOK)
+}
+
 func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost || r.Method == http.MethodPut {
 		data := WordReplacementConfig{}
@@ -984,6 +994,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
+	srv.HandleFunc("/save-embeddings", ws.AuthMiddleware(ws.SaveEmbeddings))
 	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
 	srv.HandleFunc("/clean-fields", ws.CleanFields)
 	srv.HandleFunc("/update-fields", ws.UpdateFacetsFromFields)
