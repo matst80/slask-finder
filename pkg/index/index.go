@@ -1,15 +1,20 @@
 package index
 
 import (
+	"fmt"
 	"log"
 	"sync"
 
+	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
+
+// EmbeddingsRate is the rate limit for embedding requests per second
+type EmbeddingsRate = float64
 
 var (
 	noUpdates = promauto.NewCounter(prometheus.CounterOpts{
@@ -46,32 +51,89 @@ type UpdateHandler interface {
 // }
 
 type Index struct {
-	mu sync.RWMutex
+	mu           sync.RWMutex
+	EmbeddingsMu sync.RWMutex
 	//categories    map[uint]*Category
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
 	Items        map[uint]types.Item
 	ItemsBySku   map[string]*types.Item
 	ItemsInStock map[string]types.ItemList
+	Embeddings   map[uint]types.Embeddings
 	IsMaster     bool
 	All          types.ItemList
 	//AutoSuggest   *AutoSuggest
-	ChangeHandler ChangeHandler
-	Sorting       *Sorting
-	Search        *search.FreeTextIndex
+	ChangeHandler    ChangeHandler
+	Sorting          *Sorting
+	Search           *search.FreeTextIndex
+	EmbeddingsEngine types.EmbeddingsEngine
+	EmbeddingsQueue  *embeddings.EmbeddingsQueue
 }
 
-func NewIndex() *Index {
-	return &Index{
-		mu:  sync.RWMutex{},
-		All: types.ItemList{},
-		//categories:   make(map[uint]*Category),
-		ItemsBySku:   make(map[string]*types.Item),
-		ItemFieldIds: make(map[uint]types.ItemList),
-		Facets:       make(map[uint]types.Facet),
-		Items:        make(map[uint]types.Item),
-		ItemsInStock: make(map[string]types.ItemList),
+// IndexOptions contains configuration options for creating a new index
+type IndexOptions struct {
+	EmbeddingsEngine    types.EmbeddingsEngine
+	EmbeddingsWorkers   int            // Number of workers in the embeddings queue
+	EmbeddingsQueueSize int            // Size of the embeddings queue buffer
+	EmbeddingsRateLimit EmbeddingsRate // Rate limit for embedding requests per second
+}
+
+// DefaultIndexOptions returns default configuration options for index creation
+func DefaultIndexOptions(engine types.EmbeddingsEngine) IndexOptions {
+	return IndexOptions{
+		EmbeddingsEngine:    engine,
+		EmbeddingsWorkers:   4,       // Default to 2 workers
+		EmbeddingsQueueSize: 1000000, // Use a very large queue size (effectively unlimited)
+		EmbeddingsRateLimit: 0.0,     // No rate limit
 	}
+}
+
+func NewIndex(engine types.EmbeddingsEngine) *Index {
+	opts := DefaultIndexOptions(engine)
+	return NewIndexWithOptions(opts)
+}
+
+func NewIndexWithOptions(opts IndexOptions) *Index {
+	idx := &Index{
+		mu:           sync.RWMutex{},
+		EmbeddingsMu: sync.RWMutex{},
+		All:          types.ItemList{},
+		//categories:   make(map[uint]*Category),
+		Embeddings:       make(map[uint]types.Embeddings),
+		ItemsBySku:       make(map[string]*types.Item),
+		ItemFieldIds:     make(map[uint]types.ItemList),
+		Facets:           make(map[uint]types.Facet),
+		Items:            make(map[uint]types.Item),
+		ItemsInStock:     make(map[string]types.ItemList),
+		EmbeddingsEngine: opts.EmbeddingsEngine,
+	}
+
+	// Initialize embeddings queue if an embeddings engine is available
+	if opts.EmbeddingsEngine != nil {
+		// Create a store function that safely stores embeddings in the index
+		storeFunc := func(itemId uint, emb types.Embeddings) {
+			idx.EmbeddingsMu.Lock()
+			defer idx.EmbeddingsMu.Unlock()
+			idx.Embeddings[itemId] = emb
+
+		}
+
+		// Create the embeddings queue with configured workers and effectively unlimited queue size
+		idx.EmbeddingsQueue = embeddings.NewEmbeddingsQueue(
+			opts.EmbeddingsEngine,
+			idx.Facets,
+			storeFunc,
+			opts.EmbeddingsWorkers,
+			opts.EmbeddingsQueueSize)
+
+		// Start the queue
+		idx.EmbeddingsQueue.Start()
+
+		log.Printf("Initialized embeddings queue with %d workers and unlimited queue size",
+			opts.EmbeddingsWorkers)
+	}
+
+	return idx
 }
 
 func (i *Index) AddKeyField(field *types.BaseField) {
@@ -183,6 +245,14 @@ func (i *Index) UpsertItem(item types.Item) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.UpsertItemUnsafe(item)
+
+	// // Handle embeddings for individual items
+	// if !hasEmbeddings && i.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
+	// 	// Use the enhanced QueueItem with timeout
+	// 	if !i.EmbeddingsQueue.QueueItem(item) {
+	// 		log.Printf("Failed to queue item %d for embeddings generation after timeout", item.GetId())
+	// 	}
+	// }
 }
 
 func (i *Index) UpdateCategoryValues(ids []uint, updates []types.CategoryUpdate) {
@@ -220,20 +290,17 @@ func (i *Index) UpsertItems(items []types.Item) {
 		defer i.Search.Unlock()
 	}
 
-	//changed := make([]types.Item, 0, len(items))
-	//price_lowered := make([]types.Item, 0, len(items))
+	// Collect items that need embeddings
 
 	for _, it := range items {
 		i.UpsertItemUnsafe(it)
-		//	price_lowered = append(price_lowered, it)
-		//}
-		//changed = append(changed, it)
+
 	}
+
 	go noUpdates.Add(float64(l))
 	if i.ChangeHandler != nil {
 		log.Printf("Propagating changes")
 		go i.ChangeHandler.ItemsUpserted(items)
-		//i.ChangeHandler.PriceLowered(price_lowered)
 	}
 
 	if i.Sorting != nil {
@@ -282,6 +349,15 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 
 	i.Items[id] = item
 	if i.IsMaster {
+
+		i.EmbeddingsMu.RLock()
+		_, hasEmbeddings := i.Embeddings[id]
+		i.EmbeddingsMu.RUnlock()
+		if !hasEmbeddings && i.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
+			i.EmbeddingsQueue.QueueItem(item)
+
+		}
+
 		return
 	} else {
 		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))
@@ -290,8 +366,14 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		if i.Search != nil {
 			i.addItemValues(item)
 		}
+		// Check if this item should have embeddings
 
 		item.UpdateBasePopularity(*types.CurrentSettings.PopularityRules)
+
+		// Note: Embeddings generation is now handled at the batch level in UpsertItems
+		// for more efficient queuing. Individual items processed through UpsertItem
+		// will still use the QueueItem method directly.
+
 		// if i.AutoSuggest != nil {
 		// 	i.AutoSuggest.InsertItemUnsafe(item)
 		// }
@@ -299,7 +381,6 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 			i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
 		}
 	}
-
 }
 
 func (i *Index) DeleteItem(id uint) {
@@ -335,3 +416,121 @@ func (i *Index) HasItem(id uint) bool {
 // 	}
 // 	return ids[start:end]
 // }
+
+// GenerateAndStoreEmbeddings generates embeddings for an item and stores them in the index
+// This is kept for backwards compatibility but the preferred method is using EmbeddingsQueue
+func (i *Index) GenerateAndStoreEmbeddings(item types.Item) error {
+	if i.EmbeddingsEngine == nil {
+		// Skip if no embeddings engine is available
+		return nil
+	}
+
+	id := item.GetId()
+
+	// Generate embeddings for the item
+	embeddings, err := i.EmbeddingsEngine.GenerateEmbeddingsFromItem(item, i.Facets)
+	if err != nil {
+		return err
+	}
+
+	// Safely store the embeddings
+	i.mu.Lock()
+	i.Embeddings[id] = embeddings
+	i.mu.Unlock()
+
+	return nil
+}
+
+// Cleanup stops the embeddings queue and performs any necessary cleanup
+func (i *Index) Cleanup() {
+	if i.EmbeddingsQueue != nil {
+		i.EmbeddingsQueue.Stop()
+	}
+}
+
+// GetEmbeddingsQueueStatus returns the current length and capacity of the embeddings queue
+func (i *Index) GetEmbeddingsQueueStatus() (queueLength int, queueCapacity int, hasQueue bool) {
+	if i.EmbeddingsQueue == nil {
+		return 0, 0, false
+	}
+	return i.EmbeddingsQueue.QueueLength(), i.EmbeddingsQueue.QueueCapacity(), true
+}
+
+// GetEmbeddingsQueueDetails returns detailed information about the embeddings queue status
+func (i *Index) GetEmbeddingsQueueDetails() map[string]interface{} {
+	if i.EmbeddingsQueue == nil {
+		return map[string]interface{}{
+			"hasQueue": false,
+		}
+	}
+
+	return i.EmbeddingsQueue.Status()
+}
+
+// ConfigureEmbeddingsQueue was used to adjust the rate limit for the embeddings queue
+// This function is kept for backwards compatibility but no longer does anything
+// as rate limiting has been removed in the simplified implementation
+func (i *Index) ConfigureEmbeddingsQueue(rateLimit float64) error {
+	if i.EmbeddingsQueue == nil {
+		return fmt.Errorf("embeddings queue not initialized")
+	}
+
+	// Rate limiting has been removed in the simplified implementation
+	log.Printf("Rate limiting has been removed, ignoring rate limit: %.2f req/s", rateLimit)
+	return nil
+}
+
+// // GetEmbeddingsQueueStatus returns detailed information about the embeddings queue
+// // Returns nil if the embeddings queue is not initialized
+// func (i *Index) GetEmbeddingsQueueStatus() map[string]interface{} {
+// 	if i.EmbeddingsQueue == nil {
+// 		return nil
+// 	}
+
+// 	return i.EmbeddingsQueue.Status()
+// }
+
+// PauseEmbeddingsQueue temporarily stops processing new embeddings
+func (i *Index) PauseEmbeddingsQueue() error {
+	if i.EmbeddingsQueue == nil {
+		return fmt.Errorf("embeddings queue not initialized")
+	}
+
+	i.EmbeddingsQueue.Pause()
+	return nil
+}
+
+// ResumeEmbeddingsQueue resumes normal operation of the embeddings queue
+func (i *Index) ResumeEmbeddingsQueue(requestsPerSecond float64) error {
+	if i.EmbeddingsQueue == nil {
+		return fmt.Errorf("embeddings queue not initialized")
+	}
+
+	// Rate limiting parameter is ignored in the simplified implementation
+	i.EmbeddingsQueue.Resume()
+	return nil
+}
+
+// PrioritizeItemEmbeddings prioritizes embeddings generation for a specific item
+// Returns true if successful, false if the item doesn't exist or can't have embeddings
+func (i *Index) PrioritizeItemEmbeddings(id uint) (bool, error) {
+	if i.EmbeddingsQueue == nil {
+		return false, fmt.Errorf("embeddings queue not initialized")
+	}
+
+	i.mu.RLock()
+	item, exists := i.Items[id]
+	i.mu.RUnlock()
+
+	if !exists {
+		return false, fmt.Errorf("item %d not found", id)
+	}
+
+	if !item.CanHaveEmbeddings() {
+		return false, fmt.Errorf("item %d cannot have embeddings", id)
+	}
+
+	// Use the prioritization feature
+	success := i.EmbeddingsQueue.PrioritizeItem(item)
+	return success, nil
+}

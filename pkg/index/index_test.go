@@ -37,7 +37,7 @@ func (l *LoggingChangeHandler) PriceLowered(item []types.Item) {
 }
 
 func TestIndexMatch(t *testing.T) {
-	i := NewIndex()
+	i := NewIndex(nil)
 	i.AddKeyField(&types.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&types.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&types.BaseField{Id: 3, Name: "number", Description: "number field"})
@@ -52,11 +52,11 @@ func TestIndexMatch(t *testing.T) {
 		StringFilter: []types.StringFilter{{Id: 1, Value: []string{"test"}}},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
-	ch := make(chan *types.ItemList)
-	defer close(ch)
-	i.Match(&query, nil, ch)
-	matching := <-ch
-	if !matchAll(*matching, 1) {
+	matching := types.ItemList{}
+	qm := types.NewQueryMerger(&matching)
+	i.Match(&query, qm)
+	qm.Wait()
+	if !matchAll(matching, 1) {
 		t.Errorf("Expected [1] but got %v", matching)
 	}
 }
@@ -67,7 +67,7 @@ var token = search.Tokenizer{MaxTokens: 128}
 
 func CreateIndex() *Index {
 
-	i := NewIndex()
+	i := NewIndex(nil)
 	i.AddKeyField(&types.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&types.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&types.BaseField{Id: 3, Name: "number", Description: "number field"})
@@ -119,11 +119,11 @@ func TestMultipleIndexMatch(t *testing.T) {
 		StringFilter: []types.StringFilter{{Id: 1, Value: []string{"test"}}},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
-	ch := make(chan *types.ItemList)
-	defer close(ch)
-	i.Match(&query, nil, ch)
-	matching := <-ch
-	if !matchAll(*matching, 1, 2) {
+	matching := types.ItemList{}
+	qm := types.NewQueryMerger(&matching)
+	i.Match(&query, qm)
+	qm.Wait()
+	if !matchAll(matching, 1, 2) {
 		t.Errorf("Expected [1,2] but got %v", matching)
 	}
 }
@@ -134,12 +134,12 @@ func TestGetMatchItems(t *testing.T) {
 		StringFilter: []types.StringFilter{{Id: 1, Value: []string{"test"}}},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 2}},
 	}
-	ch := make(chan *types.ItemList)
-	defer close(ch)
-	i.Match(&query, nil, ch)
-	matching := <-ch
+	matching := types.ItemList{}
+	qm := types.NewQueryMerger(&matching)
+	i.Match(&query, qm)
+	qm.Wait()
 	//items := i.GetItems(matching, 0, 10)
-	if !matchAll(*matching, 1, 2) {
+	if !matchAll(matching, 1, 2) {
 		t.Errorf("Expected ids [1,2] but got %v", matching)
 	}
 	// if items[0].Title != "item1" || items[1].Title != "item2" {
@@ -215,11 +215,11 @@ func TestDeleteItem(t *testing.T) {
 		StringFilter: []types.StringFilter{},
 		RangeFilter:  []types.RangeFilter{{Id: 3, Min: 1, Max: 1000}},
 	}
-	ch := make(chan *types.ItemList)
-	defer close(ch)
-	i.Match(&f, nil, ch)
-	ids := <-ch
-	if matchAll(*ids, 1) {
+	ids := types.ItemList{}
+	qm := types.NewQueryMerger(&ids)
+	i.Match(&f, qm)
+	qm.Wait()
+	if matchAll(ids, 1) {
 		t.Errorf("Expected 1 ids but got %v", ids)
 	}
 }

@@ -186,7 +186,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 
 		keyValue, ok := types.AsKeyFilterValue(itemField)
 		if !ok {
-			log.Printf("Not a valid key filter", id)
+			log.Printf("Not a valid key filter for field %d", id)
 			continue
 		}
 

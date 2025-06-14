@@ -829,6 +829,140 @@ func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sess
 	return enc.Encode(types.CurrentSettings)
 }
 
+func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	query := r.URL.Query().Get("q")
+	query = strings.TrimSpace(query)
+
+	if query == "" {
+		defaultHeaders(w, r, true, "1200")
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("query parameter 'q' is required")
+	}
+
+	// Check if embeddings engine is available
+	if ws.Index.EmbeddingsEngine == nil {
+		return fmt.Errorf("embeddings engine not initialized")
+	}
+	start := time.Now()
+	// Generate embeddings for the query
+	queryEmbeddings, err := ws.Index.EmbeddingsEngine.GenerateEmbeddings(query)
+	if err != nil {
+		return fmt.Errorf("failed to generate embeddings: %w", err)
+	}
+	embeddingsDuration := time.Since(start)
+
+	// Find similar items using cosine similarity
+	matches := make(types.ItemList)
+	// sortedItems := make(types.ByValue, 0)
+
+	// similarityThreshold := 0.5 // Configurable threshold
+
+	// Convert queryEmbeddings (float32) to float64 for cosine similarity calculation
+
+	// Lock the index for read access
+	ws.Index.Lock()
+	defer ws.Index.Unlock()
+
+	// Find items with similar embeddings
+	start = time.Now()
+	ids, _ := types.FindTopSimilarEmbeddings(queryEmbeddings, ws.Index.Embeddings, 60)
+	// for itemID, itemEmb := range ws.Index.Embeddings {
+	// 	// Convert item embeddings (float32) to float64 for cosine similarity calculation
+
+	// 	similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
+
+	// 	if similarity > similarityThreshold {
+	// 		_, exists := ws.Index.Items[itemID]
+	// 		if !exists {
+	// 			continue
+	// 		}
+
+	// 		matches.AddId(itemID)
+	// 		sortedItems = append(sortedItems, types.Lookup{
+	// 			Id:    itemID,
+	// 			Value: similarity,
+	// 		})
+	// 	}
+	// }
+
+	// // Sort by similarity (highest first)
+	// slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
+	// 	return cmp.Compare(b.Value, a.Value)
+	// })
+	matchDuration := time.Since(start)
+	defaultHeaders(w, r, true, "120")
+	w.Header().Set("x-embeddings-duration", fmt.Sprintf("%v", embeddingsDuration))
+	w.Header().Set("x-match-duration", fmt.Sprintf("%v", matchDuration))
+	w.WriteHeader(http.StatusOK)
+
+	// Prepare limit on results
+	limit := 60
+	limitParam := r.URL.Query().Get("limit")
+	if limitParam != "" {
+		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	// Stream the results to the client
+	count := 0
+	for _, matchId := range ids {
+		if count >= limit {
+			break
+		}
+
+		item, ok := ws.Index.Items[matchId]
+		if ok {
+			err := enc.Encode(item)
+			if err != nil {
+				return err
+			}
+			count++
+		}
+	}
+
+	// Track search if tracking is enabled
+	if ws.Tracking != nil {
+		go ws.Tracking.TrackSearch(sessionId, nil, len(matches), query, 0, r)
+	}
+
+	return nil
+}
+
+func (ws *WebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return fmt.Errorf("invalid id: %s", idString)
+	}
+	iid := uint(id)
+	item, ok := ws.Index.Embeddings[iid]
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return fmt.Errorf("item not found with id: %d", id)
+	}
+	defaultHeaders(w, r, true, "120")
+	w.WriteHeader(http.StatusOK)
+	ids, _ := types.FindTopSimilarEmbeddings(item, ws.Index.Embeddings, 30)
+	// Stream the results to the client
+
+	for _, rid := range ids {
+		if rid == iid {
+			continue // Skip the item itself
+		}
+		item, ok := ws.Index.Items[rid]
+		if ok {
+			err := enc.Encode(item)
+			if err != nil {
+				return err
+			}
+
+		}
+	}
+	return nil
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -844,7 +978,9 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
 	srv.HandleFunc("/compatible/{id}", JsonHandler(ws.Tracking, ws.Compatible))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
+	srv.HandleFunc("/natural", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
+	srv.HandleFunc("/cosine-similar/{id}", JsonHandler(ws.Tracking, ws.CosineSimilar))
 	//srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))

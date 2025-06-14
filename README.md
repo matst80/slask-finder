@@ -29,6 +29,60 @@ Instructions on how to install and set up your project.
 
 Instructions on how to use your project, including examples and screenshots if applicable.
 
+### Using Ollama Embeddings
+
+The project now supports generating embeddings using Ollama's HTTP API with the "mxbai-embed-large" model. This enables more accurate semantic search and item similarity matching.
+
+To use the Ollama embeddings engine:
+
+```go
+import "github.com/matst80/slask-finder/pkg/embeddings"
+
+// Create a new Ollama embeddings engine with default configuration
+// (uses "mxbai-embed-large" model and http://10.10.10.100:11434/api/embeddings endpoint)
+embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
+
+// Or create with custom configuration for a single endpoint
+customEngine := embeddings.NewOllamaEmbeddingsEngineWithConfig(
+    "nomic-embed-text", 
+    "http://custom-endpoint:11434/api/embeddings",
+)
+
+// Use multiple endpoints with round-robin load balancing
+multiEndpointEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(
+    "nomic-embed-text",
+    []string{
+        "http://server1:11434/api/embeddings",
+        "http://server2:11434/api/embeddings",
+        "http://server3:11434/api/embeddings",
+    },
+)
+
+// Generate embeddings for text
+embeddings, err := embeddingsEngine.GenerateEmbeddings("text to generate embeddings for")
+if err != nil {
+    // Handle error
+}
+
+// Generate embeddings from an item
+itemEmbeddings, err := embeddingsEngine.GenerateEmbeddingsFromItem(item)
+if err != nil {
+    // Handle error
+}
+```
+
+### Multiple Endpoints and Load Balancing
+
+When using `NewOllamaEmbeddingsEngineWithMultipleEndpoints`, requests are distributed across the provided endpoints using a round-robin algorithm. This provides several benefits:
+
+1. **Load distribution**: Processing is spread across multiple Ollama servers, preventing any single server from becoming a bottleneck
+2. **Fault tolerance**: If one server fails, requests will continue to be processed by the remaining servers
+3. **Scalability**: You can add more servers to handle increased load as needed
+
+The engine automatically handles the distribution of requests in a thread-safe manner, ensuring even load across all endpoints.
+
+Make sure all Ollama servers are running and accessible at the configured endpoints.
+
 ## Contributing
 
 Guidelines for contributing to your project, including how to report issues and submit pull requests.
