@@ -51,7 +51,7 @@ var rabbitConfig = ffSync.RabbitConfig{
 var token = search.Tokenizer{MaxTokens: 128}
 
 // Ollama embeddings engine for semantic search capability
-var embeddingsEngine types.EmbeddingsEngine = embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints("trained_combined_model", "http://10.10.11.41:8000/api/embeddings")
+var embeddingsEngine types.EmbeddingsEngine = embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints("mxbai-embed-large", "http://10.10.11.98:11434/api/embeddings", "http://10.10.10.100:11434/api/embeddings")
 
 // Initialize index with embeddings engine
 var idx = index.NewIndex(embeddingsEngine)
