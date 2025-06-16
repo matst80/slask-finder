@@ -5,6 +5,7 @@ data/fields.json
 data/facets/*
 data/items/*
 data/content/*
+data/settings.json
 __debug*
 startup.prof
 data/*.dbz
