@@ -106,25 +106,72 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 		return matches
 	}
 	trans, hasTrans := t.transitions[prev]
-	sort.SliceStable(matches, func(i, j int) bool {
-		if hasTrans {
-			ci := trans[Token(matches[i].Prefix)]
-			cj := trans[Token(matches[j].Prefix)]
-			if ci != cj {
-				return ci > cj
+	if !hasTrans {
+		// No transitions at all for this prev -> fallback by popularity
+		sort.SliceStable(matches, func(i, j int) bool {
+			li := 0
+			if matches[i].Items != nil {
+				li = len(*matches[i].Items)
 			}
+			lj := 0
+			if matches[j].Items != nil {
+				lj = len(*matches[j].Items)
+			}
+			return li > lj
+		})
+		return matches
+	}
+
+	// Compute counts and determine if any positive counts exist
+	type scored struct {
+		m Match
+		c int
+	}
+	scoredMatches := make([]scored, 0, len(matches))
+	anyPositive := false
+	for _, m := range matches {
+		c := trans[Token(m.Prefix)]
+		if c > 0 {
+			anyPositive = true
 		}
-		// fallback: prefer more popular tokens (more items)
-		li := 0
-		if matches[i].Items != nil {
-			li = len(*matches[i].Items)
-		}
-		lj := 0
-		if matches[j].Items != nil {
-			lj = len(*matches[j].Items)
-		}
-		return li > lj
-	})
+		scoredMatches = append(scoredMatches, scored{m: m, c: c})
+	}
+
+	if anyPositive {
+		// Sort primarily by transition count desc, tiebreak by popularity
+		sort.SliceStable(scoredMatches, func(i, j int) bool {
+			if scoredMatches[i].c != scoredMatches[j].c {
+				return scoredMatches[i].c > scoredMatches[j].c
+			}
+			li := 0
+			if scoredMatches[i].m.Items != nil {
+				li = len(*scoredMatches[i].m.Items)
+			}
+			lj := 0
+			if scoredMatches[j].m.Items != nil {
+				lj = len(*scoredMatches[j].m.Items)
+			}
+			return li > lj
+		})
+	} else {
+		// All counts are zero -> fallback by popularity
+		sort.SliceStable(scoredMatches, func(i, j int) bool {
+			li := 0
+			if scoredMatches[i].m.Items != nil {
+				li = len(*scoredMatches[i].m.Items)
+			}
+			lj := 0
+			if scoredMatches[j].m.Items != nil {
+				lj = len(*scoredMatches[j].m.Items)
+			}
+			return li > lj
+		})
+	}
+
+	// Unwrap
+	for i := range scoredMatches {
+		matches[i] = scoredMatches[i].m
+	}
 	return matches
 }
 
