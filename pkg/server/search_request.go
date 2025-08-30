@@ -16,6 +16,7 @@ import (
 
 type SearchRequest struct {
 	*types.FacetRequest
+	Filter       string `json:"filter" schema:"filter"`
 	SkipTracking bool   `json:"skipTracking" schema:"nt"`
 	Sort         string `json:"sort" schema:"sort,default:popular"`
 	Page         int    `json:"page" schema:"page"`

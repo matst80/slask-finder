@@ -7,12 +7,11 @@ import (
 type Facets map[uint]FieldResult
 
 type FieldResult interface {
-	//AddValue(value interface{})
 	HasValues() bool
 }
 
 type KeyFieldResult struct {
-	Values map[string]uint `json:"values,omitempty"`
+	Values map[string]int `json:"values,omitempty"`
 }
 
 // func (k *KeyFieldResult) AddValue(input interface{}) {

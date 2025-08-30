@@ -20,6 +20,14 @@ func (f KeyField) Len() int {
 	return len(f.Keys)
 }
 
+func (f KeyField) IsExcludedFromFacets() bool {
+	return f.BaseField.HideFacet || f.BaseField.InternalOnly
+}
+
+func (f KeyField) IsCategory() bool {
+	return f.CategoryLevel > 0
+}
+
 func (f KeyField) GetValues() []interface{} {
 	ret := make([]interface{}, len(f.Keys))
 	idx := 0
@@ -32,14 +40,14 @@ func (f KeyField) GetValues() []interface{} {
 
 func (f *KeyField) match(value string) *types.ItemList {
 	if value == "!nil" {
-		ret := make(types.ItemList)
+		ret := &types.ItemList{}
 		for v, ids := range f.Keys {
 			if v == "" {
 				continue
 			}
 			ret.Merge(&ids)
 		}
-		return &ret
+		return ret
 	}
 	ids, ok := f.Keys[value]
 	if ok {
@@ -125,9 +133,6 @@ func (f *KeyField) addString(value string, id uint) {
 	}
 	if f.Type == "stock" {
 		if v == "0" {
-			return
-		}
-		if v == "" {
 			return
 		}
 		v = "Ja"

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
 	"slices"
 	"strconv"
 	"time"
@@ -232,6 +233,20 @@ func generateStateOauthCookie() string {
 }
 
 var secretKey = []byte("slask-62541337!-banansecret")
+var serverApiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
+
+func init() {
+	hash := os.Getenv("SLASK_TOKEN_HASH")
+	if hash == "" {
+		log.Fatal("SLASK_TOKEN_HASH environment variable not set")
+	}
+	secretKey = []byte(hash)
+	_key := os.Getenv("SLASK_API_KEY")
+	if _key == "" {
+		log.Fatal("SLASK_API_KEY environment variable not set")
+	}
+	serverApiKey = _key
+}
 
 func createToken(username string, name string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
@@ -265,7 +280,6 @@ type UserData struct {
 }
 
 const tokenCookieName = "sf-admin"
-const apiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
 
 func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{
@@ -279,7 +293,7 @@ func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		if auth != apiKey {
+		if auth != serverApiKey {
 			cookie, err := r.Cookie(tokenCookieName)
 			if err != nil {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
@@ -339,7 +353,8 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		Name:     tokenCookieName,
 		Value:    ownToken,
 		Path:     "/",
-		MaxAge:   7 * 86400,
+		Expires:  time.Now().Add(time.Hour * 24),
+		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	})
 
@@ -348,8 +363,8 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 
 func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(tokenCookieName)
-	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	if err != nil || cookie.Value == "" {
+		w.WriteHeader(http.StatusNoContent)
 		return
 	}
 
@@ -357,7 +372,7 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 		return secretKey, nil
 	})
 	if err != nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -368,7 +383,7 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		http.Error(w, "No claims found", http.StatusBadRequest)
 		return
 	}
 
@@ -376,8 +391,9 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(claims)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		log.Printf("error sending user response: %v", err)
 	}
+
 }
 
 //func (ws *WebServer) RagData(w http.ResponseWriter, r *http.Request) {
@@ -684,6 +700,30 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (ws *WebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "0")
+	if r.Method == http.MethodPut {
+		types.CurrentSettings.Lock()
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings)
+		types.CurrentSettings.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		err = ws.Db.SaveSettings()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "5")
 	w.WriteHeader(http.StatusOK)
@@ -711,9 +751,7 @@ func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request
 		types.CurrentSettings.Lock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
 		types.CurrentSettings.Unlock()
-		for _, j := range types.CurrentSettings.FacetRelations {
-			log.Printf("additional %+v", j.AdditionalQueries)
-		}
+
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -879,6 +917,48 @@ func (ws *WebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type WordReplacementConfig struct {
+	SplitWords   []string          `json:"splitWords"`
+	WordMappings map[string]string `json:"wordMappings"`
+}
+
+func (ws *WebServer) SaveEmbeddings(w http.ResponseWriter, r *http.Request) {
+	ws.Index.EmbeddingsMu.RLock()
+	defer ws.Index.EmbeddingsMu.RUnlock()
+	ws.Index.EmbeddingsQueue.Pause()
+	defer ws.Index.EmbeddingsQueue.Resume()
+	if err := ws.Db.SaveEmbeddings(ws.Index.Embeddings); err != nil {
+		log.Printf("Error saving embeddings: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost || r.Method == http.MethodPut {
+		data := WordReplacementConfig{}
+		err := json.NewDecoder(r.Body).Decode(&data)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+		}
+
+		types.CurrentSettings.Lock()
+		defer types.CurrentSettings.Unlock()
+		types.CurrentSettings.WordMappings = data.WordMappings
+		types.CurrentSettings.SplitWords = data.SplitWords
+	}
+	ret := WordReplacementConfig{
+		WordMappings: types.CurrentSettings.WordMappings,
+		SplitWords:   types.CurrentSettings.SplitWords,
+	}
+	err := json.NewEncoder(w).Encode(ret)
+	if err != nil {
+		log.Printf("unable to respond: %v", err)
+	}
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -918,6 +998,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 
 	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
+	srv.HandleFunc("/store-embeddings", ws.AuthMiddleware(ws.SaveEmbeddings))
 	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
 	srv.HandleFunc("/clean-fields", ws.CleanFields)
 	srv.HandleFunc("/update-fields", ws.UpdateFacetsFromFields)
@@ -931,7 +1012,9 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /fields", ws.GetFields)
 	srv.HandleFunc("GET /item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 	srv.HandleFunc("GET /settings", ws.GetSettings)
+	srv.HandleFunc("PUT /settings", ws.AuthMiddleware(ws.UpdateSettings))
 	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
+	srv.HandleFunc("/words", ws.AuthMiddleware(ws.HandleWordReplacements))
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)

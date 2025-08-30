@@ -1,6 +1,7 @@
 package search
 
 import (
+	"log"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -228,16 +229,81 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 
 // TODO maybe two itemlists, one for exact and one for fuzzy
 
+func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+
+	mappings := types.CurrentSettings.WordMappings
+
+	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
+		log.Printf("filter on token %s", token)
+		ids, found := i.TokenMap[token]
+		if found && ids != nil {
+			if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
+			}
+		}
+		if word, ok := mappings[string(token)]; ok {
+			ids, found = i.TokenMap[Token(word)]
+			if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+				found = true
+			}
+		}
+
+		if !found {
+			tries := types.ItemList{}
+			for _, match := range i.Trie.FindMatches(token) {
+				if match.Items != nil {
+					if res.HasIntersection(match.Items) {
+						tries.Merge(match.Items)
+					}
+					found = true
+				}
+			}
+
+			// fuzzy
+			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
+			for _, match := range fuzzyMatches {
+				if fuzzyIds, ok := i.TokenMap[match]; ok {
+					if fuzzyIds != nil {
+						if res.HasIntersection(fuzzyIds) {
+							tries.Merge(fuzzyIds)
+						}
+					}
+				}
+			}
+			res.Intersect(tries)
+		}
+
+		return len(*res) > 0
+	})
+}
+
 func (i *FreeTextIndex) Search(query string) *types.ItemList {
 	res := &types.ItemList{}
 	//mergeLimit := types.CurrentSettings.SearchMergeLimit
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
+	mappings := types.CurrentSettings.WordMappings
+
 	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
 		ids, found := i.TokenMap[token]
 		if found {
 			if count == 0 {
+				res.Merge(ids)
+			} else if res.HasIntersection(ids) {
+				res.Intersect(*ids)
+			} else {
+				found = false
+			}
+		}
+		if word, ok := mappings[string(token)]; ok {
+			ids, found = i.TokenMap[Token(word)]
+			if !found || count == 0 {
 				res.Merge(ids)
 			} else if res.HasIntersection(ids) {
 				res.Intersect(*ids)
@@ -257,8 +323,8 @@ func (i *FreeTextIndex) Search(query string) *types.ItemList {
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
-				if ids, ok := i.TokenMap[match]; ok {
-					res.Merge(ids)
+				if fuzzyIds, ok := i.TokenMap[match]; ok {
+					res.Merge(fuzzyIds)
 				}
 			}
 		}

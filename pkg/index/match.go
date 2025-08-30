@@ -47,10 +47,7 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 	})
 }
 
-func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemList) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	qm := types.NewQueryMerger(res)
+func (i *Index) MatchStringsSync(filter []types.StringFilter, qm *types.QueryMerger) {
 
 	for _, fld := range filter {
 		if keyFacet, ok := i.GetKeyFacet(fld.Id); ok {
@@ -59,19 +56,10 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, res *types.ItemLis
 			})
 		}
 	}
-	qm.Wait()
+
 }
 
-func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList chan<- *types.ItemList) {
-
-	log.Printf("Search %+v", search)
-	result := make(types.ItemList)
-	qm := types.NewQueryMerger(&result)
-	if initialIds != nil {
-		qm.Add(func() *types.ItemList {
-			return initialIds
-		})
-	}
+func (i *Index) Match(search *types.Filters, qm *types.QueryMerger) {
 
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
 		if fld.Exclude {
@@ -94,9 +82,6 @@ func (i *Index) Match(search *types.Filters, initialIds *types.ItemList, idList 
 			})
 		}
 	}
-
-	qm.Wait()
-	idList <- &result
 
 }
 
@@ -128,28 +113,30 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 			// match all items for this relation
 
 			outerMerger.Add(func() *types.ItemList {
-				relationResult := &types.ItemList{}
-				i.MatchStringsSync(relation.GetFilter(item), relationResult)
-				return relationResult
+				relationResult := make(types.ItemList, 5000)
+				merger := types.NewQueryMerger(&relationResult)
+				i.MatchStringsSync(relation.GetFilter(item), merger)
+				merger.Wait()
+				return &relationResult
 			})
 
 			if len(relation.Include) > 0 {
 				outerMerger.Add(func() *types.ItemList {
-					ret := &types.ItemList{}
+					ret := make(types.ItemList, 5000)
 					for _, id := range relation.Include {
 						ret.AddId(id)
 					}
-					return ret
+					return &ret
 				})
 			}
 
 			if len(relation.Exclude) > 0 {
 				outerMerger.Exclude(func() *types.ItemList {
-					ret := &types.ItemList{}
+					ret := make(types.ItemList, 5000)
 					for _, id := range relation.Exclude {
 						ret.AddId(id)
 					}
-					return ret
+					return &ret
 				})
 			}
 
@@ -159,28 +146,33 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	}
 	if hasRealRelations {
 		outerMerger.Wait()
-		return &result, nil
+		if len(result) > 0 {
+			return &result, nil
+		}
 	}
+	mergedProperties := 0
 	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if len(*current) == 0 && next != nil {
 			current.Merge(next)
+			mergedProperties++
 			return
 		}
 		if next != nil && len(*next) > 0 {
 			l := current.IntersectionLen(*next)
-			if l > 5 {
+			if l >= 2 {
 				current.Intersect(*next)
+				mergedProperties++
 			} else {
 				current.Merge(next)
 			}
 		}
 	})
 	log.Printf("No relations found for item %d", item.GetId())
+	var field *facet.KeyField
+	var target *facet.KeyField
 	for id, itemField := range item.GetFields() {
 
-		field, ok := i.GetKeyFacet(id)
-
-		if !ok {
+		if field, ok = i.GetKeyFacet(id); !ok {
 			continue
 		}
 
@@ -188,26 +180,27 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 		if linkedTo == 0 {
 			continue
 		}
-		targetField, ok := i.GetKeyFacet(linkedTo)
-		if !ok {
+		if target, ok = i.GetKeyFacet(linkedTo); !ok {
 			continue
 		}
 
 		keyValue, ok := types.AsKeyFilterValue(itemField)
 		if !ok {
-			log.Printf("Not a valid key filter", id)
+			log.Printf("Not a valid key filter for field %d", id)
 			continue
 		}
 
 		maybeMerger.Add(func() *types.ItemList {
-			return targetField.MatchFilterValue(keyValue)
+			return target.MatchFilterValue(keyValue)
 		})
 
 	}
 
 	maybeMerger.Wait()
-	return &result, nil
-
+	if mergedProperties > 1 {
+		return &result, nil
+	}
+	return &types.ItemList{}, nil
 }
 
 func (i *Index) Related(id uint) (*types.ItemList, error) {

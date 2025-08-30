@@ -8,20 +8,20 @@ type BaseField struct {
 	Type             string  `json:"valueType,omitempty"`
 	LinkedId         uint    `json:"linkedId,omitempty"`
 	ValueSorting     uint    `json:"sorting,omitempty"`
-	Searchable       bool    `json:"searchable,omitempty"`
-	HideFacet        bool    `json:"hide,omitempty"`
-	CategoryLevel    int     `json:"categoryLevel,omitempty"`
 	GroupId          uint    `json:"groupId,omitempty"`
+	CategoryLevel    int     `json:"categoryLevel,omitempty"`
+	HideFacet        bool    `json:"hide,omitempty"`
 	KeySpecification bool    `json:"isKey,omitempty"`
 	InternalOnly     bool    `json:"internal,omitempty"`
+	Searchable       bool    `json:"searchable,omitempty"`
 	// IgnoreCategoryIfSearched bool    `json:"-"`
 	// IgnoreIfInSearch         bool    `json:"-"`
 }
 
 type FacetRequest struct {
 	*Filters
-	Stock        []string `json:"stock" schema:"stock"`
 	Query        string   `json:"query" schema:"query"`
+	Stock        []string `json:"stock" schema:"stock"`
 	IgnoreFacets []uint   `json:"skipFacets" schema:"sf"`
 }
 
@@ -111,7 +111,7 @@ type Item interface {
 	GetId() uint
 	GetSku() string
 	GetStock() map[string]string
-	GetStockLevel() string
+	HasStock() bool
 	GetFields() map[uint]interface{}
 	IsDeleted() bool
 	IsSoftDeleted() bool
@@ -131,12 +131,21 @@ type Item interface {
 	GetBasePopularity() float64
 	UpdateBasePopularity(rules ItemPopularityRules)
 	GetItem() interface{}
+	CanHaveEmbeddings() bool
+	GetEmbeddingsText() (string, error)
 }
 
 const FacetKeyType = 1
 const FacetNumberType = 2
 const FacetIntegerType = 3
 const FacetTreeType = 4
+
+type Embeddings []float32
+
+type EmbeddingsEngine interface {
+	GenerateEmbeddings(text string) (Embeddings, error)
+	GenerateEmbeddingsFromItem(item Item, fields map[uint]Facet) (Embeddings, error)
+}
 
 type Facet interface {
 	GetType() uint
@@ -147,6 +156,8 @@ type Facet interface {
 	RemoveValueLink(value interface{}, id uint)
 	UpdateBaseField(data *BaseField)
 	GetValues() []interface{}
+	IsExcludedFromFacets() bool
+	IsCategory() bool
 }
 
 type FieldChangeAction = string

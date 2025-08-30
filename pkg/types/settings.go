@@ -9,6 +9,8 @@ import (
 type Settings struct {
 	mu               sync.RWMutex
 	SearchMergeLimit int                  `json:"searchMergeLimit"`
+	SplitWords       []string             `json:"splitWords"`
+	WordMappings     map[string]string    `json:"wordMappings"`
 	SuggestFacets    []uint               `json:"suggestFacets"`
 	ProductTypeId    uint                 `json:"productTypeId"`
 	FieldsToIndex    []uint               `json:"fieldsToIndex"`
@@ -159,6 +161,11 @@ var CurrentSettings = &Settings{
 	FacetGroups:      []FacetGroup{},
 	ProductTypeId:    31158,
 	SearchMergeLimit: 10,
+	SplitWords:       []string{"X3D"},
+	WordMappings: map[string]string{
+		"vilfa":   "wilfa",
+		"earpods": "airpods",
+	},
 	FieldsToIndex: []uint{
 		2,
 		31158,

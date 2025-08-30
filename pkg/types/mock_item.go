@@ -24,8 +24,8 @@ func (m *MockItem) GetDiscount() int {
 	return 0
 }
 
-func (m *MockItem) GetStockLevel() string {
-	return ""
+func (m *MockItem) HasStock() bool {
+	return true
 }
 
 func (m *MockItem) GetBasePopularity() float64 {
@@ -99,6 +99,13 @@ func (m *MockItem) ToString() string {
 
 func (m *MockItem) ToStringList() []string {
 	return []string{m.Title}
+}
+
+func (m *MockItem) CanHaveEmbeddings() bool {
+	return true
+}
+func (m *MockItem) GetEmbeddingsText() (string, error) {
+	return m.Title, nil
 }
 
 func (m *MockItem) GetBaseItem() BaseItem {

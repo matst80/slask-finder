@@ -6,8 +6,8 @@ type StringFilterValue = []string
 
 type StringFilter struct {
 	Id    uint              `json:"id"`
-	Not   bool              `json:"exclude"`
 	Value StringFilterValue `json:"value"`
+	Not   bool              `json:"exclude"`
 }
 
 type RangeFilter struct {

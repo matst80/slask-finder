@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"net/http"
 	httpprof "net/http/pprof"
@@ -9,8 +10,10 @@ import (
 	"runtime/pprof"
 	"sync"
 
+	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/types"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"golang.org/x/oauth2"
@@ -33,19 +36,25 @@ var listenAddress = ":8080"
 var debugAddress = ":8081"
 var clientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 var callbackUrl = os.Getenv("CALLBACK_URL")
+var contentFile = os.Getenv("CONTENT_FILE")
+var topicPrefix = os.Getenv("TOPIC_PREFIX")
 
 var rabbitConfig = ffSync.RabbitConfig{
 	//ItemChangedTopic: "item_changed",
-	FieldChangeTopic:   "field_change",
-	ItemsUpsertedTopic: "items_added",
-	ItemDeletedTopic:   "item_deleted",
-	PriceLoweredTopic:  "price_lowered",
+	FieldChangeTopic:   fmt.Sprintf("%sfield_change", topicPrefix),
+	ItemsUpsertedTopic: fmt.Sprintf("%sitems_added", topicPrefix),
+	ItemDeletedTopic:   fmt.Sprintf("%sitem_deleted", topicPrefix),
+	PriceLoweredTopic:  fmt.Sprintf("%sprice_lowered", topicPrefix),
 	VHost:              os.Getenv("RABBIT_HOST"),
 	Url:                rabbitUrl,
 }
 var token = search.Tokenizer{MaxTokens: 128}
 
-var idx = index.NewIndex()
+// Ollama embeddings engine for semantic search capability
+var embeddingsEngine types.EmbeddingsEngine = embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints("elkjop-ecom", "http://10.10.11.135:11434/api/embeddings")
+
+// Initialize index with embeddings engine
+var idx = index.NewIndex(embeddingsEngine)
 var db = storage.NewPersistance()
 
 // var embeddingsIndex = embeddings.NewEmbeddingsIndex()
@@ -71,8 +80,14 @@ func init() {
 		log.Fatalf("No redis url provided")
 	}
 
+	clientId := os.Getenv("GOOGLE_CLIENT_ID")
+	if clientId == "" {
+		log.Printf("GOOGLE_CLIENT_ID not provided")
+		clientId = "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com"
+	}
+
 	authConfig := &oauth2.Config{
-		ClientID:     "1017700364201-hiv4l9c41osmqfkv17ju7gg08e570lfr.apps.googleusercontent.com",
+		ClientID:     clientId,
 		ClientSecret: clientSecret,
 		RedirectURL:  callbackUrl,
 		Scopes: []string{
@@ -166,9 +181,10 @@ func LoadIndex(wg *sync.WaitGroup) {
 				}
 				srv.Sorting.InitializeWithIndex(idx)
 				srv.Sorting.StartListeningForChanges()
-
-				wg.Add(1)
-				go populateContentFromCsv(contentIdx, "data/content.csv", wg)
+				if contentFile != "" {
+					wg.Add(1)
+					go populateContentFromCsv(contentIdx, "data/content.csv", wg)
+				}
 
 				// go func() {
 				// 	idx.Lock()
@@ -183,7 +199,6 @@ func LoadIndex(wg *sync.WaitGroup) {
 
 		done = true
 	}()
-
 }
 
 func main() {

@@ -19,10 +19,7 @@ func (r *OutOfStockRule) GetValue(item Item) float64 {
 	if stores > 0 {
 		return float64(stores) * r.NoStoreMultiplier
 	}
-	level := item.GetStockLevel() // GetPropertyValue(item, "StockLevel")
-	hasStock := false
-
-	hasStock = level != "" && level != "0"
+	hasStock := item.HasStock() // GetPropertyValue(item, "StockLevel")
 
 	if hasStock {
 		return 0

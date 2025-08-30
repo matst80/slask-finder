@@ -29,18 +29,16 @@ type MarginPercent float64
 
 type ItemProp struct {
 	Url string `json:"url"`
-	//Tree            []string      `json:"tree"`
+
 	Disclaimer       string        `json:"disclaimer,omitempty"`
 	ReleaseDate      string        `json:"releaseDate,omitempty"`
 	SaleStatus       string        `json:"saleStatus"`
 	OnlineSaleStatus string        `json:"onlineSaleStatus"`
-	MarginPercent    MarginPercent `json:"mp,omitempty"`
 	PresaleDate      string        `json:"presaleDate,omitempty"`
 	Restock          string        `json:"restock,omitempty"`
 	AdvertisingText  string        `json:"advertisingText,omitempty"`
 	Img              string        `json:"img,omitempty"`
 	BadgeUrl         string        `json:"badgeUrl,omitempty"`
-	EnergyRating     *EnergyRating `json:"energyRating,omitempty"`
 	BulletPoints     string        `json:"bp,omitempty"`
 	LastUpdate       int64         `json:"lastUpdate,omitempty"`
 	Created          int64         `json:"created,omitempty"`
@@ -48,9 +46,11 @@ type ItemProp struct {
 	Description      string        `json:"description,omitempty"`
 	BuyableInStore   bool          `json:"buyableInStore"`
 	BoxSize          string        `json:"boxSize,omitempty"`
+	ArticleType      string        `json:"articleType,omitempty"`
 	CheapestBItem    *OutletItem   `json:"bItem,omitempty"`
 	AItem            *OutletItem   `json:"aItem,omitempty"`
-	ArticleType      string        `json:"articleType,omitempty"`
+	EnergyRating     *EnergyRating `json:"energyRating,omitempty"`
+	MarginPercent    MarginPercent `json:"mp,omitempty"`
 }
 
 var AllowConditionalData = false
@@ -73,12 +73,12 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 
 type BaseItem struct {
 	ItemProp
-	baseScore  float64
-	StockLevel string            `json:"stockLevel,omitempty"`
-	Stock      map[string]string `json:"stock"`
-	Id         uint              `json:"id"`
-	Sku        string            `json:"sku"`
-	Title      string            `json:"title"`
+	//StockLevel string            `json:"stockLevel,omitempty"`
+	Stock     map[string]string `json:"stock"`
+	Sku       string            `json:"sku"`
+	Title     string            `json:"title"`
+	Id        uint              `json:"id"`
+	baseScore float64
 }
 
 type DataItem struct {
@@ -115,8 +115,9 @@ func (item *DataItem) IsDeleted() bool {
 	return item.SaleStatus == "MDD"
 }
 
-func (item *DataItem) GetStockLevel() string {
-	return item.StockLevel
+func (item *DataItem) HasStock() bool {
+	v, ok := item.GetFieldValue(3)
+	return ok && v != nil
 }
 
 func (item *DataItem) GetPropertyValue(name string) interface{} {
@@ -129,8 +130,8 @@ func (item *DataItem) GetPropertyValue(name string) interface{} {
 		return item.BadgeUrl
 	case "Img":
 		return item.Img
-	case "StockLevel":
-		return item.StockLevel
+	//case "StockLevel":
+	//	return item.StockLevel
 	case "Stock":
 		return item.Stock
 	case "Buyable":
@@ -230,6 +231,15 @@ func (item *DataItem) GetRating() (int, int) {
 		return 0, 0
 	}
 	return getNumberValue[int](average), getNumberValue[int](grades)
+}
+
+func (item *DataItem) CanHaveEmbeddings() bool {
+	// log.Printf("Checking if item %s can have embeddings", item.Sku)
+	// log.Printf("Item fields: %v, %v", item.Fields[10], item.Fields[9])
+	return item.Fields[10] != "Outlet" && item.Fields[9] == "Elgiganten"
+}
+func (item *DataItem) GetEmbeddingsText() (string, error) {
+	return item.Title + "\n" + item.BulletPoints, nil
 }
 
 func (item *DataItem) GetLastUpdated() int64 {
@@ -376,7 +386,7 @@ func (item *DataItem) ToStringList() []string {
 	fieldValues := make([]string, 0)
 	fieldValues = append(fieldValues, item.Title)
 	fieldValues = append(fieldValues, item.Sku)
-
+	fieldValues = append(fieldValues, item.BulletPoints)
 	for _, id := range types.CurrentSettings.FieldsToIndex {
 		fieldValues = append(fieldValues, getStringValues(item.GetFieldValue(id))...)
 	}
