@@ -189,3 +189,64 @@ func (t *Trie) findMatches(node *Node, prefix string) []Match {
 	}
 	return matches
 }
+
+// PredictSequence completes the first word from the given prefix using the
+// previous token context, then greedily predicts subsequent words by following
+// the highest-count Markov transitions until no transition exists, a loop is
+// detected, or maxWords is reached. Returns the sequence as display words.
+func (t *Trie) PredictSequence(prev Token, prefix Token, maxWords int) []string {
+	if maxWords <= 0 {
+		maxWords = 1
+	}
+	matches := t.FindMatchesWithPrev(prefix, prev)
+	if len(matches) == 0 {
+		return []string{}
+	}
+	seqTokens := make([]Token, 0, maxWords)
+	firstToken := Token(matches[0].Prefix)
+	seqTokens = append(seqTokens, firstToken)
+
+	visited := map[Token]struct{}{firstToken: {}}
+	current := firstToken
+	for len(seqTokens) < maxWords {
+		nextMap, ok := t.transitions[current]
+		if !ok || len(nextMap) == 0 {
+			break
+		}
+		// pick highest-count next; tiebreak by Items popularity if both are words in trie
+		var best Token
+		bestCount := -1
+		bestPop := -1
+		for cand, cnt := range nextMap {
+			if _, seen := visited[cand]; seen {
+				continue // avoid loops
+			}
+			pop := 0
+			if n := t.Search(string(cand)); n != nil && n.IsLeaf && n.Items != nil {
+				pop = len(n.Items)
+			}
+			if cnt > bestCount || (cnt == bestCount && pop > bestPop) {
+				best = cand
+				bestCount = cnt
+				bestPop = pop
+			}
+		}
+		if bestCount <= 0 {
+			break
+		}
+		seqTokens = append(seqTokens, best)
+		visited[best] = struct{}{}
+		current = best
+	}
+
+	// map tokens back to display words (raw), fallback to normalized if not found
+	result := make([]string, 0, len(seqTokens))
+	for _, tok := range seqTokens {
+		if n := t.Search(string(tok)); n != nil && n.IsLeaf && len(n.Word) > 0 {
+			result = append(result, n.Word)
+		} else {
+			result = append(result, string(tok))
+		}
+	}
+	return result
+}

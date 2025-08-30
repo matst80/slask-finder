@@ -8,6 +8,9 @@ import (
 	"maps"
 	"net/http"
 	"slices"
+	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/facet"
@@ -16,10 +19,6 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-
-	"strconv"
-	"strings"
-	"sync"
 )
 
 type searchResult struct {
@@ -784,7 +783,7 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId 
 // 	defaultHeaders(w, r, true, "120")
 // 	w.WriteHeader(http.StatusOK)
 // 	var err error
-// 	idx := 0
+//  idx := 0
 // 	for id := range results.SortIndex.SortMap(*toMatch) {
 // 		item, ok := ws.Index.Items[id]
 // 		if ok {
@@ -969,6 +968,41 @@ func (ws *WebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessi
 	return nil
 }
 
+// PredictSequenceRequest represents query params for sequence prediction
+// Now uses `q` to infer prev and prefix automatically. Example:
+// /predict-sequence?q=apple ip&max=3
+func (ws *WebServer) PredictSequence(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	q := r.URL.Query().Get("q")
+	q = strings.TrimSpace(q)
+	if q == "" {
+		defaultHeaders(w, r, false, "60")
+		w.WriteHeader(http.StatusBadRequest)
+		return enc.Encode([]string{})
+	}
+	maxStr := r.URL.Query().Get("max")
+	max := 5
+	if maxStr != "" {
+		if v, err := strconv.Atoi(maxStr); err == nil && v > 0 {
+			max = v
+		}
+	}
+	words := strings.Fields(q)
+	var prevTok search.Token
+	var prefixTok search.Token
+	if len(words) == 1 {
+		prefixTok = search.NormalizeWord(words[0])
+	} else {
+		prevTok = search.NormalizeWord(words[len(words)-2])
+		prefixTok = search.NormalizeWord(words[len(words)-1])
+	}
+
+	seq := ws.Index.Search.Trie.PredictSequence(prevTok, prefixTok, max)
+
+	defaultHeaders(w, r, false, "60")
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(seq)
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -1003,6 +1037,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("GET /by-sku/{sku}", JsonHandler(ws.Tracking, ws.GetItemBySku))
 	srv.HandleFunc("POST /get", JsonHandler(ws.Tracking, ws.GetItems))
 	srv.HandleFunc("/values/{id}", JsonHandler(ws.Tracking, ws.GetValues))
+	srv.HandleFunc("/predict-sequence", JsonHandler(ws.Tracking, ws.PredictSequence))
 
 	return srv
 }
