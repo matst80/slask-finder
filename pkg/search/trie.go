@@ -250,3 +250,99 @@ func (t *Trie) PredictSequence(prev Token, prefix Token, maxWords int) []string 
 	}
 	return result
 }
+
+type PredictionNode struct {
+	Word     string           `json:"word"`
+	Count    int              `json:"count,omitempty"`
+	Children []PredictionNode `json:"children,omitempty"`
+}
+
+// PredictTree builds a tree of depth maxDepth using top-k Markov transitions.
+// The first level is chosen from trie matches by FindMatchesWithPrev on the given prefix.
+func (t *Trie) PredictTree(prev Token, prefix Token, maxDepth int, k int) []PredictionNode {
+	if maxDepth <= 0 {
+		return nil
+	}
+	if k <= 0 {
+		k = 3
+	}
+	matches := t.FindMatchesWithPrev(prefix, prev)
+	if len(matches) == 0 {
+		return nil
+	}
+	limit := k
+	if len(matches) < limit {
+		limit = len(matches)
+	}
+	nodes := make([]PredictionNode, 0, limit)
+	for i := 0; i < limit; i++ {
+		m := matches[i]
+		tok := Token(m.Prefix)
+		count := 0
+		if tr, ok := t.transitions[prev]; ok {
+			count = tr[tok]
+		}
+		node := PredictionNode{Word: m.Word, Count: count}
+		node.Children = t.predictChildren(tok, maxDepth-1, k, map[Token]struct{}{tok: {}})
+		nodes = append(nodes, node)
+	}
+	return nodes
+}
+
+func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited map[Token]struct{}) []PredictionNode {
+	if remainingDepth <= 0 {
+		return nil
+	}
+	nextMap, ok := t.transitions[current]
+	if !ok || len(nextMap) == 0 {
+		return nil
+	}
+	// collect candidates
+	type cand struct {
+		tok Token
+		cnt int
+		pop int
+	}
+	cands := make([]cand, 0, len(nextMap))
+	for tok, cnt := range nextMap {
+		if _, seen := visited[tok]; seen {
+			continue
+		}
+		pop := 0
+		if n := t.Search(string(tok)); n != nil && n.IsLeaf && n.Items != nil {
+			pop = len(n.Items)
+		}
+		cands = append(cands, cand{tok: tok, cnt: cnt, pop: pop})
+	}
+	if len(cands) == 0 {
+		return nil
+	}
+	sort.SliceStable(cands, func(i, j int) bool {
+		if cands[i].cnt != cands[j].cnt {
+			return cands[i].cnt > cands[j].cnt
+		}
+		return cands[i].pop > cands[j].pop
+	})
+	limit := k
+	if len(cands) < limit {
+		limit = len(cands)
+	}
+	res := make([]PredictionNode, 0, limit)
+	for i := 0; i < limit; i++ {
+		c := cands[i]
+		word := string(c.tok)
+		if n := t.Search(word); n != nil && n.IsLeaf && len(n.Word) > 0 {
+			word = n.Word
+		}
+		node := PredictionNode{Word: word, Count: c.cnt}
+		// extend visited path
+		path := make(map[Token]struct{}, len(visited)+1)
+		for k := range visited {
+			path[k] = struct{}{}
+		}
+		path[c.tok] = struct{}{}
+		node.Children = t.predictChildren(c.tok, remainingDepth-1, k, path)
+		res = append(res, node)
+	}
+	return res
+}

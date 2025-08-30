@@ -1003,6 +1003,41 @@ func (ws *WebServer) PredictSequence(w http.ResponseWriter, r *http.Request, ses
 	return enc.Encode(seq)
 }
 
+// PredictTree endpoint: /predict-tree?q=apple ip&depth=3&k=3
+func (ws *WebServer) PredictTree(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if q == "" {
+		defaultHeaders(w, r, false, "60")
+		w.WriteHeader(http.StatusBadRequest)
+		return enc.Encode([]any{})
+	}
+	depth := 3
+	if ds := r.URL.Query().Get("depth"); ds != "" {
+		if v, err := strconv.Atoi(ds); err == nil && v > 0 {
+			depth = v
+		}
+	}
+	k := 3
+	if ks := r.URL.Query().Get("k"); ks != "" {
+		if v, err := strconv.Atoi(ks); err == nil && v > 0 {
+			k = v
+		}
+	}
+	parts := strings.Fields(q)
+	var prevTok search.Token
+	var prefixTok search.Token
+	if len(parts) == 1 {
+		prefixTok = search.NormalizeWord(parts[0])
+	} else {
+		prevTok = search.NormalizeWord(parts[len(parts)-2])
+		prefixTok = search.NormalizeWord(parts[len(parts)-1])
+	}
+	tree := ws.Index.Search.Trie.PredictTree(prevTok, prefixTok, depth, k)
+	defaultHeaders(w, r, false, "60")
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(tree)
+}
+
 func (ws *WebServer) ClientHandler() *http.ServeMux {
 
 	srv := http.NewServeMux()
@@ -1038,6 +1073,7 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("POST /get", JsonHandler(ws.Tracking, ws.GetItems))
 	srv.HandleFunc("/values/{id}", JsonHandler(ws.Tracking, ws.GetValues))
 	srv.HandleFunc("/predict-sequence", JsonHandler(ws.Tracking, ws.PredictSequence))
+	srv.HandleFunc("/predict-tree", JsonHandler(ws.Tracking, ws.PredictTree))
 
 	return srv
 }
