@@ -73,3 +73,44 @@ func TestTrie_PredictSequence(t *testing.T) {
 		t.Fatalf("expected only 'hello' when no transitions from 'world', got %v", seq2)
 	}
 }
+
+func TestTrie_PredictSequence_WithAttention(t *testing.T) {
+	trie := NewTrie()
+	// Vocabulary
+	trie.Insert(Token("iphone"), "iPhone", 1)
+	trie.Insert(Token("ipad"), "iPad", 2)
+	trie.Insert(Token("pro"), "Pro", 3)
+	trie.Insert(Token("case"), "case", 4)
+	trie.Insert(Token("charger"), "charger", 5)
+
+	// Transitions
+	// Strongly favor: apple -> iphone; iphone -> pro
+	trie.AddTransition(Token("apple"), Token("iphone"))
+	trie.AddTransition(Token("apple"), Token("iphone"))
+	trie.AddTransition(Token("apple"), Token("iphone"))
+	trie.AddTransition(Token("iphone"), Token("pro"))
+	trie.AddTransition(Token("iphone"), Token("pro"))
+
+	// Distractor: after pro, local bigram prefers accessories (case, charger)
+	trie.AddTransition(Token("pro"), Token("case"))
+	trie.AddTransition(Token("pro"), Token("case"))
+	trie.AddTransition(Token("pro"), Token("charger"))
+
+	// Competing path if attention is weak: apple -> ipad (1) then accessories
+	trie.AddTransition(Token("apple"), Token("ipad"))
+	trie.AddTransition(Token("ipad"), Token("case"))
+	trie.AddTransition(Token("ipad"), Token("charger"))
+
+	// Predict with prefix "ip" and prev "apple". With attention to first word,
+	// sequence should start with iPhone and keep coherent next as Pro before accessories.
+	seq := trie.PredictSequence(Token("apple"), Token("ip"), 3)
+	if len(seq) < 2 {
+		t.Fatalf("expected at least 2 tokens, got %v", seq)
+	}
+	if seq[0] != "iPhone" {
+		t.Fatalf("expected first token iPhone, got %v", seq)
+	}
+	if seq[1] != "Pro" {
+		t.Fatalf("expected second token Pro influenced by attention, got %v", seq)
+	}
+}

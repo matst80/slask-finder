@@ -1,6 +1,7 @@
 package search
 
 import (
+	"math"
 	"sort"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -190,10 +191,43 @@ func (t *Trie) findMatches(node *Node, prefix string) []Match {
 	return matches
 }
 
+// Tunable weights for attention-based scoring in sequence prediction
+const (
+	attnWLocal = 0.6  // weight for local continuity P(next|current)
+	attnWFirst = 0.35 // weight for first-word attention P(next|first)
+	attnWPop   = 0.05 // small weight for popularity prior
+	attnDecay  = 0.85 // decay per step for first-word attention
+	attnAlpha  = 0.5  // add-one style smoothing (alpha)
+	beamWidth  = 5    // beam width for PredictSequence
+	maxBranch  = 20   // cap next candidates per expansion to avoid blowup
+)
+
+func (t *Trie) probNext(prev, next Token) float64 {
+	// Smoothed probability (alpha-smoothing)
+	if prev == "" || next == "" {
+		return 1e-12
+	}
+	nextMap, ok := t.transitions[prev]
+	if !ok || len(nextMap) == 0 {
+		return 1e-12
+	}
+	V := float64(len(nextMap))
+	count := float64(nextMap[next])
+	tot := float64(t.totals[prev])
+	return (count + attnAlpha) / (tot + attnAlpha*V)
+}
+
+func (t *Trie) popPrior(next Token) float64 {
+	// Popularity prior via items count on token
+	if n := t.Search(string(next)); n != nil && n.IsLeaf {
+		return float64(len(n.Items)) + 1.0 // +1 to avoid log(0)
+	}
+	return 1.0
+}
+
 // PredictSequence completes the first word from the given prefix using the
-// previous token context, then greedily predicts subsequent words by following
-// the highest-count Markov transitions until no transition exists, a loop is
-// detected, or maxWords is reached. Returns the sequence as display words.
+// previous token context, then predicts subsequent words with a beam search
+// that mixes local continuity and first-word attention, plus a tiny popularity prior.
 func (t *Trie) PredictSequence(prev Token, prefix Token, maxWords int) []string {
 	if maxWords <= 0 {
 		maxWords = 1
@@ -202,46 +236,82 @@ func (t *Trie) PredictSequence(prev Token, prefix Token, maxWords int) []string 
 	if len(matches) == 0 {
 		return []string{}
 	}
-	seqTokens := make([]Token, 0, maxWords)
-	firstToken := Token(matches[0].Prefix)
-	seqTokens = append(seqTokens, firstToken)
+	first := Token(matches[0].Prefix)
 
-	visited := map[Token]struct{}{firstToken: {}}
-	current := firstToken
-	for len(seqTokens) < maxWords {
-		nextMap, ok := t.transitions[current]
-		if !ok || len(nextMap) == 0 {
-			break
-		}
-		// pick highest-count next; tiebreak by Items popularity if both are words in trie
-		var best Token
-		bestCount := -1
-		bestPop := -1
-		for cand, cnt := range nextMap {
-			if _, seen := visited[cand]; seen {
-				continue // avoid loops
-			}
-			pop := 0
-			if n := t.Search(string(cand)); n != nil && n.IsLeaf && n.Items != nil {
-				pop = len(n.Items)
-			}
-			if cnt > bestCount || (cnt == bestCount && pop > bestPop) {
-				best = cand
-				bestCount = cnt
-				bestPop = pop
-			}
-		}
-		if bestCount <= 0 {
-			break
-		}
-		seqTokens = append(seqTokens, best)
-		visited[best] = struct{}{}
-		current = best
+	type state struct {
+		last    Token
+		first   Token
+		path    []Token
+		score   float64
+		visited map[Token]struct{}
 	}
 
+	beam := make([]state, 1)
+	beam[0] = state{
+		last:    first,
+		first:   first,
+		path:    []Token{first},
+		score:   0,
+		visited: map[Token]struct{}{first: {}},
+	}
+
+	step := 1
+	for len(beam) > 0 && len(beam[0].path) < maxWords {
+		candidates := make([]state, 0, beamWidth*5)
+		for _, s := range beam {
+			nextMap, ok := t.transitions[s.last]
+			if !ok || len(nextMap) == 0 {
+				continue
+			}
+			// collect and sort next options by local count to prune
+			type opt struct {
+				tok Token
+				cnt int
+			}
+			opts := make([]opt, 0, len(nextMap))
+			for tok, cnt := range nextMap {
+				if _, seen := s.visited[tok]; !seen {
+					opts = append(opts, opt{tok, cnt})
+				}
+			}
+			sort.SliceStable(opts, func(i, j int) bool { return opts[i].cnt > opts[j].cnt })
+			limit := len(opts)
+			if limit > maxBranch {
+				limit = maxBranch
+			}
+			for i := 0; i < limit; i++ {
+				nextTok := opts[i].tok
+				pLocal := t.probNext(s.last, nextTok)
+				pFirst := t.probNext(s.first, nextTok)
+				pPop := t.popPrior(nextTok)
+				// mix in log-space
+				stepWeight := math.Pow(attnDecay, float64(step-1))
+				sc := s.score + attnWLocal*math.Log(pLocal) + attnWFirst*stepWeight*math.Log(pFirst) + attnWPop*math.Log(pPop)
+				// new state
+				visited := make(map[Token]struct{}, len(s.visited)+1)
+				for k := range s.visited {
+					visited[k] = struct{}{}
+				}
+				visited[nextTok] = struct{}{}
+				path := append(append([]Token{}, s.path...), nextTok)
+				candidates = append(candidates, state{last: nextTok, first: s.first, path: path, score: sc, visited: visited})
+			}
+		}
+		if len(candidates) == 0 {
+			break
+		}
+		sort.SliceStable(candidates, func(i, j int) bool { return candidates[i].score > candidates[j].score })
+		if len(candidates) > beamWidth {
+			candidates = candidates[:beamWidth]
+		}
+		beam = candidates
+		step++
+	}
+
+	best := beam[0]
 	// map tokens back to display words (raw), fallback to normalized if not found
-	result := make([]string, 0, len(seqTokens))
-	for _, tok := range seqTokens {
+	result := make([]string, 0, len(best.path))
+	for _, tok := range best.path {
 		if n := t.Search(string(tok)); n != nil && n.IsLeaf && len(n.Word) > 0 {
 			result = append(result, n.Word)
 		} else {
