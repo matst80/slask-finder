@@ -114,3 +114,40 @@ func TestTrie_PredictSequence_WithAttention(t *testing.T) {
 		t.Fatalf("expected second token Pro influenced by attention, got %v", seq)
 	}
 }
+
+func TestTrie_PredictTree_Attention(t *testing.T) {
+	trie := NewTrie()
+	// Vocabulary
+	trie.Insert(Token("iphone"), "iPhone", 1)
+	trie.Insert(Token("ipad"), "iPad", 2)
+	trie.Insert(Token("pro"), "Pro", 3)
+	trie.Insert(Token("air"), "Air", 4)
+	trie.Insert(Token("case"), "case", 5)
+	trie.Insert(Token("charger"), "charger", 6)
+
+	// Transitions
+	trie.AddTransition(Token("apple"), Token("iphone"))
+	trie.AddTransition(Token("apple"), Token("iphone"))
+	trie.AddTransition(Token("apple"), Token("iphone"))
+	trie.AddTransition(Token("apple"), Token("ipad"))
+	trie.AddTransition(Token("iphone"), Token("pro"))
+	trie.AddTransition(Token("iphone"), Token("air"))
+	trie.AddTransition(Token("pro"), Token("case"))
+	trie.AddTransition(Token("pro"), Token("charger"))
+	trie.AddTransition(Token("ipad"), Token("case"))
+
+	tree := trie.PredictTree(Token("apple"), Token("ip"), 2, 3)
+	if len(tree) == 0 {
+		t.Fatalf("expected non-empty tree")
+	}
+	if tree[0].Word != "iPhone" { // first level should prefer iPhone over iPad due to transitions
+		t.Fatalf("expected first node iPhone, got %v", tree[0].Word)
+	}
+	if len(tree[0].Children) == 0 {
+		t.Fatalf("expected children under first node")
+	}
+	// children should prioritize Pro then Air (attention + local), not accessories directly
+	if tree[0].Children[0].Word != "Pro" && tree[0].Children[0].Word != "Air" {
+		t.Fatalf("expected Pro/Air as first child, got %v", tree[0].Children[0].Word)
+	}
+}

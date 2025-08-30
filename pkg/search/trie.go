@@ -327,8 +327,9 @@ type PredictionNode struct {
 	Children []PredictionNode `json:"children,omitempty"`
 }
 
-// PredictTree builds a tree of depth maxDepth using top-k Markov transitions.
-// The first level is chosen from trie matches by FindMatchesWithPrev on the given prefix.
+// PredictTree builds a tree of depth maxDepth using top-k Markov transitions with
+// first-word attention. The first level is chosen from trie matches by FindMatchesWithPrev
+// on the given prefix, then children are ranked by mixed attention score.
 func (t *Trie) PredictTree(prev Token, prefix Token, maxDepth int, k int) []PredictionNode {
 	if maxDepth <= 0 {
 		return nil
@@ -353,13 +354,21 @@ func (t *Trie) PredictTree(prev Token, prefix Token, maxDepth int, k int) []Pred
 			count = tr[tok]
 		}
 		node := PredictionNode{Word: m.Word, Count: count}
-		node.Children = t.predictChildren(tok, maxDepth-1, k, map[Token]struct{}{tok: {}})
+		node.Children = t.predictChildren(tok, tok, maxDepth-1, k, map[Token]struct{}{tok: {}}, 2)
 		nodes = append(nodes, node)
 	}
 	return nodes
 }
 
-func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited map[Token]struct{}) []PredictionNode {
+func (t *Trie) attnScore(prev, first, next Token, step int) float64 {
+	pLocal := t.probNext(prev, next)
+	pFirst := t.probNext(first, next)
+	pPop := t.popPrior(next)
+	stepWeight := math.Pow(attnDecay, float64(step-1))
+	return attnWLocal*math.Log(pLocal) + attnWFirst*stepWeight*math.Log(pFirst) + attnWPop*math.Log(pPop)
+}
+
+func (t *Trie) predictChildren(current Token, first Token, remainingDepth int, k int, visited map[Token]struct{}, step int) []PredictionNode {
 	if remainingDepth <= 0 {
 		return nil
 	}
@@ -367,31 +376,28 @@ func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited
 	if !ok || len(nextMap) == 0 {
 		return nil
 	}
-	// collect candidates
+	// collect candidates with attention score
 	type cand struct {
-		tok Token
-		cnt int
-		pop int
+		tok   Token
+		cnt   int
+		score float64
 	}
 	cands := make([]cand, 0, len(nextMap))
 	for tok, cnt := range nextMap {
 		if _, seen := visited[tok]; seen {
 			continue
 		}
-		pop := 0
-		if n := t.Search(string(tok)); n != nil && n.IsLeaf && n.Items != nil {
-			pop = len(n.Items)
-		}
-		cands = append(cands, cand{tok: tok, cnt: cnt, pop: pop})
+		s := t.attnScore(current, first, tok, step)
+		cands = append(cands, cand{tok: tok, cnt: cnt, score: s})
 	}
 	if len(cands) == 0 {
 		return nil
 	}
 	sort.SliceStable(cands, func(i, j int) bool {
-		if cands[i].cnt != cands[j].cnt {
-			return cands[i].cnt > cands[j].cnt
+		if cands[i].score != cands[j].score {
+			return cands[i].score > cands[j].score
 		}
-		return cands[i].pop > cands[j].pop
+		return cands[i].cnt > cands[j].cnt
 	})
 	limit := k
 	if len(cands) < limit {
@@ -411,7 +417,7 @@ func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited
 			path[k] = struct{}{}
 		}
 		path[c.tok] = struct{}{}
-		node.Children = t.predictChildren(c.tok, remainingDepth-1, k, path)
+		node.Children = t.predictChildren(c.tok, first, remainingDepth-1, k, path, step+1)
 		res = append(res, node)
 	}
 	return res
