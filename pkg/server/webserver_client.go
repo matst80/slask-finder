@@ -256,7 +256,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	types.Merge(results, *docResult)
 	//results = *docResult
 
-	go ws.Index.Search.FindTrieMatchesForWord(lastWord, wordMatchesChan)
+	// Use previous word to rank suggestions via Markov chain if available
+	prevWord := ""
+	if len(other) > 0 {
+		prevWord = other[len(other)-1]
+	}
+	go ws.Index.Search.FindTrieMatchesForContext(prevWord, lastWord, wordMatchesChan)
 
 	defaultHeaders(w, r, false, "360")
 
@@ -384,6 +389,7 @@ func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, sessionId in
 func (ws *WebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	items, _ := ws.Sorting.GetSessionData(uint(sessionId))
 	sortedItems := items.ToSortedLookup()
+
 	//sortedFields := fields.ToSortedLookup()
 	defaultHeaders(w, r, true, "60")
 

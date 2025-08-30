@@ -1,9 +1,17 @@
 package search
 
-import "github.com/matst80/slask-finder/pkg/types"
+import (
+	"sort"
+
+	"github.com/matst80/slask-finder/pkg/types"
+)
 
 type Trie struct {
 	Root *Node
+	// Markov bigram transitions: prev token -> next token -> count
+	transitions map[Token]map[Token]int
+	// Totals per prev token for normalization/backoff if needed
+	totals map[Token]int
 }
 
 type Node struct {
@@ -18,6 +26,8 @@ func NewTrie() *Trie {
 		Root: &Node{
 			Children: make(map[rune]*Node),
 		},
+		transitions: make(map[Token]map[Token]int),
+		totals:      make(map[Token]int),
 	}
 }
 
@@ -40,6 +50,20 @@ func (t *Trie) Insert(word Token, raw string, id uint) {
 	} else {
 		node.Items.AddId(id)
 	}
+}
+
+// AddTransition increments the bigram count from prev -> next.
+func (t *Trie) AddTransition(prev, next Token) {
+	if len(prev) == 0 || len(next) == 0 {
+		return
+	}
+	m, ok := t.transitions[prev]
+	if !ok {
+		m = make(map[Token]int)
+		t.transitions[prev] = m
+	}
+	m[next]++
+	t.totals[prev]++
 }
 
 func (t *Trie) Search(word string) *Node {
@@ -71,6 +95,37 @@ func (t *Trie) FindMatches(prefix Token) []Match {
 		node = node.Children[r]
 	}
 	return t.findMatches(node, string(prefix))
+}
+
+// FindMatchesWithPrev returns matches for the given prefix, ranked by the
+// Markov transition counts from the provided previous token. Falls back to
+// Item frequency when no transition data exists.
+func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
+	matches := t.FindMatches(prefix)
+	if len(matches) <= 1 {
+		return matches
+	}
+	trans, hasTrans := t.transitions[prev]
+	sort.SliceStable(matches, func(i, j int) bool {
+		if hasTrans {
+			ci := trans[Token(matches[i].Prefix)]
+			cj := trans[Token(matches[j].Prefix)]
+			if ci != cj {
+				return ci > cj
+			}
+		}
+		// fallback: prefer more popular tokens (more items)
+		li := 0
+		if matches[i].Items != nil {
+			li = len(*matches[i].Items)
+		}
+		lj := 0
+		if matches[j].Items != nil {
+			lj = len(*matches[j].Items)
+		}
+		return li > lj
+	})
+	return matches
 }
 
 func (t *Trie) findMatches(node *Node, prefix string) []Match {

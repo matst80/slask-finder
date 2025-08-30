@@ -43,9 +43,17 @@ func (i *FreeTextIndex) CreateDocumentUnsafe(id uint, text ...string) {
 	//i.tokenizer.MakeDocument(id, text...)
 
 	for j, property := range text {
+		var prev Token
+		var hasPrev bool
 		i.tokenizer.Tokenize(property, func(token Token, original string, _ int, last bool) bool {
 			if j == 0 {
 				i.Trie.Insert(token, original, id)
+				// Record bigram transitions from the same field that feeds the Trie
+				if hasPrev {
+					i.Trie.AddTransition(prev, token)
+				}
+				prev = token
+				hasPrev = true
 			}
 			if l, ok := i.TokenMap[token]; !ok {
 				i.TokenMap[token] = &types.ItemList{id: struct{}{}}
@@ -64,6 +72,22 @@ func (a *FreeTextIndex) FindTrieMatchesForWord(word string, resultChan chan<- []
 		return
 	}
 	resultChan <- a.Trie.FindMatches(token)
+}
+
+// FindTrieMatchesForContext finds matches for the last word and ranks them
+// using the previous token (if provided) via the Trie's Markov chain.
+func (a *FreeTextIndex) FindTrieMatchesForContext(prevWord string, word string, resultChan chan<- []Match) {
+	prefix := NormalizeWord(word)
+	if len(prefix) == 0 {
+		resultChan <- []Match{}
+		return
+	}
+	prev := NormalizeWord(prevWord)
+	if len(prev) == 0 {
+		resultChan <- a.Trie.FindMatches(prefix)
+		return
+	}
+	resultChan <- a.Trie.FindMatchesWithPrev(prefix, prev)
 }
 
 func (i *FreeTextIndex) Lock() {
