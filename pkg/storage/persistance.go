@@ -167,7 +167,6 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 	enc := json.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 	idx.Lock()
-	defer idx.Unlock()
 
 	for _, item := range idx.Items {
 		store, ok := item.(*index.DataItem)
@@ -179,6 +178,7 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 			return err
 		}
 	}
+	idx.Unlock()
 
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
