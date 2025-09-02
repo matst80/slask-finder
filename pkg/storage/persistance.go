@@ -186,8 +186,6 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 	// // Save embeddings in a separate process to not block
 	go func() {
 		idx.EmbeddingsQueue.Pause()
-		idx.EmbeddingsMu.Lock()
-		defer idx.EmbeddingsMu.Unlock()
 
 		defer idx.EmbeddingsQueue.Resume()
 		if err := p.SaveEmbeddings(idx.Embeddings); err != nil {

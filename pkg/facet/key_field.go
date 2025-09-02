@@ -191,8 +191,9 @@ func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
 
 		return true
 	case string:
-
+		// temporary fix for HTML escaped values, not able index properly
 		if strings.Contains(typed, "&lt;") || strings.Contains(typed, "&gt;") {
+			log.Printf("KeyField: AddValueLink: Ignoring HTML escaped value, field id: %d", f.Id)
 			return false
 		}
 		parts := strings.Split(typed, ";")

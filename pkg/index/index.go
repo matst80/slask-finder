@@ -160,20 +160,8 @@ func (i *Index) GetKeyFacet(id uint) (*facet.KeyField, bool) {
 	return nil, false
 }
 
-// func (i *Index) SetBaseSortMap(sortMap map[uint]float64) {
-// 	if i.Search != nil {
-// 		i.Search.BaseSortMap = sortMap
-// 	}
-// }
-
-// func makeCategoryId(level int, value string) uint {
-// 	return facet.HashString(fmt.Sprintf("%d%s", level, value))
-// }
-
 func (i *Index) addItemValues(item types.Item) {
-	if i.IsMaster {
-		return
-	}
+
 	itemId := item.GetId()
 
 	for id, stock := range item.GetStock() {
@@ -190,11 +178,11 @@ func (i *Index) addItemValues(item types.Item) {
 
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
-			if f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil && !f.IsExcludedFromFacets() {
+			if !f.IsExcludedFromFacets() && f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil {
 				if fids, ok := i.ItemFieldIds[itemId]; ok {
-					fids[id] = struct{}{}
+					fids.AddId(id)
 				} else {
-					log.Printf("No field for item id: %d", itemId)
+					log.Printf("No field for item id: %d, id: %d", itemId, id)
 				}
 			}
 
@@ -228,10 +216,11 @@ func (i *Index) UpdateFields(changes []types.FieldChange) {
 			log.Println("not implemented add field")
 		} else {
 			if f, ok := i.Facets[change.Id]; ok {
-				if change.Action == types.UPDATE_FIELD {
+				switch change.Action {
+				case types.UPDATE_FIELD:
 					f.UpdateBaseField(change.BaseField)
 
-				} else if change.Action == types.REMOVE_FIELD {
+				case types.REMOVE_FIELD:
 					delete(i.Facets, change.Id)
 				}
 			}
@@ -335,27 +324,24 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		if isUpdate {
 			i.deleteItemUnsafe(id)
 		}
+
+		// nothing more to do when item is deleted
 		return
 	}
 
 	if isUpdate {
-		// old_price := (*current).GetPrice()
-		// new_price := item.GetPrice()
-		// if new_price < old_price {
-		// 	price_lowered = true
-		// }
+		// should probably be a merge here instead
 		i.removeItemValues(current)
 	}
 
 	i.Items[id] = item
 	if i.IsMaster {
-
+		// Master index does not maintain facets or search index, but extracts embeddings for storage
 		i.EmbeddingsMu.RLock()
 		_, hasEmbeddings := i.Embeddings[id]
 		i.EmbeddingsMu.RUnlock()
 		if !hasEmbeddings && i.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
 			i.EmbeddingsQueue.QueueItem(item)
-
 		}
 
 		return
@@ -363,20 +349,11 @@ func (i *Index) UpsertItemUnsafe(item types.Item) {
 		i.ItemFieldIds[id] = make(types.ItemList, len(item.GetFields()))
 		i.All.AddId(id)
 		i.ItemsBySku[item.GetSku()] = &item
-		if i.Search != nil {
-			i.addItemValues(item)
-		}
-		// Check if this item should have embeddings
+
+		i.addItemValues(item)
 
 		item.UpdateBasePopularity(*types.CurrentSettings.PopularityRules)
 
-		// Note: Embeddings generation is now handled at the batch level in UpsertItems
-		// for more efficient queuing. Individual items processed through UpsertItem
-		// will still use the QueueItem method directly.
-
-		// if i.AutoSuggest != nil {
-		// 	i.AutoSuggest.InsertItemUnsafe(item)
-		// }
 		if i.Search != nil {
 			i.Search.CreateDocumentUnsafe(id, item.ToStringList()...)
 		}
