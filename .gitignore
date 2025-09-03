@@ -6,6 +6,8 @@ data/facets/*
 data/items/*
 data/content/*
 data/settings.json
+data/current
+data/embeddings.*
 __debug*
 startup.prof
 data/*.dbz

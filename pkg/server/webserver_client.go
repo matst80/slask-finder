@@ -169,7 +169,6 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	if err != nil {
 		return err
 	}
-	log.Printf("search streamed %s", sr.Query)
 
 	resultChan := make(chan searchResult)
 

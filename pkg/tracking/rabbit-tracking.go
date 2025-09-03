@@ -149,7 +149,6 @@ type SearchEventData struct {
 
 func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, resultLen int, query string, page int, r *http.Request) {
 	referer := r.Header.Get("Referer")
-	log.Printf("referer: %s", referer)
 	err := rt.send(&SearchEventData{
 		BaseEvent:       &BaseEvent{Event: 1, SessionId: sessionId},
 		Filters:         filters,
