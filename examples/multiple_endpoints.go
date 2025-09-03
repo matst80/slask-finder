@@ -20,7 +20,7 @@ func main() {
 	)
 
 	// Initialize index with the embeddings engine
-	idx := index.NewIndex(engine)
+	idx := index.NewIndex(engine, func(i *index.Index) error { return nil })
 
 	// Example: Generate embeddings for multiple items concurrently
 	// This will automatically distribute requests across all endpoints

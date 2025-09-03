@@ -183,18 +183,6 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
 
-	// // Save embeddings in a separate process to not block
-	go func() {
-
-		if err := p.SaveEmbeddings(idx.Embeddings); err != nil {
-			log.Printf("Error saving embeddings: %v", err)
-		}
-		// if err = p.SaveSettings(); err != nil {
-		// 	log.Printf("Error saving settings: %v", err)
-		// }
-
-	}()
-
 	if err != nil {
 		return err
 	}

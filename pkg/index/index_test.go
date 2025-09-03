@@ -37,7 +37,7 @@ func (l *LoggingChangeHandler) PriceLowered(item []types.Item) {
 }
 
 func TestIndexMatch(t *testing.T) {
-	i := NewIndex(nil)
+	i := NewIndex(nil, func(i *Index) error { return nil })
 	i.AddKeyField(&types.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&types.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&types.BaseField{Id: 3, Name: "number", Description: "number field"})
@@ -67,7 +67,7 @@ var token = search.Tokenizer{MaxTokens: 128}
 
 func CreateIndex() *Index {
 
-	i := NewIndex(nil)
+	i := NewIndex(nil, func(i *Index) error { return nil })
 	i.AddKeyField(&types.BaseField{Id: 1, Name: "first", Description: "first field"})
 	i.AddKeyField(&types.BaseField{Id: 2, Name: "other", Description: "other field"})
 	i.AddDecimalField(&types.BaseField{Id: 3, Name: "number", Description: "number field"})

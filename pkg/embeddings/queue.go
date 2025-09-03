@@ -38,9 +38,9 @@ type EmbeddingsQueue struct {
 	engine      types.EmbeddingsEngine
 	queue       chan EmbeddingJob
 	storeFunc   func(uint, types.Embeddings)
+	doneFunc    func() error
 	facets      map[uint]types.Facet
 	workerCount int
-	isRunning   bool
 	wg          sync.WaitGroup
 	stopCh      chan struct{}
 	mu          sync.RWMutex
@@ -52,6 +52,7 @@ func NewEmbeddingsQueue(
 	engine types.EmbeddingsEngine,
 	facets map[uint]types.Facet,
 	storeFunc func(uint, types.Embeddings),
+	whenQueueIsDone func() error,
 	workerCount int,
 	queueSize int,
 ) *EmbeddingsQueue {
@@ -66,6 +67,7 @@ func NewEmbeddingsQueue(
 		engine:      engine,
 		facets:      facets,
 		queue:       make(chan EmbeddingJob, queueSize),
+		doneFunc:    whenQueueIsDone,
 		storeFunc:   storeFunc,
 		workerCount: workerCount,
 		stopCh:      make(chan struct{}),
@@ -74,14 +76,7 @@ func NewEmbeddingsQueue(
 
 // Start initializes and starts the worker pool
 func (eq *EmbeddingsQueue) Start() {
-	eq.mu.Lock()
-	defer eq.mu.Unlock()
 
-	if eq.isRunning {
-		return
-	}
-
-	eq.isRunning = true
 	eq.wg.Add(eq.workerCount)
 
 	for i := 0; i < eq.workerCount; i++ {
@@ -93,13 +88,6 @@ func (eq *EmbeddingsQueue) Start() {
 
 // Stop gracefully stops the worker pool
 func (eq *EmbeddingsQueue) Stop() {
-	eq.mu.Lock()
-	if !eq.isRunning {
-		eq.mu.Unlock()
-		return
-	}
-	eq.isRunning = false
-	eq.mu.Unlock()
 
 	close(eq.stopCh)
 	eq.wg.Wait()
@@ -184,7 +172,6 @@ func (eq *EmbeddingsQueue) Status() map[string]interface{} {
 	estimatedTime := estimateTimeLeft(queueLen, float64(eq.workerCount))
 
 	return map[string]interface{}{
-		"isRunning":         eq.isRunning,
 		"workerCount":       eq.workerCount,
 		"queueLength":       queueLen,
 		"queueCapacity":     queueCap,
@@ -233,6 +220,8 @@ func (eq *EmbeddingsQueue) worker(id int) {
 
 		case <-eq.stopCh:
 			// Stop signal received
+			log.Printf("Embeddings worker %d stopping", id)
+			eq.doneFunc()
 			return
 		}
 	}

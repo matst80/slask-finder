@@ -923,10 +923,7 @@ type WordReplacementConfig struct {
 }
 
 func (ws *WebServer) SaveEmbeddings(w http.ResponseWriter, r *http.Request) {
-	ws.Index.EmbeddingsMu.RLock()
-	defer ws.Index.EmbeddingsMu.RUnlock()
-	ws.Index.EmbeddingsQueue.Pause()
-	defer ws.Index.EmbeddingsQueue.Resume()
+
 	if err := ws.Db.SaveEmbeddings(ws.Index.Embeddings); err != nil {
 		log.Printf("Error saving embeddings: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

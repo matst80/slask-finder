@@ -87,12 +87,12 @@ func DefaultIndexOptions(engine types.EmbeddingsEngine) IndexOptions {
 	}
 }
 
-func NewIndex(engine types.EmbeddingsEngine) *Index {
+func NewIndex(engine types.EmbeddingsEngine, queueDone func(idx *Index) error) *Index {
 	opts := DefaultIndexOptions(engine)
-	return NewIndexWithOptions(opts)
+	return NewIndexWithOptions(opts, queueDone)
 }
 
-func NewIndexWithOptions(opts IndexOptions) *Index {
+func NewIndexWithOptions(opts IndexOptions, queueDone func(idx *Index) error) *Index {
 	idx := &Index{
 		mu:           sync.RWMutex{},
 		EmbeddingsMu: sync.RWMutex{},
@@ -114,7 +114,6 @@ func NewIndexWithOptions(opts IndexOptions) *Index {
 			idx.EmbeddingsMu.Lock()
 			defer idx.EmbeddingsMu.Unlock()
 			idx.Embeddings[itemId] = emb
-
 		}
 
 		// Create the embeddings queue with configured workers and effectively unlimited queue size
@@ -122,6 +121,7 @@ func NewIndexWithOptions(opts IndexOptions) *Index {
 			opts.EmbeddingsEngine,
 			idx.Facets,
 			storeFunc,
+			func() error { return queueDone(idx) },
 			opts.EmbeddingsWorkers,
 			opts.EmbeddingsQueueSize)
 
