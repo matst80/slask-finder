@@ -1,7 +1,6 @@
 package index
 
 import (
-	"fmt"
 	"log"
 	"sync"
 
@@ -442,72 +441,4 @@ func (i *Index) GetEmbeddingsQueueDetails() map[string]interface{} {
 	}
 
 	return i.EmbeddingsQueue.Status()
-}
-
-// ConfigureEmbeddingsQueue was used to adjust the rate limit for the embeddings queue
-// This function is kept for backwards compatibility but no longer does anything
-// as rate limiting has been removed in the simplified implementation
-func (i *Index) ConfigureEmbeddingsQueue(rateLimit float64) error {
-	if i.EmbeddingsQueue == nil {
-		return fmt.Errorf("embeddings queue not initialized")
-	}
-
-	// Rate limiting has been removed in the simplified implementation
-	log.Printf("Rate limiting has been removed, ignoring rate limit: %.2f req/s", rateLimit)
-	return nil
-}
-
-// // GetEmbeddingsQueueStatus returns detailed information about the embeddings queue
-// // Returns nil if the embeddings queue is not initialized
-// func (i *Index) GetEmbeddingsQueueStatus() map[string]interface{} {
-// 	if i.EmbeddingsQueue == nil {
-// 		return nil
-// 	}
-
-// 	return i.EmbeddingsQueue.Status()
-// }
-
-// PauseEmbeddingsQueue temporarily stops processing new embeddings
-func (i *Index) PauseEmbeddingsQueue() error {
-	if i.EmbeddingsQueue == nil {
-		return fmt.Errorf("embeddings queue not initialized")
-	}
-
-	i.EmbeddingsQueue.Pause()
-	return nil
-}
-
-// ResumeEmbeddingsQueue resumes normal operation of the embeddings queue
-func (i *Index) ResumeEmbeddingsQueue(requestsPerSecond float64) error {
-	if i.EmbeddingsQueue == nil {
-		return fmt.Errorf("embeddings queue not initialized")
-	}
-
-	// Rate limiting parameter is ignored in the simplified implementation
-	i.EmbeddingsQueue.Resume()
-	return nil
-}
-
-// PrioritizeItemEmbeddings prioritizes embeddings generation for a specific item
-// Returns true if successful, false if the item doesn't exist or can't have embeddings
-func (i *Index) PrioritizeItemEmbeddings(id uint) (bool, error) {
-	if i.EmbeddingsQueue == nil {
-		return false, fmt.Errorf("embeddings queue not initialized")
-	}
-
-	i.mu.RLock()
-	item, exists := i.Items[id]
-	i.mu.RUnlock()
-
-	if !exists {
-		return false, fmt.Errorf("item %d not found", id)
-	}
-
-	if !item.CanHaveEmbeddings() {
-		return false, fmt.Errorf("item %d cannot have embeddings", id)
-	}
-
-	// Use the prioritization feature
-	success := i.EmbeddingsQueue.PrioritizeItem(item)
-	return success, nil
 }

@@ -110,13 +110,6 @@ func (eq *EmbeddingsQueue) Stop() {
 // QueueItem adds an item to the embeddings generation queue
 // Returns true if queued successfully, false if queue is full or not running
 func (eq *EmbeddingsQueue) QueueItem(item types.Item) bool {
-	eq.mu.RLock()
-	isRunning := eq.isRunning
-	eq.mu.RUnlock()
-
-	if !isRunning {
-		return false
-	}
 
 	// Try to add to queue immediately first
 	select {
@@ -134,57 +127,10 @@ func (eq *EmbeddingsQueue) QueueItem(item types.Item) bool {
 	return false
 }
 
-// QueueItemBlocking adds an item to the embeddings generation queue and blocks until it succeeds
-// Returns true if queued successfully, false if the queue is not running
-func (eq *EmbeddingsQueue) QueueItemBlocking(item types.Item) bool {
-	eq.mu.RLock()
-	isRunning := eq.isRunning
-	eq.mu.RUnlock()
-
-	if !isRunning {
-		return false
-	}
-
-	// Create the job once so we don't recreate it multiple times
-	job := EmbeddingJob{
-		Item:      item,
-		CreatedAt: time.Now(),
-	}
-
-	// First attempt without logging
-	select {
-	case eq.queue <- job:
-		embedQueueSize.Inc()
-		return true
-	default:
-		// Queue is full, log and continue to blocking attempt
-		log.Printf("Embeddings queue full, blocking until space available for item %d...", item.GetId())
-	}
-
-	// This will block until the queue has space or the queue is stopped
-	select {
-	case eq.queue <- job:
-		embedQueueSize.Inc()
-		log.Printf("Successfully added item %d to embeddings queue after blocking", item.GetId())
-		return true
-	case <-eq.stopCh:
-		log.Printf("Failed to add item %d to embeddings queue: queue was stopped", item.GetId())
-		return false
-	}
-}
-
 // QueueItems adds multiple items to the embeddings generation queue
 // Returns the number of successfully queued items
 func (eq *EmbeddingsQueue) QueueItems(items []types.Item) int {
 	if len(items) == 0 {
-		return 0
-	}
-
-	eq.mu.RLock()
-	isRunning := eq.isRunning
-	eq.mu.RUnlock()
-
-	if !isRunning {
 		return 0
 	}
 
@@ -224,8 +170,6 @@ func (eq *EmbeddingsQueue) QueueCapacity() int {
 
 // Status returns the current status of the embeddings queue
 func (eq *EmbeddingsQueue) Status() map[string]interface{} {
-	eq.mu.RLock()
-	defer eq.mu.RUnlock()
 
 	queueLen := len(eq.queue)
 	queueCap := cap(eq.queue)
@@ -250,51 +194,6 @@ func (eq *EmbeddingsQueue) Status() map[string]interface{} {
 		"estimatedSeconds":  estimatedTime.Seconds(),
 		"timestamp":         time.Now().Format(time.RFC3339),
 	}
-}
-
-// Pause temporarily stops the embeddings queue from processing new items
-// without shutting down the workers. This is useful for maintenance or
-// when the embedding service needs a break.
-func (eq *EmbeddingsQueue) Pause() {
-	eq.mu.Lock()
-	defer eq.mu.Unlock()
-
-	if !eq.isRunning {
-		log.Printf("Embeddings queue is already stopped, cannot pause")
-		return
-	}
-
-	log.Printf("Embeddings queue paused")
-}
-
-// Resume continues normal operation of the embeddings queue after a Pause
-func (eq *EmbeddingsQueue) Resume() {
-	eq.mu.Lock()
-	defer eq.mu.Unlock()
-
-	if !eq.isRunning {
-		log.Printf("Embeddings queue is stopped, cannot resume")
-		return
-	}
-
-	log.Printf("Embeddings queue resumed")
-}
-
-// PrioritizeItem tries to prioritize a specific item by adding it to the queue
-// with a blocking attempt, ensuring it gets processed as soon as possible
-func (eq *EmbeddingsQueue) PrioritizeItem(item types.Item) bool {
-	eq.mu.RLock()
-	isRunning := eq.isRunning
-	eq.mu.RUnlock()
-
-	if !isRunning || !item.CanHaveEmbeddings() {
-		return false
-	}
-
-	log.Printf("Prioritizing item %d for embeddings generation", item.GetId())
-
-	// Use blocking queue to ensure the item gets processed
-	return eq.QueueItemBlocking(item)
 }
 
 // worker processes jobs from the queue
