@@ -54,8 +54,11 @@ var token = search.Tokenizer{MaxTokens: 128}
 var embeddingsEngine types.EmbeddingsEngine = embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints("elkjop-ecom", "http://10.10.11.135:11434/api/embeddings")
 
 // Initialize index with embeddings engine
-var idx = index.NewIndex(embeddingsEngine)
 var db = storage.NewPersistance()
+var idx = index.NewIndex(embeddingsEngine, func(data *index.Index) error {
+	log.Printf("Saving embeddings to disk")
+	return db.SaveEmbeddings(data.Embeddings)
+})
 
 // var embeddingsIndex = embeddings.NewEmbeddingsIndex()
 var contentIdx = index.NewContentIndex()
