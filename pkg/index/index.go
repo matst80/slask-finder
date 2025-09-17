@@ -174,14 +174,17 @@ func (i *Index) addItemValues(item types.Item) {
 			stockLocation[itemId] = struct{}{}
 		}
 	}
-
+	b := &types.BaseField{}
 	for id, fieldValue := range item.GetFields() {
 		if f, ok := i.Facets[id]; ok {
-			if !f.IsExcludedFromFacets() && f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil {
-				if fids, ok := i.ItemFieldIds[itemId]; ok {
-					fids.AddId(id)
-				} else {
-					log.Printf("No field for item id: %d, id: %d", itemId, id)
+			b = f.GetBaseField()
+			if b.Searchable && f.AddValueLink(fieldValue, itemId) && i.ItemFieldIds != nil {
+				if !b.HideFacet {
+					if fids, ok := i.ItemFieldIds[itemId]; ok {
+						fids.AddId(id)
+					} else {
+						log.Printf("No field for item id: %d, id: %d", itemId, id)
+					}
 				}
 			}
 
