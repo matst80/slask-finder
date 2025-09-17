@@ -28,11 +28,19 @@ func (f KeyField) IsCategory() bool {
 	return f.CategoryLevel > 0
 }
 
+type ValueWithCount struct {
+	Value string `json:"value"`
+	Count int    `json:"count"`
+}
+
 func (f KeyField) GetValues() []interface{} {
 	ret := make([]interface{}, len(f.Keys))
 	idx := 0
 	for value := range f.Keys {
-		ret[idx] = value
+		ret[idx] = ValueWithCount{
+			Value: value,
+			Count: len(f.Keys[value]),
+		}
 		idx++
 	}
 	return ret
