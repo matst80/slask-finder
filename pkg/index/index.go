@@ -101,8 +101,8 @@ func NewIndexWithOptions(opts IndexOptions, queueDone func(idx *Index) error) *I
 		Embeddings:       make(map[uint]types.Embeddings),
 		ItemsBySku:       make(map[string]*types.Item),
 		ItemFieldIds:     make(map[uint]types.ItemList),
-		Facets:           make(map[uint]types.Facet),
-		Items:            make(map[uint]types.Item),
+		Facets:           make(map[uint]types.Facet, 3000),
+		Items:            make(map[uint]types.Item, 100000),
 		ItemsInStock:     make(map[string]types.ItemList),
 		EmbeddingsEngine: opts.EmbeddingsEngine,
 	}

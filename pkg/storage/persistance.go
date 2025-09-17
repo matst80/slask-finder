@@ -3,12 +3,13 @@ package storage
 import (
 	"compress/gzip"
 	"encoding/gob"
-	"encoding/json"
+
 	"log"
 	"os"
 	"path"
 	"runtime"
 
+	"github.com/bytedance/sonic"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -72,13 +73,13 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 		return err
 	}
 
-	enc := json.NewDecoder(zipReader)
+	decoder := sonic.ConfigStd.NewDecoder(zipReader)
 	defer zipReader.Close()
 
 	tmp := &index.DataItem{}
 	for err == nil {
 
-		if err = enc.Decode(tmp); err == nil {
+		if err = decoder.Decode(tmp); err == nil {
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue
 			}
@@ -91,10 +92,11 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 			}
 
 			idx.UpsertItemUnsafe(tmp)
+			//tmp = nil
 			tmp = &index.DataItem{}
 		}
 	}
-	enc = nil
+	decoder = nil
 
 	if err.Error() == "EOF" {
 		return nil
@@ -110,10 +112,10 @@ func (p *DataRepository) SaveJsonFile(data interface{}, filename string) error {
 		return err
 	}
 
-	defer runtime.GC()
 	defer file.Close()
+	defer runtime.GC()
 	zipWriter := gzip.NewWriter(file)
-	enc := json.NewEncoder(zipWriter)
+	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 
 	err = enc.Encode(data)
@@ -133,15 +135,15 @@ func (p *DataRepository) LoadJsonFile(data interface{}, filename string) error {
 	if err != nil {
 		return err
 	}
-	defer runtime.GC()
 	defer file.Close()
+	defer runtime.GC()
 
 	zipReader, err := gzip.NewReader(file)
 	if err != nil {
 		return err
 	}
 
-	enc := json.NewDecoder(zipReader)
+	enc := sonic.ConfigDefault.NewDecoder(zipReader)
 	defer zipReader.Close()
 
 	err = enc.Decode(data)
@@ -164,7 +166,7 @@ func (p *DataRepository) SaveIndex(idx *index.Index) error {
 	defer runtime.GC()
 	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
-	enc := json.NewEncoder(zipWriter)
+	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 	idx.Lock()
 
@@ -226,7 +228,7 @@ func (p *DataRepository) SaveFacets(facets map[uint]types.Facet) error {
 			})
 		}
 	}
-	err = json.NewEncoder(file).Encode(toStore)
+	err = sonic.ConfigDefault.NewEncoder(file).Encode(toStore)
 	if err != nil {
 		return err
 	}
@@ -241,7 +243,7 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 	}
 	defer file.Close()
 	toStore := make([]StorageFacet, 0)
-	if err = json.NewDecoder(file).Decode(&toStore); err != nil {
+	if err = sonic.ConfigDefault.NewDecoder(file).Decode(&toStore); err != nil {
 		return err
 	}
 	idx.AddKeyField(&types.BaseField{
@@ -250,6 +252,21 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 		Description:      "",
 		Priority:         0,
 		Type:             "cgm-parent",
+		LinkedId:         0,
+		ValueSorting:     0,
+		GroupId:          0,
+		CategoryLevel:    0,
+		HideFacet:        true,
+		KeySpecification: false,
+		InternalOnly:     false,
+		Searchable:       true,
+	})
+	idx.AddKeyField(&types.BaseField{
+		Id:               26,
+		Name:             "Family Assignment",
+		Description:      "",
+		Priority:         0,
+		Type:             "assignmentId",
 		LinkedId:         0,
 		ValueSorting:     0,
 		GroupId:          0,

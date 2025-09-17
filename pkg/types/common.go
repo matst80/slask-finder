@@ -130,9 +130,10 @@ type Item interface {
 	MergeKeyFields(updates []CategoryUpdate) bool
 	GetBasePopularity() float64
 	UpdateBasePopularity(rules ItemPopularityRules)
-	GetItem() interface{}
+	//	GetItem() interface{}
 	CanHaveEmbeddings() bool
 	GetEmbeddingsText() (string, error)
+	//StreamLine(w http.ResponseWriter)
 }
 
 const FacetKeyType = 1
