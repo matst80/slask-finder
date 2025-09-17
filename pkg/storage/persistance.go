@@ -246,36 +246,36 @@ func (p *DataRepository) LoadFacets(idx *index.Index) error {
 	if err = sonic.ConfigDefault.NewDecoder(file).Decode(&toStore); err != nil {
 		return err
 	}
-	idx.AddKeyField(&types.BaseField{
-		Id:               37,
-		Name:             "CGM parent",
-		Description:      "",
-		Priority:         0,
-		Type:             "cgm-parent",
-		LinkedId:         0,
-		ValueSorting:     0,
-		GroupId:          0,
-		CategoryLevel:    0,
-		HideFacet:        true,
-		KeySpecification: false,
-		InternalOnly:     false,
-		Searchable:       true,
-	})
-	idx.AddKeyField(&types.BaseField{
-		Id:               26,
-		Name:             "Family Assignment",
-		Description:      "",
-		Priority:         0,
-		Type:             "assignmentId",
-		LinkedId:         0,
-		ValueSorting:     0,
-		GroupId:          0,
-		CategoryLevel:    0,
-		HideFacet:        true,
-		KeySpecification: false,
-		InternalOnly:     false,
-		Searchable:       true,
-	})
+	// idx.AddKeyField(&types.BaseField{
+	// 	Id:               37,
+	// 	Name:             "CGM parent",
+	// 	Description:      "",
+	// 	Priority:         0,
+	// 	Type:             "cgm-parent",
+	// 	LinkedId:         0,
+	// 	ValueSorting:     0,
+	// 	GroupId:          0,
+	// 	CategoryLevel:    0,
+	// 	HideFacet:        true,
+	// 	KeySpecification: false,
+	// 	InternalOnly:     false,
+	// 	Searchable:       true,
+	// })
+	// idx.AddKeyField(&types.BaseField{
+	// 	Id:               25,
+	// 	Name:             "Family Assignment",
+	// 	Description:      "",
+	// 	Priority:         0,
+	// 	Type:             "assignmentId",
+	// 	LinkedId:         0,
+	// 	ValueSorting:     0,
+	// 	GroupId:          0,
+	// 	CategoryLevel:    0,
+	// 	HideFacet:        true,
+	// 	KeySpecification: false,
+	// 	InternalOnly:     false,
+	// 	Searchable:       true,
+	// })
 	for _, ff := range toStore {
 		//ff.BaseField.Searchable = true
 		if ff.BaseField.Type == "fps" {
