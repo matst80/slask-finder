@@ -203,8 +203,8 @@ func (w *WebAuthHandler) CreateChallenge(rw http.ResponseWriter, r *http.Request
 		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-
-	user, err := w.createUserWithID(claims["username"].(string), claims["name"].(string), claims["username"].(string), claims["role"] == "admin")
+	id := uuid.New().String()
+	user, err := w.createUserWithID(id, claims["name"].(string), claims["username"].(string), false)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 
