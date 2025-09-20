@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/golang-jwt/jwt"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -248,12 +249,12 @@ func init() {
 	serverApiKey = _key
 }
 
-func createToken(username string, name string) (string, error) {
+func createToken(username, name, role string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"username": username,
 			"name":     name,
-			"role":     "admin",
+			"role":     role,
 			"exp":      time.Now().Add(time.Hour * 24).Unix(),
 		})
 
@@ -290,9 +291,14 @@ func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+type ContextValue string
+
+var ContextRole = ContextValue("role")
+
 func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
+		role := "anonymous"
 		if auth != serverApiKey {
 			cookie, err := r.Cookie(tokenCookieName)
 			if err != nil {
@@ -312,8 +318,21 @@ func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				http.Error(w, "Unauthorized", http.StatusUnauthorized)
 				return
 			}
+			claims, ok := token.Claims.(jwt.MapClaims)
+			if !ok {
+				http.Error(w, "Unauthorized", http.StatusUnauthorized)
+				return
+			}
+			role = claims["role"].(string)
+
+			index.AllowConditionalData = role == "admin"
+
+		} else {
+			role = "api"
+			index.AllowConditionalData = true
 		}
-		next.ServeHTTP(w, r)
+		ctx := context.WithValue(r.Context(), ContextRole, role)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -343,7 +362,7 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	ownToken, err := createToken(userData.Email, userData.Name)
+	ownToken, err := createToken(userData.Email, userData.Name, "gmail")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -957,6 +976,16 @@ func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Reque
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
+	config := &webauthn.Config{
+		RPDisplayName: "Go WebAuthn",
+		RPID:          "localhost",
+		RPOrigins:     []string{"http://localhost:5173", "https://slask-finder.tornberg.me", "https://slask-finder.knatofs.se"},
+	}
+
+	auth, err := NewWebAuthHandler(config)
+	if err != nil {
+		log.Fatalf("Error initializing WebAuthn: %v", err)
+	}
 
 	srv := http.NewServeMux()
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -1019,6 +1048,11 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
 	srv.HandleFunc("/relation-groups", ws.HandleRelationGroups)
 	srv.HandleFunc("/facet-groups", ws.HandleFacetGroups)
+
+	srv.HandleFunc("GET /webauthn/register/start", auth.CreateChallenge)
+	srv.HandleFunc("POST /webauthn/register/finish", auth.ValidateCreateChallengeResponse)
+	srv.HandleFunc("GET /webauthn/login/start", auth.LoginChallenge)
+	srv.HandleFunc("POST /webauthn/login/finish", auth.LoginChallengeResponse)
 	//srv.HandleFunc("/sort/static", ws.AuthMiddleware(ws.HandleStaticPositions))
 	//srv.HandleFunc("/sort/fields", ws.AuthMiddleware(ws.HandleFieldSort))
 	return srv
