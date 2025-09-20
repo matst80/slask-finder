@@ -377,7 +377,7 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 		SameSite: http.SameSiteStrictMode,
 	})
 
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/register", http.StatusTemporaryRedirect)
 }
 
 func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
