@@ -978,8 +978,8 @@ func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Reque
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 	config := &webauthn.Config{
 		RPDisplayName: "Go WebAuthn",
-		RPID:          "localhost",
-		RPOrigins:     []string{"http://localhost:5173", "https://slask-finder.tornberg.me", "https://slask-finder.knatofs.se"},
+		RPID:          "slask-finder.tornberg.me",
+		RPOrigins:     []string{"https://slask-finder.tornberg.me", "https://slask-finder.knatofs.se"},
 	}
 
 	auth, err := NewWebAuthHandler(config)
