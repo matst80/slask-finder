@@ -203,8 +203,8 @@ func (w *WebAuthHandler) CreateChallenge(rw http.ResponseWriter, r *http.Request
 		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	id := uuid.New().String()
-	user, err := w.createUserWithID(id, claims["name"].(string), claims["username"].(string), false)
+	id := claims["exp"].(float64)
+	user, err := w.createUserWithID(fmt.Sprintf("%d", int64(id)), claims["name"].(string), claims["username"].(string), false)
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 
@@ -246,17 +246,14 @@ func (w *WebAuthHandler) ValidateCreateChallengeResponse(rw http.ResponseWriter,
 	// for this step unless you plan to register the user and the credential at the same time i.e. usernameless.
 	// The user should have a unique and stable value returned from WebAuthnID that can be used to retrieve the
 	// account details for the user.
-	cookie, err := r.Cookie(tokenCookieName)
+	claims, err := getClaimsFromToken(r)
 	if err != nil {
 		http.Error(rw, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
+	id := claims["exp"].(float64)
 
-	token, err := jwt.Parse(cookie.Value, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
-	})
-
-	user, err := w.loadUserByID(token.Claims.(jwt.MapClaims)["username"].(string))
+	user, err := w.loadUserByID(fmt.Sprintf("%d", int64(id)))
 
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
