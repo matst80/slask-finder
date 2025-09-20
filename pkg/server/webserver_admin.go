@@ -1049,6 +1049,10 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/relation-groups", ws.HandleRelationGroups)
 	srv.HandleFunc("/facet-groups", ws.HandleFacetGroups)
 
+	srv.HandleFunc("GET /users", ws.AuthMiddleware(auth.ListUsers))
+	srv.HandleFunc("DELETE /users/{id}", ws.AuthMiddleware(auth.DeleteUser))
+	srv.HandleFunc("PUT /users/{id}", ws.AuthMiddleware(auth.UpdateUser))
+
 	srv.HandleFunc("GET /webauthn/register/start", auth.CreateChallenge)
 	srv.HandleFunc("POST /webauthn/register/finish", auth.ValidateCreateChallengeResponse)
 	srv.HandleFunc("GET /webauthn/login/start", auth.LoginChallenge)

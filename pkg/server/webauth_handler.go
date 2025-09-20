@@ -375,3 +375,122 @@ func (w *WebAuthHandler) LoginChallengeResponse(rw http.ResponseWriter, r *http.
 
 	rw.WriteHeader(http.StatusOK)
 }
+
+// UserSummary represents a user without sensitive credential information
+type UserSummary struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	DisplayName string `json:"displayName"`
+	IsAdmin     bool   `json:"isAdmin"`
+}
+
+// ListUsers returns a list of all users without sensitive data
+func (w *WebAuthHandler) ListUsers(rw http.ResponseWriter, r *http.Request) {
+	w.userMutex.RLock()
+	defer w.userMutex.RUnlock()
+
+	users := make([]UserSummary, 0, len(w.users))
+	for _, user := range w.users {
+		users = append(users, UserSummary{
+			ID:          string(user.ID),
+			Name:        user.Name,
+			Email:       user.Email,
+			DisplayName: user.DisplayName,
+			IsAdmin:     user.IsAdmin,
+		})
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(rw).Encode(users); err != nil {
+		log.Printf("Error encoding users response: %v", err)
+		http.Error(rw, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+// DeleteUser removes a user by ID
+func (w *WebAuthHandler) DeleteUser(rw http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	if userID == "" {
+		http.Error(rw, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	w.userMutex.Lock()
+	defer w.userMutex.Unlock()
+
+	if _, exists := w.users[userID]; !exists {
+		http.Error(rw, "User not found", http.StatusNotFound)
+		return
+	}
+
+	delete(w.users, userID)
+	go w.saveUsers()
+
+	rw.WriteHeader(http.StatusNoContent)
+}
+
+// UserUpdateRequest represents the request body for updating a user
+type UserUpdateRequest struct {
+	Name        *string `json:"name,omitempty"`
+	Email       *string `json:"email,omitempty"`
+	DisplayName *string `json:"displayName,omitempty"`
+	IsAdmin     *bool   `json:"isAdmin,omitempty"`
+}
+
+// UpdateUser updates user properties
+func (w *WebAuthHandler) UpdateUser(rw http.ResponseWriter, r *http.Request) {
+	userID := r.PathValue("id")
+	if userID == "" {
+		http.Error(rw, "User ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var updateRequest UserUpdateRequest
+	if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+		http.Error(rw, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	w.userMutex.Lock()
+	defer w.userMutex.Unlock()
+
+	user, exists := w.users[userID]
+	if !exists {
+		http.Error(rw, "User not found", http.StatusNotFound)
+		return
+	}
+
+	// Update only the fields that were provided
+	if updateRequest.Name != nil {
+		user.Name = *updateRequest.Name
+	}
+	if updateRequest.Email != nil {
+		user.Email = *updateRequest.Email
+	}
+	if updateRequest.DisplayName != nil {
+		user.DisplayName = *updateRequest.DisplayName
+	}
+	if updateRequest.IsAdmin != nil {
+		user.IsAdmin = *updateRequest.IsAdmin
+	}
+
+	go w.saveUsers()
+
+	// Return the updated user summary
+	updatedUser := UserSummary{
+		ID:          string(user.ID),
+		Name:        user.Name,
+		Email:       user.Email,
+		DisplayName: user.DisplayName,
+		IsAdmin:     user.IsAdmin,
+	}
+
+	rw.Header().Set("Content-Type", "application/json")
+	rw.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(rw).Encode(updatedUser); err != nil {
+		log.Printf("Error encoding updated user response: %v", err)
+		http.Error(rw, "Internal server error", http.StatusInternalServerError)
+	}
+}
