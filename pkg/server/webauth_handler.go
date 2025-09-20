@@ -47,8 +47,8 @@ func loadUsers() (map[string]*User, error) {
 	if err != nil {
 		return make(map[string]*User), err
 	}
-	decoder := gob.NewDecoder(zipReader)
 	defer zipReader.Close()
+	decoder := gob.NewDecoder(zipReader)
 
 	var users map[string]*User
 	err = decoder.Decode(&users)
@@ -83,6 +83,7 @@ func (w *WebAuthHandler) saveUsers() error {
 	}
 
 	if err := os.Rename(tmpFileName, path.Join("data", "users.gob.gz")); err != nil {
+		log.Println("Could not rename temporary users file:", err)
 		return err
 	}
 
@@ -228,13 +229,14 @@ func (w *WebAuthHandler) CreateChallenge(rw http.ResponseWriter, r *http.Request
 
 	encoder := json.NewEncoder(rw)
 
+	rw.Header().Set("Content-Type", "application/json; charset=utf-8")
+	rw.WriteHeader(http.StatusOK)
+
 	if err = encoder.Encode(creation); err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 
 		return
 	}
-	rw.WriteHeader(http.StatusOK)
-	rw.Header().Set("Content-Type", "application/json; charset=utf-8")
 
 }
 
@@ -370,7 +372,7 @@ func (w *WebAuthHandler) LoginChallengeResponse(rw http.ResponseWriter, r *http.
 		Path:     "/",
 		Expires:  time.Now().Add(time.Hour * 24),
 		HttpOnly: true,
-		Secure:   true,
+		//Secure:   true,
 		SameSite: http.SameSiteStrictMode,
 	})
 
