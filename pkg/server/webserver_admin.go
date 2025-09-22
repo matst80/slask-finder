@@ -1,15 +1,18 @@
 package server
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"slices"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -26,7 +29,37 @@ var (
 		Name: "slaskfinder_items_total",
 		Help: "The total number of items in index",
 	})
+	priceWatchesMutex sync.RWMutex
+	priceWatchesFile  = "data/price_watches.json"
 )
+
+// PushSubscription represents a Web Push API subscription
+type PushSubscription struct {
+	Endpoint       string `json:"endpoint"`
+	ExpirationTime *int64 `json:"expirationTime"`
+	Keys           struct {
+		P256dh string `json:"p256dh"`
+		Auth   string `json:"auth"`
+	} `json:"keys"`
+}
+
+// PriceWatch represents a price watch entry
+type PriceWatch struct {
+	ID           string           `json:"id"`
+	UserID       string           `json:"userId,omitempty"`
+	Subscription PushSubscription `json:"subscription"`
+	CreatedAt    time.Time        `json:"createdAt"`
+}
+
+// PriceWatchRequest represents the incoming request
+type PriceWatchRequest struct {
+	Subscription PushSubscription `json:"subscription"`
+}
+
+// PriceWatchesData represents the structure of the watches file
+type PriceWatchesData struct {
+	Watches []PriceWatch `json:"watches"`
+}
 
 func (ws *WebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) {
 
@@ -975,6 +1008,197 @@ func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Reque
 	}
 }
 
+func (ws *WebServer) WatchPriceChange(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, false, "0")
+
+	// Get the item ID from path
+	itemID := r.PathValue("id")
+	if itemID == "" {
+		http.Error(w, "Item ID is required", http.StatusBadRequest)
+		return
+	}
+
+	// Parse the request body
+	var watchRequest PriceWatchRequest
+	err := json.NewDecoder(r.Body).Decode(&watchRequest)
+	if err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Validate the subscription
+	if watchRequest.Subscription.Endpoint == "" {
+		http.Error(w, "Subscription endpoint is required", http.StatusBadRequest)
+		return
+	}
+
+	// Load existing watches
+	watchesData, err := loadPriceWatches()
+	if err != nil {
+		log.Printf("Error loading price watches: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Create new watch entry
+	newWatch := PriceWatch{
+		ID:           itemID,
+		Subscription: watchRequest.Subscription,
+		CreatedAt:    time.Now(),
+	}
+
+	// Add to watches (remove existing watch for same item if exists)
+	watchIndex := -1
+	for i, watch := range watchesData.Watches {
+		if watch.ID == itemID && watch.Subscription.Endpoint == watchRequest.Subscription.Endpoint {
+			watchIndex = i
+			break
+		}
+	}
+
+	if watchIndex >= 0 {
+		watchesData.Watches[watchIndex] = newWatch
+	} else {
+		watchesData.Watches = append(watchesData.Watches, newWatch)
+	}
+
+	// Save watches
+	err = savePriceWatches(watchesData)
+	if err != nil {
+		log.Printf("Error saving price watches: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Send test push notification
+	err = sendTestPushNotification(watchRequest.Subscription, itemID)
+	if err != nil {
+		log.Printf("Error sending test push notification: %v", err)
+		// Don't fail the request if push notification fails
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "success",
+		"message": "Price watch added successfully",
+		"itemId":  itemID,
+	})
+}
+
+// loadPriceWatches loads the price watches from file
+func loadPriceWatches() (*PriceWatchesData, error) {
+	priceWatchesMutex.RLock()
+	defer priceWatchesMutex.RUnlock()
+
+	// Check if file exists
+	if _, err := os.Stat(priceWatchesFile); os.IsNotExist(err) {
+		return &PriceWatchesData{Watches: []PriceWatch{}}, nil
+	}
+
+	data, err := os.ReadFile(priceWatchesFile)
+	if err != nil {
+		return nil, err
+	}
+
+	var watchesData PriceWatchesData
+	err = json.Unmarshal(data, &watchesData)
+	if err != nil {
+		return nil, err
+	}
+
+	if watchesData.Watches == nil {
+		watchesData.Watches = []PriceWatch{}
+	}
+
+	return &watchesData, nil
+}
+
+// savePriceWatches saves the price watches to file
+func savePriceWatches(watchesData *PriceWatchesData) error {
+	priceWatchesMutex.Lock()
+	defer priceWatchesMutex.Unlock()
+
+	data, err := json.MarshalIndent(watchesData, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(priceWatchesFile, data, 0644)
+}
+
+// sendTestPushNotification sends a test push notification to verify the subscription works
+func sendTestPushNotification(subscription PushSubscription, itemID string) error {
+	pushKey := os.Getenv("PUSH_KEY")
+	senderID := os.Getenv("PUSH_SENDER_ID")
+
+	if pushKey == "" || senderID == "" {
+		log.Printf("FCM credentials not configured: PUSH_KEY or PUSH_SENDER_ID missing")
+		return nil // Don't fail the request if FCM is not configured
+	}
+
+	// Extract registration token from FCM endpoint
+	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token} or https://jmt17.google.com/fcm/send/{token}
+	var registrationToken string
+	if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
+		parts := bytes.Split([]byte(subscription.Endpoint), []byte("fcm/send/"))
+		if len(parts) > 1 {
+			registrationToken = string(parts[1])
+		}
+	}
+
+	if registrationToken == "" {
+		log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
+		return nil
+	}
+
+	// Create FCM message payload
+	fcmPayload := map[string]interface{}{
+		"to": registrationToken,
+		"notification": map[string]interface{}{
+			"title": "Price Watch Activated",
+			"body":  "You will be notified when the price of item " + itemID + " changes",
+			"icon":  "/icon-192x192.png",
+			"tag":   "price-watch-test",
+		},
+		"data": map[string]string{
+			"itemId": itemID,
+			"type":   "test",
+		},
+	}
+
+	messageBytes, err := json.Marshal(fcmPayload)
+	if err != nil {
+		return err
+	}
+
+	// Send to FCM v1 API
+	fcmURL := "https://fcm.googleapis.com/fcm/send"
+	req, err := http.NewRequest("POST", fcmURL, bytes.NewBuffer(messageBytes))
+	if err != nil {
+		return err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "key="+pushKey)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("FCM request failed: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		log.Printf("FCM API error: status %d, body: %s", resp.StatusCode, string(body))
+		return http.ErrNotSupported
+	}
+
+	log.Printf("Test push notification sent successfully for item %s", itemID)
+	return nil
+}
+
 func (ws *WebServer) AdminHandler() *http.ServeMux {
 	config := &webauthn.Config{
 		RPDisplayName: "Go WebAuthn",
@@ -1040,6 +1264,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /settings", ws.GetSettings)
 	srv.HandleFunc("PUT /settings", ws.AuthMiddleware(ws.UpdateSettings))
 	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
+	srv.HandleFunc("POST /price-watch/{id}", ws.WatchPriceChange)
 	srv.HandleFunc("/words", ws.AuthMiddleware(ws.HandleWordReplacements))
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
