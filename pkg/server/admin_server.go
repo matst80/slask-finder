@@ -24,7 +24,7 @@ type WebServerMiddleware interface {
 type AdminWebServer struct {
 	*BaseWebServer
 	// Core data
-	Index        *index.Index
+	Index        *index.ItemIndex
 	Db           *storage.DataRepository
 	ContentIndex *index.ContentIndex
 
@@ -45,7 +45,7 @@ type AdminWebServer struct {
 }
 
 // NewAdminWebServer creates a new admin server with all handlers initialized
-func NewAdminWebServer(idx *index.Index, db *storage.DataRepository, contentIdx *index.ContentIndex) *AdminWebServer {
+func NewAdminWebServer(idx *index.ItemIndex, db *storage.DataRepository, contentIdx *index.ContentIndex) *AdminWebServer {
 	return &AdminWebServer{
 		Index:            idx,
 		Db:               db,

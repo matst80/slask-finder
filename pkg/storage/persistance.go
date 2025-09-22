@@ -158,7 +158,7 @@ func (p *DataRepository) LoadJsonFile(data interface{}, filename string) error {
 	return nil
 }
 
-func (p *DataRepository) SaveIndex(idx *index.Index) error {
+func (p *DataRepository) SaveIndex(idx *index.ItemIndex) error {
 
 	file, err := os.Create(p.File + ".tmp")
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 type ClientWebServer struct {
 	*BaseWebServer
 	// Core data - always present
-	Index            *index.Index
+	Index            *index.ItemIndex
 	Db               *storage.DataRepository
 	ContentIndex     *index.ContentIndex
 	EmbeddingsClient index.EmbeddingsClient
@@ -36,7 +36,7 @@ type ClientWebServer struct {
 }
 
 // NewClientWebServer creates a new client server with minimal handlers
-func NewClientWebServer(idx *index.Index, db *storage.DataRepository, contentIdx *index.ContentIndex) *ClientWebServer {
+func NewClientWebServer(idx *index.ItemIndex, db *storage.DataRepository, contentIdx *index.ContentIndex) *ClientWebServer {
 	return &ClientWebServer{
 		Index:            idx,
 		Db:               db,

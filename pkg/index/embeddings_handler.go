@@ -8,6 +8,9 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
+// EmbeddingsRate is the rate limit for embedding requests per second
+type EmbeddingsRate = float64
+
 type EmbeddingsClient interface {
 	GetEmbeddings(itemId uint) (types.Embeddings, bool)
 }

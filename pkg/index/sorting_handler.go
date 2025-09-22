@@ -57,7 +57,7 @@ func (h *SortingItemHandler) Unlock() {
 }
 
 // Sorting-specific methods
-func (h *SortingItemHandler) InitializeWithIndex(idx *Index, facetIndex *FacetItemHandler) {
+func (h *SortingItemHandler) InitializeWithIndex(idx *ItemIndex, facetIndex *FacetItemHandler) {
 	if h.Sorting != nil {
 		h.Sorting.InitializeWithIndex(idx, facetIndex)
 	}
@@ -69,7 +69,7 @@ func (h *SortingItemHandler) StartListeningForChanges() {
 	}
 }
 
-func (h *SortingItemHandler) IndexChanged(idx *Index) {
+func (h *SortingItemHandler) IndexChanged(idx *ItemIndex) {
 	if h.Sorting != nil {
 		h.Sorting.IndexChanged(idx)
 	}

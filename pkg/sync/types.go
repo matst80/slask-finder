@@ -7,7 +7,7 @@ import (
 
 type BaseClient struct {
 	Server    *BaseMaster
-	Index     *index.Index
+	Index     *index.ItemIndex
 	Transport *TransportClient
 }
 
@@ -20,7 +20,7 @@ type RabbitConfig struct {
 	VHost              string
 }
 
-func MakeBaseClient(index *index.Index, transport TransportClient) *BaseClient {
+func MakeBaseClient(index *index.ItemIndex, transport TransportClient) *BaseClient {
 	return &BaseClient{
 		Index:     index,
 		Transport: &transport,

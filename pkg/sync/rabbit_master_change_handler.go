@@ -1,50 +1,50 @@
-package sync
+// package sync
 
-import (
-	"log"
+// import (
+// 	"log"
 
-	"github.com/matst80/slask-finder/pkg/types"
-)
+// 	"github.com/matst80/slask-finder/pkg/types"
+// )
 
-type RabbitMasterChangeHandler struct {
-	Master RabbitTransportMaster
-}
+// type RabbitMasterChangeHandler struct {
+// 	Master RabbitTransportMaster
+// }
 
-func (r *RabbitMasterChangeHandler) ItemsUpserted(items []types.Item) {
-	if len(items) == 0 {
-		log.Fatalln("No items to upsert")
-		return
-	}
-	err := r.Master.ItemsUpserted(items)
-	if err != nil {
-		log.Printf("Failed to send item changed %v", err)
-	}
-	log.Printf("Items changed %d", len(items))
-}
+// func (r *RabbitMasterChangeHandler) ItemsUpserted(items []types.Item) {
+// 	if len(items) == 0 {
+// 		log.Fatalln("No items to upsert")
+// 		return
+// 	}
+// 	err := r.Master.ItemsUpserted(items)
+// 	if err != nil {
+// 		log.Printf("Failed to send item changed %v", err)
+// 	}
+// 	log.Printf("Items changed %d", len(items))
+// }
 
-func (r *RabbitMasterChangeHandler) PriceLowered(items []types.Item) {
+// func (r *RabbitMasterChangeHandler) PriceLowered(items []types.Item) {
 
-	err := r.Master.SendPriceLowered(items)
-	if err != nil {
-		log.Printf("Failed to send price updates %v", err)
-	}
-	log.Printf("Items with price lowered %d", len(items))
-}
+// 	err := r.Master.SendPriceLowered(items)
+// 	if err != nil {
+// 		log.Printf("Failed to send price updates %v", err)
+// 	}
+// 	log.Printf("Items with price lowered %d", len(items))
+// }
 
-func (r *RabbitMasterChangeHandler) FieldsChanged(items []types.FieldChange) {
-	err := r.Master.SendFieldChange(items)
-	if err != nil {
-		log.Printf("Failed to send field change %v", err)
-	} else {
-		log.Printf("Field changes %d", len(items))
-	}
-}
+// func (r *RabbitMasterChangeHandler) FieldsChanged(items []types.FieldChange) {
+// 	err := r.Master.SendFieldChange(items)
+// 	if err != nil {
+// 		log.Printf("Failed to send field change %v", err)
+// 	} else {
+// 		log.Printf("Field changes %d", len(items))
+// 	}
+// }
 
-func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
+// func (r *RabbitMasterChangeHandler) ItemDeleted(id uint) {
 
-	err := r.Master.SendItemDeleted(id)
-	if err != nil {
-		log.Printf("Failed to send item deleted %v", err)
-	}
-	log.Printf("Item deleted %d", id)
-}
+// 	err := r.Master.SendItemDeleted(id)
+// 	if err != nil {
+// 		log.Printf("Failed to send item deleted %v", err)
+// 	}
+// 	log.Printf("Item deleted %d", id)
+// }

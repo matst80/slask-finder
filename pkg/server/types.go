@@ -24,7 +24,7 @@ type WebServerInterface interface {
 // Deprecated: Use AdminWebServer or ClientWebServer instead
 type WebServer struct {
 	OAuthConfig      *oauth2.Config
-	Index            *index.Index
+	Index            *index.ItemIndex
 	ContentIndex     *index.ContentIndex
 	Db               *storage.DataRepository
 	Sorting          *index.Sorting

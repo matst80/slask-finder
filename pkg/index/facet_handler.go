@@ -42,6 +42,11 @@ func (h *FacetItemHandler) HandleItems(items []types.Item) {
 }
 
 func (h *FacetItemHandler) HandleItemUnsafe(item types.Item) {
+	h.removeItemValues(item)
+	if item.IsDeleted() {
+		return
+	}
+
 	h.addItemValues(item)
 }
 

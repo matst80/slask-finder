@@ -18,7 +18,7 @@ import (
 
 type Sorting struct {
 	quit             chan struct{}
-	idx              *Index
+	idx              *ItemIndex
 	facetIndex       *FacetItemHandler
 	mu               sync.RWMutex
 	muStaticPos      sync.RWMutex
@@ -211,7 +211,7 @@ func (s *Sorting) StartListeningForChanges() {
 	// }(rdb.Subscribe(ctx, REDIS_STATIC_CHANGE))
 }
 
-func (s *Sorting) IndexChanged(idx *Index) {
+func (s *Sorting) IndexChanged(idx *ItemIndex) {
 	s.idx = idx
 	s.hasItemChanges = true
 }
@@ -237,7 +237,7 @@ func (s *Sorting) IndexChanged(idx *Index) {
 // 	s.staticPositions = &positions
 // }
 
-func (s *Sorting) InitializeWithIndex(idx *Index, facetIndex *FacetItemHandler) {
+func (s *Sorting) InitializeWithIndex(idx *ItemIndex, facetIndex *FacetItemHandler) {
 	// ctx := context.Background()
 	s.idx = idx
 	s.facetIndex = facetIndex
