@@ -22,6 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -1123,15 +1124,16 @@ func savePriceWatches(watchesData *PriceWatchesData) error {
 
 // sendFirebaseNotification sends a notification using the Firebase Admin SDK.
 func sendFirebaseNotification(registrationToken string, notification *messaging.Notification, data map[string]string) error {
-
-	app, err := firebase.NewApp(context.Background(), nil)
+	ctx := context.Background()
+	fbconfig := os.Getenv("FIREBASE_CONFIG")
+	log.Printf("Using Firebase config: %s", fbconfig)
+	app, err := firebase.NewApp(ctx, nil, option.WithCredentialsJSON([]byte(fbconfig)))
 
 	if err != nil {
 		log.Printf("error initializing app: %v\n", err)
 		return err
 	}
 
-	ctx := context.Background()
 	client, err := app.Messaging(ctx)
 	if err != nil {
 		log.Printf("error getting Messaging client: %v\n", err)
