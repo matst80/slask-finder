@@ -17,12 +17,13 @@ import (
 	firebase "firebase.google.com/go/v4"
 	"firebase.google.com/go/v4/messaging"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/golang-jwt/jwt"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/oauth2"
+	"google.golang.org/api/option"
 )
 
 var (
@@ -1127,28 +1128,51 @@ func savePriceWatches(watchesData *PriceWatchesData) error {
 	return os.WriteFile(priceWatchesFile, data, 0644)
 }
 
-// sendTestPushNotification sends a test push notification to verify the subscription works
-func sendTestPushNotification(subscription PushSubscription, itemID string) error {
-	ctx := context.Background()
-	app, err := firebase.NewApp(ctx, nil)
+// sendFirebaseNotification sends a notification using the Firebase Admin SDK.
+func sendFirebaseNotification(registrationToken string, notification *messaging.Notification, data map[string]string) error {
+	// GOOGLE_APPLICATION_CREDENTIALS should be set in the environment.
+	// Or you can pass option.WithCredentialsFile("path/to/serviceAccountKey.json")
+	var app *firebase.App
+	var err error
+
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
+		opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+		app, err = firebase.NewApp(context.Background(), nil, opt)
+	} else {
+		app, err = firebase.NewApp(context.Background(), nil)
+	}
+
 	if err != nil {
 		log.Printf("error initializing app: %v\n", err)
 		return err
 	}
 
+	ctx := context.Background()
 	client, err := app.Messaging(ctx)
 	if err != nil {
 		log.Printf("error getting Messaging client: %v\n", err)
 		return err
 	}
 
-	// The web push standard requires VAPID authentication.
-	// The webpush.Config struct is used to provide this information.
-	// The public key must be a base64-encoded uncompressed P-256 public key.
-	// The private key must be a base64-encoded P-256 private key.
-	// The subject must be a mailto: or https: URL.
-	// The FCM SDK for Go does not directly support sending to a subscription object.
-	// We need to extract the token from the endpoint URL.
+	message := &messaging.Message{
+		Notification: notification,
+		Data:         data,
+		Token:        registrationToken,
+	}
+
+	response, err := client.Send(ctx, message)
+	if err != nil {
+		log.Printf("error sending message: %v\n", err)
+		return err
+	}
+	log.Printf("Successfully sent message: %s\n", response)
+
+	return nil
+}
+
+// sendTestPushNotification sends a test push notification to verify the subscription works
+func sendTestPushNotification(subscription PushSubscription, itemID string) error {
+	// Extract registration token from FCM endpoint
 	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token}
 	var registrationToken string
 	if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
@@ -1160,35 +1184,22 @@ func sendTestPushNotification(subscription PushSubscription, itemID string) erro
 
 	if registrationToken == "" {
 		log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
-		return nil // Or return an error if this is unexpected
+		return nil
 	}
 
-	message := &messaging.Message{
-		Notification: &messaging.Notification{
-			Title: "Price Watch Activated",
-			Body:  "You will be notified when the price of item " + itemID + " changes",
-		},
-		Webpush: &messaging.WebpushConfig{
-			Notification: &messaging.WebpushNotification{
-				Icon: "/icon-192x192.png",
-				Tag:  "price-watch-test",
-			},
-		},
-		Data: map[string]string{
-			"itemId": itemID,
-			"type":   "test",
-		},
-		Token: registrationToken,
+	// Create FCM message payload
+	notification := &messaging.Notification{
+		Title: "Price Watch Activated",
+		Body:  "You will be notified when the price of item " + itemID + " changes.",
+	}
+	data := map[string]string{
+		"itemId": itemID,
+		"type":   "test",
+		"icon":   "/icon-192x192.png",
+		"tag":    "price-watch-test",
 	}
 
-	response, err := client.Send(ctx, message)
-	if err != nil {
-		log.Printf("FCM request failed: %v", err)
-		return err
-	}
-
-	log.Printf("Test push notification sent successfully for item %s, message ID: %s", itemID, response)
-	return nil
+	return sendFirebaseNotification(registrationToken, notification, data)
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
