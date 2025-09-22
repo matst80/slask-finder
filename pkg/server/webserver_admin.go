@@ -1138,22 +1138,22 @@ func sendTestPushNotification(subscription PushSubscription, itemID string) erro
 
 	// Extract registration token from FCM endpoint
 	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token} or https://jmt17.google.com/fcm/send/{token}
-	var registrationToken string
-	if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
-		parts := bytes.Split([]byte(subscription.Endpoint), []byte("fcm/send/"))
-		if len(parts) > 1 {
-			registrationToken = string(parts[1])
-		}
-	}
+	// var registrationToken string
+	// if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
+	// 	parts := bytes.Split([]byte(subscription.Endpoint), []byte("fcm/send/"))
+	// 	if len(parts) > 1 {
+	// 		registrationToken = string(parts[1])
+	// 	}
+	// }
 
-	if registrationToken == "" {
-		log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
-		return nil
-	}
+	// if registrationToken == "" {
+	// 	log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
+	// 	return nil
+	// }
 
 	// Create FCM message payload
 	fcmPayload := map[string]interface{}{
-		"to": registrationToken,
+		//"to": registrationToken,
 		"notification": map[string]interface{}{
 			"title": "Price Watch Activated",
 			"body":  "You will be notified when the price of item " + itemID + " changes",
@@ -1172,7 +1172,7 @@ func sendTestPushNotification(subscription PushSubscription, itemID string) erro
 	}
 
 	// Send to FCM v1 API
-	fcmURL := "https://fcm.googleapis.com/fcm/send"
+	fcmURL := subscription.Endpoint
 	req, err := http.NewRequest("POST", fcmURL, bytes.NewBuffer(messageBytes))
 	if err != nil {
 		return err
