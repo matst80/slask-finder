@@ -1124,16 +1124,24 @@ func savePriceWatches(watchesData *PriceWatchesData) error {
 
 // sendFirebaseNotification sends a notification using the Firebase Admin SDK.
 func sendFirebaseNotification(registrationToken string, notification *messaging.Notification, data map[string]string) error {
-	ctx := context.Background()
-	fbconfig := os.Getenv("FIREBASE_CONFIG")
-	log.Printf("Using Firebase config: %s", fbconfig)
-	app, err := firebase.NewApp(ctx, nil, option.WithCredentialsJSON([]byte(fbconfig)))
+	// GOOGLE_APPLICATION_CREDENTIALS should be set in the environment.
+	// Or you can pass option.WithCredentialsFile("path/to/serviceAccountKey.json")
+	var app *firebase.App
+	var err error
+
+	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
+		opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
+		app, err = firebase.NewApp(context.Background(), nil, opt)
+	} else {
+		app, err = firebase.NewApp(context.Background(), nil)
+	}
 
 	if err != nil {
 		log.Printf("error initializing app: %v\n", err)
 		return err
 	}
 
+	ctx := context.Background()
 	client, err := app.Messaging(ctx)
 	if err != nil {
 		log.Printf("error getting Messaging client: %v\n", err)
