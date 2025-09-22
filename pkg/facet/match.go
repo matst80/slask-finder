@@ -1,15 +1,14 @@
-package index
+package facet
 
 import (
 	"log"
 	"slices"
 
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type CleanKeyFacet struct {
-	Facet   *facet.KeyField
+	Facet   *KeyField
 	level   int
 	Exclude bool
 	Value   types.StringFilterValue `json:"value"`
@@ -85,7 +84,7 @@ func (i *FacetItemHandler) Match(search *types.Filters, qm *types.QueryMerger) {
 }
 
 type KeyFieldWithValue struct {
-	*facet.KeyField
+	*KeyField
 	Value types.StringFilterValue
 }
 
@@ -162,8 +161,8 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 		}
 	})
 	log.Printf("No relations found for item %d", item.GetId())
-	var field *facet.KeyField
-	var target *facet.KeyField
+	var field *KeyField
+	var target *KeyField
 	var ok bool
 	for id, itemField := range item.GetFields() {
 

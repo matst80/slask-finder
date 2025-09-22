@@ -87,6 +87,7 @@ func main() {
 
 	index := index.NewItemIndex()
 	embeddingsIndex := index.NewItemEmbeddingsHandler()
+	
 	err = LoadItems(&index.Items, itemsFile, embeddingsIndex)
 	if err != nil {
 		log.Printf("Could not load items from file: %v", err)
@@ -105,4 +106,5 @@ func main() {
 	})
 	srv.HandleFunc("/admin/add", app.handleItems)
 	srv.HandleFunc("/admin/save", app.saveItems)
+	srv.HandleFunc("GET /admin/item/{id}", ws.AuthMiddleware(JsonHandler(ws.Tracking, ws.GetItem)))
 }

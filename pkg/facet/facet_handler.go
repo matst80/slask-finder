@@ -1,18 +1,16 @@
-package index
+package facet
 
 import (
 	"log"
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type FacetItemHandler struct {
-	mu            sync.RWMutex
-	ChangeHandler FieldChangeHandler
-	Facets        map[uint]types.Facet
-	ItemFieldIds  map[uint]types.ItemList
+	mu           sync.RWMutex
+	Facets       map[uint]types.Facet
+	ItemFieldIds map[uint]types.ItemList
 }
 
 type FacetItemHandlerOptions struct {
@@ -60,23 +58,23 @@ func (h *FacetItemHandler) Unlock() {
 
 // Facet management methods
 func (h *FacetItemHandler) AddKeyField(field *types.BaseField) {
-	h.Facets[field.Id] = facet.EmptyKeyValueField(field)
+	h.Facets[field.Id] = EmptyKeyValueField(field)
 }
 
 func (h *FacetItemHandler) AddDecimalField(field *types.BaseField) {
-	h.Facets[field.Id] = facet.EmptyDecimalField(field)
+	h.Facets[field.Id] = EmptyDecimalField(field)
 }
 
 func (h *FacetItemHandler) AddIntegerField(field *types.BaseField) {
-	h.Facets[field.Id] = facet.EmptyIntegerField(field)
+	h.Facets[field.Id] = EmptyIntegerField(field)
 }
 
-func (h *FacetItemHandler) GetKeyFacet(id uint) (*facet.KeyField, bool) {
+func (h *FacetItemHandler) GetKeyFacet(id uint) (*KeyField, bool) {
 	if f, ok := h.Facets[id]; ok {
 		switch tf := f.(type) {
-		case facet.KeyField:
+		case KeyField:
 			return &tf, true
-		case *facet.KeyField:
+		case *KeyField:
 			return tf, true
 		}
 	}

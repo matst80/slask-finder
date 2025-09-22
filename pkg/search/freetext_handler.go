@@ -1,9 +1,8 @@
-package index
+package search
 
 import (
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -11,18 +10,18 @@ import (
 // It implements the types.ItemHandler interface
 type FreeTextItemHandler struct {
 	mu    sync.RWMutex
-	Index *search.FreeTextIndex
+	Index *FreeTextIndex
 }
 
 // FreeTextItemHandlerOptions contains configuration options for creating a new free text handler
 type FreeTextItemHandlerOptions struct {
-	Tokenizer *search.Tokenizer
+	Tokenizer *Tokenizer
 }
 
 // DefaultFreeTextHandlerOptions returns default configuration options for free text handler creation
 func DefaultFreeTextHandlerOptions() FreeTextItemHandlerOptions {
 	return FreeTextItemHandlerOptions{
-		Tokenizer: &search.Tokenizer{MaxTokens: 128},
+		Tokenizer: &Tokenizer{MaxTokens: 128},
 	}
 }
 
@@ -30,7 +29,7 @@ func DefaultFreeTextHandlerOptions() FreeTextItemHandlerOptions {
 func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandler {
 	handler := &FreeTextItemHandler{
 		mu:    sync.RWMutex{},
-		Index: search.NewFreeTextIndex(opts.Tokenizer),
+		Index: NewFreeTextIndex(opts.Tokenizer),
 	}
 
 	return handler
@@ -123,30 +122,30 @@ func (h *FreeTextItemHandler) RemoveDocument(id uint, text ...string) {
 }
 
 // GetFreeTextIndex returns the underlying FreeTextIndex for external access
-func (h *FreeTextItemHandler) GetFreeTextIndex() *search.FreeTextIndex {
+func (h *FreeTextItemHandler) GetFreeTextIndex() *FreeTextIndex {
 	return h.Index
 }
 
 // FindTrieMatchesForWord finds trie matches for a single word
-func (h *FreeTextItemHandler) FindTrieMatchesForWord(word string, resultChan chan<- []search.Match) {
+func (h *FreeTextItemHandler) FindTrieMatchesForWord(word string, resultChan chan<- []Match) {
 	if h.Index != nil {
 		h.Index.FindTrieMatchesForWord(word, resultChan)
 	} else {
-		resultChan <- []search.Match{}
+		resultChan <- []Match{}
 	}
 }
 
 // FindTrieMatchesForContext finds trie matches with context
-func (h *FreeTextItemHandler) FindTrieMatchesForContext(prevWord string, word string, resultChan chan<- []search.Match) {
+func (h *FreeTextItemHandler) FindTrieMatchesForContext(prevWord string, word string, resultChan chan<- []Match) {
 	if h.Index != nil {
 		h.Index.FindTrieMatchesForContext(prevWord, word, resultChan)
 	} else {
-		resultChan <- []search.Match{}
+		resultChan <- []Match{}
 	}
 }
 
 // GetTrie returns the underlying Trie for external access
-func (h *FreeTextItemHandler) GetTrie() *search.Trie {
+func (h *FreeTextItemHandler) GetTrie() *Trie {
 	if h.Index == nil {
 		return nil
 	}

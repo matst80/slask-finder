@@ -411,14 +411,6 @@ func (item *DataItem) GetItem() interface{} {
 	return item.BaseItem
 }
 
-func (item *DataItem) GetBasePopularity() float64 {
-	return item.baseScore
-}
-
-func (item *DataItem) UpdateBasePopularity(rules types.ItemPopularityRules) {
-	item.baseScore = types.CollectPopularity(item, rules...)
-}
-
 func (item *DataItem) MergeKeyFields(updates []types.CategoryUpdate) bool {
 	changed := false
 	for _, update := range updates {

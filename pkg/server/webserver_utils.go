@@ -332,7 +332,7 @@ func (ws *ClientWebServer) getOtherFacets(baseIds *types.ItemList, sr *types.Fac
 		}
 	} else {
 
-		for id := range ws.Sorting.FieldSort.SortMap(fieldIds) {
+		for id := range ws.Sorting.FieldSorting.GetFieldSort().SortMap(fieldIds) {
 			if count > limit {
 				break
 			}

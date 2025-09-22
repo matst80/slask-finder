@@ -1,10 +1,9 @@
-package index
+package embeddings
 
 import (
 	"log"
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -26,7 +25,7 @@ type ItemEmbeddingsHandler struct {
 	mu               sync.RWMutex
 	Embeddings       map[uint]types.Embeddings
 	EmbeddingsEngine types.EmbeddingsEngine
-	EmbeddingsQueue  *embeddings.EmbeddingsQueue
+	EmbeddingsQueue  *EmbeddingsQueue
 }
 
 // ItemEmbeddingsHandlerOptions contains configuration options for creating a new embeddings handler
@@ -65,7 +64,7 @@ func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(
 		}
 
 		// Create the embeddings queue with configured workers and effectively unlimited queue size
-		handler.EmbeddingsQueue = embeddings.NewEmbeddingsQueue(
+		handler.EmbeddingsQueue = NewEmbeddingsQueue(
 			opts.EmbeddingsEngine,
 			storeFunc,
 			queueDone,

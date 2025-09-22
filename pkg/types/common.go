@@ -128,8 +128,6 @@ type Item interface {
 	ToStringList() []string
 	GetBaseItem() BaseItem
 	MergeKeyFields(updates []CategoryUpdate) bool
-	GetBasePopularity() float64
-	UpdateBasePopularity(rules ItemPopularityRules)
 	//	GetItem() interface{}
 	CanHaveEmbeddings() bool
 	GetEmbeddingsText() (string, error)
