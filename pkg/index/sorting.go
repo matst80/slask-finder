@@ -19,6 +19,7 @@ import (
 type Sorting struct {
 	quit             chan struct{}
 	idx              *Index
+	facetIndex       *FacetItemHandler
 	mu               sync.RWMutex
 	muStaticPos      sync.RWMutex
 	muOverride       sync.RWMutex
@@ -236,9 +237,10 @@ func (s *Sorting) IndexChanged(idx *Index) {
 // 	s.staticPositions = &positions
 // }
 
-func (s *Sorting) InitializeWithIndex(idx *Index) {
+func (s *Sorting) InitializeWithIndex(idx *Index, facetIndex *FacetItemHandler) {
 	// ctx := context.Background()
 	s.idx = idx
+	s.facetIndex = facetIndex
 
 	popularOverride, err := GetOverrideFromKey(s.client, REDIS_POPULAR_KEY)
 	if err == nil {
@@ -262,7 +264,7 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	// 		s.setStaticPositions(staticPositions)
 	// 	}
 	// }
-	s.makeFieldSort(idx, *s.fieldOverride)
+	s.makeFieldSort(facetIndex, *s.fieldOverride)
 	s.makeItemSortMaps()
 	s.hasItemChanges = false
 	log.Println("Sorting initialized")
@@ -288,7 +290,7 @@ func (s *Sorting) InitializeWithIndex(idx *Index) {
 	}()
 }
 
-func (s *Sorting) makeFieldSort(idx *Index, overrides SortOverride) {
+func (s *Sorting) makeFieldSort(idx *FacetItemHandler, overrides SortOverride) {
 	idx.Lock()
 	defer idx.Unlock()
 	s.mu.Lock()
@@ -591,8 +593,8 @@ func cloneReversed(arr *types.ByValue) *types.ByValue {
 }
 
 func (s *Sorting) setFieldSortOverride(sort *SortOverride) {
-	if s.idx != nil {
-		go s.makeFieldSort(s.idx, *sort)
+	if s.facetIndex != nil {
+		go s.makeFieldSort(s.facetIndex, *sort)
 	}
 	s.muOverride.Lock()
 	defer s.muOverride.Unlock()

@@ -1,7 +1,6 @@
 package index
 
 import (
-	"fmt"
 	"log"
 	"slices"
 
@@ -16,7 +15,7 @@ type CleanKeyFacet struct {
 	Value   types.StringFilterValue `json:"value"`
 }
 
-func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilter) []CleanKeyFacet {
+func (i *FacetItemHandler) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilter) []CleanKeyFacet {
 	ret := make([]CleanKeyFacet, 0, len(stringFilters))
 
 	maxLevel := 0
@@ -47,7 +46,7 @@ func (i *Index) RemoveDuplicateCategoryFilters(stringFilters []types.StringFilte
 	})
 }
 
-func (i *Index) MatchStringsSync(filter []types.StringFilter, qm *types.QueryMerger) {
+func (i *FacetItemHandler) MatchStringsSync(filter []types.StringFilter, qm *types.QueryMerger) {
 
 	for _, fld := range filter {
 		if keyFacet, ok := i.GetKeyFacet(fld.Id); ok {
@@ -59,7 +58,7 @@ func (i *Index) MatchStringsSync(filter []types.StringFilter, qm *types.QueryMer
 
 }
 
-func (i *Index) Match(search *types.Filters, qm *types.QueryMerger) {
+func (i *FacetItemHandler) Match(search *types.Filters, qm *types.QueryMerger) {
 
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
 		if fld.Exclude {
@@ -90,13 +89,8 @@ type KeyFieldWithValue struct {
 	Value types.StringFilterValue
 }
 
-func (i *Index) Compatible(id uint) (*types.ItemList, error) {
-	i.Lock()
-	item, ok := i.Items[id]
-	i.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("item with id %d not found", id)
-	}
+func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) {
+
 	//fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
 
@@ -170,6 +164,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	log.Printf("No relations found for item %d", item.GetId())
 	var field *facet.KeyField
 	var target *facet.KeyField
+	var ok bool
 	for id, itemField := range item.GetFields() {
 
 		if field, ok = i.GetKeyFacet(id); !ok {
@@ -203,13 +198,7 @@ func (i *Index) Compatible(id uint) (*types.ItemList, error) {
 	return &types.ItemList{}, nil
 }
 
-func (i *Index) Related(id uint) (*types.ItemList, error) {
-	i.Lock()
-	item, ok := i.Items[id]
-	i.Unlock()
-	if !ok {
-		return nil, fmt.Errorf("item with id %d not found", id)
-	}
+func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
 
 	result := types.ItemList{}
 	var base *types.BaseField

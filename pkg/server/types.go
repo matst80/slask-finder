@@ -9,6 +9,19 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// WebServerInterface defines the common interface for both admin and client web servers
+type WebServerInterface interface {
+	// Core operations
+	UpsertItems(items []types.Item)
+	GetFacet(id uint) (types.Facet, bool)
+	GetAllFacets() map[uint]types.Facet
+	SearchItems(query string) *types.ItemList
+	FilterItems(query string, res *types.ItemList)
+	GetEmbeddings(itemId uint) (types.Embeddings, bool)
+	HasEmbeddings(itemId uint) bool
+}
+
+// Deprecated: Use AdminWebServer or ClientWebServer instead
 type WebServer struct {
 	OAuthConfig      *oauth2.Config
 	Index            *index.Index
@@ -19,8 +32,14 @@ type WebServer struct {
 	Embeddings       embeddings.Embeddings
 	Tracking         tracking.Tracking
 	FieldData        map[string]*FieldData
+	PriceWatches     *PriceWatchesData
 	FacetLimit       int
 	SearchFacetLimit int
+	// New handlers moved from Index
+	FacetHandler      *index.FacetItemHandler
+	SearchHandler     *index.FreeTextItemHandler
+	SortingHandler    *index.SortingItemHandler
+	EmbeddingsHandler *index.ItemEmbeddingsHandler
 }
 
 type DataType = int

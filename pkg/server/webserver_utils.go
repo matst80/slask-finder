@@ -42,7 +42,7 @@ func publicHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTim
 	genericHeaders(w, r, isJson)
 }
 
-func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
+func (ws *ClientWebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResult) {
 	ids := &types.ItemList{}
 	sortChan := make(chan *types.ByValue)
 	go noSearches.Inc()
@@ -53,13 +53,15 @@ func (ws *WebServer) getMatchAndSort(sr *SearchRequest, result chan<- searchResu
 		return ws.getSearchAndStockResult(sr.FacetRequest)
 	})
 
-	ws.Index.Match(sr.Filters, qm)
+	ws.FacetHandler.Match(sr.Filters, qm)
 
 	go ws.Sorting.GetSorting(sr.Sort, sortChan)
 
 	qm.Wait()
 	if sr.Filter != "" {
-		ws.Index.Search.Filter(sr.Filter, ids)
+		if ws.SearchHandler != nil {
+			ws.SearchHandler.Filter(sr.Filter, ids)
+		}
 	}
 	result <- searchResult{
 		matching:      ids,
@@ -227,7 +229,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 	}
 }
 
-func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *ClientWebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	makeQm := func(list *types.ItemList) *types.QueryMerger {
 		qm := types.NewQueryMerger(list)
@@ -242,14 +244,19 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 		if sr.IsIgnored(s.Id) {
 			continue
 		}
-		if f, ok := ws.Index.Facets[s.Id]; ok && !f.IsExcludedFromFacets() {
+		var f types.Facet
+		var faceExists bool
+		if ws.FacetHandler != nil {
+			f, faceExists = ws.FacetHandler.Facets[s.Id]
+		}
+		if faceExists && !f.IsExcludedFromFacets() {
 
 			wg.Add(1)
 
 			go func(otherFilters *types.Filters) {
 				matchIds := &types.ItemList{}
 				qm := makeQm(matchIds)
-				ws.Index.Match(otherFilters, qm)
+				ws.FacetHandler.Match(otherFilters, qm)
 				qm.Wait()
 
 				getFacetResult(f, matchIds, ch, wg, s.Value)
@@ -258,12 +265,17 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 		}
 	}
 	for _, r := range sr.RangeFilter {
-		if f, ok := ws.Index.Facets[r.Id]; ok && !sr.IsIgnored(r.Id) {
+		var f types.Facet
+		var facetExists bool
+		if ws.FacetHandler != nil {
+			f, facetExists = ws.FacetHandler.Facets[r.Id]
+		}
+		if facetExists && !sr.IsIgnored(r.Id) {
 			wg.Add(1)
 			go func(otherFilters *types.Filters) {
 				matchIds := &types.ItemList{}
 				qm := makeQm(matchIds)
-				ws.Index.Match(otherFilters, qm)
+				ws.FacetHandler.Match(otherFilters, qm)
 				qm.Wait()
 				go getFacetResult(f, matchIds, ch, wg, r)
 			}(sr.WithOut(r.Id, false))
@@ -271,23 +283,32 @@ func (ws *WebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetR
 	}
 }
 
-func (ws *WebServer) getSuggestFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *ClientWebServer) getSuggestFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 	for _, id := range types.CurrentSettings.SuggestFacets {
-		if f, ok := ws.Index.Facets[id]; ok && !f.IsExcludedFromFacets() {
+		var f types.Facet
+		var facetExists bool
+		if ws.FacetHandler != nil {
+			f, facetExists = ws.FacetHandler.Facets[id]
+		}
+		if facetExists && !f.IsExcludedFromFacets() {
 			wg.Add(1)
 			go getFacetResult(f, baseIds, ch, wg, nil)
 		}
 	}
 }
 
-func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
+func (ws *ClientWebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
 
 	fieldIds := make(map[uint]struct{})
 	limit := 30
 	resultCount := len(*baseIds)
 	t := 0
 	for id := range *baseIds {
-		itemFieldIds, ok := ws.Index.ItemFieldIds[id]
+		var itemFieldIds types.ItemList
+		var ok bool
+		if ws.FacetHandler != nil {
+			itemFieldIds, ok = ws.FacetHandler.ItemFieldIds[id]
+		}
 		if ok {
 			maps.Copy(fieldIds, itemFieldIds)
 			t++
@@ -300,7 +321,10 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 	count := 0
 	//var base *types.BaseField = nil
 	if resultCount == 0 {
-		mainCat := ws.Index.Facets[10] // todo setting
+		var mainCat types.Facet
+		if ws.FacetHandler != nil {
+			mainCat = ws.FacetHandler.Facets[10] // todo setting
+		}
 		if mainCat != nil {
 			//base = mainCat.GetBaseField()
 			wg.Add(1)
@@ -314,7 +338,12 @@ func (ws *WebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequ
 			}
 
 			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
-				if f, ok := ws.Index.Facets[id]; ok && !f.IsExcludedFromFacets() {
+				var f types.Facet
+				var facetExists bool
+				if ws.FacetHandler != nil {
+					f, facetExists = ws.FacetHandler.Facets[id]
+				}
+				if facetExists && !f.IsExcludedFromFacets() {
 
 					wg.Add(1)
 					go getFacetResult(f, baseIds, ch, wg, nil)
@@ -356,4 +385,37 @@ func RespondToOptions(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Age", "0")
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (ws *AdminWebServer) SaveHandleRelationGroups(w http.ResponseWriter, r *http.Request) {
+	//if r.Method == "POST" {
+	types.CurrentSettings.Lock()
+	err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
+	types.CurrentSettings.Unlock()
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	err = ws.Db.SaveSettings()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	// }
+	// defaultHeaders(w, r, true, "1200")
+	// w.WriteHeader(http.StatusOK)
+	// err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetRelations)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// }
+}
+
+func (ws *ClientWebServer) GetRelationGroups(w http.ResponseWriter, r *http.Request) {
+	defaultHeaders(w, r, true, "1200")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetRelations)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }

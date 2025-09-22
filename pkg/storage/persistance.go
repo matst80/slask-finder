@@ -48,19 +48,19 @@ type Field struct {
 // 	return nil
 // }
 
-func (p *DataRepository) LoadIndex(idx *index.Index) error {
-	idx.Lock()
-	defer idx.Unlock()
-	err := p.LoadFacets(idx)
-	if err != nil {
-		return err
-	}
+func (p *DataRepository) LoadIndex(handlers ...types.ItemHandler) error {
+	// idx.Lock()
+	// defer idx.Unlock()
+	// err := p.LoadFacets(idx)
+	// if err != nil {
+	// 	return err
+	// }
 
-	// Load embeddings if available
-	if err := p.LoadEmbeddings(idx); err != nil {
-		log.Printf("Error loading embeddings: %v", err)
-		// Continue loading even if embeddings failed to load
-	}
+	// // Load embeddings if available
+	// if err := p.LoadEmbeddings(idx); err != nil {
+	// 	log.Printf("Error loading embeddings: %v", err)
+	// 	// Continue loading even if embeddings failed to load
+	// }
 	file, err := os.Open(p.File)
 	if err != nil {
 		return err
@@ -90,8 +90,10 @@ func (p *DataRepository) LoadIndex(idx *index.Index) error {
 					tmp.Fields[37] = cgmString[:3]
 				}
 			}
-
-			idx.UpsertItemUnsafe(tmp)
+			for _, hs := range handlers {
+				hs.HandleItemUnsafe(tmp)
+			}
+			//idx.UpsertItemUnsafe(tmp)
 			//tmp = nil
 			tmp = &index.DataItem{}
 		}
@@ -236,7 +238,7 @@ func (p *DataRepository) SaveFacets(facets map[uint]types.Facet) error {
 
 }
 
-func (p *DataRepository) LoadFacets(idx *index.Index) error {
+func (p *DataRepository) LoadFacets(idx *index.FacetItemHandler) error {
 	file, err := os.Open("data/facets.json")
 	if err != nil {
 		return err
@@ -329,7 +331,7 @@ func (p *DataRepository) SaveEmbeddings(embeddings map[uint]types.Embeddings) er
 	return nil
 }
 
-func (p *DataRepository) LoadEmbeddings(idx *index.Index) error {
+func (p *DataRepository) LoadEmbeddings(idx *index.ItemEmbeddingsHandler) error {
 	file, err := os.Open(p.EmbeddingsFile)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -356,10 +358,8 @@ func (p *DataRepository) LoadEmbeddings(idx *index.Index) error {
 		return err
 	}
 
-	// Update the index embeddings map with loaded data
-	for id, emb := range embeddings {
-		idx.Embeddings[id] = emb
-	}
+	// Update the index embeddings using the embeddings handler
+	idx.LoadEmbeddings(embeddings)
 
 	log.Printf("Loaded %d embeddings", len(embeddings))
 	return nil

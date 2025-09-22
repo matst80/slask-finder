@@ -88,7 +88,7 @@ func TestSync(t *testing.T) {
 	masterTransport := RabbitTransportMaster{
 		RabbitConfig: rabbitConfig,
 	}
-	index1 := index.NewIndex(nil, func(i *index.Index) error { return nil })
+	index1 := index.NewIndex()
 
 	clientTransport1 := RabbitTransportClient{
 		RabbitConfig: rabbitConfig,

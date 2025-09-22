@@ -13,7 +13,7 @@ type RabbitTransportClient struct {
 	RabbitConfig
 
 	ClientName string
-	handler    index.UpdateHandler
+	//handler    index.UpdateHandler
 	connection *amqp.Connection
 	channel    *amqp.Channel
 	quit       chan bool
@@ -46,7 +46,7 @@ func (t *RabbitTransportClient) declareBindAndConsume(topic string) (<-chan amqp
 	)
 }
 
-func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
+func (t *RabbitTransportClient) Connect(handlers ...types.ItemHandler) error {
 	conn, err := amqp.DialConfig(t.Url, amqp.Config{
 		Vhost:      t.VHost,
 		Properties: amqp.NewConnectionProperties(),
@@ -61,7 +61,7 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 	if err != nil {
 		return err
 	}
-	t.handler = handler
+	//t.handler = handler
 	t.channel = ch
 	toAdd, err := t.declareBindAndConsume(t.ItemsUpsertedTopic)
 	if err != nil {
@@ -74,26 +74,30 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 			var items []index.DataItem
 			if err := json.Unmarshal(d.Body, &items); err == nil {
 				log.Printf("Got upserts %d", len(items))
-				t.handler.UpsertItems(index.ToItemArray(items))
+				for _, handler := range handlers {
+					for _, item := range items {
+						handler.HandleItem(&item)
+					}
+				}
 			} else {
 				log.Printf("Failed to unmarshal upset message %v", err)
 			}
 		}
 	}(toAdd)
 
-	toDelete, err := t.declareBindAndConsume(t.ItemDeletedTopic)
-	if err != nil {
-		return err
-	}
-	log.Printf("Connected to rabbit delete topic: %s", t.ItemDeletedTopic)
-	go func(msgs <-chan amqp.Delivery) {
-		for d := range msgs {
-			var item uint
-			if err := json.Unmarshal(d.Body, &item); err == nil {
-				t.handler.DeleteItem(item)
-			}
-		}
-	}(toDelete)
+	// toDelete, err := t.declareBindAndConsume(t.ItemDeletedTopic)
+	// if err != nil {
+	// 	return err
+	// }
+	// log.Printf("Connected to rabbit delete topic: %s", t.ItemDeletedTopic)
+	// go func(msgs <-chan amqp.Delivery) {
+	// 	for d := range msgs {
+	// 		var item uint
+	// 		if err := json.Unmarshal(d.Body, &item); err == nil {
+	// 			t.handler.DeleteItem(item)
+	// 		}
+	// 	}
+	// }(toDelete)
 
 	fieldUpdates, err := t.declareBindAndConsume(t.FieldChangeTopic)
 	if err != nil {
@@ -104,7 +108,8 @@ func (t *RabbitTransportClient) Connect(handler index.UpdateHandler) error {
 		for d := range msgs {
 			var changes []types.FieldChange
 			if err := json.Unmarshal(d.Body, &changes); err == nil {
-				t.handler.UpdateFields(changes)
+				log.Printf("Got field changes %d, change implementation when it works", len(changes))
+				//t.handler.UpdateFields(changes)
 			} else {
 				log.Printf("Failed to unmarshal field change message %v", err)
 			}

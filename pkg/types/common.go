@@ -145,7 +145,7 @@ type Embeddings []float32
 
 type EmbeddingsEngine interface {
 	GenerateEmbeddings(text string) (Embeddings, error)
-	GenerateEmbeddingsFromItem(item Item, fields map[uint]Facet) (Embeddings, error)
+	//GenerateEmbeddingsFromItem(item Item) (Embeddings, error)
 }
 
 type Facet interface {

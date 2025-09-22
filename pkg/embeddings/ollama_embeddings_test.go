@@ -283,18 +283,8 @@ func TestGenerateEmbeddingsFromItem(t *testing.T) {
 	// Create engine with the mock server URL
 	engine := NewOllamaEmbeddingsEngineWithConfig("test-model", server.URL+"/api/embeddings")
 
-	// Create a mock item
-	mockItem := types.MockItem{
-		Id:    1,
-		Title: "Test Product",
-		Fields: map[uint]interface{}{
-			1: "Category",
-			2: "Description",
-		},
-	}
-
 	// Generate embeddings from item
-	embeddings, err := engine.GenerateEmbeddingsFromItem(&mockItem, make(map[uint]types.Facet))
+	embeddings, err := engine.GenerateEmbeddings("text representation of item")
 
 	// Check for errors
 	if err != nil {
@@ -322,7 +312,7 @@ func TestBuildItemRepresentation(t *testing.T) {
 	}
 
 	// Get the string representation
-	representation := buildItemRepresentation(mockItem, make(map[uint]types.Facet))
+	representation := buildItemRepresentation(mockItem)
 
 	// Check that it contains the title
 	if !strings.Contains(representation, "Test Product") {

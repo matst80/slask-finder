@@ -27,7 +27,8 @@ var (
 
 // EmbeddingJob represents a job to generate embeddings for an item
 type EmbeddingJob struct {
-	Item      types.Item
+	Text      string
+	Id        uint
 	CreatedAt time.Time
 	StartedAt time.Time
 }
@@ -50,7 +51,6 @@ type EmbeddingsQueue struct {
 // number of workers and buffer size
 func NewEmbeddingsQueue(
 	engine types.EmbeddingsEngine,
-	facets map[uint]types.Facet,
 	storeFunc func(uint, types.Embeddings),
 	whenQueueIsDone func() error,
 	workerCount int,
@@ -65,7 +65,6 @@ func NewEmbeddingsQueue(
 
 	return &EmbeddingsQueue{
 		engine:      engine,
-		facets:      facets,
 		queue:       make(chan EmbeddingJob, queueSize),
 		doneFunc:    whenQueueIsDone,
 		storeFunc:   storeFunc,
@@ -102,7 +101,8 @@ func (eq *EmbeddingsQueue) QueueItem(item types.Item) bool {
 	// Try to add to queue immediately first
 	select {
 	case eq.queue <- EmbeddingJob{
-		Item:      item,
+		Text:      buildItemRepresentation(item),
+		Id:        item.GetId(),
 		CreatedAt: time.Now(),
 		StartedAt: time.Now(),
 	}:
@@ -127,7 +127,8 @@ func (eq *EmbeddingsQueue) QueueItems(items []types.Item) int {
 		// Try immediately with no waiting
 		select {
 		case eq.queue <- EmbeddingJob{
-			Item:      item,
+			Text:      buildItemRepresentation(item),
+			Id:        item.GetId(),
 			CreatedAt: time.Now(),
 		}:
 			embedQueueSize.Inc()
@@ -200,9 +201,9 @@ func (eq *EmbeddingsQueue) worker(id int) {
 			embedQueueSize.Dec()
 
 			// Process the job
-			itemId := job.Item.GetId()
+			itemId := job.Id
 
-			embeddings, err := eq.engine.GenerateEmbeddingsFromItem(job.Item, eq.facets)
+			embeddings, err := eq.engine.GenerateEmbeddings(job.Text)
 			if err != nil {
 				log.Printf("Worker %d: Failed to generate embeddings for item %d: %v", id, itemId, err)
 				embedErrorsTotal.Inc()

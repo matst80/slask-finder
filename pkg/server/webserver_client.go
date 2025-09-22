@@ -42,7 +42,7 @@ var (
 	})
 )
 
-func (ws *WebServer) getStockResult(stockLocations []string) *types.ItemList {
+func (ws *ClientWebServer) getStockResult(stockLocations []string) *types.ItemList {
 	resultStockIds := &types.ItemList{}
 	for _, stockId := range stockLocations {
 		stockIds, ok := ws.Index.ItemsInStock[stockId]
@@ -53,7 +53,7 @@ func (ws *WebServer) getStockResult(stockLocations []string) *types.ItemList {
 	return resultStockIds
 }
 
-func (ws *WebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.ItemList {
+func (ws *ClientWebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.ItemList {
 	var initialIds *types.ItemList = nil
 	//var documentResult *search.DocumentResult = nil
 	if sr.Query != "" {
@@ -63,7 +63,11 @@ func (ws *WebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.Item
 			initialIds = &clone
 
 		} else {
-			initialIds = ws.Index.Search.Search(sr.Query)
+			if ws.SearchHandler != nil {
+				initialIds = ws.SearchHandler.Search(sr.Query)
+			} else {
+				initialIds = &types.ItemList{}
+			}
 
 			//documentResult = queryResult
 		}
@@ -82,7 +86,7 @@ func (ws *WebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.Item
 	return initialIds
 }
 
-func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	query := r.URL.Query().Get("q")
 	query = strings.TrimSpace(query)
 	res := ws.ContentIndex.MatchQuery(query)
@@ -95,7 +99,7 @@ func (ws *WebServer) ContentSearch(w http.ResponseWriter, r *http.Request, sessi
 	return err
 }
 
-func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	s := time.Now()
 	sr, err := GetFacetQueryFromRequest(r)
 	if err != nil {
@@ -111,7 +115,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 		return baseIds
 	})
 
-	ws.Index.Match(sr.Filters, qm)
+	ws.FacetHandler.Match(sr.Filters, qm)
 
 	ch := make(chan *index.JsonFacet)
 	wg := &sync.WaitGroup{}
@@ -141,7 +145,7 @@ func (ws *WebServer) GetFacets(w http.ResponseWriter, r *http.Request, sessionId
 	return enc.Encode(ws.Sorting.GetSortedFields(ret))
 }
 
-func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	sr, err := GetQueryFromRequest(r)
 	if err != nil {
@@ -162,7 +166,7 @@ func (ws *WebServer) GetIds(w http.ResponseWriter, r *http.Request, sessionId in
 	return enc.Encode(result.matching)
 }
 
-func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	s := time.Now()
 	sr, err := GetQueryFromRequest(r)
 
@@ -226,7 +230,7 @@ func (ws *WebServer) SearchStreamed(w http.ResponseWriter, r *http.Request, sess
 	})
 }
 
-func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	query := r.URL.Query().Get("q")
 	if query == "" {
@@ -267,7 +271,12 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	defer close(wordMatchesChan)
 	defer close(sortChan)
 
-	docResult := ws.Index.Search.Search(query)
+	var docResult *types.ItemList
+	if ws.SearchHandler != nil {
+		docResult = ws.SearchHandler.Search(query)
+	} else {
+		docResult = &types.ItemList{}
+	}
 	types.Merge(results, *docResult)
 	//results = *docResult
 
@@ -276,7 +285,11 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	if len(other) > 0 {
 		prevWord = other[len(other)-1]
 	}
-	go ws.Index.Search.FindTrieMatchesForContext(prevWord, lastWord, wordMatchesChan)
+	if ws.SearchHandler != nil {
+		go ws.SearchHandler.FindTrieMatchesForContext(prevWord, lastWord, wordMatchesChan)
+	} else {
+		go func() { wordMatchesChan <- []search.Match{} }()
+	}
 
 	defaultHeaders(w, r, false, "360")
 
@@ -364,7 +377,7 @@ func (ws *WebServer) Suggest(w http.ResponseWriter, r *http.Request, sessionId i
 	return err
 }
 
-func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) GetValues(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
@@ -373,35 +386,42 @@ func (ws *WebServer) GetValues(w http.ResponseWriter, r *http.Request, sessionId
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
 	var base *types.BaseField
-	for _, field := range ws.Index.Facets {
-		base = field.GetBaseField()
-		if base.Id == uint(id) {
-			defaultHeaders(w, r, true, "120")
-			w.WriteHeader(http.StatusOK)
-			err := enc.Encode(field.GetValues())
-			return err
+	if ws.FacetHandler != nil {
+		for _, field := range ws.FacetHandler.Facets {
+			base = field.GetBaseField()
+			if base.Id == uint(id) {
+				defaultHeaders(w, r, true, "120")
+				w.WriteHeader(http.StatusOK)
+				err := enc.Encode(field.GetValues())
+				return err
+			}
 		}
 	}
 	w.WriteHeader(http.StatusNotFound)
 	return nil
 }
 
-func (ws *WebServer) Facets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) Facets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	publicHeaders(w, r, true, "1200")
 
 	w.WriteHeader(http.StatusOK)
 
-	res := make([]types.BaseField, len(ws.Index.Facets))
-	idx := 0
-	for _, f := range ws.Index.Facets {
-		res[idx] = *f.GetBaseField()
-		idx++
+	var res []types.BaseField
+	if ws.FacetHandler != nil {
+		res = make([]types.BaseField, len(ws.FacetHandler.Facets))
+		idx := 0
+		for _, f := range ws.FacetHandler.Facets {
+			res[idx] = *f.GetBaseField()
+			idx++
+		}
+	} else {
+		res = []types.BaseField{}
 	}
 
 	return enc.Encode(res)
 }
 
-func (ws *WebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) Popular(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	items, _ := ws.Sorting.GetSessionData(uint(sessionId))
 	sortedItems := items.ToSortedLookup()
 
@@ -431,7 +451,7 @@ type Similar struct {
 	Items       []types.Item `json:"items"`
 }
 
-func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	items, fields := ws.Sorting.GetSessionData(uint(sessionId))
 	articleTypes := map[string]float64{}
 	itemChan := make(chan *Similar)
@@ -457,7 +477,7 @@ func (ws *WebServer) Similar(w http.ResponseWriter, r *http.Request, sessionId i
 		}
 		resultIds := &types.ItemList{}
 		qm := types.NewQueryMerger(resultIds)
-		ws.Index.Match(filter, qm)
+		ws.FacetHandler.Match(filter, qm)
 		qm.Wait()
 		l := len(*resultIds)
 		limit := min(l, 40)
@@ -508,7 +528,7 @@ type PossibleRelationQuery struct {
 	Id    uint        `json:"id"`
 }
 
-func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) FindRelated(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	var query PossibleRelationQuery
 	err := json.NewDecoder(r.Body).Decode(&query)
 	if err != nil {
@@ -517,29 +537,31 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	var base types.BaseField
 	var l int
 	res := make(map[uint]int)
-	for _, f := range ws.Index.Facets {
+	if ws.FacetHandler != nil {
+		for _, f := range ws.FacetHandler.Facets {
 
-		keyFacet, ok := f.(facet.KeyField)
-		if !ok {
-			continue
-		}
-		// if f.GetType() != types.FacetKeyType {
-		// 	continue
-		// }
-		base = *keyFacet.BaseField
-		if base.Id == query.Id || !base.Searchable {
-			continue
-		}
-		keyValue, ok := types.AsKeyFilterValue(query.Value)
-		if !ok {
-			continue
-		}
-		matches := keyFacet.Match(keyValue)
+			keyFacet, ok := f.(facet.KeyField)
+			if !ok {
+				continue
+			}
+			// if f.GetType() != types.FacetKeyType {
+			// 	continue
+			// }
+			base = *keyFacet.BaseField
+			if base.Id == query.Id || !base.Searchable {
+				continue
+			}
+			keyValue, ok := types.AsKeyFilterValue(query.Value)
+			if !ok {
+				continue
+			}
+			matches := keyFacet.Match(keyValue)
 
-		if matches != nil {
-			l = len(*matches)
-			if l > 0 {
-				res[base.Id] = l
+			if matches != nil {
+				l = len(*matches)
+				if l > 0 {
+					res[base.Id] = l
+				}
 			}
 		}
 	}
@@ -553,13 +575,19 @@ func (ws *WebServer) FindRelated(w http.ResponseWriter, r *http.Request, session
 	return enc.Encode(res)
 }
 
-func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
 		return err
 	}
+
+	item, ok := ws.Index.Items[uint(id)]
+	if !ok {
+		return fmt.Errorf("item %d not found", id)
+	}
+
 	relatedChan := make(chan *types.ItemList)
 	defer close(relatedChan)
 	sortChan := make(chan *types.ByValue)
@@ -568,7 +596,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 	go func(ch chan *types.ItemList) {
-		related, err := ws.Index.Related(uint(id))
+		related, err := ws.FacetHandler.Related(item)
 		if err != nil {
 			ch <- &types.ItemList{}
 			return
@@ -597,7 +625,7 @@ func (ws *WebServer) Related(w http.ResponseWriter, r *http.Request, sessionId i
 	return err
 }
 
-func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	excludedProductTypes := make([]string, 0)
 	maxItems := 60
 	limitString := r.URL.Query().Get("limit")
@@ -627,6 +655,10 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	if err != nil {
 		return err
 	}
+	item, ok := ws.Index.Items[uint(id)]
+	if !ok {
+		return fmt.Errorf("item %d not found", id)
+	}
 
 	sortChan := make(chan *types.ByValue)
 	defer close(sortChan)
@@ -635,7 +667,7 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 	w.WriteHeader(http.StatusOK)
 
 	go ws.Sorting.GetSorting("popular", sortChan)
-	related, err := ws.Index.Compatible(uint(id))
+	related, err := ws.FacetHandler.Compatible(item)
 	if err != nil {
 		return err
 	}
@@ -704,7 +736,7 @@ func (ws *WebServer) Compatible(w http.ResponseWriter, r *http.Request, sessionI
 // 	return enc.Encode(result)
 // }
 
-func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	id := r.PathValue("id")
 	itemId, err := strconv.Atoi(id)
 	if err != nil {
@@ -719,7 +751,7 @@ func (ws *WebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId i
 	return enc.Encode(item)
 }
 
-func (ws *WebServer) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	sku := r.PathValue("sku")
 	publicHeaders(w, r, true, "120")
 	item, ok := ws.Index.ItemsBySku[sku]
@@ -732,7 +764,7 @@ func (ws *WebServer) GetItemBySku(w http.ResponseWriter, r *http.Request, sessio
 	return enc.Encode(item)
 }
 
-func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "600")
 	items := make([]uint, 0)
 	err := json.NewDecoder(r.Body).Decode(&items)
@@ -823,7 +855,7 @@ func (ws *WebServer) GetItems(w http.ResponseWriter, r *http.Request, sessionId 
 //	return nil
 //}
 
-func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
 	if err := ws.Db.LoadSettings(); err != nil {
@@ -833,144 +865,144 @@ func (ws *WebServer) ReloadSettings(w http.ResponseWriter, r *http.Request, sess
 	return enc.Encode(types.CurrentSettings)
 }
 
-func (ws *WebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	query := r.URL.Query().Get("q")
-	query = strings.TrimSpace(query)
+// func (ws *ClientWebServer) SearchEmbeddings(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+// 	query := r.URL.Query().Get("q")
+// 	query = strings.TrimSpace(query)
 
-	if query == "" {
-		defaultHeaders(w, r, true, "1200")
-		w.WriteHeader(http.StatusBadRequest)
-		return fmt.Errorf("query parameter 'q' is required")
-	}
+// 	if query == "" {
+// 		defaultHeaders(w, r, true, "1200")
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		return fmt.Errorf("query parameter 'q' is required")
+// 	}
 
-	// Check if embeddings engine is available
-	if ws.Index.EmbeddingsEngine == nil {
-		return fmt.Errorf("embeddings engine not initialized")
-	}
-	start := time.Now()
-	// Generate embeddings for the query
-	queryEmbeddings, err := ws.Index.EmbeddingsEngine.GenerateEmbeddings(query)
-	if err != nil {
-		return fmt.Errorf("failed to generate embeddings: %w", err)
-	}
-	embeddingsDuration := time.Since(start)
+// 	// Check if embeddings engine is available
+// 	if ws.EmbeddingsHandler == nil || ws.EmbeddingsHandler.GetEmbeddingsEngine() == nil {
+// 		return fmt.Errorf("embeddings engine not initialized")
+// 	}
+// 	start := time.Now()
+// 	// Generate embeddings for the query
+// 	queryEmbeddings, err := ws.EmbeddingsHandler.GetEmbeddingsEngine().GenerateEmbeddings(query)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to generate embeddings: %w", err)
+// 	}
+// 	embeddingsDuration := time.Since(start)
 
-	// Find similar items using cosine similarity
-	matches := make(types.ItemList)
-	// sortedItems := make(types.ByValue, 0)
+// 	// Find similar items using cosine similarity
+// 	matches := make(types.ItemList)
+// 	// sortedItems := make(types.ByValue, 0)
 
-	// similarityThreshold := 0.5 // Configurable threshold
+// 	// similarityThreshold := 0.5 // Configurable threshold
 
-	// Convert queryEmbeddings (float32) to float64 for cosine similarity calculation
+// 	// Convert queryEmbeddings (float32) to float64 for cosine similarity calculation
 
-	// Lock the index for read access
-	ws.Index.Lock()
-	defer ws.Index.Unlock()
+// 	// Lock the index for read access
+// 	ws.Index.Lock()
+// 	defer ws.Index.Unlock()
 
-	// Find items with similar embeddings
-	start = time.Now()
-	ids, _ := types.FindTopSimilarEmbeddings(queryEmbeddings, ws.Index.Embeddings, 60)
-	// for itemID, itemEmb := range ws.Index.Embeddings {
-	// 	// Convert item embeddings (float32) to float64 for cosine similarity calculation
+// 	// Find items with similar embeddings
+// 	start = time.Now()
+// 	ids, _ := types.FindTopSimilarEmbeddings(queryEmbeddings, ws.EmbeddingsHandler.GetAllEmbeddings(), 60)
+// 	// for itemID, itemEmb := range ws.Index.Embeddings {
+// 	// 	// Convert item embeddings (float32) to float64 for cosine similarity calculation
 
-	// 	similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
+// 	// 	similarity := types.CosineSimilarity(queryEmbeddings, itemEmb)
 
-	// 	if similarity > similarityThreshold {
-	// 		_, exists := ws.Index.Items[itemID]
-	// 		if !exists {
-	// 			continue
-	// 		}
+// 	// 	if similarity > similarityThreshold {
+// 	// 		_, exists := ws.Index.Items[itemID]
+// 	// 		if !exists {
+// 	// 			continue
+// 	// 		}
 
-	// 		matches.AddId(itemID)
-	// 		sortedItems = append(sortedItems, types.Lookup{
-	// 			Id:    itemID,
-	// 			Value: similarity,
-	// 		})
-	// 	}
-	// }
+// 	// 		matches.AddId(itemID)
+// 	// 		sortedItems = append(sortedItems, types.Lookup{
+// 	// 			Id:    itemID,
+// 	// 			Value: similarity,
+// 	// 		})
+// 	// 	}
+// 	// }
 
-	// // Sort by similarity (highest first)
-	// slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
-	// 	return cmp.Compare(b.Value, a.Value)
-	// })
-	matchDuration := time.Since(start)
-	defaultHeaders(w, r, true, "120")
-	w.Header().Set("x-embeddings-duration", fmt.Sprintf("%v", embeddingsDuration))
-	w.Header().Set("x-match-duration", fmt.Sprintf("%v", matchDuration))
-	w.WriteHeader(http.StatusOK)
+// 	// // Sort by similarity (highest first)
+// 	// slices.SortFunc(sortedItems, func(a, b types.Lookup) int {
+// 	// 	return cmp.Compare(b.Value, a.Value)
+// 	// })
+// 	matchDuration := time.Since(start)
+// 	defaultHeaders(w, r, true, "120")
+// 	w.Header().Set("x-embeddings-duration", fmt.Sprintf("%v", embeddingsDuration))
+// 	w.Header().Set("x-match-duration", fmt.Sprintf("%v", matchDuration))
+// 	w.WriteHeader(http.StatusOK)
 
-	// Prepare limit on results
-	limit := 60
-	limitParam := r.URL.Query().Get("limit")
-	if limitParam != "" {
-		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 {
-			limit = l
-		}
-	}
+// 	// Prepare limit on results
+// 	limit := 60
+// 	limitParam := r.URL.Query().Get("limit")
+// 	if limitParam != "" {
+// 		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 {
+// 			limit = l
+// 		}
+// 	}
 
-	// Stream the results to the client
-	count := 0
-	for _, matchId := range ids {
-		if count >= limit {
-			break
-		}
+// 	// Stream the results to the client
+// 	count := 0
+// 	for _, matchId := range ids {
+// 		if count >= limit {
+// 			break
+// 		}
 
-		item, ok := ws.Index.Items[matchId]
-		if ok {
-			err := enc.Encode(item)
-			if err != nil {
-				return err
-			}
-			count++
-		}
-	}
+// 		item, ok := ws.Index.Items[matchId]
+// 		if ok {
+// 			err := enc.Encode(item)
+// 			if err != nil {
+// 				return err
+// 			}
+// 			count++
+// 		}
+// 	}
 
-	// Track search if tracking is enabled
-	if ws.Tracking != nil {
-		go ws.Tracking.TrackSearch(sessionId, nil, len(matches), query, 0, r)
-	}
+// 	// Track search if tracking is enabled
+// 	if ws.Tracking != nil {
+// 		go ws.Tracking.TrackSearch(sessionId, nil, len(matches), query, 0, r)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-func (ws *WebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	idString := r.PathValue("id")
-	id, err := strconv.Atoi(idString)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		return fmt.Errorf("invalid id: %s", idString)
-	}
-	iid := uint(id)
-	item, ok := ws.Index.Embeddings[iid]
-	if !ok {
-		w.WriteHeader(http.StatusNotFound)
-		return fmt.Errorf("item not found with id: %d", id)
-	}
-	defaultHeaders(w, r, true, "120")
-	w.WriteHeader(http.StatusOK)
-	ids, _ := types.FindTopSimilarEmbeddings(item, ws.Index.Embeddings, 30)
-	// Stream the results to the client
+// func (ws *ClientWebServer) CosineSimilar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+// 	idString := r.PathValue("id")
+// 	id, err := strconv.Atoi(idString)
+// 	if err != nil {
+// 		w.WriteHeader(http.StatusBadRequest)
+// 		return fmt.Errorf("invalid id: %s", idString)
+// 	}
+// 	iid := uint(id)
+// 	item, ok := ws.EmbeddingsClient.GetEmbeddings(iid)
+// 	if !ok {
+// 		w.WriteHeader(http.StatusNotFound)
+// 		return fmt.Errorf("item not found with id: %d", id)
+// 	}
+// 	defaultHeaders(w, r, true, "120")
+// 	w.WriteHeader(http.StatusOK)
+// 	ids, _ := types.FindTopSimilarEmbeddings(item, ws.EmbeddingsHandler.GetAllEmbeddings(), 30)
+// 	// Stream the results to the client
 
-	for _, rid := range ids {
-		if rid == iid {
-			continue // Skip the item itself
-		}
-		item, ok := ws.Index.Items[rid]
-		if ok {
-			err := enc.Encode(item)
-			if err != nil {
-				return err
-			}
+// 	for _, rid := range ids {
+// 		if rid == iid {
+// 			continue // Skip the item itself
+// 		}
+// 		item, ok := ws.Index.Items[rid]
+// 		if ok {
+// 			err := enc.Encode(item)
+// 			if err != nil {
+// 				return err
+// 			}
 
-		}
-	}
-	return nil
-}
+// 		}
+// 	}
+// 	return nil
+// }
 
 // PredictSequenceRequest represents query params for sequence prediction
 // Now uses `q` to infer prev and prefix automatically. Example:
 // /predict-sequence?q=apple ip&max=3
-func (ws *WebServer) PredictSequence(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) PredictSequence(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	q := r.URL.Query().Get("q")
 	q = strings.TrimSpace(q)
 	if q == "" {
@@ -995,7 +1027,14 @@ func (ws *WebServer) PredictSequence(w http.ResponseWriter, r *http.Request, ses
 		prefixTok = search.NormalizeWord(words[len(words)-1])
 	}
 
-	seq := ws.Index.Search.Trie.PredictSequence(prevTok, prefixTok, max)
+	var trie *search.Trie
+	if ws.SearchHandler != nil {
+		trie = ws.SearchHandler.GetTrie()
+	}
+	if trie == nil {
+		return enc.Encode([]string{})
+	}
+	seq := trie.PredictSequence(prevTok, prefixTok, max)
 
 	defaultHeaders(w, r, false, "60")
 	w.WriteHeader(http.StatusOK)
@@ -1003,7 +1042,7 @@ func (ws *WebServer) PredictSequence(w http.ResponseWriter, r *http.Request, ses
 }
 
 // PredictTree endpoint: /predict-tree?q=apple ip&depth=3&k=3
-func (ws *WebServer) PredictTree(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+func (ws *ClientWebServer) PredictTree(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	q := strings.TrimSpace(r.URL.Query().Get("q"))
 	if q == "" {
 		defaultHeaders(w, r, false, "60")
@@ -1031,13 +1070,20 @@ func (ws *WebServer) PredictTree(w http.ResponseWriter, r *http.Request, session
 		prevTok = search.NormalizeWord(parts[len(parts)-2])
 		prefixTok = search.NormalizeWord(parts[len(parts)-1])
 	}
-	tree := ws.Index.Search.Trie.PredictTree(prevTok, prefixTok, depth, k)
+	var trie *search.Trie
+	if ws.SearchHandler != nil {
+		trie = ws.SearchHandler.GetTrie()
+	}
+	if trie == nil {
+		return enc.Encode(nil)
+	}
+	tree := trie.PredictTree(prevTok, prefixTok, depth, k)
 	defaultHeaders(w, r, false, "60")
 	w.WriteHeader(http.StatusOK)
 	return enc.Encode(tree)
 }
 
-func (ws *WebServer) ClientHandler() *http.ServeMux {
+func (ws *ClientWebServer) Handle() *http.ServeMux {
 
 	srv := http.NewServeMux()
 
@@ -1052,19 +1098,19 @@ func (ws *WebServer) ClientHandler() *http.ServeMux {
 	srv.HandleFunc("/related/{id}", JsonHandler(ws.Tracking, ws.Related))
 	srv.HandleFunc("/compatible/{id}", JsonHandler(ws.Tracking, ws.Compatible))
 	srv.HandleFunc("/popular", JsonHandler(ws.Tracking, ws.Popular))
-	srv.HandleFunc("/natural", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
+	//srv.HandleFunc("/natural", JsonHandler(ws.Tracking, ws.SearchEmbeddings))
 	srv.HandleFunc("/similar", JsonHandler(ws.Tracking, ws.Similar))
-	srv.HandleFunc("/cosine-similar/{id}", JsonHandler(ws.Tracking, ws.CosineSimilar))
+	//srv.HandleFunc("/cosine-similar/{id}", JsonHandler(ws.Tracking, ws.CosineSimilar))
 	//srv.HandleFunc("/trigger-words", JsonHandler(ws.Tracking, ws.TriggerWords))
 	srv.HandleFunc("/facet-list", JsonHandler(ws.Tracking, ws.Facets))
 	srv.HandleFunc("/suggest", JsonHandler(ws.Tracking, ws.Suggest))
 	srv.HandleFunc("/find-related", JsonHandler(ws.Tracking, ws.FindRelated))
 	//srv.HandleFunc("/categories", JsonHandler(ws.Tracking, ws.Categories))
 	//srv.HandleFunc("/search", ws.QueryIndex)
-	srv.HandleFunc("GET /settings", ws.GetSettings)
+	//srv.HandleFunc("GET /settings", ws.GetSettings)
 	srv.HandleFunc("/stream", JsonHandler(ws.Tracking, ws.SearchStreamed))
 	srv.HandleFunc("/reload-settings", JsonHandler(ws.Tracking, ws.ReloadSettings))
-	srv.HandleFunc("GET /relation-groups", ws.HandleRelationGroups)
+	srv.HandleFunc("GET /relation-groups", ws.GetRelationGroups)
 
 	srv.HandleFunc("/ids", JsonHandler(ws.Tracking, ws.GetIds))
 	srv.HandleFunc("GET /get/{id}", JsonHandler(ws.Tracking, ws.GetItem))

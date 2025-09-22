@@ -11,11 +11,8 @@ import (
 	"os"
 	"slices"
 	"strconv"
-	"sync"
 	"time"
 
-	firebase "firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/messaging"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/matst80/slask-finder/pkg/index"
@@ -23,7 +20,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/oauth2"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -31,34 +27,9 @@ var (
 		Name: "slaskfinder_items_total",
 		Help: "The total number of items in index",
 	})
-	priceWatchesMutex sync.RWMutex
-	priceWatchesFile  = "data/price_watches_v2.json"
 )
 
-// PushSubscription represents a Web Push API subscription
-type PushSubscription struct {
-	Token string `json:"token"`
-}
-
-// PriceWatch represents a price watch entry
-type PriceWatch struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"userId,omitempty"`
-	Token     string    `json:"token"`
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-// PriceWatchRequest represents the incoming request
-type PriceWatchRequest struct {
-	Token string `json:"token"`
-}
-
-// PriceWatchesData represents the structure of the watches file
-type PriceWatchesData struct {
-	Watches []PriceWatch `json:"watches"`
-}
-
-func (ws *WebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == "POST" {
 		defaultHeaders(w, r, false, "0")
@@ -107,7 +78,7 @@ func (ws *WebServer) HandlePopularRules(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Request) {
 	if ws.Sorting == nil {
 		log.Printf("Sorting not initialized in handlePopularOverride")
 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
@@ -141,122 +112,28 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-// func (ws *WebServer) HandleFieldSort(w http.ResponseWriter, r *http.Request) {
-// 	if ws.Sorting == nil {
-// 		log.Printf("Sorting not initialized in handleFieldSort")
-// 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	if r.Method == "POST" {
-// 		defaultHeaders(w, r, true, "0")
-// 		sort := index.SortOverride{}
-// 		err := json.NewDecoder(r.Body).Decode(&sort)
-// 		if err != nil {
-// 			http.Error(w, err.Error(), http.StatusBadRequest)
-// 			return
-// 		}
-// 		ws.Sorting.SetFieldSortOverride(&sort)
-// 		w.WriteHeader(http.StatusOK)
-// 		return
-// 	}
-
-// 	sort := ws.Sorting.FieldSort
-// 	if sort == nil {
-// 		http.Error(w, "Sort not found", http.StatusNotFound)
-// 		return
-// 	}
-// 	defaultHeaders(w, r, true, "120")
-// 	w.WriteHeader(http.StatusOK)
-// 	err := json.NewEncoder(w).Encode(sort)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// }
-
-// func (ws *WebServer) HandleStaticPositions(w http.ResponseWriter, r *http.Request) {
-// 	if ws.Sorting == nil {
-// 		log.Printf("Sorting not initialized in handleFieldSort")
-// 		http.Error(w, "Sorting not initialized", http.StatusInternalServerError)
-// 		return
-// 	}
-// 	if r.Method == "POST" {
-// 		defaultHeaders(w, r, true, "0")
-// 		sort := index.StaticPositions{}
-// 		err := json.NewDecoder(r.Body).Decode(&sort)
-// 		if err != nil {
-// 			http.Error(w, err.Error(), http.StatusBadRequest)
-// 			return
-// 		}
-// 		err = ws.Sorting.SetStaticPositions(sort)
-// 		if err != nil {
-// 			http.Error(w, err.Error(), http.StatusBadRequest)
-// 		}
-// 		w.WriteHeader(http.StatusOK)
-// 		return
-// 	}
-
-// 	sort := ws.Sorting.GetStaticPositions()
-// 	if sort == nil {
-// 		http.Error(w, "Sort not found", http.StatusNotFound)
-// 		return
-// 	}
-// 	defaultHeaders(w, r, true, "120")
-// 	w.WriteHeader(http.StatusOK)
-// 	err := json.NewEncoder(w).Encode(sort)
-// 	if err != nil {
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 	}
-// }
-
-// func (ws *WebServer) sendPriceWatchNotification(item types.Item) {
-
-// }
-
-func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
-	watchesData, err := loadPriceWatches()
-	if err != nil {
-		log.Printf("Error loading price watches for notification: %v", err)
-	}
-
+func (ws *AdminWebServer) AddItem(w http.ResponseWriter, r *http.Request) {
 	items := AddItemRequest{}
-	err = json.NewDecoder(r.Body).Decode(&items)
+	err := json.NewDecoder(r.Body).Decode(&items)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	toUpdate := make([]types.Item, len(items))
 	for i, item := range items {
-		if watchesData != nil {
-			for _, watch := range watchesData.Watches {
-				if watch.ID == item.GetSku() {
-					notification := &messaging.Notification{
-						Title: fmt.Sprintf("Price Update for %s", item.GetTitle()),
-						Body:  fmt.Sprintf("The price is now %.2f", float64(item.GetPrice())/100),
-					}
-					data := map[string]string{
-						"itemId":   item.GetSku(),
-						"type":     "price-update",
-						"newPrice": fmt.Sprintf("%.2f", float64(item.GetPrice())/100),
-					}
-
-					// We can probably make this concurrent if we have many watches
-					err := sendFirebaseNotification(watch.Token, notification, data)
-					if err != nil {
-						log.Printf("Failed to send price watch notification for item %s to token %s: %v", watch.ID, watch.Token, err)
-					}
-
-				}
-			}
+		// Send notifications for price watchers
+		if ws.PriceWatches != nil {
+			ws.PriceWatches.NotifyPriceWatchers(&item)
 		}
 		toUpdate[i] = &item
 	}
-	ws.Index.UpsertItems(toUpdate)
+	ws.Index.HandleItems(toUpdate)
 	totalItems.Set(float64(len(ws.Index.Items)))
 	toUpdate = nil
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) Save(w http.ResponseWriter, _ *http.Request) {
+func (ws *AdminWebServer) Save(w http.ResponseWriter, _ *http.Request) {
 	err := ws.Db.SaveIndex(ws.Index)
 	if err != nil {
 		log.Printf("Error saving index: %v", err)
@@ -266,22 +143,22 @@ func (ws *WebServer) Save(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-type CategoryUpdateRequest struct {
-	Ids     []uint                 `json:"ids"`
-	Updates []types.CategoryUpdate `json:"updates"`
-}
+// type CategoryUpdateRequest struct {
+// 	Ids     []uint                 `json:"ids"`
+// 	Updates []types.CategoryUpdate `json:"updates"`
+// }
 
-func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
-	update := CategoryUpdateRequest{}
-	err := json.NewDecoder(r.Body).Decode(&update)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+// func (ws *WebServer) UpdateCategories(w http.ResponseWriter, r *http.Request) {
+// 	update := CategoryUpdateRequest{}
+// 	err := json.NewDecoder(r.Body).Decode(&update)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusBadRequest)
+// 		return
+// 	}
 
-	ws.Index.UpdateCategoryValues(update.Ids, update.Updates)
-	w.WriteHeader(http.StatusAccepted)
-}
+// 	ws.Index.UpdateCategoryValues(update.Ids, update.Updates)
+// 	w.WriteHeader(http.StatusAccepted)
+// }
 
 func generateStateOauthCookie() string {
 	b := make([]byte, 16)
@@ -294,8 +171,8 @@ func generateStateOauthCookie() string {
 	return state
 }
 
-var secretKey = []byte("slask-62541337!-banansecret")
-var serverApiKey = "Basic YXBpc2xhc2tlcjptYXN0ZXJzbGFza2VyMjAwMA=="
+var secretKey = []byte("")
+var serverApiKey = ""
 
 func init() {
 	hash := os.Getenv("SLASK_TOKEN_HASH")
@@ -327,7 +204,7 @@ func createToken(username, name, role string) (string, error) {
 	return tokenString, nil
 }
 
-func (ws *WebServer) Login(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) Login(w http.ResponseWriter, r *http.Request) {
 	oauthState := generateStateOauthCookie()
 	url := ws.OAuthConfig.AuthCodeURL(oauthState, oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 	http.Redirect(w, r, url, http.StatusTemporaryRedirect)
@@ -343,7 +220,7 @@ type UserData struct {
 
 const tokenCookieName = "sf-admin"
 
-func (ws *WebServer) Logout(w http.ResponseWriter, _ *http.Request) {
+func (ws *AdminWebServer) Logout(w http.ResponseWriter, _ *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:   tokenCookieName,
 		Value:  "",
@@ -356,7 +233,7 @@ type ContextValue string
 
 var ContextRole = ContextValue("role")
 
-func (ws *WebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func (ws *AdminWebServer) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		role := "anonymous"
@@ -410,7 +287,7 @@ func getUserData(token *oauth2.Token) (*UserData, error) {
 	return &userData, nil
 }
 
-func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	token, err := ws.OAuthConfig.Exchange(context.Background(), r.FormValue("code"))
 	if err != nil {
@@ -441,7 +318,7 @@ func (ws *WebServer) AuthCallback(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/register", http.StatusTemporaryRedirect)
 }
 
-func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) User(w http.ResponseWriter, r *http.Request) {
 	cookie, err := r.Cookie(tokenCookieName)
 	if err != nil || cookie.Value == "" {
 		w.WriteHeader(http.StatusNoContent)
@@ -498,13 +375,13 @@ func (ws *WebServer) User(w http.ResponseWriter, r *http.Request) {
 //
 //}
 
-func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	tmpFields := make(map[string]*FieldData)
 	err := json.NewDecoder(r.Body).Decode(&tmpFields)
 	for key, field := range tmpFields {
-		facet, ok := ws.Index.Facets[field.Id]
+		facet, ok := ws.FacetHandler.Facets[field.Id]
 		if ok {
 			base := facet.GetBaseField()
 			if base != nil {
@@ -542,7 +419,7 @@ func (ws *WebServer) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (ws *WebServer) GetFields(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) GetFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(ws.FieldData)
@@ -551,7 +428,7 @@ func (ws *WebServer) GetFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) GetField(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) GetField(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	fieldId := r.PathValue("id")
 	field, ok := ws.FieldData[fieldId]
@@ -567,7 +444,7 @@ func (ws *WebServer) GetField(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	ws.Index.Lock()
 	defer ws.Index.Unlock()
@@ -589,7 +466,7 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 	for key, field := range ws.FieldData {
 		if field.ItemCount > 0 {
 			cleanFields[key] = field
-			facet, ok := ws.Index.Facets[field.Id]
+			facet, ok := ws.FacetHandler.Facets[field.Id]
 			if ok {
 				base := facet.GetBaseField()
 				if base != nil {
@@ -615,12 +492,12 @@ func (ws *WebServer) CleanFields(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	//toDelete := make([]uint, 0)
 	for _, field := range ws.FieldData {
-		facet, ok := ws.Index.Facets[field.Id]
+		facet, ok := ws.FacetHandler.Facets[field.Id]
 		if ok {
 			base := facet.GetBaseField()
 			if base != nil {
@@ -648,13 +525,13 @@ func (ws *WebServer) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 	// 	delete(ws.Index.Facets, id)
 	// }
 
-	err := ws.Db.SaveFacets(ws.Index.Facets)
+	err := ws.Db.SaveFacets(ws.FacetHandler.Facets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	fieldId := r.PathValue("id")
 	field, ok := ws.FieldData[fieldId]
@@ -662,7 +539,7 @@ func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 		http.Error(w, "Field not found", http.StatusNotFound)
 		return
 	}
-	_, found := ws.Index.Facets[field.Id]
+	_, found := ws.FacetHandler.Facets[field.Id]
 	if found {
 		http.Error(w, "Facet already exists", http.StatusBadRequest)
 		return
@@ -679,20 +556,20 @@ func (ws *WebServer) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	}
 	switch field.Type {
 	case KEY:
-		ws.Index.AddKeyField(baseField)
+		ws.FacetHandler.AddKeyField(baseField)
 	case NUMBER:
-		ws.Index.AddIntegerField(baseField)
+		ws.FacetHandler.AddIntegerField(baseField)
 	case DECIMAL:
-		ws.Index.AddDecimalField(baseField)
+		ws.FacetHandler.AddDecimalField(baseField)
 	}
-	err := ws.Db.SaveFacets(ws.Index.Facets)
+	err := ws.Db.SaveFacets(ws.FacetHandler.Facets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) DeleteFacet(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	facetIdString := r.PathValue("id")
 	facetId, err := strconv.Atoi(facetIdString)
@@ -700,19 +577,19 @@ func (ws *WebServer) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid facet ID", http.StatusBadRequest)
 		return
 	}
-	_, ok := ws.Index.Facets[uint(facetId)]
+	_, ok := ws.FacetHandler.Facets[uint(facetId)]
 	if !ok {
 		http.Error(w, "Facet not found", http.StatusNotFound)
 		return
 	}
-	delete(ws.Index.Facets, uint(facetId))
-	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
+	delete(ws.FacetHandler.Facets, uint(facetId))
+	if err = ws.Db.SaveFacets(ws.FacetHandler.Facets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	facetIdString := r.PathValue("id")
 	facetId, err := strconv.Atoi(facetIdString)
@@ -727,7 +604,7 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	facet, ok := ws.Index.Facets[uint(facetId)]
+	facet, ok := ws.FacetHandler.Facets[uint(facetId)]
 	if !ok {
 		http.Error(w, "Facet not found", http.StatusNotFound)
 		return
@@ -739,7 +616,7 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	}
 	current.UpdateFrom(&data)
 
-	if err = ws.Db.SaveFacets(ws.Index.Facets); err != nil {
+	if err = ws.Db.SaveFacets(ws.FacetHandler.Facets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	changes := make([]types.FieldChange, 0)
@@ -748,18 +625,18 @@ func (ws *WebServer) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		BaseField: current,
 		FieldType: facet.GetType(),
 	})
-	if ws.Index.ChangeHandler != nil {
-		ws.Index.ChangeHandler.FieldsChanged(changes)
+	if ws.FacetHandler.ChangeHandler != nil {
+		ws.FacetHandler.ChangeHandler.FieldsChanged(changes)
 	}
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) MissingFacets(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	missing := make([]*FieldData, 0)
 	for _, field := range ws.FieldData {
-		_, ok := ws.Index.Facets[field.Id]
+		_, ok := ws.FacetHandler.Facets[field.Id]
 		if !ok {
 			missing = append(missing, field)
 		}
@@ -771,7 +648,7 @@ func (ws *WebServer) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(types.CurrentSettings)
@@ -780,7 +657,7 @@ func (ws *WebServer) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	if r.Method == http.MethodPut {
 		types.CurrentSettings.Lock()
@@ -804,7 +681,7 @@ func (ws *WebServer) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "5")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(types.CurrentSettings.FieldsToIndex)
@@ -813,7 +690,7 @@ func (ws *WebServer) GetSearchIndexedFacets(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (ws *WebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	if r.Method == "POST" {
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FieldsToIndex)
@@ -826,31 +703,7 @@ func (ws *WebServer) SetSearchIndexedFacets(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *WebServer) HandleRelationGroups(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "POST" {
-		types.CurrentSettings.Lock()
-		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetRelations)
-		types.CurrentSettings.Unlock()
-
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		err = ws.Db.SaveSettings()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-	}
-	defaultHeaders(w, r, true, "1200")
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(types.CurrentSettings.FacetRelations)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-func (ws *WebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		types.CurrentSettings.Lock()
 		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings.FacetGroups)
@@ -873,14 +726,14 @@ func (ws *WebServer) HandleFacetGroups(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *WebServer) GetFacetList(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) GetFacetList(w http.ResponseWriter, r *http.Request) {
 	publicHeaders(w, r, true, "10")
 
 	w.WriteHeader(http.StatusOK)
 
-	res := make([]types.BaseField, len(ws.Index.Facets))
+	res := make([]types.BaseField, len(ws.FacetHandler.Facets))
 	idx := 0
-	for _, f := range ws.Index.Facets {
+	for _, f := range ws.FacetHandler.Facets {
 		res[idx] = *f.GetBaseField()
 		idx++
 	}
@@ -895,7 +748,7 @@ type FacetGroupingData struct {
 	FacetIds  []uint `json:"facet_ids"`
 }
 
-func (ws *WebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
 	data := FacetGroupingData{}
 	json.NewDecoder(r.Body).Decode(&data)
 	if data.GroupId == 0 {
@@ -921,7 +774,7 @@ func (ws *WebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, id := range data.FacetIds {
-		facet, ok := ws.Index.Facets[id]
+		facet, ok := ws.FacetHandler.Facets[id]
 		if !ok {
 			continue
 		}
@@ -937,10 +790,10 @@ func (ws *WebServer) FacetGroupUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if ws.Index.ChangeHandler != nil {
-		ws.Index.ChangeHandler.FieldsChanged(changes)
+	if ws.FacetHandler.ChangeHandler != nil {
+		ws.FacetHandler.ChangeHandler.FieldsChanged(changes)
 	}
-	err := ws.Db.SaveFacets(ws.Index.Facets)
+	err := ws.Db.SaveFacets(ws.FacetHandler.Facets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -957,7 +810,7 @@ type PopularityResult struct {
 	Matches    []MatchedRule `json:"matches"`
 }
 
-func (ws *WebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) GetItemPopularity(w http.ResponseWriter, r *http.Request) {
 	defaultHeaders(w, r, true, "0")
 	itemIdString := r.PathValue("id")
 	itemId, err := strconv.Atoi(itemIdString)
@@ -1002,9 +855,9 @@ type WordReplacementConfig struct {
 	WordMappings map[string]string `json:"wordMappings"`
 }
 
-func (ws *WebServer) SaveEmbeddings(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) SaveEmbeddings(w http.ResponseWriter, r *http.Request) {
 
-	if err := ws.Db.SaveEmbeddings(ws.Index.Embeddings); err != nil {
+	if err := ws.Db.SaveEmbeddings(ws.EmbeddingsHandler.GetAllEmbeddings()); err != nil {
 		log.Printf("Error saving embeddings: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1013,7 +866,7 @@ func (ws *WebServer) SaveEmbeddings(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Request) {
+func (ws *AdminWebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost || r.Method == http.MethodPut {
 		data := WordReplacementConfig{}
 		err := json.NewDecoder(r.Body).Decode(&data)
@@ -1036,192 +889,30 @@ func (ws *WebServer) HandleWordReplacements(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (ws *WebServer) WatchPriceChange(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, r, false, "0")
-
-	// Get the item ID from path
-	itemID := r.PathValue("id")
-	if itemID == "" {
-		http.Error(w, "Item ID is required", http.StatusBadRequest)
-		return
-	}
-
-	// Parse the request body
-	var watchRequest PriceWatchRequest
-	err := json.NewDecoder(r.Body).Decode(&watchRequest)
+func (ws *AdminWebServer) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	id := r.PathValue("id")
+	itemId, err := strconv.Atoi(id)
 	if err != nil {
-		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
+		return err
 	}
-
-	// Validate the subscription
-	if watchRequest.Token == "" {
-		http.Error(w, "Subscription token is required", http.StatusBadRequest)
-		return
+	item, ok := ws.Index.Items[uint(itemId)]
+	if !ok {
+		return fmt.Errorf("item not found")
 	}
-
-	// Load existing watches
-	watchesData, err := loadPriceWatches()
-	if err != nil {
-		log.Printf("Error loading price watches: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// Create new watch entry
-	newWatch := PriceWatch{
-		ID:        itemID,
-		Token:     watchRequest.Token,
-		CreatedAt: time.Now(),
-	}
-
-	// Add to watches (remove existing watch for same item if exists)
-	watchIndex := -1
-	for i, watch := range watchesData.Watches {
-		if watch.ID == itemID && watch.Token == watchRequest.Token {
-			watchIndex = i
-			break
-		}
-	}
-
-	if watchIndex >= 0 {
-		watchesData.Watches[watchIndex] = newWatch
-	} else {
-		watchesData.Watches = append(watchesData.Watches, newWatch)
-	}
-
-	// Save watches
-	err = savePriceWatches(watchesData)
-	if err != nil {
-		log.Printf("Error saving price watches: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// Send test push notification
-	err = sendTestPushNotification(PushSubscription{Token: watchRequest.Token}, itemID)
-	if err != nil {
-		log.Printf("Error sending test push notification: %v", err)
-		// Don't fail the request if push notification fails
-	}
-
+	publicHeaders(w, r, true, "10")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
-		"status":  "success",
-		"message": "Price watch added successfully",
-		"itemId":  itemID,
-	})
+	return enc.Encode(item)
 }
 
-// loadPriceWatches loads the price watches from file
-func loadPriceWatches() (*PriceWatchesData, error) {
-	priceWatchesMutex.RLock()
-	defer priceWatchesMutex.RUnlock()
-
-	// Check if file exists
-	if _, err := os.Stat(priceWatchesFile); os.IsNotExist(err) {
-		return &PriceWatchesData{Watches: []PriceWatch{}}, nil
-	}
-
-	data, err := os.ReadFile(priceWatchesFile)
-	if err != nil {
-		return nil, err
-	}
-
-	var watchesData PriceWatchesData
-	err = json.Unmarshal(data, &watchesData)
-	if err != nil {
-		return nil, err
-	}
-
-	if watchesData.Watches == nil {
-		watchesData.Watches = []PriceWatch{}
-	}
-
-	return &watchesData, nil
-}
-
-// savePriceWatches saves the price watches to file
-func savePriceWatches(watchesData *PriceWatchesData) error {
-	priceWatchesMutex.Lock()
-	defer priceWatchesMutex.Unlock()
-
-	data, err := json.MarshalIndent(watchesData, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(priceWatchesFile, data, 0644)
-}
-
-// sendFirebaseNotification sends a notification using the Firebase Admin SDK.
-func sendFirebaseNotification(registrationToken string, notification *messaging.Notification, data map[string]string) error {
-	// GOOGLE_APPLICATION_CREDENTIALS should be set in the environment.
-	// Or you can pass option.WithCredentialsFile("path/to/serviceAccountKey.json")
-	var app *firebase.App
-	var err error
-
-	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
-		opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-		app, err = firebase.NewApp(context.Background(), nil, opt)
-	} else {
-		app, err = firebase.NewApp(context.Background(), nil)
-	}
-
-	if err != nil {
-		log.Printf("error initializing app: %v\n", err)
-		return err
-	}
-
-	ctx := context.Background()
-	client, err := app.Messaging(ctx)
-	if err != nil {
-		log.Printf("error getting Messaging client: %v\n", err)
-		return err
-	}
-
-	message := &messaging.Message{
-		Notification: notification,
-		Data:         data,
-		Token:        registrationToken,
-	}
-
-	response, err := client.Send(ctx, message)
-	if err != nil {
-		log.Printf("error sending message: %v\n", err)
-		return err
-	}
-	log.Printf("Successfully sent message: %s\n", response)
-
-	return nil
-}
-
-// sendTestPushNotification sends a test push notification to verify the subscription works
-func sendTestPushNotification(subscription PushSubscription, itemID string) error {
-	// Extract registration token from FCM endpoint
-	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token}
-
-	// Create FCM message payload
-	notification := &messaging.Notification{
-		Title: "Price Watch Activated",
-		Body:  "You will be notified when the price of item " + itemID + " changes.",
-	}
-	data := map[string]string{
-		"itemId": itemID,
-		"type":   "test",
-		"icon":   "/icon-192x192.png",
-		"tag":    "price-watch-test",
-	}
-
-	return sendFirebaseNotification(subscription.Token, notification, data)
-}
-
-func (ws *WebServer) AdminHandler() *http.ServeMux {
+func (ws *AdminWebServer) Handle() *http.ServeMux {
 	config := &webauthn.Config{
 		RPDisplayName: "Go WebAuthn",
 		RPID:          "slask-finder.tornberg.me",
 		RPOrigins:     []string{"https://slask-finder.tornberg.me", "https://slask-finder.knatofs.se"},
 	}
+
+	priceWatcher := NewPriceWatcher()
+	ws.PriceWatches = priceWatcher
 
 	auth, err := NewWebAuthHandler(config)
 	if err != nil {
@@ -1263,7 +954,7 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("/auth_callback", ws.AuthCallback)
 	srv.HandleFunc("/add", ws.AuthMiddleware(ws.AddItem))
 
-	srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
+	//srv.HandleFunc("PUT /key-values", ws.AuthMiddleware(ws.UpdateCategories))
 	srv.HandleFunc("/save", ws.AuthMiddleware(ws.Save))
 	srv.HandleFunc("/store-embeddings", ws.AuthMiddleware(ws.SaveEmbeddings))
 	srv.HandleFunc("PUT /fields", ws.AuthMiddleware(ws.HandleUpdateFields))
@@ -1281,14 +972,15 @@ func (ws *WebServer) AdminHandler() *http.ServeMux {
 	srv.HandleFunc("GET /settings", ws.GetSettings)
 	srv.HandleFunc("PUT /settings", ws.AuthMiddleware(ws.UpdateSettings))
 	srv.HandleFunc("PUT /facet-group", ws.AuthMiddleware(ws.FacetGroupUpdate))
-	srv.HandleFunc("POST /price-watch/{id}", ws.WatchPriceChange)
 	srv.HandleFunc("/words", ws.AuthMiddleware(ws.HandleWordReplacements))
+
+	srv.HandleFunc("POST /price-watch/{id}", priceWatcher.WatchPriceChange)
 
 	srv.HandleFunc("GET /missing-fields", ws.AuthMiddleware(ws.MissingFacets))
 	srv.HandleFunc("GET /fields/{id}", ws.GetField)
 	srv.HandleFunc("/rules/popular", ws.AuthMiddleware(ws.HandlePopularRules))
 	srv.HandleFunc("/sort/popular", ws.AuthMiddleware(ws.HandlePopularOverride))
-	srv.HandleFunc("/relation-groups", ws.HandleRelationGroups)
+	srv.HandleFunc("POST /relation-groups", ws.SaveHandleRelationGroups)
 	srv.HandleFunc("/facet-groups", ws.HandleFacetGroups)
 
 	srv.HandleFunc("GET /users", ws.AuthMiddleware(auth.ListUsers))

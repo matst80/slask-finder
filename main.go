@@ -53,26 +53,16 @@ var token = search.Tokenizer{MaxTokens: 128}
 // Ollama embeddings engine for semantic search capability
 var embeddingsEngine types.EmbeddingsEngine = embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints("elkjop-ecom", "http://10.10.11.135:11434/api/embeddings")
 
-// Initialize index with embeddings engine
+// Initialize simple index without handlers
 var db = storage.NewPersistance()
-var idx = index.NewIndex(embeddingsEngine, func(data *index.Index) error {
-	log.Printf("Saving embeddings to disk")
-	return db.SaveEmbeddings(data.Embeddings)
-})
+var idx = index.NewIndex()
 
 // var embeddingsIndex = embeddings.NewEmbeddingsIndex()
 var contentIdx = index.NewContentIndex()
 
-var srv = server.WebServer{
-	Index:            idx,
-	Db:               db,
-	ContentIndex:     contentIdx,
-	FacetLimit:       1024,
-	SearchFacetLimit: 10280,
-	FieldData:        map[string]*server.FieldData{},
-	Cache:            nil,
-	//Embeddings:       embeddingsIndex,
-}
+// Server will be set based on configuration (admin for master/standalone, client for clients)
+var adminSrv *server.AdminWebServer
+var clientSrv *server.ClientWebServer
 
 var done = false
 
@@ -99,7 +89,8 @@ func init() {
 		},
 		Endpoint: google.Endpoint,
 	}
-	srv.OAuthConfig = authConfig
+	adminSrv.OAuthConfig = authConfig
+	clientSrv.OAuthConfig = authConfig
 }
 
 func LoadIndex(wg *sync.WaitGroup) {
@@ -107,15 +98,20 @@ func LoadIndex(wg *sync.WaitGroup) {
 	log.Printf("amqp url: %s", rabbitUrl)
 	log.Printf("clientName: %s", clientName)
 
+	// itemHandlers := []types.ItemHandler{
+	// 	idx,
+	// }
+
+	// Determine server type based on configuration
 	if rabbitUrl != "" && clientName == "" {
+		// Master/standalone mode - use AdminWebServer
 		idx.IsMaster = true
-		log.Println("Starting with reduced memory consumption")
+		adminSrv = server.NewAdminWebServer(idx, db, contentIdx)
+		log.Println("Starting with reduced memory consumption (admin mode)")
 	} else {
-		srv.Cache = server.NewCache(redisUrl, redisPassword, 0)
-		srv.Sorting = index.NewSorting(redisUrl, redisPassword, 0)
-		idx.Sorting = srv.Sorting
-		//idx.AutoSuggest = index.NewAutoSuggest(&token)
-		idx.Search = search.NewFreeTextIndex(&token)
+		// Client mode - use ClientWebServer
+		clientSrv = server.NewClientWebServer(idx, db, contentIdx)
+		clientSrv.Cache = server.NewCache(redisUrl, redisPassword, 0)
 		log.Printf("Cache and sort distribution enabled, url: %s", redisUrl)
 	}
 
@@ -127,7 +123,12 @@ func LoadIndex(wg *sync.WaitGroup) {
 		if err != nil {
 			log.Fatalf("Failed to create rabbit tracking")
 		}
-		srv.Tracking = trk
+
+		if adminSrv != nil {
+			adminSrv.Tracking = trk
+		} else {
+			clientSrv.Tracking = trk
+		}
 	}
 
 	go func() {
@@ -181,8 +182,44 @@ func LoadIndex(wg *sync.WaitGroup) {
 						log.Fatalf("Failed to connect to RabbitMQ as client, %v", err)
 					}
 				}
-				srv.Sorting.InitializeWithIndex(idx)
-				srv.Sorting.StartListeningForChanges()
+
+				// Initialize appropriate server handlers after index is loaded
+				if adminSrv != nil {
+					// Admin mode - initialize all handlers
+					handlerOpts := server.DefaultHandlerOptions(embeddingsEngine, func() error {
+						return db.SaveIndex(idx)
+					})
+					handlerOpts.RedisAddr = redisUrl
+					handlerOpts.RedisPassword = redisPassword
+					handlerOpts.RedisDB = 0
+
+					err = adminSrv.InitializeHandlers(handlerOpts)
+					if err != nil {
+						log.Fatalf("Failed to initialize admin handlers: %v", err)
+					}
+
+					// if adminSrv.SortingHandler != nil && adminSrv.SortingHandler.Sorting != nil {
+					// 	adminSrv.SortingHandler.Sorting.InitializeWithIndex(idx)
+					// 	adminSrv.SortingHandler.Sorting.StartListeningForChanges()
+					// }
+				} else {
+					// Client mode - initialize minimal handlers
+					clientOpts := server.DefaultClientHandlerOptions()
+					clientOpts.RedisAddr = redisUrl
+					clientOpts.RedisPassword = redisPassword
+					clientOpts.RedisDB = 0
+
+					err = clientSrv.InitializeClientHandlers(clientOpts)
+					if err != nil {
+						log.Fatalf("Failed to initialize client handlers: %v", err)
+					}
+
+					// if clientSrv.SortingHandler != nil && clientSrv.SortingHandler.Sorting != nil {
+					// 	clientSrv.SortingHandler.Sorting.InitializeWithIndex(idx)
+					// 	clientSrv.SortingHandler.Sorting.StartListeningForChanges()
+					// }
+				}
+
 				if contentFile != "" {
 					wg.Add(1)
 					go populateContentFromCsv(contentIdx, "data/content.csv", wg)
@@ -228,9 +265,15 @@ func main() {
 		wg.Wait()
 		log.Println("Starting api")
 
-		mux.Handle("/admin/", http.StripPrefix("/admin", srv.AdminHandler()))
-
-		mux.Handle("/api/", http.StripPrefix("/api", srv.ClientHandler()))
+		if adminSrv != nil {
+			// Admin server handles both admin and client endpoints
+			mux.Handle("/admin/", http.StripPrefix("/admin", adminSrv.Handle()))
+			//mux.Handle("/api/", http.StripPrefix("/api", adminSrv.Handle()))
+		}
+		if clientSrv != nil {
+			// Client server only handles client endpoints
+			mux.Handle("/api/", http.StripPrefix("/api", clientSrv.Handle()))
+		}
 
 		log.Printf("Starting server %v", listenAddress)
 		log.Fatal(http.ListenAndServe(listenAddress, mux))
