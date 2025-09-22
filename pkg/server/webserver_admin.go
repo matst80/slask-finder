@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/messaging"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/golang-jwt/jwt"
 	"github.com/matst80/slask-finder/pkg/index"
@@ -1128,74 +1129,65 @@ func savePriceWatches(watchesData *PriceWatchesData) error {
 
 // sendTestPushNotification sends a test push notification to verify the subscription works
 func sendTestPushNotification(subscription PushSubscription, itemID string) error {
-	pushKey := os.Getenv("PUSH_KEY")
-	senderID := os.Getenv("PUSH_SENDER_ID")
-
-	if pushKey == "" || senderID == "" {
-		log.Printf("FCM credentials not configured: PUSH_KEY or PUSH_SENDER_ID missing")
-		return nil // Don't fail the request if FCM is not configured
+	ctx := context.Background()
+	app, err := firebase.NewApp(ctx, nil)
+	if err != nil {
+		log.Printf("error initializing app: %v\n", err)
+		return err
 	}
 
-	// Extract registration token from FCM endpoint
-	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token} or https://jmt17.google.com/fcm/send/{token}
-	// var registrationToken string
-	// if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
-	// 	parts := bytes.Split([]byte(subscription.Endpoint), []byte("fcm/send/"))
-	// 	if len(parts) > 1 {
-	// 		registrationToken = string(parts[1])
-	// 	}
-	// }
+	client, err := app.Messaging(ctx)
+	if err != nil {
+		log.Printf("error getting Messaging client: %v\n", err)
+		return err
+	}
 
-	// if registrationToken == "" {
-	// 	log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
-	// 	return nil
-	// }
+	// The web push standard requires VAPID authentication.
+	// The webpush.Config struct is used to provide this information.
+	// The public key must be a base64-encoded uncompressed P-256 public key.
+	// The private key must be a base64-encoded P-256 private key.
+	// The subject must be a mailto: or https: URL.
+	// The FCM SDK for Go does not directly support sending to a subscription object.
+	// We need to extract the token from the endpoint URL.
+	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token}
+	var registrationToken string
+	if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
+		parts := bytes.Split([]byte(subscription.Endpoint), []byte("fcm/send/"))
+		if len(parts) > 1 {
+			registrationToken = string(parts[1])
+		}
+	}
 
-	// Create FCM message payload
-	fcmPayload := map[string]interface{}{
-		//"to": registrationToken,
-		"notification": map[string]interface{}{
-			"title": "Price Watch Activated",
-			"body":  "You will be notified when the price of item " + itemID + " changes",
-			"icon":  "/icon-192x192.png",
-			"tag":   "price-watch-test",
+	if registrationToken == "" {
+		log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
+		return nil // Or return an error if this is unexpected
+	}
+
+	message := &messaging.Message{
+		Notification: &messaging.Notification{
+			Title: "Price Watch Activated",
+			Body:  "You will be notified when the price of item " + itemID + " changes",
 		},
-		"data": map[string]string{
+		Webpush: &messaging.WebpushConfig{
+			Notification: &messaging.WebpushNotification{
+				Icon: "/icon-192x192.png",
+				Tag:  "price-watch-test",
+			},
+		},
+		Data: map[string]string{
 			"itemId": itemID,
 			"type":   "test",
 		},
+		Token: registrationToken,
 	}
 
-	messageBytes, err := json.Marshal(fcmPayload)
-	if err != nil {
-		return err
-	}
-
-	// Send to FCM v1 API
-	fcmURL := subscription.Endpoint
-	req, err := http.NewRequest("POST", fcmURL, bytes.NewBuffer(messageBytes))
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "key="+pushKey)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
+	response, err := client.Send(ctx, message)
 	if err != nil {
 		log.Printf("FCM request failed: %v", err)
 		return err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(resp.Body)
-		log.Printf("FCM API error: status %d, body: %s", resp.StatusCode, string(body))
-		return http.ErrNotSupported
-	}
-
-	log.Printf("Test push notification sent successfully for item %s", itemID)
+	log.Printf("Test push notification sent successfully for item %s, message ID: %s", itemID, response)
 	return nil
 }
 
