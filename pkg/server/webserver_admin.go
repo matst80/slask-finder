@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -207,15 +208,46 @@ func (ws *WebServer) HandlePopularOverride(w http.ResponseWriter, r *http.Reques
 // 	}
 // }
 
+// func (ws *WebServer) sendPriceWatchNotification(item types.Item) {
+
+// }
+
 func (ws *WebServer) AddItem(w http.ResponseWriter, r *http.Request) {
+	watchesData, err := loadPriceWatches()
+	if err != nil {
+		log.Printf("Error loading price watches for notification: %v", err)
+	}
+
 	items := AddItemRequest{}
-	err := json.NewDecoder(r.Body).Decode(&items)
+	err = json.NewDecoder(r.Body).Decode(&items)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	toUpdate := make([]types.Item, len(items))
 	for i, item := range items {
+		if watchesData != nil {
+			for _, watch := range watchesData.Watches {
+				if watch.ID == item.GetSku() {
+					notification := &messaging.Notification{
+						Title: fmt.Sprintf("Price Update for %s", item.GetTitle()),
+						Body:  fmt.Sprintf("The price is now %.2f", float64(item.GetPrice())/100),
+					}
+					data := map[string]string{
+						"itemId":   item.GetSku(),
+						"type":     "price-update",
+						"newPrice": fmt.Sprintf("%.2f", float64(item.GetPrice())/100),
+					}
+
+					// We can probably make this concurrent if we have many watches
+					err := sendFirebaseNotification(watch.Token, notification, data)
+					if err != nil {
+						log.Printf("Failed to send price watch notification for item %s to token %s: %v", watch.ID, watch.Token, err)
+					}
+
+				}
+			}
+		}
 		toUpdate[i] = &item
 	}
 	ws.Index.UpsertItems(toUpdate)
