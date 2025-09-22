@@ -48,7 +48,7 @@ type Field struct {
 // 	return nil
 // }
 
-func (p *DataRepository) LoadIndex(handlers ...types.ItemHandler) error {
+func LoadIndex(file string, handlers ...types.ItemHandler) error {
 	// idx.Lock()
 	// defer idx.Unlock()
 	// err := p.LoadFacets(idx)
@@ -61,7 +61,7 @@ func (p *DataRepository) LoadIndex(handlers ...types.ItemHandler) error {
 	// 	log.Printf("Error loading embeddings: %v", err)
 	// 	// Continue loading even if embeddings failed to load
 	// }
-	file, err := os.Open(p.File)
+	file, err := os.Open(file)
 	if err != nil {
 		return err
 	}
@@ -155,6 +155,30 @@ func (p *DataRepository) LoadJsonFile(data interface{}, filename string) error {
 
 	enc = nil
 
+	return nil
+}
+
+func SaveItems(items []types.Item, filename string) error {
+	tmpFileName := fmt.Sprintf("%s.tmp-%d", filename, time.Now().UnixMilli())
+	file, err := os.Create(tmpFileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	zipWriter := gzip.NewWriter(file)
+	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
+	defer zipWriter.Close()
+
+	err = enc.Encode(items)
+	if err != nil {
+		return err
+	}
+	enc = nil
+	err = os.Rename(tmpFileName, filename)
+	if err != nil {
+		log.Printf("Error renaming file: %v", err)
+	}
 	return nil
 }
 

@@ -18,6 +18,7 @@ type MasterApp struct {
 }
 
 var country = "se"
+var itemsFile = "data/index-v2.jz"
 
 func init() {
 	c, ok := os.LookupEnv("COUNTRY")
@@ -59,6 +60,17 @@ func (app *MasterApp) handleItems(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (app *MasterApp) saveItems(w http.ResponseWriter, r *http.Request) {
+	app.itemIndex.Lock()
+	defer app.itemIndex.Unlock()
+	err := SaveItems(app.itemIndex.Items, itemsFile)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
 func main() {
 	// Entry point for the master command
 	amqpUrl, ok := os.LookupEnv("RABBIT_HOST")
@@ -74,6 +86,11 @@ func main() {
 	defer conn.Close()
 
 	index := index.NewItemIndex()
+	embeddingsIndex := index.NewItemEmbeddingsHandler()
+	err = LoadItems(&index.Items, itemsFile, embeddingsIndex)
+	if err != nil {
+		log.Printf("Could not load items from file: %v", err)
+	}
 
 	app := &MasterApp{
 		connection: conn,
@@ -86,5 +103,6 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	srv.HandleFunc("/add", app.handleItems)
+	srv.HandleFunc("/admin/add", app.handleItems)
+	srv.HandleFunc("/admin/save", app.saveItems)
 }
