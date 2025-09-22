@@ -32,30 +32,25 @@ var (
 		Help: "The total number of items in index",
 	})
 	priceWatchesMutex sync.RWMutex
-	priceWatchesFile  = "data/price_watches.json"
+	priceWatchesFile  = "data/price_watches_v2.json"
 )
 
 // PushSubscription represents a Web Push API subscription
 type PushSubscription struct {
-	Endpoint       string `json:"endpoint"`
-	ExpirationTime *int64 `json:"expirationTime"`
-	Keys           struct {
-		P256dh string `json:"p256dh"`
-		Auth   string `json:"auth"`
-	} `json:"keys"`
+	Token string `json:"token"`
 }
 
 // PriceWatch represents a price watch entry
 type PriceWatch struct {
-	ID           string           `json:"id"`
-	UserID       string           `json:"userId,omitempty"`
-	Subscription PushSubscription `json:"subscription"`
-	CreatedAt    time.Time        `json:"createdAt"`
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId,omitempty"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `json:"createdAt"`
 }
 
 // PriceWatchRequest represents the incoming request
 type PriceWatchRequest struct {
-	Subscription PushSubscription `json:"subscription"`
+	Token string `json:"token"`
 }
 
 // PriceWatchesData represents the structure of the watches file
@@ -1029,8 +1024,8 @@ func (ws *WebServer) WatchPriceChange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate the subscription
-	if watchRequest.Subscription.Endpoint == "" {
-		http.Error(w, "Subscription endpoint is required", http.StatusBadRequest)
+	if watchRequest.Token == "" {
+		http.Error(w, "Subscription token is required", http.StatusBadRequest)
 		return
 	}
 
@@ -1044,15 +1039,15 @@ func (ws *WebServer) WatchPriceChange(w http.ResponseWriter, r *http.Request) {
 
 	// Create new watch entry
 	newWatch := PriceWatch{
-		ID:           itemID,
-		Subscription: watchRequest.Subscription,
-		CreatedAt:    time.Now(),
+		ID:        itemID,
+		Token:     watchRequest.Token,
+		CreatedAt: time.Now(),
 	}
 
 	// Add to watches (remove existing watch for same item if exists)
 	watchIndex := -1
 	for i, watch := range watchesData.Watches {
-		if watch.ID == itemID && watch.Subscription.Endpoint == watchRequest.Subscription.Endpoint {
+		if watch.ID == itemID && watch.Token == watchRequest.Token {
 			watchIndex = i
 			break
 		}
@@ -1073,7 +1068,7 @@ func (ws *WebServer) WatchPriceChange(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Send test push notification
-	err = sendTestPushNotification(watchRequest.Subscription, itemID)
+	err = sendTestPushNotification(PushSubscription{Token: watchRequest.Token}, itemID)
 	if err != nil {
 		log.Printf("Error sending test push notification: %v", err)
 		// Don't fail the request if push notification fails
@@ -1175,15 +1170,17 @@ func sendTestPushNotification(subscription PushSubscription, itemID string) erro
 	// Extract registration token from FCM endpoint
 	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token}
 	var registrationToken string
-	if bytes.Contains([]byte(subscription.Endpoint), []byte("fcm/send/")) {
-		parts := bytes.Split([]byte(subscription.Endpoint), []byte("fcm/send/"))
+	if bytes.Contains([]byte(subscription.Token), []byte("fcm/send/")) {
+		parts := bytes.Split([]byte(subscription.Token), []byte("fcm/send/"))
 		if len(parts) > 1 {
 			registrationToken = string(parts[1])
 		}
+	} else {
+		registrationToken = subscription.Token
 	}
 
 	if registrationToken == "" {
-		log.Printf("Could not extract registration token from endpoint: %s", subscription.Endpoint)
+		log.Printf("Could not extract registration token from endpoint: %s", subscription.Token)
 		return nil
 	}
 
