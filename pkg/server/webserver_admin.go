@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -23,7 +22,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"golang.org/x/oauth2"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -1125,17 +1123,8 @@ func savePriceWatches(watchesData *PriceWatchesData) error {
 
 // sendFirebaseNotification sends a notification using the Firebase Admin SDK.
 func sendFirebaseNotification(registrationToken string, notification *messaging.Notification, data map[string]string) error {
-	// GOOGLE_APPLICATION_CREDENTIALS should be set in the environment.
-	// Or you can pass option.WithCredentialsFile("path/to/serviceAccountKey.json")
-	var app *firebase.App
-	var err error
 
-	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
-		opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-		app, err = firebase.NewApp(context.Background(), nil, opt)
-	} else {
-		app, err = firebase.NewApp(context.Background(), nil)
-	}
+	app, err := firebase.NewApp(context.Background(), nil)
 
 	if err != nil {
 		log.Printf("error initializing app: %v\n", err)
@@ -1169,20 +1158,6 @@ func sendFirebaseNotification(registrationToken string, notification *messaging.
 func sendTestPushNotification(subscription PushSubscription, itemID string) error {
 	// Extract registration token from FCM endpoint
 	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token}
-	var registrationToken string
-	if bytes.Contains([]byte(subscription.Token), []byte("fcm/send/")) {
-		parts := bytes.Split([]byte(subscription.Token), []byte("fcm/send/"))
-		if len(parts) > 1 {
-			registrationToken = string(parts[1])
-		}
-	} else {
-		registrationToken = subscription.Token
-	}
-
-	if registrationToken == "" {
-		log.Printf("Could not extract registration token from endpoint: %s", subscription.Token)
-		return nil
-	}
 
 	// Create FCM message payload
 	notification := &messaging.Notification{
@@ -1196,7 +1171,7 @@ func sendTestPushNotification(subscription PushSubscription, itemID string) erro
 		"tag":    "price-watch-test",
 	}
 
-	return sendFirebaseNotification(registrationToken, notification, data)
+	return sendFirebaseNotification(subscription.Token, notification, data)
 }
 
 func (ws *WebServer) AdminHandler() *http.ServeMux {
