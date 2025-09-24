@@ -281,6 +281,11 @@ func (w *WebAuthHandler) ValidateCreateChallengeResponse(rw http.ResponseWriter,
 
 	// save users
 	rw.WriteHeader(http.StatusOK)
+	encoder := json.NewEncoder(rw)
+
+	if err = encoder.Encode(user.Credentials); err != nil {
+		rw.WriteHeader(http.StatusInternalServerError)
+	}
 }
 
 func (w *WebAuthHandler) LoginChallenge(rw http.ResponseWriter, r *http.Request) {
