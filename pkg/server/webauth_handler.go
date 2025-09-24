@@ -216,7 +216,9 @@ func (w *WebAuthHandler) CreateChallenge(rw http.ResponseWriter, r *http.Request
 		protocol.MediationDefault,
 		webauthn.WithResidentKeyRequirement(protocol.ResidentKeyRequirementRequired),
 		webauthn.WithExclusions(webauthn.Credentials(user.WebAuthnCredentials()).CredentialDescriptors()),
-		webauthn.WithExtensions(map[string]any{"credProps": true}),
+		webauthn.WithExtensions(map[string]any{"credProps": true, "payment": map[string]any{
+			"isPayment": true,
+		}}),
 	)
 
 	if err != nil {
@@ -284,9 +286,7 @@ func (w *WebAuthHandler) ValidateCreateChallengeResponse(rw http.ResponseWriter,
 func (w *WebAuthHandler) LoginChallenge(rw http.ResponseWriter, r *http.Request) {
 
 	assertion, s, err := w.BeginDiscoverableMediatedLogin(protocol.MediationDefault)
-	assertion.Response.Extensions = map[string]any{"payment": map[string]any{
-		"isPayment": true,
-	}}
+
 	if err != nil {
 		rw.WriteHeader(http.StatusInternalServerError)
 
