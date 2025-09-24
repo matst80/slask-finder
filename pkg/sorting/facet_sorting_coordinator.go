@@ -1,4 +1,4 @@
-package index
+package sorting
 
 // import (
 // 	"github.com/matst80/slask-finder/pkg/types"

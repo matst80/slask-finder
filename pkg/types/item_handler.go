@@ -1,9 +1,9 @@
 package types
 
 type ItemHandler interface {
-	HandleItem(item Item) error
-	HandleItems(items []Item) error
-	HandleItemUnsafe(item Item) error
+	HandleItem(item Item)
+	HandleItems(items []Item)
+	HandleItemUnsafe(item Item)
 	Lock()
 	Unlock()
 }

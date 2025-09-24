@@ -48,17 +48,17 @@ func (i *ItemIndexWithStock) removeItemValues(item types.Item) {
 	}
 }
 
-func (i *ItemIndexWithStock) HandleItem(item types.Item) error {
+func (i *ItemIndexWithStock) HandleItem(item types.Item) {
 	log.Printf("Handling item %d", item.GetId())
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	return i.HandleItemUnsafe(item)
+	i.HandleItemUnsafe(item)
 }
 
-func (i *ItemIndexWithStock) HandleItems(items []types.Item) error {
+func (i *ItemIndexWithStock) HandleItems(items []types.Item) {
 	l := len(items)
 	if l == 0 {
-		return nil
+		return
 	}
 	log.Printf("Handling items %d", l)
 	i.mu.Lock()
@@ -67,8 +67,6 @@ func (i *ItemIndexWithStock) HandleItems(items []types.Item) error {
 	for _, it := range items {
 		i.HandleItemUnsafe(it)
 	}
-
-	return nil
 }
 
 func (i *ItemIndexWithStock) Lock() {
@@ -79,7 +77,7 @@ func (i *ItemIndexWithStock) Unlock() {
 	i.mu.RUnlock()
 }
 
-func (i *ItemIndexWithStock) HandleItemUnsafe(item types.Item) error {
+func (i *ItemIndexWithStock) HandleItemUnsafe(item types.Item) {
 
 	id := item.GetId()
 	current, isUpdate := i.Items[id]
@@ -90,10 +88,6 @@ func (i *ItemIndexWithStock) HandleItemUnsafe(item types.Item) error {
 	if item.IsDeleted() {
 		delete(i.All, id)
 		delete(i.ItemsBySku, item.GetSku())
-
-		go noDeletes.Inc()
-		// nothing more to do when item is deleted
-		return nil
 	}
 
 	i.Items[id] = item
@@ -102,7 +96,6 @@ func (i *ItemIndexWithStock) HandleItemUnsafe(item types.Item) error {
 	i.ItemsBySku[item.GetSku()] = item
 
 	i.addItemValues(item)
-	return nil
 }
 
 func (i *ItemIndexWithStock) HasItem(id uint) bool {

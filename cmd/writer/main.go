@@ -1,4 +1,4 @@
-package master
+package main
 
 import (
 	"encoding/json"
@@ -6,14 +6,16 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/sync"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type MasterApp struct {
 	itemIndex       *index.ItemIndex
-	embeddingsIndex *index.ItemEmbeddingsHandler
+	embeddingsIndex *embeddings.ItemEmbeddingsHandler
 	connection      *amqp.Connection
 }
 
@@ -63,7 +65,7 @@ func (app *MasterApp) handleItems(w http.ResponseWriter, r *http.Request) {
 func (app *MasterApp) saveItems(w http.ResponseWriter, r *http.Request) {
 	app.itemIndex.Lock()
 	defer app.itemIndex.Unlock()
-	err := SaveItems(app.itemIndex.Items, itemsFile)
+	err := storage.SaveItems(app.itemIndex.Items, itemsFile)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -87,7 +89,7 @@ func main() {
 
 	index := index.NewItemIndex()
 	embeddingsIndex := index.NewItemEmbeddingsHandler()
-	
+
 	err = LoadItems(&index.Items, itemsFile, embeddingsIndex)
 	if err != nil {
 		log.Printf("Could not load items from file: %v", err)

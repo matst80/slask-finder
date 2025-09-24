@@ -34,17 +34,17 @@ func NewItemIndex() *ItemIndex {
 	return idx
 }
 
-func (i *ItemIndex) HandleItem(item types.Item) error {
+func (i *ItemIndex) HandleItem(item types.Item) {
 	log.Printf("Handling item %d", item.GetId())
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	return i.HandleItemUnsafe(item)
+	i.HandleItemUnsafe(item)
 }
 
-func (i *ItemIndex) HandleItems(items []types.Item) error {
+func (i *ItemIndex) HandleItems(items []types.Item) {
 	l := len(items)
 	if l == 0 {
-		return nil
+		return
 	}
 	log.Printf("Handling items %d", l)
 	i.mu.Lock()
@@ -56,8 +56,6 @@ func (i *ItemIndex) HandleItems(items []types.Item) error {
 	}
 
 	go noUpdates.Add(float64(l))
-
-	return nil
 }
 
 func (i *ItemIndex) Lock() {
@@ -76,7 +74,7 @@ func (i *ItemIndex) EndUnsafe() {
 	i.mu.Unlock()
 }
 
-func (i *ItemIndex) HandleItemUnsafe(item types.Item) error {
+func (i *ItemIndex) HandleItemUnsafe(item types.Item) {
 
 	id := item.GetId()
 
@@ -84,12 +82,11 @@ func (i *ItemIndex) HandleItemUnsafe(item types.Item) error {
 		delete(i.Items, id)
 
 		go noDeletes.Inc()
-		return nil
+		return
 	}
 
 	i.Items[id] = item
 	go noUpdates.Inc()
-	return nil
 }
 
 func (i *ItemIndex) HasItem(id uint) bool {

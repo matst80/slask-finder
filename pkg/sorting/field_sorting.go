@@ -1,4 +1,4 @@
-package index
+package sorting
 
 import (
 	"slices"
@@ -34,7 +34,7 @@ func (fs *FieldSorting) makeFieldSort(idx *facet.FacetItemHandler, overrides Sor
 	defer idx.Unlock()
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	
+
 	fieldMap := make(SortOverride)
 
 	sortMap := types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
@@ -54,7 +54,7 @@ func (fs *FieldSorting) makeFieldSort(idx *facet.FacetItemHandler, overrides Sor
 			}
 		}
 	}, types.LookUpReversed))
-	
+
 	fs.fieldMap = &fieldMap
 	fs.FieldSort = &sortMap
 }

@@ -37,31 +37,29 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 
 // HandleItem implements types.ItemHandler interface
 // Processes a single item for free text search indexing
-func (h *FreeTextItemHandler) HandleItem(item types.Item) error {
+func (h *FreeTextItemHandler) HandleItem(item types.Item) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.HandleItemUnsafe(item)
+	h.HandleItemUnsafe(item)
 }
 
 // HandleItems implements types.ItemHandler interface
 // Processes multiple items for free text search indexing
-func (h *FreeTextItemHandler) HandleItems(items []types.Item) error {
+func (h *FreeTextItemHandler) HandleItems(items []types.Item) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
 	for _, item := range items {
-		if err := h.HandleItemUnsafe(item); err != nil {
-			return err
-		}
+		h.HandleItemUnsafe(item)
 	}
-	return nil
+
 }
 
 // HandleItemUnsafe implements types.ItemHandler interface
 // Processes an item for free text search indexing without acquiring locks
-func (h *FreeTextItemHandler) HandleItemUnsafe(item types.Item) error {
+func (h *FreeTextItemHandler) HandleItemUnsafe(item types.Item) {
 	if item == nil {
-		return nil
+		return
 	}
 
 	id := item.GetId()
@@ -72,7 +70,6 @@ func (h *FreeTextItemHandler) HandleItemUnsafe(item types.Item) error {
 		h.Index.CreateDocumentUnsafe(id, item.ToStringList()...)
 	}
 
-	return nil
 }
 
 // Lock implements types.ItemHandler interface

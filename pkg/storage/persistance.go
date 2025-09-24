@@ -3,6 +3,8 @@ package storage
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"fmt"
+	"time"
 
 	"log"
 	"os"
@@ -10,6 +12,8 @@ import (
 	"runtime"
 
 	"github.com/bytedance/sonic"
+	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -48,7 +52,7 @@ type Field struct {
 // 	return nil
 // }
 
-func LoadIndex(file string, handlers ...types.ItemHandler) error {
+func LoadItems(fileName string, handlers ...types.ItemHandler) error {
 	// idx.Lock()
 	// defer idx.Unlock()
 	// err := p.LoadFacets(idx)
@@ -61,7 +65,7 @@ func LoadIndex(file string, handlers ...types.ItemHandler) error {
 	// 	log.Printf("Error loading embeddings: %v", err)
 	// 	// Continue loading even if embeddings failed to load
 	// }
-	file, err := os.Open(file)
+	file, err := os.Open(fileName)
 	if err != nil {
 		return err
 	}
@@ -262,7 +266,7 @@ func (p *DataRepository) SaveFacets(facets map[uint]types.Facet) error {
 
 }
 
-func (p *DataRepository) LoadFacets(idx *index.FacetItemHandler) error {
+func (p *DataRepository) LoadFacets(idx *facet.FacetItemHandler) error {
 	file, err := os.Open("data/facets.json")
 	if err != nil {
 		return err
@@ -355,7 +359,7 @@ func (p *DataRepository) SaveEmbeddings(embeddings map[uint]types.Embeddings) er
 	return nil
 }
 
-func (p *DataRepository) LoadEmbeddings(idx *index.ItemEmbeddingsHandler) error {
+func (p *DataRepository) LoadEmbeddings(idx *embeddings.ItemEmbeddingsHandler) error {
 	file, err := os.Open(p.EmbeddingsFile)
 	if err != nil {
 		if os.IsNotExist(err) {

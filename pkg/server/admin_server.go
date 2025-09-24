@@ -3,8 +3,11 @@ package server
 import (
 	"net/http"
 
+	"github.com/matst80/slask-finder/pkg/embeddings"
+	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
+	"github.com/matst80/slask-finder/pkg/sorting"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -29,10 +32,10 @@ type AdminWebServer struct {
 	ContentIndex *index.ContentIndex
 
 	// All handlers - no nil checks needed in admin operations
-	FacetHandler      *index.FacetItemHandler
-	SearchHandler     *index.FreeTextItemHandler
-	EmbeddingsHandler *index.ItemEmbeddingsHandler
-	SortingHandler    *index.SortingItemHandler
+	FacetHandler      *facet.FacetItemHandler
+	SearchHandler     *search.FreeTextItemHandler
+	EmbeddingsHandler *embeddings.ItemEmbeddingsHandler
+	SortingHandler    *sorting.SortingItemHandler
 
 	// Additional services
 	Cache            *Cache
