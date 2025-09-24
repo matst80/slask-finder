@@ -279,12 +279,13 @@ func (w *WebAuthHandler) ValidateCreateChallengeResponse(rw http.ResponseWriter,
 	user.AddCredential(*credential)
 	go w.saveUsers()
 
+	log.Printf("Registered new credential for user %s, total credentials: %d\n", user.Name, len(user.Credentials))
 	// save users
 	rw.WriteHeader(http.StatusOK)
 	encoder := json.NewEncoder(rw)
 
 	if err = encoder.Encode(user.Credentials); err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
+		log.Printf("Error encoding users response: %v", err)
 	}
 }
 
