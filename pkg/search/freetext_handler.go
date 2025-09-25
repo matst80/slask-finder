@@ -1,6 +1,7 @@
 package search
 
 import (
+	"iter"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -67,6 +68,23 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item) {
 		}
 		h.queue.Add(q)
 	}
+}
+
+func toQueueItem(items iter.Seq[types.Item]) iter.Seq[queueItem] {
+	return func(yield func(queueItem) bool) {
+		for item := range items {
+			if !yield(queueItem{
+				id:   item.GetId(),
+				text: item.ToStringList(),
+			}) {
+				return
+			}
+		}
+	}
+}
+
+func (h *FreeTextItemHandler) HandleItems(i iter.Seq[types.Item]) {
+	h.queue.AddIter(toQueueItem(i))
 }
 
 // Search performs a free text search and returns matching item IDs

@@ -1,6 +1,7 @@
 package sorting
 
 import (
+	"iter"
 	"sync"
 	"time"
 
@@ -181,8 +182,8 @@ func (h *SortingItemHandler) HandleItem(item types.Item) {
 	h.HandleItemUnsafe(item)
 }
 
-func (h *SortingItemHandler) HandleItems(items []types.Item) {
-	for _, item := range items {
+func (h *SortingItemHandler) HandleItems(it iter.Seq[types.Item]) {
+	for item := range it {
 		h.HandleItemUnsafe(item)
 	}
 }

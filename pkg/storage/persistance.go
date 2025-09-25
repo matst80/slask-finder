@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"encoding/gob"
 	"fmt"
+	"iter"
 	"time"
 
 	"log"
@@ -52,6 +53,16 @@ type Field struct {
 // 	return nil
 // }
 
+func asSeq(items []types.Item) iter.Seq[types.Item] {
+	return func(yield func(types.Item) bool) {
+		for _, item := range items {
+			if !yield(item) {
+				return
+			}
+		}
+	}
+}
+
 func LoadItems(fileName string, handlers ...types.ItemHandler) error {
 	// idx.Lock()
 	// defer idx.Unlock()
@@ -81,6 +92,7 @@ func LoadItems(fileName string, handlers ...types.ItemHandler) error {
 	defer zipReader.Close()
 
 	tmp := &index.DataItem{}
+	items := make([]types.Item, 0)
 	for err == nil {
 
 		if err = decoder.Decode(tmp); err == nil {
@@ -94,13 +106,15 @@ func LoadItems(fileName string, handlers ...types.ItemHandler) error {
 					tmp.Fields[37] = cgmString[:3]
 				}
 			}
-			for _, hs := range handlers {
-				go hs.HandleItem(tmp)
-			}
+			items = append(items, tmp)
+
 			//idx.UpsertItemUnsafe(tmp)
 			//tmp = nil
 			tmp = &index.DataItem{}
 		}
+	}
+	for _, hs := range handlers {
+		go hs.HandleItems(asSeq(items))
 	}
 	decoder = nil
 

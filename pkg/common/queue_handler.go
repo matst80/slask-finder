@@ -1,6 +1,8 @@
 package common
 
 import (
+	"iter"
+	"slices"
 	"sync"
 	"time"
 )
@@ -30,10 +32,17 @@ func NewQueueHandler[V any](processor QueueProcessor[V], chunkSize uint) *QueueH
 }
 
 // Add adds an item to the queue.
-func (h *QueueHandler[V]) Add(item V) {
+func (h *QueueHandler[V]) Add(item ...V) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.queue = append(h.queue, item)
+	h.queue = append(h.queue, item...)
+}
+
+func (h *QueueHandler[V]) AddIter(item iter.Seq[V]) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.queue = append(h.queue, slices.Collect(item)...)
 }
 
 func (h *QueueHandler[V]) processQueue() {

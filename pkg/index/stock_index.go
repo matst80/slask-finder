@@ -1,6 +1,8 @@
 package index
 
 import (
+	"iter"
+
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -50,6 +52,14 @@ func (i *ItemIndexWithStock) HandleItem(item types.Item) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	i.handleItemUnsafe(item)
+}
+
+func (i *ItemIndexWithStock) HandleItems(it iter.Seq[types.Item]) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	for item := range it {
+		i.handleItemUnsafe(item)
+	}
 }
 
 func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {

@@ -1,6 +1,7 @@
 package facet
 
 import (
+	"iter"
 	"log"
 	"sync"
 
@@ -75,6 +76,24 @@ func (h *FacetItemHandler) HandleItem(item types.Item) {
 	})
 }
 
+func toQueueItem(items iter.Seq[types.Item]) iter.Seq[queueItem] {
+	return func(yield func(queueItem) bool) {
+		for item := range items {
+			if !yield(queueItem{
+				id:      item.GetId(),
+				values:  item.GetFields(),
+				deleted: item.IsDeleted(),
+			}) {
+				return
+			}
+		}
+	}
+}
+
+func (h *FacetItemHandler) HandleItems(items iter.Seq[types.Item]) {
+	h.queue.AddIter(toQueueItem(items))
+}
+
 // Facet management methods
 func (h *FacetItemHandler) AddKeyField(field *types.BaseField) {
 	h.Facets[field.Id] = EmptyKeyValueField(field)
@@ -98,37 +117,6 @@ func (h *FacetItemHandler) GetKeyFacet(id uint) (*KeyField, bool) {
 		}
 	}
 	return nil, false
-}
-
-// // Item processing methods
-// func (h *FacetItemHandler) addItemValues(item types.Item) {
-// 	itemId := item.GetId()
-// 	h.ItemFieldIds[itemId] = types.ItemList{}
-// 	b := &types.BaseField{}
-// 	for id, fieldValue := range item.GetFields() {
-// 		if f, ok := h.Facets[id]; ok {
-// 			b = f.GetBaseField()
-// 			if b.Searchable && f.AddValueLink(fieldValue, itemId) {
-// 				if !b.HideFacet {
-// 					if fids, ok := h.ItemFieldIds[itemId]; ok {
-// 						fids.AddId(id)
-// 					} else {
-// 						log.Printf("No field for item id: %d, id: %d", itemId, id)
-// 					}
-// 				}
-// 			}
-// 		}
-// 	}
-// }
-
-func (h *FacetItemHandler) removeItemValues(item types.Item) {
-	itemId := item.GetId()
-	delete(h.ItemFieldIds, itemId)
-	for fieldId, fieldValue := range item.GetFields() {
-		if f, ok := h.Facets[fieldId]; ok {
-			f.RemoveValueLink(fieldValue, itemId)
-		}
-	}
 }
 
 func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
