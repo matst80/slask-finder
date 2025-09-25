@@ -1,9 +1,6 @@
 package types
 
+// ItemHandler is an interface for handling items
 type ItemHandler interface {
 	HandleItem(item Item)
-	HandleItems(items []Item)
-	HandleItemUnsafe(item Item)
-	Lock()
-	Unlock()
 }

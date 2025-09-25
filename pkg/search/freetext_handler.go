@@ -3,14 +3,21 @@ package search
 import (
 	"sync"
 
+	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/types"
 )
+
+type queueItem struct {
+	id   uint
+	text []string
+}
 
 // FreeTextItemHandler handles free text search operations for items
 // It implements the types.ItemHandler interface
 type FreeTextItemHandler struct {
 	mu    sync.RWMutex
 	Index *FreeTextIndex
+	queue *common.QueueHandler[queueItem]
 }
 
 // FreeTextItemHandlerOptions contains configuration options for creating a new free text handler
@@ -31,33 +38,21 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 		mu:    sync.RWMutex{},
 		Index: NewFreeTextIndex(opts.Tokenizer),
 	}
-
+	handler.queue = common.NewQueueHandler(handler.processItems, 100)
 	return handler
+}
+
+func (h *FreeTextItemHandler) processItems(items []queueItem) {
+	h.Index.mu.Lock()
+	for _, item := range items {
+		h.Index.CreateDocumentUnsafe(item.id, item.text...)
+	}
+	h.Index.mu.Unlock()
 }
 
 // HandleItem implements types.ItemHandler interface
 // Processes a single item for free text search indexing
 func (h *FreeTextItemHandler) HandleItem(item types.Item) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.HandleItemUnsafe(item)
-}
-
-// HandleItems implements types.ItemHandler interface
-// Processes multiple items for free text search indexing
-func (h *FreeTextItemHandler) HandleItems(items []types.Item) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	for _, item := range items {
-		h.HandleItemUnsafe(item)
-	}
-
-}
-
-// HandleItemUnsafe implements types.ItemHandler interface
-// Processes an item for free text search indexing without acquiring locks
-func (h *FreeTextItemHandler) HandleItemUnsafe(item types.Item) {
 	if item == nil {
 		return
 	}
@@ -66,20 +61,12 @@ func (h *FreeTextItemHandler) HandleItemUnsafe(item types.Item) {
 
 	// Only create search documents for items that are not deleted or soft deleted
 	if !item.IsDeleted() && !item.IsSoftDeleted() {
-		// Create search document using item's string representation
-		h.Index.CreateDocumentUnsafe(id, item.ToStringList()...)
+		q := queueItem{
+			id:   id,
+			text: item.ToStringList(),
+		}
+		h.queue.Add(q)
 	}
-
-}
-
-// Lock implements types.ItemHandler interface
-func (h *FreeTextItemHandler) Lock() {
-	h.mu.RLock()
-}
-
-// Unlock implements types.ItemHandler interface
-func (h *FreeTextItemHandler) Unlock() {
-	h.mu.RUnlock()
 }
 
 // Search performs a free text search and returns matching item IDs

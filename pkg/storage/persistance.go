@@ -95,7 +95,7 @@ func LoadItems(fileName string, handlers ...types.ItemHandler) error {
 				}
 			}
 			for _, hs := range handlers {
-				hs.HandleItemUnsafe(tmp)
+				go hs.HandleItem(tmp)
 			}
 			//idx.UpsertItemUnsafe(tmp)
 			//tmp = nil
@@ -198,9 +198,8 @@ func (p *DataRepository) SaveIndex(idx *index.ItemIndex) error {
 	zipWriter := gzip.NewWriter(file)
 	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
 	defer zipWriter.Close()
-	idx.Lock()
 
-	for _, item := range idx.Items {
+	for item := range idx.GetAllItems() {
 		store, ok := item.(*index.DataItem)
 		if !ok {
 			log.Fatalf("Could not convert item to DataItem")
@@ -210,7 +209,6 @@ func (p *DataRepository) SaveIndex(idx *index.ItemIndex) error {
 			return err
 		}
 	}
-	idx.Unlock()
 
 	enc = nil
 	err = os.Rename(p.File+".tmp", p.File)
@@ -266,7 +264,7 @@ func (p *DataRepository) SaveFacets(facets map[uint]types.Facet) error {
 
 }
 
-func (p *DataRepository) LoadFacets(idx *facet.FacetItemHandler) error {
+func LoadFacets(idx *facet.FacetItemHandler) error {
 	file, err := os.Open("data/facets.json")
 	if err != nil {
 		return err
@@ -276,36 +274,7 @@ func (p *DataRepository) LoadFacets(idx *facet.FacetItemHandler) error {
 	if err = sonic.ConfigDefault.NewDecoder(file).Decode(&toStore); err != nil {
 		return err
 	}
-	// idx.AddKeyField(&types.BaseField{
-	// 	Id:               37,
-	// 	Name:             "CGM parent",
-	// 	Description:      "",
-	// 	Priority:         0,
-	// 	Type:             "cgm-parent",
-	// 	LinkedId:         0,
-	// 	ValueSorting:     0,
-	// 	GroupId:          0,
-	// 	CategoryLevel:    0,
-	// 	HideFacet:        true,
-	// 	KeySpecification: false,
-	// 	InternalOnly:     false,
-	// 	Searchable:       true,
-	// })
-	// idx.AddKeyField(&types.BaseField{
-	// 	Id:               25,
-	// 	Name:             "Family Assignment",
-	// 	Description:      "",
-	// 	Priority:         0,
-	// 	Type:             "assignmentId",
-	// 	LinkedId:         0,
-	// 	ValueSorting:     0,
-	// 	GroupId:          0,
-	// 	CategoryLevel:    0,
-	// 	HideFacet:        true,
-	// 	KeySpecification: false,
-	// 	InternalOnly:     false,
-	// 	Searchable:       true,
-	// })
+
 	for _, ff := range toStore {
 		//ff.BaseField.Searchable = true
 		if ff.BaseField.Type == "fps" {

@@ -4,7 +4,6 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/redis/go-redis/v9"
 )
@@ -29,9 +28,8 @@ func NewFieldSorting(client *redis.Client) *FieldSorting {
 }
 
 // makeFieldSort creates the field sorting based on facet data and overrides
-func (fs *FieldSorting) makeFieldSort(idx *facet.FacetItemHandler, overrides SortOverride) {
-	idx.Lock()
-	defer idx.Unlock()
+func (fs *FieldSorting) makeFieldSort(fields map[uint]types.Facet, overrides SortOverride) {
+
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
 
@@ -39,7 +37,7 @@ func (fs *FieldSorting) makeFieldSort(idx *facet.FacetItemHandler, overrides Sor
 
 	sortMap := types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
 		var base *types.BaseField
-		for id, item := range idx.Facets {
+		for id, item := range fields {
 			base = item.GetBaseField()
 			if base.HideFacet {
 				continue
@@ -59,15 +57,15 @@ func (fs *FieldSorting) makeFieldSort(idx *facet.FacetItemHandler, overrides Sor
 	fs.FieldSort = &sortMap
 }
 
-// setFieldSortOverride updates the field sort override
-func (fs *FieldSorting) setFieldSortOverride(sort *SortOverride, facetIndex *facet.FacetItemHandler) {
-	if facetIndex != nil {
-		go fs.makeFieldSort(facetIndex, *sort)
-	}
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
-	fs.fieldOverride = sort
-}
+// // setFieldSortOverride updates the field sort override
+// func (fs *FieldSorting) setFieldSortOverride(sort *SortOverride, facetIndex *facet.FacetItemHandler) {
+// 	if facetIndex != nil {
+// 		go fs.makeFieldSort(facetIndex, *sort)
+// 	}
+// 	fs.mu.Lock()
+// 	defer fs.mu.Unlock()
+// 	fs.fieldOverride = sort
+// }
 
 // GetFieldOverride returns the current field override
 func (fs *FieldSorting) GetFieldOverride() *SortOverride {
@@ -84,11 +82,11 @@ func (fs *FieldSorting) GetFieldSort() *types.ByValue {
 }
 
 // InitializeFieldSort initializes the field sort with facet index and override
-func (fs *FieldSorting) InitializeFieldSort(facetIndex *facet.FacetItemHandler, fieldOverride *SortOverride) {
-	if fieldOverride != nil {
-		fs.fieldOverride = fieldOverride
-	}
-	if facetIndex != nil {
-		fs.makeFieldSort(facetIndex, *fs.fieldOverride)
-	}
-}
+// func (fs *FieldSorting) InitializeFieldSort(facetIndex *facet.FacetItemHandler, fieldOverride *SortOverride) {
+// 	if fieldOverride != nil {
+// 		fs.fieldOverride = fieldOverride
+// 	}
+// 	if facetIndex != nil {
+// 		fs.makeFieldSort(facetIndex, *fs.fieldOverride)
+// 	}
+// }

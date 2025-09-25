@@ -1,7 +1,8 @@
 package index
 
 import (
-	"log"
+	"iter"
+	"maps"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -35,47 +36,24 @@ func NewItemIndex() *ItemIndex {
 }
 
 func (i *ItemIndex) HandleItem(item types.Item) {
-	log.Printf("Handling item %d", item.GetId())
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	i.HandleItemUnsafe(item)
+
+	i.handleItem(item)
 }
 
-func (i *ItemIndex) HandleItems(items []types.Item) {
-	l := len(items)
-	if l == 0 {
-		return
-	}
-	log.Printf("Handling items %d", l)
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	for _, it := range items {
-		i.HandleItemUnsafe(it)
-
-	}
-
-	go noUpdates.Add(float64(l))
-}
-
-func (i *ItemIndex) Lock() {
+func (i *ItemIndex) GetAllItems() iter.Seq[types.Item] {
 	i.mu.RLock()
+	defer i.mu.Unlock()
+
+	return maps.Values(i.Items)
+	// for _, item := range i.Items {
+	// 	ret = append(ret, item)
+	// }
+	// return ret
 }
 
-func (i *ItemIndex) Unlock() {
-	i.mu.RUnlock()
-}
-
-func (i *ItemIndex) StartUnsafe() {
+func (i *ItemIndex) handleItem(item types.Item) {
 	i.mu.Lock()
-}
-
-func (i *ItemIndex) EndUnsafe() {
-	i.mu.Unlock()
-}
-
-func (i *ItemIndex) HandleItemUnsafe(item types.Item) {
-
+	defer i.mu.Unlock()
 	id := item.GetId()
 
 	if item.IsDeleted() {
@@ -87,6 +65,11 @@ func (i *ItemIndex) HandleItemUnsafe(item types.Item) {
 
 	i.Items[id] = item
 	go noUpdates.Inc()
+}
+
+func (i *ItemIndex) GetItem(id uint) (types.Item, bool) {
+	item, ok := i.Items[id]
+	return item, ok
 }
 
 func (i *ItemIndex) HasItem(id uint) bool {
