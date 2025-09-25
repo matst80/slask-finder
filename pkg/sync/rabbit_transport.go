@@ -172,7 +172,7 @@ func getName(prefix string, topic ChangeTopic) string {
 	return fmt.Sprintf("%s_%s", prefix, topic)
 }
 
-func SendChange(c *amqp.Connection, prefix string, topic ChangeTopic, data any) error {
+func SendChange[V any](c *amqp.Connection, prefix string, topic ChangeTopic, data V) error {
 	bytes, err := json.Marshal(data)
 	if err != nil {
 		return err

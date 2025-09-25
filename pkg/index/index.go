@@ -36,24 +36,29 @@ func NewItemIndex() *ItemIndex {
 }
 
 func (i *ItemIndex) HandleItem(item types.Item) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.handleItemUnsafe(item)
+}
 
-	i.handleItem(item)
+func (i *ItemIndex) HandleItems(it iter.Seq[types.Item]) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	for item := range it {
+		i.handleItemUnsafe(item)
+	}
 }
 
 func (i *ItemIndex) GetAllItems() iter.Seq[types.Item] {
 	i.mu.RLock()
-	defer i.mu.Unlock()
+	defer i.mu.RUnlock()
 
 	return maps.Values(i.Items)
-	// for _, item := range i.Items {
-	// 	ret = append(ret, item)
-	// }
-	// return ret
+
 }
 
-func (i *ItemIndex) handleItem(item types.Item) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
+func (i *ItemIndex) handleItemUnsafe(item types.Item) {
+
 	id := item.GetId()
 
 	if item.IsDeleted() {
@@ -68,11 +73,15 @@ func (i *ItemIndex) handleItem(item types.Item) {
 }
 
 func (i *ItemIndex) GetItem(id uint) (types.Item, bool) {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
 	item, ok := i.Items[id]
 	return item, ok
 }
 
 func (i *ItemIndex) HasItem(id uint) bool {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
 	_, ok := i.Items[id]
 	return ok
 }

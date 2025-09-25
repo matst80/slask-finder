@@ -22,15 +22,40 @@ type FacetItemHandler struct {
 	queue        *common.QueueHandler[queueItem]
 }
 
-type FacetItemHandlerOptions struct {
-	// Add any facet-specific options here if needed
+const DefaultStorageName = "facets.json"
+
+func LoadFacetsFromStorage(storage types.StorageProvider) ([]StorageFacet, error) {
+	facets := []StorageFacet{}
+	err := storage.LoadJson(&facets, DefaultStorageName)
+	if err != nil {
+		return facets, err
+	}
+	return facets, nil
 }
 
-func NewFacetItemHandler(opts FacetItemHandlerOptions) *FacetItemHandler {
+func SaveFacetsToStorage(storage types.StorageProvider, facets []StorageFacet) error {
+	return storage.SaveJson(facets, DefaultStorageName)
+}
+
+func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 	r := &FacetItemHandler{
 		Facets:       make(map[uint]types.Facet),
 		ItemFieldIds: make(map[uint]types.ItemList),
 	}
+
+	for _, f := range facets {
+		switch f.Type {
+		case 1:
+			r.AddKeyField(f.BaseField)
+		case 3:
+			r.AddIntegerField(f.BaseField)
+		case 2:
+			r.AddDecimalField(f.BaseField)
+		default:
+			log.Printf("Unknown field type %d", f.Type)
+		}
+	}
+
 	r.queue = common.NewQueueHandler(r.processItems, 100)
 	return r
 }

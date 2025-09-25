@@ -1,7 +1,9 @@
 package embeddings
 
 import (
+	"iter"
 	"log"
+	"maps"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -83,32 +85,26 @@ func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(
 
 // HandleItem implements types.ItemHandler interface
 // Processes a single item for embeddings generation
-func (h *ItemEmbeddingsHandler) HandleItem(item types.Item) error {
+func (h *ItemEmbeddingsHandler) HandleItem(item types.Item) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	return h.HandleItemUnsafe(item)
+	h.handleItemUnsafe(item)
 }
 
 // HandleItems implements types.ItemHandler interface
 // Processes multiple items for embeddings generation
-func (h *ItemEmbeddingsHandler) HandleItems(items []types.Item) error {
+func (h *ItemEmbeddingsHandler) HandleItems(items iter.Seq[types.Item]) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	for _, item := range items {
-		if err := h.HandleItemUnsafe(item); err != nil {
-			return err
-		}
+	for item := range items {
+		h.handleItemUnsafe(item)
 	}
-	return nil
 }
 
 // HandleItemUnsafe implements types.ItemHandler interface
 // Processes an item for embeddings generation without acquiring locks
-func (h *ItemEmbeddingsHandler) HandleItemUnsafe(item types.Item) error {
-	if item == nil {
-		return nil
-	}
+func (h *ItemEmbeddingsHandler) handleItemUnsafe(item types.Item) {
 
 	id := item.GetId()
 
@@ -121,18 +117,6 @@ func (h *ItemEmbeddingsHandler) HandleItemUnsafe(item types.Item) error {
 			log.Printf("Failed to queue item %d for embeddings generation after timeout", id)
 		}
 	}
-
-	return nil
-}
-
-// Lock implements types.ItemHandler interface
-func (h *ItemEmbeddingsHandler) Lock() {
-	h.mu.RLock()
-}
-
-// Unlock implements types.ItemHandler interface
-func (h *ItemEmbeddingsHandler) Unlock() {
-	h.mu.RUnlock()
 }
 
 // Cleanup stops the embeddings queue and performs any necessary cleanup
@@ -201,12 +185,7 @@ func (h *ItemEmbeddingsHandler) GetAllEmbeddings() map[uint]types.Embeddings {
 func (h *ItemEmbeddingsHandler) LoadEmbeddings(embeddings map[uint]types.Embeddings) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-
-	// Clear existing embeddings and load new ones
-	h.Embeddings = make(map[uint]types.Embeddings, len(embeddings))
-	for id, emb := range embeddings {
-		h.Embeddings[id] = emb
-	}
+	maps.Copy(h.Embeddings, embeddings)
 }
 
 // GetEmbeddingsEngine returns the embeddings engine for external use

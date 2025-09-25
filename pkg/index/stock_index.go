@@ -63,7 +63,9 @@ func (i *ItemIndexWithStock) HandleItems(it iter.Seq[types.Item]) {
 }
 
 func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
-	i.ItemIndex.handleItem(item)
+	i.ItemIndex.mu.Lock()
+	i.ItemIndex.handleItemUnsafe(item)
+	i.ItemIndex.mu.Unlock()
 	i.mu.Lock()
 	defer i.mu.Unlock()
 	id := item.GetId()
