@@ -10,13 +10,11 @@ type ItemIndexWithStock struct {
 	*ItemIndex
 	ItemsBySku   map[string]uint
 	ItemsInStock map[string]types.ItemList
-	All          types.ItemList
 }
 
 func NewIndexWithStock() *ItemIndexWithStock {
 	idx := &ItemIndexWithStock{
 		ItemIndex:    NewItemIndex(),
-		All:          types.ItemList{},
 		ItemsBySku:   make(map[string]uint),
 		ItemsInStock: make(map[string]types.ItemList),
 	}
@@ -63,31 +61,30 @@ func (i *ItemIndexWithStock) HandleItems(it iter.Seq[types.Item]) {
 }
 
 func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
-	i.ItemIndex.mu.Lock()
+
 	i.ItemIndex.handleItemUnsafe(item)
-	i.ItemIndex.mu.Unlock()
-	i.mu.Lock()
-	defer i.mu.Unlock()
+
 	id := item.GetId()
 	current, isUpdate := i.Items[id]
 	if isUpdate {
 		i.removeItemValues(current)
-		delete(i.Items, id)
 	}
 	if item.IsDeleted() {
-		delete(i.All, id)
 		delete(i.ItemsBySku, item.GetSku())
 	}
 
-	i.Items[id] = item
-
-	i.All.AddId(id)
 	i.ItemsBySku[item.GetSku()] = id
 
 	i.addItemValues(item)
 }
 
-func (i *ItemIndexWithStock) HasItem(id uint) bool {
-	_, ok := i.Items[id]
-	return ok
+func (i *ItemIndexWithStock) GetStockResult(stockLocations []string) *types.ItemList {
+	resultStockIds := &types.ItemList{}
+	for _, stockId := range stockLocations {
+		stockIds, ok := i.ItemsInStock[stockId]
+		if ok {
+			resultStockIds.Merge(&stockIds)
+		}
+	}
+	return resultStockIds
 }

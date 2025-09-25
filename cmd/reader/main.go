@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/search"
@@ -102,8 +103,42 @@ func main() {
 	}
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
+	var tracking types.Tracking = nil
+	mux.HandleFunc("/update-sort", common.JsonHandler(tracking, app.UpdateSort))
+	mux.HandleFunc("/stream", common.JsonHandler(tracking, app.SearchStreamed))
+	mux.HandleFunc("/facets", common.JsonHandler(tracking, app.GetFacets))
+
+	/*
+		//mux.HandleFunc("/ai-search", common.JsonHandler(tracking, ws.SearchEmbeddings))
+		mux.HandleFunc("/related/{id}", common.JsonHandler(tracking, app.Related))
+		mux.HandleFunc("/compatible/{id}", common.JsonHandler(tracking, app.Compatible))
+		mux.HandleFunc("/popular", common.JsonHandler(tracking, app.Popular))
+		//mux.HandleFunc("/natural", common.JsonHandler(tracking, ws.SearchEmbeddings))
+		mux.HandleFunc("/similar", common.JsonHandler(tracking, app.Similar))
+		//mux.HandleFunc("/cosine-similar/{id}", common.JsonHandler(tracking, ws.CosineSimilar))
+		//mux.HandleFunc("/trigger-words", common.JsonHandler(tracking, ws.TriggerWords))
+		mux.HandleFunc("/facet-list", common.JsonHandler(tracking, app.Facets))
+		mux.HandleFunc("/suggest", common.JsonHandler(tracking, app.Suggest))
+		mux.HandleFunc("/find-related", common.JsonHandler(tracking, app.FindRelated))
+		//mux.HandleFunc("/categories", common.JsonHandler(tracking, ws.Categories))
+		//mux.HandleFunc("/search", ws.QueryIndex)
+		//mux.HandleFunc("GET /settings", ws.GetSettings)
+
+		mux.HandleFunc("/reload-settings", common.JsonHandler(tracking, app.ReloadSettings))
+		mux.HandleFunc("GET /relation-groups", app.GetRelationGroups)
+
+		mux.HandleFunc("/ids", common.JsonHandler(tracking, app.GetIds))
+		mux.HandleFunc("GET /get/{id}", common.JsonHandler(tracking, app.GetItem))
+		mux.HandleFunc("GET /by-sku/{sku}", common.JsonHandler(tracking, app.GetItemBySku))
+		mux.HandleFunc("POST /get", common.JsonHandler(tracking, app.GetItems))
+		mux.HandleFunc("/values/{id}", common.JsonHandler(tracking, app.GetValues))
+		mux.HandleFunc("/predict-sequence", common.JsonHandler(tracking, app.PredictSequence))
+		mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
+
+	*/
 	http.ListenAndServe(":8080", mux)
 }

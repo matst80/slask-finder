@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/matst80/slask-finder/pkg/tracking"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func generateSessionId() int {
@@ -44,7 +44,7 @@ func setSessionCookie(w http.ResponseWriter, r *http.Request, sessionId int) {
 	})
 }
 
-func HandleSessionCookie(tracking tracking.Tracking, w http.ResponseWriter, r *http.Request) int {
+func HandleSessionCookie(tracking types.Tracking, w http.ResponseWriter, r *http.Request) int {
 	sessionId := generateSessionId()
 	c, err := r.Cookie("sid")
 	if err != nil {

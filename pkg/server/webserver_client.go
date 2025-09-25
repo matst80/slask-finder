@@ -42,16 +42,16 @@ var (
 	})
 )
 
-func (ws *ClientWebServer) getStockResult(stockLocations []string) *types.ItemList {
-	resultStockIds := &types.ItemList{}
-	for _, stockId := range stockLocations {
-		stockIds, ok := ws.Index.ItemsInStock[stockId]
-		if ok {
-			resultStockIds.Merge(&stockIds)
-		}
-	}
-	return resultStockIds
-}
+// func (ws *ClientWebServer) getStockResult(stockLocations []string) *types.ItemList {
+// 	resultStockIds := &types.ItemList{}
+// 	for _, stockId := range stockLocations {
+// 		stockIds, ok := ws.Index.ItemsInStock[stockId]
+// 		if ok {
+// 			resultStockIds.Merge(&stockIds)
+// 		}
+// 	}
+// 	return resultStockIds
+// }
 
 func (ws *ClientWebServer) getSearchAndStockResult(sr *types.FacetRequest) *types.ItemList {
 	var initialIds *types.ItemList = nil

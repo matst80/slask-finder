@@ -2,14 +2,10 @@ package server
 
 import (
 	"encoding/json"
-	"log"
-	"maps"
 	"net/http"
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/index"
-	"github.com/matst80/slask-finder/pkg/tracking"
 
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -227,164 +223,6 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *index.JsonFa
 		}
 
 	}
-}
-
-func (ws *ClientWebServer) getSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-
-	makeQm := func(list *types.ItemList) *types.QueryMerger {
-		qm := types.NewQueryMerger(list)
-		if baseIds != nil {
-			qm.Add(func() *types.ItemList {
-				return baseIds
-			})
-		}
-		return qm
-	}
-	for _, s := range sr.StringFilter {
-		if sr.IsIgnored(s.Id) {
-			continue
-		}
-		var f types.Facet
-		var faceExists bool
-		if ws.FacetHandler != nil {
-			f, faceExists = ws.FacetHandler.Facets[s.Id]
-		}
-		if faceExists && !f.IsExcludedFromFacets() {
-
-			wg.Add(1)
-
-			go func(otherFilters *types.Filters) {
-				matchIds := &types.ItemList{}
-				qm := makeQm(matchIds)
-				ws.FacetHandler.Match(otherFilters, qm)
-				qm.Wait()
-
-				getFacetResult(f, matchIds, ch, wg, s.Value)
-			}(sr.WithOut(s.Id, f.IsCategory()))
-
-		}
-	}
-	for _, r := range sr.RangeFilter {
-		var f types.Facet
-		var facetExists bool
-		if ws.FacetHandler != nil {
-			f, facetExists = ws.FacetHandler.Facets[r.Id]
-		}
-		if facetExists && !sr.IsIgnored(r.Id) {
-			wg.Add(1)
-			go func(otherFilters *types.Filters) {
-				matchIds := &types.ItemList{}
-				qm := makeQm(matchIds)
-				ws.FacetHandler.Match(otherFilters, qm)
-				qm.Wait()
-				go getFacetResult(f, matchIds, ch, wg, r)
-			}(sr.WithOut(r.Id, false))
-		}
-	}
-}
-
-func (ws *ClientWebServer) getSuggestFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-	for _, id := range types.CurrentSettings.SuggestFacets {
-		var f types.Facet
-		var facetExists bool
-		if ws.FacetHandler != nil {
-			f, facetExists = ws.FacetHandler.Facets[id]
-		}
-		if facetExists && !f.IsExcludedFromFacets() {
-			wg.Add(1)
-			go getFacetResult(f, baseIds, ch, wg, nil)
-		}
-	}
-}
-
-func (ws *ClientWebServer) getOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *index.JsonFacet, wg *sync.WaitGroup) {
-
-	fieldIds := make(map[uint]struct{})
-	limit := 30
-	resultCount := len(*baseIds)
-	t := 0
-	for id := range *baseIds {
-		var itemFieldIds types.ItemList
-		var ok bool
-		if ws.FacetHandler != nil {
-			itemFieldIds, ok = ws.FacetHandler.ItemFieldIds[id]
-		}
-		if ok {
-			maps.Copy(fieldIds, itemFieldIds)
-			t++
-		}
-		if t > 1500 {
-			break
-		}
-	}
-
-	count := 0
-	//var base *types.BaseField = nil
-	if resultCount == 0 {
-		var mainCat types.Facet
-		if ws.FacetHandler != nil {
-			mainCat = ws.FacetHandler.Facets[10] // todo setting
-		}
-		if mainCat != nil {
-			//base = mainCat.GetBaseField()
-			wg.Add(1)
-			go getFacetResult(mainCat, &ws.Index.All, ch, wg, nil)
-		}
-	} else {
-
-		for id := range ws.Sorting.FieldSorting.GetFieldSort().SortMap(fieldIds) {
-			if count > limit {
-				break
-			}
-
-			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
-				var f types.Facet
-				var facetExists bool
-				if ws.FacetHandler != nil {
-					f, facetExists = ws.FacetHandler.Facets[id]
-				}
-				if facetExists && !f.IsExcludedFromFacets() {
-
-					wg.Add(1)
-					go getFacetResult(f, baseIds, ch, wg, nil)
-
-					count++
-
-				}
-			} else {
-				// log.Printf("Facet %d is in filters", id)
-			}
-		}
-	}
-}
-
-func JsonHandler(trk tracking.Tracking, fn func(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "OPTIONS" {
-			RespondToOptions(w, r)
-			return
-		}
-		sessionId := common.HandleSessionCookie(trk, w, r)
-
-		err := fn(w, r, sessionId, json.NewEncoder(w))
-		if err != nil {
-			log.Printf("Error handling request: %v", err)
-		}
-	}
-}
-
-func RespondToOptions(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Cache-Control", "public, max-age=3600")
-	origin := r.Header.Get("Origin")
-	if origin != "" {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Max-Age", "86400")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "*")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
-	w.Header().Set("Age", "0")
-	w.WriteHeader(http.StatusAccepted)
 }
 
 func (ws *AdminWebServer) SaveHandleRelationGroups(w http.ResponseWriter, r *http.Request) {

@@ -15,12 +15,12 @@ type QueueHandler[V any] struct {
 	mu        sync.Mutex
 	queue     []V
 	processor QueueProcessor[V]
-	chunkSize uint
+	chunkSize int
 	done      chan struct{}
 }
 
 // NewQueueHandler creates a new QueueHandler.
-func NewQueueHandler[V any](processor QueueProcessor[V], chunkSize uint) *QueueHandler[V] {
+func NewQueueHandler[V any](processor QueueProcessor[V], chunkSize int) *QueueHandler[V] {
 	q := &QueueHandler[V]{
 		queue:     make([]V, 0),
 		processor: processor,
@@ -54,7 +54,8 @@ func (h *QueueHandler[V]) processQueue() {
 			time.Sleep(time.Second)
 			continue
 		}
-		items := h.queue[:h.chunkSize]
+
+		items := h.queue[:min(h.chunkSize, len(h.queue))]
 
 		h.queue = h.queue[len(items):]
 		h.mu.Unlock()

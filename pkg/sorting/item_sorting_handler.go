@@ -2,6 +2,7 @@ package sorting
 
 import (
 	"iter"
+	"log"
 	"sync"
 	"time"
 
@@ -202,6 +203,35 @@ func (h *SortingItemHandler) Unlock() {
 
 }
 
+func (h *SortingItemHandler) UpdateSorts() {
+
+	for _, s := range h.Sorters {
+		go func() {
+			sort := s.GetSort()
+			h.mu.Lock()
+			defer h.mu.Unlock()
+			if len(sort) > 0 {
+
+				switch s.(type) {
+				case *PopularitySorter:
+					h.sortValues["popular"] = sort
+				case *LastUpdateSorter:
+					h.sortValues["last_updated"] = sort
+				case *PriceSorter:
+					h.sortValues["price_asc"] = sort
+					// Create descending price sort
+					priceDesc := make(types.ByValue, len(sort))
+					for i, v := range sort {
+						priceDesc[len(sort)-1-i] = types.Lookup{Id: v.Id, Value: float64(len(sort) - i)}
+					}
+					h.sortValues["price_desc"] = priceDesc
+				}
+				log.Printf("Updated sort: %T, items: %d", s, len(sort))
+			}
+		}()
+	}
+}
+
 // Delegation methods for backward compatibility
 func (h *SortingItemHandler) GetSort(id string) types.ByValue {
 	h.mu.RLock()
@@ -210,4 +240,26 @@ func (h *SortingItemHandler) GetSort(id string) types.ByValue {
 		return r
 	}
 	return nil
+}
+
+func (s *SortingItemHandler) GetSortedItemsIterator(sessionId int, sort string, items types.ItemList, start int) iter.Seq[uint] {
+	precalculated := s.GetSort(sort)
+	c := 0
+	return func(yield func(uint) bool) {
+		for _, v := range precalculated {
+			if _, ok := items[v.Id]; !ok {
+				continue
+			}
+			if c < start {
+				c++
+				continue
+			}
+
+			if !yield(v.Id) {
+				break
+			}
+		}
+
+	}
+
 }
