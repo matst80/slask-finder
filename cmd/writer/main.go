@@ -68,8 +68,8 @@ func main() {
 
 	app := &MasterApp{
 		mu:            sync.RWMutex{},
-		fieldData:     map[string]*FieldData{},
-		storageFacets: make([]*facet.StorageFacet, 0),
+		fieldData:     make(map[string]*FieldData, 3000),
+		storageFacets: make([]*facet.StorageFacet, 3000),
 		amqpSender:    NewAmqpSender(country, conn),
 		// itemIndex:       idx,
 		// embeddingsIndex: embeddingsIndex,
