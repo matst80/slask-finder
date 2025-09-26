@@ -21,18 +21,18 @@ func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	for key, field := range tmpFields {
-		// facet, ok := ws.FacetHandler.Facets[field.Id]
-		// if ok {
-		// 	base := facet.GetBaseField()
-		// 	if base != nil {
-		// 		if field.Name != "" {
-		// 			base.Name = field.Name
-		// 		}
-		// 		if field.Description != "" {
-		// 			base.Description = field.Description
-		// 		}
-		// 	}
-		// }
+		facet, ok := ws.findFacet(field.Id)
+		if ok {
+			base := facet.BaseField
+			if base != nil {
+				if field.Name != "" {
+					base.Name = field.Name
+				}
+				if field.Description != "" {
+					base.Description = field.Description
+				}
+			}
+		}
 		existing, found := ws.fieldData[key]
 		if found {
 			if existing.Created == 0 {
@@ -54,6 +54,10 @@ func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 	err = ws.storage.SaveGzippedJson(ws.fieldData, "fields.jz")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	err = ws.storage.SaveFacets(ws.storageFacets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
