@@ -35,7 +35,7 @@ func (s *LastUpdateSorter) ProcessItem(item types.Item) {
 }
 
 func NewPriceSorter() Sorter {
-	return NewBaseSorter("price_asc", func(item types.Item) float64 {
+	return NewBaseSorter("price", func(item types.Item) float64 {
 		price := item.GetPrice()
 		if price > 0 && price <= 1000000000 {
 			return float64(price)
@@ -45,7 +45,7 @@ func NewPriceSorter() Sorter {
 }
 
 func NewLastUpdateSorter() Sorter {
-	return NewBaseSorter("last_updated", func(item types.Item) float64 {
+	return NewBaseSorter("updated", func(item types.Item) float64 {
 		lastUpdated := item.GetLastUpdated()
 		if lastUpdated > 0 {
 			return float64(lastUpdated)
