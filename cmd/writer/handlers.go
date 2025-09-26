@@ -95,3 +95,13 @@ func (ws *MasterApp) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+func (ws *MasterApp) GetFacetList(w http.ResponseWriter, r *http.Request) {
+	//publicHeaders(w, r, true, "10")
+
+	w.WriteHeader(http.StatusOK)
+
+	enc := json.NewEncoder(w)
+
+	enc.Encode(ws.storageFacets)
+}

@@ -104,10 +104,12 @@ func main() {
 	srv.HandleFunc("POST /admin/add", auth.Middleware(app.handleItems))
 	srv.HandleFunc("/admin/save", auth.Middleware(app.saveItems))
 	//srv.HandleFunc("GET /admin/item/{id}", auth.Middleware(app.getAdminItemById))
+	srv.HandleFunc("GET /admin/facets", app.GetFacetList)
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
 	srv.HandleFunc("PUT /admin/fields", auth.Middleware(app.HandleUpdateFields))
+	srv.HandleFunc("GET /admin/missing-fields", auth.Middleware(app.MissingFacets))
 	srv.HandleFunc("POST /admin/update-fields", auth.Middleware(app.UpdateFacetsFromFields))
 
 	// srv.HandleFunc("GET /users", auth.Middleware(webAuth.ListUsers))
