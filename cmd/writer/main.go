@@ -6,22 +6,20 @@ import (
 	"os"
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/facet"
-	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type MasterApp struct {
-	mu              sync.RWMutex
-	fieldData       map[string]*FieldData
-	storageFacets   []*facet.StorageFacet
-	storage         *storage.DiskStorage
-	itemIndex       *index.ItemIndex
-	embeddingsIndex *embeddings.ItemEmbeddingsHandler
-	amqpSender      *AmqpSender
+	mu            sync.RWMutex
+	fieldData     map[string]*FieldData
+	storageFacets []*facet.StorageFacet
+	storage       *storage.DiskStorage
+	// itemIndex       *index.ItemIndex
+	// embeddingsIndex *embeddings.ItemEmbeddingsHandler
+	amqpSender *AmqpSender
 }
 
 var country = "se"
@@ -69,13 +67,13 @@ func main() {
 	// }
 
 	app := &MasterApp{
-		mu:              sync.RWMutex{},
-		fieldData:       map[string]*FieldData{},
-		storageFacets:   make([]*facet.StorageFacet, 0),
-		amqpSender:      NewAmqpSender(country, conn),
-		itemIndex:       idx,
-		embeddingsIndex: embeddingsIndex,
-		storage:         diskStorage,
+		mu:            sync.RWMutex{},
+		fieldData:     map[string]*FieldData{},
+		storageFacets: make([]*facet.StorageFacet, 0),
+		amqpSender:    NewAmqpSender(country, conn),
+		// itemIndex:       idx,
+		// embeddingsIndex: embeddingsIndex,
+		storage: diskStorage,
 	}
 	err = diskStorage.LoadGzippedJson(app.fieldData, "fields.jz")
 	if err != nil {
@@ -105,7 +103,7 @@ func main() {
 
 	srv.HandleFunc("POST /admin/add", auth.Middleware(app.handleItems))
 	srv.HandleFunc("/admin/save", auth.Middleware(app.saveItems))
-	srv.HandleFunc("GET /admin/item/{id}", auth.Middleware(app.getAdminItemById))
+	//srv.HandleFunc("GET /admin/item/{id}", auth.Middleware(app.getAdminItemById))
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"iter"
 	"net/http"
-	"strconv"
 
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -44,25 +43,25 @@ func (app *MasterApp) handleItems(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (app *MasterApp) getAdminItemById(w http.ResponseWriter, r *http.Request) {
-	idValue := r.PathValue("id")
-	id, err := strconv.ParseUint(idValue, 10, 64)
-	if err != nil {
-		http.Error(w, "invalid id", http.StatusBadRequest)
-		return
-	}
+// func (app *MasterApp) getAdminItemById(w http.ResponseWriter, r *http.Request) {
+// 	idValue := r.PathValue("id")
+// 	id, err := strconv.ParseUint(idValue, 10, 64)
+// 	if err != nil {
+// 		http.Error(w, "invalid id", http.StatusBadRequest)
+// 		return
+// 	}
 
-	item, ok := app.itemIndex.GetItem(uint(id))
-	if !ok {
-		http.Error(w, "item not found", http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(item); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
+// 	item, ok := app.itemIndex.GetItem(uint(id))
+// 	if !ok {
+// 		http.Error(w, "item not found", http.StatusNotFound)
+// 		return
+// 	}
+// 	w.WriteHeader(http.StatusOK)
+// 	w.Header().Set("Content-Type", "application/json")
+// 	if err := json.NewEncoder(w).Encode(item); err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+// }
 
 func (ws *MasterApp) GetSettings(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
