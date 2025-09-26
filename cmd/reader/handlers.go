@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -147,4 +148,32 @@ func (a *app) UpdateSort(w http.ResponseWriter, r *http.Request, sessionId int, 
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte("ok"))
 	return err
+}
+
+func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	id := r.PathValue("id")
+	itemId, err := strconv.Atoi(id)
+	if err != nil {
+		return err
+	}
+	item, ok := ws.itemIndex.GetItem(uint(itemId))
+	if !ok {
+		return err
+	}
+	//publicHeaders(w, r, true, "120")
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(item)
+}
+
+func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	sku := r.PathValue("sku")
+	//publicHeaders(w, r, true, "120")
+	item, ok := ws.itemIndex.GetItemBySku(sku)
+	if !ok {
+		w.WriteHeader(http.StatusNotFound)
+		return nil
+	}
+
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(item)
 }
