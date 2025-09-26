@@ -21,25 +21,25 @@ func asSeq(items []index.DataItem) iter.Seq[types.Item] {
 }
 
 func (app *MasterApp) saveItems(w http.ResponseWriter, r *http.Request) {
-	err := app.storage.SaveItems(app.itemIndex.GetAllItems())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	// err := app.storage.SaveItems(app.itemIndex.GetAllItems())
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 	w.WriteHeader(http.StatusOK)
 }
 
 func (app *MasterApp) handleItems(w http.ResponseWriter, r *http.Request) {
-	items := make([]index.DataItem, 0)
-	err := json.NewDecoder(r.Body).Decode(&items)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	// items := make([]index.DataItem, 0)
+	// err := json.NewDecoder(r.Body).Decode(&items)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusBadRequest)
+	// 	return
+	// }
 
-	app.itemIndex.HandleItems(asSeq(items))
+	// app.itemIndex.HandleItems(asSeq(items))
 
-	app.amqpSender.SendItems(items)
+	// app.amqpSender.SendItems(items)
 
 	w.WriteHeader(http.StatusOK)
 }

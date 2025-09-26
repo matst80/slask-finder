@@ -54,19 +54,19 @@ func main() {
 	}
 	defer conn.Close()
 
-	idx := index.NewItemIndex()
-	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
-	embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func() error {
+	// idx := index.NewItemIndex()
+	// embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
+	// embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func() error {
 
-		log.Println("Embeddings queue processed")
-		//storage.SaveEmbeddings(embeddingsIndex.Embeddings, "data/embeddings-v2.jz")
-		return nil
-	})
+	// 	log.Println("Embeddings queue processed")
+	// 	//storage.SaveEmbeddings(embeddingsIndex.Embeddings, "data/embeddings-v2.jz")
+	// 	return nil
+	// })
 
-	err = diskStorage.LoadItems(idx, embeddingsIndex)
-	if err != nil {
-		log.Printf("Could not load items from file: %v", err)
-	}
+	// err = diskStorage.LoadItems(idx, embeddingsIndex)
+	// if err != nil {
+	// 	log.Printf("Could not load items from file: %v", err)
+	// }
 
 	app := &MasterApp{
 		mu:              sync.RWMutex{},
@@ -155,4 +155,5 @@ func main() {
 	   srv.HandleFunc("GET /webauthn/login/start", auth.LoginChallenge)
 	   srv.HandleFunc("POST /webauthn/login/finish", auth.LoginChallengeResponse)
 	*/
+	http.ListenAndServe(":8080", srv)
 }
