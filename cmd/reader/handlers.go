@@ -7,10 +7,12 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/facet"
+	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -321,4 +323,119 @@ func (ws *app) Facets(w http.ResponseWriter, r *http.Request, sessionId int, enc
 	w.WriteHeader(http.StatusOK)
 
 	return enc.Encode(slices.Collect(ws.facetHandler.GetAll()))
+}
+
+func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		// items, _ := ws.Sorting.GetSessionData(uint(sessionId))
+		// sortedItems := items.ToSortedLookup()
+		//sortedFields := fields.ToSortedLookup()
+		//defaultHeaders(w, r, true, "60")
+
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("\n"))
+		max := 30
+		for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
+
+			err := enc.Encode(item)
+			if err != nil {
+				return err
+			}
+			max--
+			if max <= 0 {
+				break
+			}
+
+		}
+		w.Write([]byte("\n"))
+		return nil
+	}
+	query = strings.TrimSpace(query)
+	words := strings.Split(query, " ")
+	results := types.ItemList{}
+	lastWord := words[len(words)-1]
+
+	other := words[:len(words)-1]
+	//go noSuggests.Inc()
+
+	wordMatchesChan := make(chan []search.Match)
+	sortChan := make(chan *types.ByValue)
+	defer close(wordMatchesChan)
+	defer close(sortChan)
+
+	docResult := ws.searchIndex.Search(query)
+
+	types.Merge(results, *docResult)
+
+	// Use previous word to rank suggestions via Markov chain if available
+	prevWord := ""
+	if len(other) > 0 {
+		prevWord = other[len(other)-1]
+	}
+
+	go ws.searchIndex.FindTrieMatchesForContext(prevWord, lastWord, wordMatchesChan)
+
+	//defaultHeaders(w, r, false, "360")
+
+	w.WriteHeader(http.StatusOK)
+
+	suggestResult := &SuggestResult{}
+	suggestResult.Other = other
+	hasResults := len(results) > 0
+	var err error
+	for _, s := range <-wordMatchesChan {
+		suggestResult.Prefix = lastWord
+		suggestResult.Word = s.Word
+		totalHits := len(*s.Items)
+		if totalHits > 0 {
+			if !hasResults {
+				suggestResult.Hits = totalHits
+				err = enc.Encode(suggestResult)
+				//results.Merge(s.Items)
+			} else if results.HasIntersection(s.Items) {
+				suggestResult.Hits = results.IntersectionLen(*s.Items)
+				err = enc.Encode(suggestResult)
+				// dont intersect with the other words yet since partial
+				//results.Intersect(*s.Items)
+			}
+		}
+
+	}
+	if err != nil {
+		return err
+	}
+
+	w.Write([]byte("\n"))
+
+	idx := 0
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", results, 0)) {
+		idx++
+		err = enc.Encode(item)
+		if idx >= 20 || err != nil {
+			break
+		}
+	}
+	if err != nil {
+		return err
+	}
+
+	ch := make(chan *facet.JsonFacet)
+	wg := &sync.WaitGroup{}
+
+	ws.facetHandler.GetSuggestFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
+
+	w.Write([]byte("\n"))
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+	for jsonFacet := range ch {
+		if jsonFacet != nil && (jsonFacet.Result.HasValues() || jsonFacet.Selected != nil) {
+			err = enc.Encode(jsonFacet)
+		}
+	}
+	return err
 }

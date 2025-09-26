@@ -9,30 +9,12 @@ import (
 )
 
 type FreeTextIndex struct {
-	mu        sync.RWMutex
-	tokenizer *Tokenizer
-	Trie      *Trie
-	//Documents map[uint]*Document
-	TokenMap map[Token]*types.ItemList
-	//BaseSortMap map[uint]float64
+	mu           sync.RWMutex
+	tokenizer    *Tokenizer
+	Trie         *Trie
+	TokenMap     map[Token]*types.ItemList
 	WordMappings map[Token]Token
-	//Tokens []Token
 }
-
-//type DocumentResult map[uint]float64
-
-// func (i *FreeTextIndex) AddDocument(doc *Document) {
-// 	i.mu.Lock()
-// 	defer i.mu.Unlock()
-// 	//i.Documents[doc.Id] = doc
-// 	for _, token := range doc.Tokens {
-// 		if _, ok := i.TokenMap[token]; !ok {
-// 			i.TokenMap[token] = make([]*Document, 0)
-// 			i.Tokens = append(i.Tokens, token)
-// 		}
-// 		i.TokenMap[token] = append(i.TokenMap[token], doc)
-// 	}
-// }
 
 func (i *FreeTextIndex) CreateDocument(id uint, text ...string) {
 
@@ -186,55 +168,7 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 		ret = append(ret, matching[j].token)
 	}
 	return ret
-	// slices.SortFunc(matching, func(i, j tokenScore) int {
-	// 	return cmp.Compare(j.score, i.score)
-	// })
-	// max := absMin(len(matching), 5)
-	// res := make([]Token, max)
-	// for idx, match := range matching {
-	// 	if idx >= max {
-	// 		break
-	// 	}
-	// 	res[idx] = match.token
-	// }
-	// return res
 }
-
-// func (i *FreeTextIndex) getMatchDocs(tokens []Token) *types.ItemList {
-
-// 	//res := make(map[uint]*Document)
-// 	missingStrings := make([]Token, 0)
-// 	res := &types.ItemList{}
-// 	for j, token := range tokens {
-// 		docs, ok := i.TokenMap[token]
-// 		if ok {
-// 			if j == 0 {
-// 				res.Merge(docs)
-// 			} else {
-// 				res.Intersect(*docs)
-// 			}
-// 		} else {
-// 			missingStrings = append(missingStrings, i.getBestFuzzyMatch(token, 3)...)
-// 		}
-// 	}
-// 	for _, token := range missingStrings {
-// 		docs, ok := i.TokenMap[token]
-// 		if ok {
-// 			copy := &types.ItemList{}
-// 			res.Merge(docs)
-// 			if len(*copy) == 0 {
-// 				copy.Merge(docs)
-// 			} else {
-// 				copy.Intersect(*docs)
-// 			}
-// 			if len(*copy) > 0 {
-// 				return copy
-// 			}
-// 		}
-// 	}
-
-// 	return res
-// }
 
 // TODO maybe two itemlists, one for exact and one for fuzzy
 

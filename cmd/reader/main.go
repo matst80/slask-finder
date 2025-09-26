@@ -135,6 +135,7 @@ func main() {
 	mux.HandleFunc("/api/related/{id}", common.JsonHandler(tracking, app.Related))
 	mux.HandleFunc("/api/compatible/{id}", common.JsonHandler(tracking, app.Compatible))
 	mux.HandleFunc("/values/{id}", common.JsonHandler(tracking, app.GetValues))
+	mux.HandleFunc("/suggest", common.JsonHandler(tracking, app.Suggest))
 	/*
 		//mux.HandleFunc("/ai-search", common.JsonHandler(tracking, ws.SearchEmbeddings))
 
