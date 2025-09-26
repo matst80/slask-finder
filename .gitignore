@@ -1,16 +1,5 @@
-data/*.db
-data/*.jz
-data/*.db*
-data/*.gz
-data/*.gob
-data/*.json
-data/*.tmp
-data/facets/*
-data/items/*
-data/content/*
-data/current
-data/*.dbz
-data/carts/
+data/
+!data/database_will_be_placed_here.txt
 __debug*
 startup.prof
 .DS_Store
@@ -19,5 +8,3 @@ slask-finder.exe
 clickhouse
 .env
 slask-finder
-data/embeddings.gob.gz
-data/se/facets.json
