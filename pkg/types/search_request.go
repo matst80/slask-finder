@@ -1,4 +1,4 @@
-package main
+package types
 
 import (
 	"encoding/json"
@@ -11,11 +11,10 @@ import (
 	"strings"
 
 	"github.com/gorilla/schema"
-	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type SearchRequest struct {
-	*types.FacetRequest
+	*FacetRequest
 	Filter       string `json:"filter" schema:"filter"`
 	SkipTracking bool   `json:"skipTracking" schema:"nt"`
 	Sort         string `json:"sort" schema:"sort,default:popular"`
@@ -75,7 +74,7 @@ func queryFromRequestQuery(query url.Values, result *SearchRequest) error {
 	return decodeFiltersFromRequest(query, result.FacetRequest)
 }
 
-func GetFacetQueryFromRequest(r *http.Request) (*types.FacetRequest, error) {
+func GetFacetQueryFromRequest(r *http.Request) (*FacetRequest, error) {
 	sr := makeBaseFacetRequest()
 	var err error
 	if r.Method == http.MethodGet {
@@ -87,7 +86,7 @@ func GetFacetQueryFromRequest(r *http.Request) (*types.FacetRequest, error) {
 	return sr, err
 }
 
-func facetQueryFromRequestQuery(query url.Values, result *types.FacetRequest) error {
+func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
 
 	err := decoder.Decode(result, query)
 	if err != nil {
@@ -97,10 +96,10 @@ func facetQueryFromRequestQuery(query url.Values, result *types.FacetRequest) er
 	return decodeFiltersFromRequest(query, result)
 }
 
-func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) error {
+func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 	var err error
-	key := map[uint]types.StringFilter{}
-	rng := map[uint]types.RangeFilter{}
+	key := map[uint]StringFilter{}
+	rng := map[uint]RangeFilter{}
 	for _, v := range query["str"] {
 		parts := strings.Split(v, ":")
 		if len(parts) != 2 {
@@ -122,14 +121,14 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 			value = strings.TrimPrefix(value, "!")
 		}
 		if strings.Contains(value, "||") {
-			key[uint(id)] = types.StringFilter{
+			key[uint(id)] = StringFilter{
 				Id:    uint(id),
 				Not:   exclude,
 				Value: strings.Split(value, "||"),
 			}
 		} else {
 
-			key[uint(id)] = types.StringFilter{
+			key[uint(id)] = StringFilter{
 				Id:    uint(id),
 				Not:   exclude,
 				Value: []string{value},
@@ -147,7 +146,7 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 		if err != nil {
 			continue
 		}
-		rng[id] = types.RangeFilter{
+		rng[id] = RangeFilter{
 			Id:  id,
 			Min: _min,
 			Max: _max,
@@ -159,11 +158,11 @@ func decodeFiltersFromRequest(query url.Values, result *types.FacetRequest) erro
 	return err
 }
 
-func makeBaseFacetRequest() *types.FacetRequest {
-	return &types.FacetRequest{
-		Filters: &types.Filters{
-			StringFilter: []types.StringFilter{},
-			RangeFilter:  []types.RangeFilter{},
+func makeBaseFacetRequest() *FacetRequest {
+	return &FacetRequest{
+		Filters: &Filters{
+			StringFilter: []StringFilter{},
+			RangeFilter:  []RangeFilter{},
 		},
 		IgnoreFacets: []uint{},
 		Stock:        []string{},

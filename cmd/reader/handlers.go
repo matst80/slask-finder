@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"maps"
 	"net/http"
 	"sync"
 	"time"
@@ -43,7 +41,7 @@ import (
 
 func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	s := time.Now()
-	sr, err := GetFacetQueryFromRequest(r)
+	sr, err := types.GetFacetQueryFromRequest(r)
 	if err != nil {
 		return err
 	}
@@ -52,18 +50,9 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	ids := &types.ItemList{}
 
 	qm := types.NewQueryMerger(ids)
-	if sr.Query == "*" {
-		qm.Add(func() *types.ItemList {
-			clone := maps.Clone(ws.facetHandler.All)
-			return &clone
-		})
-	}
-	if len(sr.Stock) > 0 {
-		qm.Add(func() *types.ItemList {
-			return ws.itemIndex.GetStockResult(sr.Stock)
-		})
-	}
 
+	ws.searchIndex.MatchQuery(sr.Query, qm)
+	ws.itemIndex.MatchStock(sr.Stock, qm)
 	ws.facetHandler.Match(sr.Filters, qm)
 
 	ch := make(chan *facet.JsonFacet)
@@ -96,24 +85,16 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 
 func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	s := time.Now()
-	sr, err := GetQueryFromRequest(r)
+	sr, err := types.GetQueryFromRequest(r)
 
 	if err != nil {
 		return err
 	}
 	ids := &types.ItemList{}
 	qm := types.NewQueryMerger(ids)
-	if sr.Query == "*" {
-		qm.Add(func() *types.ItemList {
-			clone := maps.Clone(ws.facetHandler.All)
-			return &clone
-		})
-	}
-	if len(sr.Stock) > 0 {
-		qm.Add(func() *types.ItemList {
-			return ws.itemIndex.GetStockResult(sr.Stock)
-		})
-	}
+	ws.searchIndex.MatchQuery(sr.Query, qm)
+	ws.itemIndex.MatchStock(sr.Stock, qm)
+
 	ws.facetHandler.Match(sr.Filters, qm)
 
 	//defaultHeaders(w, r, false, "10")
@@ -121,25 +102,17 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
-	//result := <-resultChan
+
 	qm.Wait()
 	fn := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, *ids, start)
 
 	idx := 0
 
-	for itemId := range fn {
-		log.Printf("Encoding item id %d", itemId)
-		item, ok := ws.itemIndex.GetItem(itemId)
-		if ok {
-			err = enc.Encode(item)
-			idx++
-			if err != nil {
-				log.Printf("Error encoding item: %v", err)
-				break
-			}
-		} else {
-			log.Printf("Item not found in index: %d", itemId)
-		}
+	for item := range ws.itemIndex.GetItems(fn) {
+
+		err = enc.Encode(item)
+		idx++
+
 		if idx >= sr.PageSize {
 			break
 		}

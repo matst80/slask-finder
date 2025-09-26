@@ -9,59 +9,10 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-type SortingProperty struct {
-	Name   string
-	values types.ByValue
-	scores map[uint]float64
-}
-
-type Sorter interface {
-	ProcessItem(item types.Item)
-	GetSort() types.ByValue
-}
-
-type PopularitySorter struct {
-	mu        sync.RWMutex
-	overrides *SortOverride
-	scores    map[uint]float64
-}
-
 func NewPopularitySorter() Sorter {
-	return &PopularitySorter{
-		mu:        sync.RWMutex{},
-		overrides: &SortOverride{},
-		scores:    make(map[uint]float64),
-	}
-}
-
-func (s *PopularitySorter) ProcessItem(item types.Item) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	id := item.GetId()
-	if item.IsDeleted() {
-		delete(s.scores, id)
-		return
-	}
-	s.scores[id] = types.CollectPopularity(item, *types.CurrentSettings.PopularityRules...)
-}
-
-func (s *PopularitySorter) GetSort() types.ByValue {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	l := len(s.scores)
-	j := 0.0
-	popularMap := make(types.ByValue, l)
-	i := 0
-	var id uint
-	var popular float64
-	for id, popular = range s.scores {
-		j += 0.0000000000001
-		popularMap[i] = types.Lookup{Id: id, Value: popular + (*s.overrides)[id] + j}
-		i++
-	}
-	popularMap = popularMap[:i]
-	SortByValues(popularMap)
-	return popularMap
+	return NewBaseSorter("popular", func(item types.Item) float64 {
+		return types.CollectPopularity(item, *types.CurrentSettings.PopularityRules...)
+	})
 }
 
 type LastUpdateSorter struct {
@@ -83,79 +34,24 @@ func (s *LastUpdateSorter) ProcessItem(item types.Item) {
 	}
 }
 
-type PriceSorter struct {
-	mu     sync.RWMutex
-	scores map[uint]float64
-}
-
 func NewPriceSorter() Sorter {
-	return &PriceSorter{
-		mu:     sync.RWMutex{},
-		scores: make(map[uint]float64),
-	}
-}
-
-func (s *PriceSorter) ProcessItem(item types.Item) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	id := item.GetId()
-	if item.IsDeleted() {
-		delete(s.scores, id)
-		return
-	}
-	price := item.GetPrice()
-	if price > 0 && price <= 1000000000 {
-		s.scores[id] = float64(price)
-	}
-}
-
-func (s *PriceSorter) GetSort() types.ByValue {
-
-	l := len(s.scores)
-	j := 0.0
-
-	popularMap := make(types.ByValue, l)
-	i := 0
-	var id uint
-	var price float64
-	s.mu.RLock()
-	for id, price = range s.scores {
-		j += 0.0000000000001
-		popularMap[i] = types.Lookup{Id: id, Value: price + j}
-		i++
-	}
-	s.mu.RUnlock()
-	popularMap = popularMap[:i]
-	SortByValues(popularMap)
-	return popularMap
+	return NewBaseSorter("price_asc", func(item types.Item) float64 {
+		price := item.GetPrice()
+		if price > 0 && price <= 1000000000 {
+			return float64(price)
+		}
+		return 0
+	})
 }
 
 func NewLastUpdateSorter() Sorter {
-	return &LastUpdateSorter{
-		mu:     sync.RWMutex{},
-		scores: make(map[uint]float64),
-	}
-}
-
-func (s *LastUpdateSorter) GetSort() types.ByValue {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	l := len(s.scores)
-	j := 0.0
-	now := time.Now()
-	ts := now.UnixMilli()
-	updatedMap := make(types.ByValue, l)
-	i := 0
-	var id uint
-	var lastUpdated float64
-	for id, lastUpdated = range s.scores {
-		j += 0.0000000000001
-		updatedMap[i] = types.Lookup{Id: id, Value: float64(ts) - lastUpdated + j}
-		i++
-	}
-	updatedMap = updatedMap[:i]
-	SortByValues(updatedMap)
-	return updatedMap
+	return NewBaseSorter("last_updated", func(item types.Item) float64 {
+		lastUpdated := item.GetLastUpdated()
+		if lastUpdated > 0 {
+			return float64(lastUpdated)
+		}
+		return 0
+	})
 }
 
 type SortingItemHandler struct {
@@ -174,7 +70,12 @@ func NewSortingItemHandler() *SortingItemHandler {
 			NewPriceSorter(),
 		},
 	}
-
+	ticker := time.NewTicker(time.Second * 10)
+	go func() {
+		for range ticker.C {
+			handler.UpdateSorts()
+		}
+	}()
 	return handler
 }
 
@@ -203,32 +104,29 @@ func (h *SortingItemHandler) Unlock() {
 
 }
 
+func (h *SortingItemHandler) updateSorter(s Sorter) {
+
+	if !s.IsDirty() {
+		return
+	}
+
+	name := s.Name()
+	sort := s.GetSort()
+
+	if len(sort) > 0 {
+		h.mu.Lock()
+		h.sortValues[name] = sort
+		h.mu.Unlock()
+
+		log.Printf("Updated sort: %s, items: %d", name, len(sort))
+	}
+}
+
 func (h *SortingItemHandler) UpdateSorts() {
-
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	for _, s := range h.Sorters {
-		go func() {
-			sort := s.GetSort()
-			h.mu.Lock()
-			defer h.mu.Unlock()
-			if len(sort) > 0 {
-
-				switch s.(type) {
-				case *PopularitySorter:
-					h.sortValues["popular"] = sort
-				case *LastUpdateSorter:
-					h.sortValues["last_updated"] = sort
-				case *PriceSorter:
-					h.sortValues["price_asc"] = sort
-					// Create descending price sort
-					priceDesc := make(types.ByValue, len(sort))
-					for i, v := range sort {
-						priceDesc[len(sort)-1-i] = types.Lookup{Id: v.Id, Value: float64(len(sort) - i)}
-					}
-					h.sortValues["price_desc"] = priceDesc
-				}
-				log.Printf("Updated sort: %T, items: %d", s, len(sort))
-			}
-		}()
+		go h.updateSorter(s)
 	}
 }
 

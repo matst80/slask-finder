@@ -62,12 +62,10 @@ func (i *FacetItemHandler) Match(search *types.Filters, qm *types.QueryMerger) {
 	for _, fld := range i.RemoveDuplicateCategoryFilters(search.StringFilter) {
 		if fld.Exclude {
 			qm.Exclude(func() *types.ItemList {
-
 				return fld.Facet.MatchFilterValue(fld.Value)
 			})
 		} else {
 			qm.Add(func() *types.ItemList {
-
 				return fld.Facet.MatchFilterValue(fld.Value)
 			})
 		}

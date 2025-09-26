@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"iter"
 	"log"
 	"net/http"
 	"os"
@@ -24,6 +25,16 @@ func init() {
 	c, ok := os.LookupEnv("COUNTRY")
 	if ok {
 		country = c
+	}
+}
+
+func asItems(items []index.DataItem) iter.Seq[types.Item] {
+	return func(yield func(types.Item) bool) {
+		for _, item := range items {
+			if !yield(&item) {
+				return
+			}
+		}
 	}
 }
 
@@ -62,9 +73,9 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 				log.Printf("Got upserts %d", len(items))
 
 				for _, handler := range handlers {
-					for _, item := range items {
-						handler.HandleItem(&item)
-					}
+
+					handler.HandleItems(asItems(items))
+
 				}
 			} else {
 				log.Printf("Failed to unmarshal upset message %v", err)

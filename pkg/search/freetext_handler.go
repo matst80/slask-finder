@@ -2,6 +2,7 @@ package search
 
 import (
 	"iter"
+	"maps"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -9,16 +10,18 @@ import (
 )
 
 type queueItem struct {
-	id   uint
-	text []string
+	id      uint
+	deleted bool
+	text    []string
 }
 
 // FreeTextItemHandler handles free text search operations for items
 // It implements the types.ItemHandler interface
 type FreeTextItemHandler struct {
 	mu    sync.RWMutex
-	Index *FreeTextIndex
 	queue *common.QueueHandler[queueItem]
+	All   types.ItemList
+	Index *FreeTextIndex
 }
 
 // FreeTextItemHandlerOptions contains configuration options for creating a new free text handler
@@ -39,7 +42,7 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 		mu:    sync.RWMutex{},
 		Index: NewFreeTextIndex(opts.Tokenizer),
 	}
-	handler.queue = common.NewQueueHandler(handler.processItems, 100)
+	handler.queue = common.NewQueueHandler(handler.processItems, 1000)
 	return handler
 }
 
@@ -54,28 +57,43 @@ func (h *FreeTextItemHandler) processItems(items []queueItem) {
 // HandleItem implements types.ItemHandler interface
 // Processes a single item for free text search indexing
 func (h *FreeTextItemHandler) HandleItem(item types.Item) {
-	if item == nil {
-		return
-	}
 
 	id := item.GetId()
 
-	// Only create search documents for items that are not deleted or soft deleted
-	if !item.IsDeleted() && !item.IsSoftDeleted() {
-		q := queueItem{
-			id:   id,
-			text: item.ToStringList(),
-		}
-		h.queue.Add(q)
+	q := queueItem{
+		id:      id,
+		deleted: item.IsDeleted(),
+		text:    item.ToStringList(),
+	}
+
+	h.queue.Add(q)
+
+}
+
+func (h *FreeTextItemHandler) MatchQuery(query string, qm *types.QueryMerger) {
+	if query == "" {
+		return
+	}
+	if query == "*" {
+		qm.Add(func() *types.ItemList {
+			clone := maps.Clone(h.All)
+			return &clone
+		})
+	} else {
+		qm.Add(func() *types.ItemList {
+			return h.Search(query)
+		})
 	}
 }
 
 func toQueueItem(items iter.Seq[types.Item]) iter.Seq[queueItem] {
 	return func(yield func(queueItem) bool) {
 		for item := range items {
+
 			if !yield(queueItem{
-				id:   item.GetId(),
-				text: item.ToStringList(),
+				id:      item.GetId(),
+				deleted: item.IsDeleted(),
+				text:    item.ToStringList(),
 			}) {
 				return
 			}

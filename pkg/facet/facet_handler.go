@@ -25,7 +25,7 @@ type FacetItemHandler struct {
 	sortValues   types.ByValue
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
-	All          types.ItemList
+	All          types.ItemList // should move to search handler
 }
 
 const DefaultStorageName = "facets.json"

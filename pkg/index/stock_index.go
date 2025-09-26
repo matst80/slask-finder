@@ -88,3 +88,30 @@ func (i *ItemIndexWithStock) GetStockResult(stockLocations []string) *types.Item
 	}
 	return resultStockIds
 }
+
+func (i *ItemIndexWithStock) MatchStock(stockLocations []string, qm *types.QueryMerger) {
+	if len(stockLocations) > 0 {
+		qm.Add(func() *types.ItemList {
+			return i.GetStockResult(stockLocations)
+		})
+	}
+}
+
+func (i *ItemIndexWithStock) GetItemBySku(sku string) (types.Item, bool) {
+	if id, ok := i.ItemsBySku[sku]; ok {
+		return i.GetItem(id)
+	}
+	return nil, false
+}
+
+func (i *ItemIndexWithStock) GetItems(ids iter.Seq[uint]) iter.Seq[types.Item] {
+	return func(yield func(types.Item) bool) {
+		for id := range ids {
+			if item, ok := i.GetItem(id); ok {
+				if !yield(item) {
+					return
+				}
+			}
+		}
+	}
+}
