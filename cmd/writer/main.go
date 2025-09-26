@@ -107,6 +107,7 @@ func main() {
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
+	srv.HandleFunc("PUT /fields", auth.Middleware(app.HandleUpdateFields))
 	srv.HandleFunc("POST /admin/update-fields", auth.Middleware(app.UpdateFacetsFromFields))
 	srv.HandleFunc("PUT /fields", auth.Middleware(app.HandleUpdateFields))
 
