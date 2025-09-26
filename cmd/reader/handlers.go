@@ -430,6 +430,13 @@ func (ws *app) GetRelationGroups(w http.ResponseWriter, r *http.Request, session
 	return enc.Encode(types.CurrentSettings.FacetRelations)
 }
 
+func (ws *app) SaveTrigger(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	log.Printf("Got save trigger")
+	ws.gotSaveTrigger = true
+	w.WriteHeader(http.StatusOK)
+	return nil
+}
+
 // type Similar struct {
 // 	ProductType string       `json:"productType"`
 // 	Count       int          `json:"count"`

@@ -29,6 +29,12 @@ Instructions on how to install and set up your project.
 
 Instructions on how to use your project, including examples and screenshots if applicable.
 
+# For reader service
+docker build -f cmd/reader/Dockerfile -t slask-reader .
+
+# For writer service  
+docker build -f cmd/writer/Dockerfile -t slask-writer .
+
 ### Using Ollama Embeddings
 
 The project now supports generating embeddings using Ollama's HTTP API with the "mxbai-embed-large" model. This enables more accurate semantic search and item similarity matching.

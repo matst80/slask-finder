@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
@@ -40,6 +41,7 @@ func asItems(items []index.DataItem) iter.Seq[types.Item] {
 }
 
 type app struct {
+	gotSaveTrigger bool
 	country        string
 	tracker        types.Tracking
 	storage        *storage.DiskStorage
@@ -111,6 +113,19 @@ func main() {
 		sortingHandler: sortingHandler,
 		facetHandler:   facetHandler,
 	}
+	ticker := time.NewTicker(time.Minute * 1)
+	go func() {
+		for range ticker.C {
+			if app.gotSaveTrigger {
+				log.Println("Saving items due to trigger")
+				err := app.storage.SaveItems(app.itemIndex.GetAllItems())
+				if err != nil {
+					log.Printf("Failed to save items: %v", err)
+				}
+				app.gotSaveTrigger = false
+			}
+		}
+	}()
 
 	diskStorage.LoadItems(itemIndex, sortingHandler, facetHandler, searchHandler)
 
@@ -145,6 +160,7 @@ func main() {
 	mux.HandleFunc("GET /api/values/{id}", common.JsonHandler(tracker, app.GetValues))
 	mux.HandleFunc("GET /api/suggest", common.JsonHandler(tracker, app.Suggest))
 	mux.HandleFunc("GET /api/popular", common.JsonHandler(tracker, app.Popular))
+	mux.HandleFunc("GET /api/save-trigger", common.JsonHandler(tracker, app.SaveTrigger))
 	mux.HandleFunc("GET /api/relation-groups", common.JsonHandler(tracker, app.GetRelationGroups))
 
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
