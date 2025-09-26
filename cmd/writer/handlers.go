@@ -63,3 +63,36 @@ func (app *MasterApp) getAdminItemById(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
+
+func (ws *MasterApp) GetSettings(w http.ResponseWriter, r *http.Request) {
+	//defaultHeaders(w, r, true, "0")
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (ws *MasterApp) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+	//defaultHeaders(w, r, true, "0")
+	if r.Method == http.MethodPut {
+		types.CurrentSettings.Lock()
+		err := json.NewDecoder(r.Body).Decode(&types.CurrentSettings)
+		types.CurrentSettings.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		err = ws.storage.SaveJson(types.CurrentSettings, "settings.json")
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(w).Encode(types.CurrentSettings)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}

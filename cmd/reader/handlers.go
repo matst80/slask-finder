@@ -16,34 +16,6 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-// func (ws *app) getSearchAndStockResult(sr *types.FacetRequest) *types.ItemList {
-// 	var initialIds *types.ItemList = nil
-// 	//var documentResult *search.DocumentResult = nil
-// 	if sr.Query != "" {
-// 		if sr.Query == "*" {
-// 			// probably should copy this
-// 			clone := maps.Clone(ws.facetHandler.All)
-// 			initialIds = &clone
-
-// 		} else {
-
-// 			initialIds = ws.searchIndex.Search(sr.Query)
-
-// 		}
-// 	}
-// 	if len(sr.Stock) > 0 {
-// 		resultStockIds := ws.itemIndex.GetStockResult(sr.Stock)
-
-// 		if initialIds == nil {
-// 			initialIds = resultStockIds
-// 		} else {
-// 			initialIds.Intersect(*resultStockIds)
-// 		}
-// 	}
-
-// 	return initialIds
-// }
-
 func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	s := time.Now()
 	sr, err := types.GetFacetQueryFromRequest(r)
@@ -51,7 +23,6 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 		return err
 	}
 
-	//baseIds := &types.ItemList{}
 	ids := &types.ItemList{}
 
 	qm := types.NewQueryMerger(ids)
@@ -81,9 +52,9 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 		}
 	}
 
-	//publicHeaders(w, r, true, "600")
-	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
 	w.WriteHeader(http.StatusOK)
+	publicHeaders(w, r, true, "600")
+	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
 	ws.facetHandler.SortJsonFacets(ret)
 	return enc.Encode(ret)
 }
@@ -102,9 +73,8 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 
 	ws.facetHandler.Match(sr.Filters, qm)
 
-	//defaultHeaders(w, r, false, "10")
 	w.WriteHeader(http.StatusOK)
-	w.Header().Add("Content-Type", "application/jsonl; charset=UTF-8")
+	defaultHeaders(w, r, false, "10")
 
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
@@ -133,9 +103,9 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 	}
 	l := len(*ids)
 
-	// if ws.Tracking != nil && !sr.SkipTracking {
-	// 	go ws.Tracking.TrackSearch(sessionId, sr.Filters, l, sr.Query, sr.Page, r)
-	// }
+	if ws.tracker != nil && !sr.SkipTracking {
+		go ws.tracker.TrackSearch(sessionId, sr.Filters, l, sr.Query, sr.Page, r)
+	}
 
 	return enc.Encode(SearchResponse{
 		Duration:  fmt.Sprintf("%v", time.Since(s)),
@@ -148,12 +118,12 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 	})
 }
 
-func (a *app) UpdateSort(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	go a.sortingHandler.UpdateSorts()
-	w.WriteHeader(http.StatusOK)
-	_, err := w.Write([]byte("ok"))
-	return err
-}
+// func (a *app) UpdateSort(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+// 	go a.sortingHandler.UpdateSorts()
+// 	w.WriteHeader(http.StatusOK)
+// 	_, err := w.Write([]byte("ok"))
+// 	return err
+// }
 
 func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	id := r.PathValue("id")
@@ -165,14 +135,14 @@ func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, en
 	if !ok {
 		return err
 	}
-	//publicHeaders(w, r, true, "120")
+	publicHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
 	return enc.Encode(item)
 }
 
 func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	sku := r.PathValue("sku")
-	//publicHeaders(w, r, true, "120")
+	publicHeaders(w, r, true, "120")
 	item, ok := ws.itemIndex.GetItemBySku(sku)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -198,10 +168,8 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	relatedChan := make(chan *types.ItemList)
 	defer close(relatedChan)
-	// sortChan := make(chan *types.ByValue)
-	// defer close(sortChan)
 
-	//publicHeaders(w, r, false, "600")
+	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 	go func(ch chan *types.ItemList) {
 		related, err := ws.facetHandler.Related(item)
@@ -211,14 +179,10 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 		}
 		ch <- related
 	}(relatedChan)
-	//go ws.Sorting.GetSorting("popular", sortChan)
 
 	i := 0
-
-	// ws.Index.Lock()
-	// defer ws.Index.Unlock()
 	related := <-relatedChan
-	//sort := <-sortChan
+
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
 
 		if ok && item.GetId() != uint(id) {
@@ -267,7 +231,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 		return fmt.Errorf("item %d not found", id)
 	}
 
-	//publicHeaders(w, r, false, "600")
+	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 
 	related, err := ws.facetHandler.Compatible(item)
@@ -329,10 +293,8 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		// items, _ := ws.Sorting.GetSessionData(uint(sessionId))
-		// sortedItems := items.ToSortedLookup()
-		//sortedFields := fields.ToSortedLookup()
-		//defaultHeaders(w, r, true, "60")
+
+		defaultHeaders(w, r, true, "60")
 
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("\n"))
@@ -377,7 +339,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	go ws.searchIndex.FindTrieMatchesForContext(prevWord, lastWord, wordMatchesChan)
 
-	//defaultHeaders(w, r, false, "360")
+	defaultHeaders(w, r, false, "360")
 
 	w.WriteHeader(http.StatusOK)
 
@@ -438,4 +400,138 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 		}
 	}
 	return err
+}
+
+func (ws *app) Popular(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	//items, _ := ws.Sorting.GetSessionData(uint(sessionId))
+	defaultHeaders(w, r, true, "60")
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("\n"))
+	max := 60
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
+
+		err := enc.Encode(item)
+		if err != nil {
+			return err
+		}
+		max--
+		if max <= 0 {
+			break
+		}
+
+	}
+	return nil
+}
+
+func (ws *app) GetRelationGroups(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	defaultHeaders(w, r, true, "1200")
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(types.CurrentSettings.FacetRelations)
+}
+
+// type Similar struct {
+// 	ProductType string       `json:"productType"`
+// 	Count       int          `json:"count"`
+// 	Popularity  float64      `json:"popularity"`
+// 	Items       []types.Item `json:"items"`
+// }
+
+// func (ws *app) Similar(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+// 	//items, fields := ws.Sorting.GetSessionData(uint(sessionId))
+// 	articleTypes := map[string]float64{}
+// 	itemChan := make(chan *Similar)
+// 	productTypeId := types.CurrentSettings.ProductTypeId
+// 	wg := &sync.WaitGroup{}
+// 	//pop := ws.Sorting.GetSort("popular")
+// 	//delete(*fields, productTypeId)
+// 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
+
+// 		if itemType, typeOk := item.GetFields()[productTypeId]; typeOk {
+// 			articleTypes[itemType.(string)]++
+// 		}
+
+// 	}
+// 	getSimilar := func(articleType string, ret chan *Similar, wg *sync.WaitGroup, popularity float64) {
+// 		//ids := make(chan *types.ItemList)
+// 		//defer close(ids)
+// 		//defer wg.Done()
+// 		filter := &types.Filters{
+// 			StringFilter: []types.StringFilter{
+// 				{Id: productTypeId, Value: []string{articleType}},
+// 			},
+// 		}
+// 		resultIds := &types.ItemList{}
+// 		qm := types.NewQueryMerger(resultIds)
+// 		ws.facetHandler.Match(filter, qm)
+// 		qm.Wait()
+// 		l := len(*resultIds)
+// 		limit := min(l, 40)
+// 		similar := Similar{
+// 			ProductType: articleType,
+// 			Count:       l,
+// 			Popularity:  popularity,
+// 			Items:       make([]types.Item, 0, limit),
+// 		}
+// 		for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
+// 			// if _, found := (*items)[id]; found {
+// 			// 	continue
+// 			// }
+// 			// if item, ok := ws.Index.Items[id]; ok {
+// 			similar.Items = append(similar.Items, item)
+// 			if len(similar.Items) >= limit {
+// 				break
+// 			}
+// 			//}
+// 		}
+// 		ret <- &similar
+// 	}
+
+// 	for i, typeValue := range sorting.ToSortedMap(articleTypes) {
+// 		if i > 4 {
+// 			break
+// 		}
+// 		wg.Add(1)
+// 		go getSimilar(typeValue, itemChan, wg, articleTypes[typeValue])
+// 	}
+// 	go func() {
+// 		wg.Wait()
+// 		close(itemChan)
+// 	}()
+// 	defaultHeaders(w, r, false, "600")
+// 	w.WriteHeader(http.StatusOK)
+// 	for similar := range itemChan {
+// 		err := enc.Encode(similar)
+// 		if err != nil {
+// 			return err
+// 		}
+// 	}
+// 	return nil
+// }
+
+func defaultHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTime string) {
+
+	w.Header().Set("Cache-Control", "private, stale-while-revalidate="+cacheTime)
+	genericHeaders(w, r, isJson)
+}
+
+func genericHeaders(w http.ResponseWriter, r *http.Request, isJson bool) {
+	if isJson {
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	} else {
+		w.Header().Set("Content-Type", "application/jsonl+json; charset=UTF-8")
+	}
+	origin := r.Header.Get("Origin")
+	if origin != "" {
+		w.Header().Set("Access-Control-Allow-Origin", r.Header.Get("Origin"))
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "*")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+	w.Header().Set("Age", "0")
+}
+
+func publicHeaders(w http.ResponseWriter, r *http.Request, isJson bool, cacheTime string) {
+	w.Header().Set("Cache-Control", "public, max-age="+cacheTime)
+	genericHeaders(w, r, isJson)
 }

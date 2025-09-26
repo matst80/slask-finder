@@ -53,6 +53,35 @@ func asSeq(items []types.Item) iter.Seq[types.Item] {
 }
 
 const itemsFile = "items.jz"
+const settingsFile = "settings.json"
+const facetsFile = "facets.json"
+const embeddingsFile = "embeddings.gob.gz"
+
+func (d *DiskStorage) LoadSettings() error {
+	return d.LoadJson(&types.CurrentSettings, settingsFile)
+}
+
+func (d *DiskStorage) SaveSettings() error {
+	types.CurrentSettings.RLock()
+	defer types.CurrentSettings.RUnlock()
+	return d.SaveJson(&types.CurrentSettings, settingsFile)
+}
+
+func (d *DiskStorage) LoadFacets(output interface{}) error {
+	return d.LoadJson(output, facetsFile)
+}
+
+func (d *DiskStorage) SaveFacets(facets interface{}) error {
+	return d.SaveJson(facets, facetsFile)
+}
+
+func (d *DiskStorage) LoadEmbeddings(output interface{}) error {
+	return d.LoadGzippedGob(output, embeddingsFile)
+}
+
+func (d *DiskStorage) SaveEmbeddings(embeddings interface{}) error {
+	return d.SaveGzippedGob(embeddings, embeddingsFile)
+}
 
 func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 	// idx.Lock()

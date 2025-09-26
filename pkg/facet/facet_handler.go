@@ -28,21 +28,6 @@ type FacetItemHandler struct {
 	All          types.ItemList // should move to search handler
 }
 
-const DefaultStorageName = "facets.json"
-
-func LoadFacetsFromStorage(storage types.StorageProvider) ([]StorageFacet, error) {
-	facets := []StorageFacet{}
-	err := storage.LoadJson(&facets, DefaultStorageName)
-	if err != nil {
-		return facets, err
-	}
-	return facets, nil
-}
-
-func SaveFacetsToStorage(storage types.StorageProvider, facets []StorageFacet) error {
-	return storage.SaveJson(facets, DefaultStorageName)
-}
-
 func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 	r := &FacetItemHandler{
 		Facets:       make(map[uint]types.Facet),

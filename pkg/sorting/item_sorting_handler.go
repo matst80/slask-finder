@@ -96,14 +96,6 @@ func (h *SortingItemHandler) HandleItemUnsafe(item types.Item) {
 	}
 }
 
-func (h *SortingItemHandler) Lock() {
-
-}
-
-func (h *SortingItemHandler) Unlock() {
-
-}
-
 func (h *SortingItemHandler) updateSorter(s Sorter) {
 
 	if !s.IsDirty() {

@@ -41,6 +41,7 @@ func asItems(items []index.DataItem) iter.Seq[types.Item] {
 
 type app struct {
 	country        string
+	tracker        types.Tracking
 	storage        *storage.DiskStorage
 	itemIndex      *index.ItemIndexWithStock
 	searchIndex    *search.FreeTextItemHandler
@@ -88,11 +89,15 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 
 func main() {
 	diskStorage := storage.NewDiskStorage(country, "data")
+	err := diskStorage.LoadSettings()
+	if err != nil {
+		log.Printf("Could not load settings from file: %v", err)
+	}
 	itemIndex := index.NewIndexWithStock()
 	sortingHandler := sorting.NewSortingItemHandler()
 	searchHandler := search.NewFreeTextItemHandler(search.DefaultFreeTextHandlerOptions())
-
-	facets, err := facet.LoadFacetsFromStorage(diskStorage)
+	facets := []facet.StorageFacet{}
+	err = diskStorage.LoadFacets(&facets)
 	if err != nil {
 		log.Printf("Could not load facets from storage: %v", err)
 	}
@@ -119,44 +124,50 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	tracking, err := tracking.NewRabbitTracking(amqpUrl, country)
-	if err != nil {
-		log.Printf("Failed to connect to rabbitmq for tracking: %v", err)
-	} else {
-		defer tracking.Close()
+	var tracker types.Tracking = nil
+	if amqpUrl != "" {
+		tracker, err = tracking.NewRabbitTracking(amqpUrl, country)
+		if err != nil {
+			log.Printf("Failed to connect to rabbitmq for tracking: %v", err)
+		} else {
+			app.tracker = tracker
+			defer tracker.Close()
+		}
 	}
 
-	mux.HandleFunc("/api/update-sort", common.JsonHandler(tracking, app.UpdateSort))
-	mux.HandleFunc("/api/stream", common.JsonHandler(tracking, app.SearchStreamed))
-	mux.HandleFunc("/api/facets", common.JsonHandler(tracking, app.GetFacets))
-	mux.HandleFunc("GET /facet-list", common.JsonHandler(tracking, app.Facets))
-	mux.HandleFunc("GET /api/get/{id}", common.JsonHandler(tracking, app.GetItem))
-	mux.HandleFunc("GET /api/by-sku/{sku}", common.JsonHandler(tracking, app.GetItemBySku))
-	mux.HandleFunc("/api/related/{id}", common.JsonHandler(tracking, app.Related))
-	mux.HandleFunc("/api/compatible/{id}", common.JsonHandler(tracking, app.Compatible))
-	mux.HandleFunc("/values/{id}", common.JsonHandler(tracking, app.GetValues))
-	mux.HandleFunc("/suggest", common.JsonHandler(tracking, app.Suggest))
-	/*
-		//mux.HandleFunc("/ai-search", common.JsonHandler(tracking, ws.SearchEmbeddings))
+	mux.HandleFunc("/api/stream", common.JsonHandler(tracker, app.SearchStreamed))
+	mux.HandleFunc("/api/facets", common.JsonHandler(tracker, app.GetFacets))
+	mux.HandleFunc("GET /api/facet-list", common.JsonHandler(tracker, app.Facets))
+	mux.HandleFunc("GET /api/get/{id}", common.JsonHandler(tracker, app.GetItem))
+	mux.HandleFunc("GET /api/by-sku/{sku}", common.JsonHandler(tracker, app.GetItemBySku))
+	mux.HandleFunc("GET /api/related/{id}", common.JsonHandler(tracker, app.Related))
+	mux.HandleFunc("GET /api/compatible/{id}", common.JsonHandler(tracker, app.Compatible))
+	mux.HandleFunc("GET /api/values/{id}", common.JsonHandler(tracker, app.GetValues))
+	mux.HandleFunc("GET /api/suggest", common.JsonHandler(tracker, app.Suggest))
+	mux.HandleFunc("GET /api/popular", common.JsonHandler(tracker, app.Popular))
+	mux.HandleFunc("GET /api/relation-groups", common.JsonHandler(tracker, app.GetRelationGroups))
 
-		mux.HandleFunc("/popular", common.JsonHandler(tracking, app.Popular))
-		//mux.HandleFunc("/natural", common.JsonHandler(tracking, ws.SearchEmbeddings))
-		mux.HandleFunc("/similar", common.JsonHandler(tracking, app.Similar))
-		//mux.HandleFunc("/cosine-similar/{id}", common.JsonHandler(tracking, ws.CosineSimilar))
-		//mux.HandleFunc("/trigger-words", common.JsonHandler(tracking, ws.TriggerWords))
-		mux.HandleFunc("/facet-list", common.JsonHandler(tracking, app.Facets))
-		mux.HandleFunc("/suggest", common.JsonHandler(tracking, app.Suggest))
+	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
+	/*
+
+
+
+		mux.HandleFunc("/natural", common.JsonHandler(tracking, ws.SearchEmbeddings))
+
+		mux.HandleFunc("/cosine-similar/{id}", common.JsonHandler(tracking, ws.CosineSimilar))
+		mux.HandleFunc("/trigger-words", common.JsonHandler(tracking, ws.TriggerWords))
+
+
 		mux.HandleFunc("/find-related", common.JsonHandler(tracking, app.FindRelated))
 		//mux.HandleFunc("/categories", common.JsonHandler(tracking, ws.Categories))
 		//mux.HandleFunc("/search", ws.QueryIndex)
 		//mux.HandleFunc("GET /settings", ws.GetSettings)
 
 		mux.HandleFunc("/reload-settings", common.JsonHandler(tracking, app.ReloadSettings))
-		mux.HandleFunc("GET /relation-groups", app.GetRelationGroups)
+
 
 		mux.HandleFunc("/ids", common.JsonHandler(tracking, app.GetIds))
-		mux.HandleFunc("GET /get/{id}", common.JsonHandler(tracking, app.GetItem))
-		mux.HandleFunc("GET /by-sku/{sku}", common.JsonHandler(tracking, app.GetItemBySku))
+
 		mux.HandleFunc("POST /get", common.JsonHandler(tracking, app.GetItems))
 
 		mux.HandleFunc("/predict-sequence", common.JsonHandler(tracking, app.PredictSequence))
