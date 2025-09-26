@@ -62,7 +62,6 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	defer ch.Close()
 
 	toAdd, err := sync.DeclareBindAndConsume(ch, country, "item_added")
 	if err != nil {
@@ -70,6 +69,7 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 	}
 	log.Printf("Connected to rabbit upsert topic")
 	go func(msgs <-chan amqp.Delivery) {
+		defer ch.Close()
 		for d := range msgs {
 
 			var items []index.DataItem
@@ -85,6 +85,7 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 				log.Printf("Failed to unmarshal upset message %v", err)
 			}
 		}
+
 	}(toAdd)
 
 }
