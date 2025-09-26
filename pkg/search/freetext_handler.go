@@ -41,6 +41,7 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 	handler := &FreeTextItemHandler{
 		mu:    sync.RWMutex{},
 		Index: NewFreeTextIndex(opts.Tokenizer),
+		All:   make(types.ItemList),
 	}
 	handler.queue = common.NewQueueHandler(handler.processItems, 1000)
 	return handler
@@ -49,6 +50,12 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 func (h *FreeTextItemHandler) processItems(items []queueItem) {
 	h.Index.mu.Lock()
 	for _, item := range items {
+		if item.deleted {
+			h.Index.RemoveDocument(item.id)
+			delete(h.All, item.id)
+			continue
+		}
+		h.All[item.id] = struct{}{}
 		h.Index.CreateDocumentUnsafe(item.id, item.text...)
 	}
 	h.Index.mu.Unlock()
@@ -135,9 +142,9 @@ func (h *FreeTextItemHandler) CreateDocumentUnsafe(id uint, text ...string) {
 }
 
 // RemoveDocument removes a document from the search index
-func (h *FreeTextItemHandler) RemoveDocument(id uint, text ...string) {
+func (h *FreeTextItemHandler) RemoveDocument(id uint) {
 	if h.Index != nil {
-		h.Index.RemoveDocument(id, text...)
+		h.Index.RemoveDocument(id)
 	}
 }
 

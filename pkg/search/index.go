@@ -2,6 +2,7 @@ package search
 
 import (
 	"log"
+	"maps"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -99,8 +100,16 @@ func (i *FreeTextIndex) Unlock() {
 	i.mu.Unlock()
 }
 
-func (i *FreeTextIndex) RemoveDocument(id uint, text ...string) {
-	//delete(i.Documents, id)
+func (i *FreeTextIndex) RemoveDocument(id uint) {
+	for token := range i.TokenMap {
+		if ids, ok := i.TokenMap[token]; ok {
+			delete(*ids, id)
+		}
+	}
+	maps.DeleteFunc(i.TokenMap, func(_ Token, ids *types.ItemList) bool {
+		return len(*ids) == 0
+	})
+	// i.Trie.RemoveDocument(id)
 }
 
 func NewFreeTextIndex(tokenizer *Tokenizer) *FreeTextIndex {

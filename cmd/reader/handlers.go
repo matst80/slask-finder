@@ -3,7 +3,9 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
+	"slices"
 	"strconv"
 	"sync"
 	"time"
@@ -100,6 +102,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 
 	//defaultHeaders(w, r, false, "10")
 	w.WriteHeader(http.StatusOK)
+	w.Header().Add("Content-Type", "application/jsonl; charset=UTF-8")
 
 	start := sr.PageSize * sr.Page
 	end := start + sr.PageSize
@@ -176,4 +179,146 @@ func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId in
 
 	w.WriteHeader(http.StatusOK)
 	return enc.Encode(item)
+}
+
+func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		return err
+	}
+
+	item, ok := ws.itemIndex.GetItem(uint(id))
+	if !ok {
+		return fmt.Errorf("item %d not found", id)
+	}
+
+	relatedChan := make(chan *types.ItemList)
+	defer close(relatedChan)
+	// sortChan := make(chan *types.ByValue)
+	// defer close(sortChan)
+
+	//publicHeaders(w, r, false, "600")
+	w.WriteHeader(http.StatusOK)
+	go func(ch chan *types.ItemList) {
+		related, err := ws.facetHandler.Related(item)
+		if err != nil {
+			ch <- &types.ItemList{}
+			return
+		}
+		ch <- related
+	}(relatedChan)
+	//go ws.Sorting.GetSorting("popular", sortChan)
+
+	i := 0
+
+	// ws.Index.Lock()
+	// defer ws.Index.Unlock()
+	related := <-relatedChan
+	//sort := <-sortChan
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
+
+		if ok && item.GetId() != uint(id) {
+			err = enc.Encode(item)
+			i++
+		}
+		if i > 20 || err != nil {
+			break
+		}
+	}
+	return err
+}
+
+func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	excludedProductTypes := make([]string, 0)
+	maxItems := 60
+	limitString := r.URL.Query().Get("limit")
+	if limitString != "" {
+		limit, err := strconv.Atoi(limitString)
+		if err != nil {
+			maxItems = limit
+		}
+	}
+	if r.Method != http.MethodGet {
+		cartItemIds := make([]uint, 0)
+		err := json.NewDecoder(r.Body).Decode(&cartItemIds)
+		if err == nil {
+			for item := range ws.itemIndex.GetItems(slices.Values(cartItemIds)) {
+
+				if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+					excludedProductTypes = append(excludedProductTypes, productType.(string))
+				}
+
+			}
+		}
+		log.Printf("cart item ids %v", cartItemIds)
+		log.Printf("excluded product types %v", excludedProductTypes)
+	}
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		return err
+	}
+	item, ok := ws.itemIndex.GetItem(uint(id))
+	if !ok {
+		return fmt.Errorf("item %d not found", id)
+	}
+
+	//publicHeaders(w, r, false, "600")
+	w.WriteHeader(http.StatusOK)
+
+	related, err := ws.facetHandler.Compatible(item)
+	if err != nil {
+		return err
+	}
+	i := 0
+
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
+
+		if len(excludedProductTypes) > 0 {
+			if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+
+				itemProductType := productType.(string)
+				if slices.Contains(excludedProductTypes, itemProductType) {
+					//log.Printf("skipping %d %s", item.GetId(), itemProductType)
+					continue
+				}
+
+			}
+		}
+
+		err = enc.Encode(item)
+		i++
+
+		if i > maxItems || err != nil {
+			break
+		}
+	}
+	return err
+}
+
+func (ws *app) GetValues(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	idString := r.PathValue("id")
+	id, err := strconv.Atoi(idString)
+	if err != nil {
+		return err
+	}
+
+	if field, ok := ws.facetHandler.GetFacet(uint(id)); ok {
+		w.WriteHeader(http.StatusOK)
+		err := enc.Encode(field.GetValues())
+		return err
+	}
+
+	w.WriteHeader(http.StatusNotFound)
+	return nil
+}
+
+func (ws *app) Facets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	//publicHeaders(w, r, true, "1200")
+
+	w.WriteHeader(http.StatusOK)
+
+	return enc.Encode(slices.Collect(ws.facetHandler.GetAll()))
 }

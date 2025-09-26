@@ -1,36 +1,43 @@
 package tracking
 
 import (
-	"encoding/json"
 	"log"
 	"net/http"
 
+	"github.com/matst80/slask-finder/pkg/sync"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type RabbitTrackingConfig struct {
-	TrackingTopic string
-	Url           string
-}
+// type RabbitTrackingConfig struct {
+// 	TrackingTopic string
+// 	Url           string
+// }
 
 type RabbitTracking struct {
-	RabbitTrackingConfig
+	//RabbitTrackingConfig
+	country    string
 	connection *amqp.Connection
 	//channel    *amqp.Channel
 }
 
-func NewRabbitTracking(config RabbitTrackingConfig) (*RabbitTracking, error) {
+const trackingTopic = "tracking"
+
+func NewRabbitTracking(url, country string) (*RabbitTracking, error) {
 	ret := RabbitTracking{
-		RabbitTrackingConfig: config,
+		connection: nil,
+		country:    country,
 	}
-	err := ret.Connect()
-	return &ret, err
+	err := ret.connect(url, country)
+	if err != nil {
+		return nil, err
+	}
+	return &ret, nil
 }
 
-func (t *RabbitTracking) Connect() error {
+func (t *RabbitTracking) connect(url, country string) error {
 
-	conn, err := amqp.Dial(t.Url)
+	conn, err := amqp.Dial(url)
 	if err != nil {
 		return err
 	}
@@ -40,30 +47,8 @@ func (t *RabbitTracking) Connect() error {
 		return err
 	}
 	defer ch.Close()
-	if err := ch.ExchangeDeclare(
-		t.TrackingTopic, // name
-		"topic",         // type
-		true,            // durable
-		false,           // auto-delete
-		false,           // internal
-		false,           // noWait
-		nil,             // arguments
-	); err != nil {
-		return err
-	}
+	return sync.DefineTopic(ch, country, trackingTopic)
 
-	if _, err = ch.QueueDeclare(
-		t.TrackingTopic, // name of the queue
-		true,            // durable
-		false,           // delete when unused
-		false,           // exclusive
-		false,           // noWait
-		nil,             // arguments
-	); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (t *RabbitTracking) Close() error {
@@ -71,25 +56,7 @@ func (t *RabbitTracking) Close() error {
 }
 
 func (t *RabbitTracking) send(data any) error {
-	bytes, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	ch, err := t.connection.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
-	return ch.Publish(
-		t.TrackingTopic,
-		t.TrackingTopic,
-		true,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body:        bytes,
-		},
-	)
+	return sync.SendChange(t.connection, t.country, trackingTopic, data)
 }
 
 type BaseEvent struct {
@@ -163,7 +130,7 @@ func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, res
 
 }
 
-func (rt *RabbitTracking) TrackAction(sessionId int, value TrackingAction) error {
+func (rt *RabbitTracking) TrackAction(sessionId int, value types.TrackingAction) error {
 	return rt.send(&ActionEvent{
 		BaseEvent: &BaseEvent{Event: 6, SessionId: sessionId},
 		Action:    value.Action,

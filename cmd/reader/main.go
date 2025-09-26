@@ -14,6 +14,7 @@ import (
 	"github.com/matst80/slask-finder/pkg/sorting"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/sync"
+	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -118,15 +119,25 @@ func main() {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
-	var tracking types.Tracking = nil
-	mux.HandleFunc("/update-sort", common.JsonHandler(tracking, app.UpdateSort))
-	mux.HandleFunc("/stream", common.JsonHandler(tracking, app.SearchStreamed))
-	mux.HandleFunc("/facets", common.JsonHandler(tracking, app.GetFacets))
+	tracking, err := tracking.NewRabbitTracking(amqpUrl, country)
+	if err != nil {
+		log.Printf("Failed to connect to rabbitmq for tracking: %v", err)
+	} else {
+		defer tracking.Close()
+	}
 
+	mux.HandleFunc("/api/update-sort", common.JsonHandler(tracking, app.UpdateSort))
+	mux.HandleFunc("/api/stream", common.JsonHandler(tracking, app.SearchStreamed))
+	mux.HandleFunc("/api/facets", common.JsonHandler(tracking, app.GetFacets))
+	mux.HandleFunc("GET /facet-list", common.JsonHandler(tracking, app.Facets))
+	mux.HandleFunc("GET /api/get/{id}", common.JsonHandler(tracking, app.GetItem))
+	mux.HandleFunc("GET /api/by-sku/{sku}", common.JsonHandler(tracking, app.GetItemBySku))
+	mux.HandleFunc("/api/related/{id}", common.JsonHandler(tracking, app.Related))
+	mux.HandleFunc("/api/compatible/{id}", common.JsonHandler(tracking, app.Compatible))
+	mux.HandleFunc("/values/{id}", common.JsonHandler(tracking, app.GetValues))
 	/*
 		//mux.HandleFunc("/ai-search", common.JsonHandler(tracking, ws.SearchEmbeddings))
-		mux.HandleFunc("/related/{id}", common.JsonHandler(tracking, app.Related))
-		mux.HandleFunc("/compatible/{id}", common.JsonHandler(tracking, app.Compatible))
+
 		mux.HandleFunc("/popular", common.JsonHandler(tracking, app.Popular))
 		//mux.HandleFunc("/natural", common.JsonHandler(tracking, ws.SearchEmbeddings))
 		mux.HandleFunc("/similar", common.JsonHandler(tracking, app.Similar))
@@ -146,7 +157,7 @@ func main() {
 		mux.HandleFunc("GET /get/{id}", common.JsonHandler(tracking, app.GetItem))
 		mux.HandleFunc("GET /by-sku/{sku}", common.JsonHandler(tracking, app.GetItemBySku))
 		mux.HandleFunc("POST /get", common.JsonHandler(tracking, app.GetItems))
-		mux.HandleFunc("/values/{id}", common.JsonHandler(tracking, app.GetValues))
+
 		mux.HandleFunc("/predict-sequence", common.JsonHandler(tracking, app.PredictSequence))
 		mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
 

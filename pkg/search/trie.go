@@ -31,6 +31,25 @@ func NewTrie() *Trie {
 	}
 }
 
+// untested
+func (t *Trie) RemoveDocument(id uint) {
+	var removeHelper func(node *Node) bool
+	removeHelper = func(node *Node) bool {
+		if node.Items != nil {
+			delete(node.Items, id)
+		}
+		// Recursively clean up children
+		for r, child := range node.Children {
+			if removeHelper(child) {
+				delete(node.Children, r)
+			}
+		}
+		// If this node has no items and no children, it can be removed
+		return len(node.Items) == 0 && len(node.Children) == 0
+	}
+	removeHelper(t.Root)
+}
+
 func (t *Trie) Insert(word Token, raw string, id uint) {
 	node := t.Root
 

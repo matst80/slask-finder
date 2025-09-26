@@ -89,6 +89,25 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 	return r
 }
 
+func (h *FacetItemHandler) GetFacet(id uint) (types.Facet, bool) {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	f, ok := h.Facets[id]
+	return f, ok
+}
+
+func (h *FacetItemHandler) GetAll() iter.Seq[types.Facet] {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return func(yield func(types.Facet) bool) {
+		for _, f := range h.Facets {
+			if !yield(f) {
+				return
+			}
+		}
+	}
+}
+
 func (h *FacetItemHandler) processItems(items []queueItem) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
