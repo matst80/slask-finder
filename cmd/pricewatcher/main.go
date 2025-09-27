@@ -68,10 +68,13 @@ func main() {
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
 			app.HandleItems(items)
-		}
-		err := diskStorage.SaveJson(app.Items, "item_prices.json")
-		if err != nil {
-			log.Printf("Could not save item prices to file: %v", err)
+
+			err := diskStorage.SaveJson(app.Items, "item_prices.json")
+			if err != nil {
+				log.Printf("Could not save item prices to file: %v", err)
+			}
+		} else {
+			log.Printf("Failed to unmarshal upsert message %v", err)
 		}
 		return nil
 	})
