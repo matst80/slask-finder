@@ -1,9 +1,10 @@
 package index
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/matst80/slask-finder/pkg/common/jsoncompat"
 )
 
 func TestEncodingFlag(t *testing.T) {
@@ -14,7 +15,7 @@ func TestEncodingFlag(t *testing.T) {
 		MarginPercent: 4.0,
 	}
 
-	bytes, err := json.Marshal(item)
+	bytes, err := jsoncompat.Marshal(item)
 	if err != nil {
 		t.Fatalf("Failed to marshal item: %v", err)
 	}
@@ -32,7 +33,7 @@ func TestEncodingFlagAllowed(t *testing.T) {
 		MarginPercent: 4.0,
 	}
 
-	bytes, err := json.Marshal(item)
+	bytes, err := jsoncompat.Marshal(item)
 	if err != nil {
 		t.Fatalf("Failed to marshal item: %v", err)
 	}
