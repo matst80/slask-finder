@@ -1,15 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
+
+	"github.com/matst80/slask-finder/pkg/common"
 
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/messaging"
@@ -84,31 +83,14 @@ func main() {
 	mux.HandleFunc("/push/watch/", watcher.WatchPriceChange)
 	// mux.HandleFunc("/push/unwatch/", watcher.UnwatchPriceChange)
 	// mux.HandleFunc("/push/list/", watcher.ListWatches)
-	server := &http.Server{
-		Addr:              ":8080",
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
-
-	go func() {
-		log.Println("pricewatcher server starting on :8080")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server listen error: %v", err)
-		}
-	}()
-
-	// Graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-	log.Println("Shutting down pricewatcher server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Graceful shutdown failed: %v", err)
-	}
-	log.Println("Pricewatcher server stopped")
+	cfg := common.LoadTimeoutConfig(common.TimeoutConfig{
+		ReadHeader: 5 * time.Second,
+		Read:       15 * time.Second,
+		Write:      30 * time.Second,
+		Idle:       60 * time.Second,
+		Shutdown:   20 * time.Second,
+		Hook:       5 * time.Second,
+	})
+	server := common.NewServerWithTimeouts(&http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: cfg.ReadHeader}, cfg)
+	common.RunServerWithShutdown(server, "pricewatcher server", cfg.Shutdown, cfg.Hook)
 }

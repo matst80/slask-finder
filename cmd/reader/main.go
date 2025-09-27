@@ -7,8 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -236,37 +234,23 @@ func main() {
 				mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
 
 	*/
-	server := &http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	// Load timeout configuration from env with defaults
+	cfg := common.LoadTimeoutConfig(common.TimeoutConfig{
+		ReadHeader: 5 * time.Second,
+		Read:       15 * time.Second,
+		Write:      30 * time.Second,
+		Idle:       60 * time.Second,
+		Shutdown:   15 * time.Second,
+		Hook:       5 * time.Second,
+	})
+	server := common.NewServerWithTimeouts(&http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: cfg.ReadHeader}, cfg)
 
-	go func() {
-		log.Println("starting server on :8080")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Could not listen on %s: %v\n", server.Addr, err)
+	saveHook := func(ctx context.Context) error {
+		if app.gotSaveTrigger {
+			log.Println("Saving index before shutdown (triggered)")
+			return app.storage.SaveItems(app.itemIndex.GetAllItems())
 		}
-	}()
-
-	// Graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-
-	log.Println("Shutting down server...")
-	if app.gotSaveTrigger {
-		// Save the index
-		log.Println("Saving index...")
-		if err := app.storage.SaveItems(app.itemIndex.GetAllItems()); err != nil {
-			log.Printf("Failed to save items: %v", err)
-		} else {
-			log.Println("Index saved successfully.")
-		}
+		return nil
 	}
-
-	// Shutdown the server
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server Shutdown Failed:%+v", err)
-	}
-
-	log.Println("Server gracefully stopped")
+	common.RunServerWithShutdown(server, "reader server", cfg.Shutdown, cfg.Hook, saveHook)
 }

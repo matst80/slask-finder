@@ -5,11 +5,10 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -155,32 +154,10 @@ func main() {
 	*/
 	server := &http.Server{Addr: ":8080", Handler: srv, ReadHeaderTimeout: 5 * time.Second}
 
-	go func() {
-		log.Println("starting server on :8080")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Could not listen on %s: %v\n", server.Addr, err)
-		}
-	}()
-	// Graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-
-	log.Println("Shutting down server...")
-
-	if err := app.storage.SaveFacets(app.storageFacets); err != nil {
-		log.Printf("Failed to save facets: %v", err)
-	}
-	// if err := app.storage.sa(app.storageFacets); err != nil {
-	// 	log.Printf("Failed to save facets: %v", err)
-	// }
-
-	// Shutdown the server using a context derived from the signal wait to ensure linkage
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Server Shutdown Failed:%+v", err)
+	saveHook := func(ctx context.Context) error {
+		log.Println("saving facets before shutdown")
+		return app.storage.SaveFacets(app.storageFacets)
 	}
 
-	log.Println("Server gracefully stopped")
+	common.RunServerWithShutdown(server, "writer server", 15*time.Second, 5*time.Second, saveHook)
 }

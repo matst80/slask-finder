@@ -1,14 +1,13 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
+
+	"github.com/matst80/slask-finder/pkg/common"
 
 	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
@@ -98,31 +97,14 @@ func main() {
 	mux.HandleFunc("/ai/cosine-similar/{id}", a.CosineSimilar)
 	mux.HandleFunc("/ai/natural", a.SearchEmbeddings)
 
-	server := &http.Server{
-		Addr:              ":8080",
-		Handler:           mux,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
-
-	go func() {
-		log.Println("embeddings server starting on :8080")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server listen error: %v", err)
-		}
-	}()
-
-	// Graceful shutdown on SIGINT/SIGTERM
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-	log.Println("Shutting down embeddings server...")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Graceful shutdown failed: %v", err)
-	}
-	log.Println("Embeddings server stopped")
+	cfg := common.LoadTimeoutConfig(common.TimeoutConfig{
+		ReadHeader: 5 * time.Second,
+		Read:       15 * time.Second,
+		Write:      30 * time.Second,
+		Idle:       60 * time.Second,
+		Shutdown:   20 * time.Second,
+		Hook:       5 * time.Second,
+	})
+	server := common.NewServerWithTimeouts(&http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: cfg.ReadHeader}, cfg)
+	common.RunServerWithShutdown(server, "embeddings server", cfg.Shutdown, cfg.Hook)
 }
