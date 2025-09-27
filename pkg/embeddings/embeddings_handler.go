@@ -116,7 +116,7 @@ func (h *ItemEmbeddingsHandler) handleItemUnsafe(item types.Item) {
 	_, hasEmbeddings := h.Embeddings[id]
 
 	// Queue item for embeddings generation if needed
-	if !hasEmbeddings && h.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
+	if !hasEmbeddings && h.EmbeddingsQueue != nil && !item.IsDeleted() && item.CanHaveEmbeddings() {
 		if !h.EmbeddingsQueue.QueueItem(item) {
 			log.Printf("Failed to queue item %d for embeddings generation after timeout", id)
 		}
