@@ -3,6 +3,7 @@ package embeddings
 import (
 	"log"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -27,7 +28,8 @@ var (
 
 // EmbeddingJob represents a job to generate embeddings for an item
 type EmbeddingJob struct {
-	Item      types.Item
+	Text      string
+	Id        uint
 	CreatedAt time.Time
 	StartedAt time.Time
 }
@@ -39,18 +41,19 @@ type EmbeddingsQueue struct {
 	queue       chan EmbeddingJob
 	storeFunc   func(uint, types.Embeddings)
 	doneFunc    func() error
-	facets      map[uint]types.Facet
 	workerCount int
 	wg          sync.WaitGroup
 	stopCh      chan struct{}
-	mu          sync.RWMutex
+	stopOnce    sync.Once
+	// idle detection state
+	inflight int32 // number of items either queued or being processed
+	doneFlag int32 // 0 = not yet reported idle, 1 = idle reported
 }
 
 // NewEmbeddingsQueue creates a new embeddings queue with the specified
 // number of workers and buffer size
 func NewEmbeddingsQueue(
 	engine types.EmbeddingsEngine,
-	facets map[uint]types.Facet,
 	storeFunc func(uint, types.Embeddings),
 	whenQueueIsDone func() error,
 	workerCount int,
@@ -65,7 +68,6 @@ func NewEmbeddingsQueue(
 
 	return &EmbeddingsQueue{
 		engine:      engine,
-		facets:      facets,
 		queue:       make(chan EmbeddingJob, queueSize),
 		doneFunc:    whenQueueIsDone,
 		storeFunc:   storeFunc,
@@ -76,43 +78,43 @@ func NewEmbeddingsQueue(
 
 // Start initializes and starts the worker pool
 func (eq *EmbeddingsQueue) Start() {
-
 	eq.wg.Add(eq.workerCount)
-
 	for i := 0; i < eq.workerCount; i++ {
 		go eq.worker(i)
 	}
-
-	log.Printf("Started embeddings queue with %d workers", eq.workerCount)
+	log.Printf("Started embeddings queue with %d workers (simplified idle detection)", eq.workerCount)
 }
 
 // Stop gracefully stops the worker pool
 func (eq *EmbeddingsQueue) Stop() {
-
-	close(eq.stopCh)
-	eq.wg.Wait()
-
-	log.Println("Embeddings queue stopped")
+	eq.stopOnce.Do(func() {
+		close(eq.stopCh)
+		eq.wg.Wait()
+		log.Println("Embeddings queue stopped")
+	})
 }
 
 // QueueItem adds an item to the embeddings generation queue
 // Returns true if queued successfully, false if queue is full or not running
 func (eq *EmbeddingsQueue) QueueItem(item types.Item) bool {
-
-	// Try to add to queue immediately first
 	select {
 	case eq.queue <- EmbeddingJob{
-		Item:      item,
+		Text:      buildItemRepresentation(item),
+		Id:        item.GetId(),
 		CreatedAt: time.Now(),
 		StartedAt: time.Now(),
 	}:
 		embedQueueSize.Inc()
+		atomic.AddInt32(&eq.inflight, 1)
+		// new work resets done flag so future idle can trigger again
+		if atomic.LoadInt32(&eq.doneFlag) == 1 {
+			atomic.StoreInt32(&eq.doneFlag, 0)
+		}
 		return true
 	default:
-		// Queue is full, but try with a timeout before giving up
-		log.Printf("Embeddings queue full, waiting to add item %d...", item.GetId())
+		log.Printf("Embeddings queue full, could not add item %d", item.GetId())
+		return false
 	}
-	return false
 }
 
 // QueueItems adds multiple items to the embeddings generation queue
@@ -121,28 +123,27 @@ func (eq *EmbeddingsQueue) QueueItems(items []types.Item) int {
 	if len(items) == 0 {
 		return 0
 	}
-
 	successCount := 0
 	for _, item := range items {
-		// Try immediately with no waiting
 		select {
 		case eq.queue <- EmbeddingJob{
-			Item:      item,
+			Text:      buildItemRepresentation(item),
+			Id:        item.GetId(),
 			CreatedAt: time.Now(),
 		}:
 			embedQueueSize.Inc()
+			atomic.AddInt32(&eq.inflight, 1)
 			successCount++
 		default:
-			// Skip this item if the queue is full
 			continue
 		}
 	}
-
-	if successCount < len(items) {
-		log.Printf("Added %d/%d items to embeddings queue (queue full for remaining items)",
-			successCount, len(items))
+	if successCount > 0 && atomic.LoadInt32(&eq.doneFlag) == 1 {
+		atomic.StoreInt32(&eq.doneFlag, 0)
 	}
-
+	if successCount < len(items) {
+		log.Printf("Added %d/%d items to embeddings queue (queue full for remaining items)", successCount, len(items))
+	}
 	return successCount
 }
 
@@ -155,6 +156,9 @@ func (eq *EmbeddingsQueue) QueueLength() int {
 func (eq *EmbeddingsQueue) QueueCapacity() int {
 	return cap(eq.queue)
 }
+
+// signalActivity sends a non-blocking signal to the activity channel.
+// signalActivity removed in simplified version
 
 // Status returns the current status of the embeddings queue
 func (eq *EmbeddingsQueue) Status() map[string]interface{} {
@@ -200,9 +204,9 @@ func (eq *EmbeddingsQueue) worker(id int) {
 			embedQueueSize.Dec()
 
 			// Process the job
-			itemId := job.Item.GetId()
+			itemId := job.Id
 
-			embeddings, err := eq.engine.GenerateEmbeddingsFromItem(job.Item, eq.facets)
+			embeddings, err := eq.engine.GenerateEmbeddings(job.Text)
 			if err != nil {
 				log.Printf("Worker %d: Failed to generate embeddings for item %d: %v", id, itemId, err)
 				embedErrorsTotal.Inc()
@@ -217,11 +221,30 @@ func (eq *EmbeddingsQueue) worker(id int) {
 			processingTime := time.Since(job.CreatedAt)
 			remainingItems := len(eq.queue)
 			log.Printf("Worker %d: Generated embeddings for item %d in %v, remaining items in queue: %d", id, itemId, processingTime, remainingItems)
+			// decrement inflight and check for idle state
+			atomic.AddInt32(&eq.inflight, -1)
+			if atomic.LoadInt32(&eq.inflight) == 0 && remainingItems == 0 {
+				// double-check and CAS doneFlag
+				if atomic.LoadInt32(&eq.doneFlag) == 0 {
+					if atomic.CompareAndSwapInt32(&eq.doneFlag, 0, 1) {
+						// re-verify no new work appeared
+						if atomic.LoadInt32(&eq.inflight) == 0 && len(eq.queue) == 0 {
+							if eq.doneFunc != nil {
+								if err := eq.doneFunc(); err != nil {
+									log.Printf("Error in done function: %v", err)
+								}
+							}
+						} else {
+							// revert flag if new work sneaked in
+							atomic.StoreInt32(&eq.doneFlag, 0)
+						}
+					}
+				}
+			}
 
 		case <-eq.stopCh:
 			// Stop signal received
 			log.Printf("Embeddings worker %d stopping", id)
-			eq.doneFunc()
 			return
 		}
 	}

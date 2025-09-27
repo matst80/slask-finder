@@ -1,6 +1,7 @@
 package facet
 
 import (
+	"fmt"
 	"log"
 	"strings"
 
@@ -183,6 +184,15 @@ func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
 	switch typed := data.(type) {
 	case nil:
 		return false
+	case float64:
+		f.addString(fmt.Sprintf("%f", typed), itemId)
+		return true
+	case int:
+		f.addString(fmt.Sprintf("%d", typed), itemId)
+		return true
+	case int64:
+		f.addString(fmt.Sprintf("%d", typed), itemId)
+		return true
 	case []interface{}:
 
 		for _, v := range typed {

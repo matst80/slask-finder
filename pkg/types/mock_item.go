@@ -36,10 +36,6 @@ func (m *MockItem) GetPropertyValue(name string) interface{} {
 	return nil
 }
 
-func (m *MockItem) UpdateBasePopularity(rules ItemPopularityRules) {
-	m.Popularity = 1
-}
-
 func (m *MockItem) GetRating() (int, int) {
 	return 20, 5
 }

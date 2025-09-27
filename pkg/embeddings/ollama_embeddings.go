@@ -1,3 +1,4 @@
+//nolint:gosec // G115 (int->uint32) modulo conversion is safe here: len(o.ApiEndpoints) is bounded by slice length and atomic counter wraps naturally.
 package embeddings
 
 import (
@@ -5,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync/atomic"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -113,7 +113,7 @@ func (o *OllamaEmbeddingsEngine) GenerateEmbeddings(text string) (types.Embeddin
 	// Use ApiEndpoints if available (for round-robin), otherwise fall back to single ApiEndpoint
 	if len(o.ApiEndpoints) > 0 {
 		// Get the next index using atomic counter for thread safety
-		idx := atomic.AddUint32(&o.counter, 1) % uint32(len(o.ApiEndpoints))
+		idx := atomic.AddUint32(&o.counter, 1) % uint32(len(o.ApiEndpoints)) //nolint:gosec // length cast safe; modulo keeps idx within bounds
 		endpoint = o.ApiEndpoints[idx]
 	} else {
 		endpoint = o.ApiEndpoint
@@ -155,46 +155,47 @@ func (o *OllamaEmbeddingsEngine) GenerateEmbeddings(text string) (types.Embeddin
 	return float32Embeddings, nil
 }
 
-// GenerateEmbeddingsFromItem implements EmbeddingsEngine.GenerateEmbeddingsFromItem
-// It generates embeddings for the given Item using its text representation
-func (o *OllamaEmbeddingsEngine) GenerateEmbeddingsFromItem(item types.Item, fields map[uint]types.Facet) (types.Embeddings, error) {
-	// Generate a text representation of the item
-	itemText := buildItemRepresentation(item, fields)
+// // GenerateEmbeddingsFromItem implements EmbeddingsEngine.GenerateEmbeddingsFromItem
+// // It generates embeddings for the given Item using its text representation
+// func (o *OllamaEmbeddingsEngine) GenerateEmbeddingsFromItem(item types.Item, fields map[uint]types.Facet) (types.Embeddings, error) {
+// 	// Generate a text representation of the item
+// 	itemText := buildItemRepresentation(item, fields)
 
-	// Generate embeddings for the text
-	return o.GenerateEmbeddings(itemText)
-}
+// 	// Generate embeddings for the text
+// 	return o.GenerateEmbeddings(itemText)
+// }
 
 // buildItemRepresentation constructs a string representation of an item
 // optimized for generating meaningful embeddings
-func buildItemRepresentation(item types.Item, fields map[uint]types.Facet) string {
-	var builder strings.Builder
+func buildItemRepresentation(item types.Item) string {
+	//var builder strings.Builder
 
 	// Add title with higher weight (repeat twice)
 	text, err := item.GetEmbeddingsText()
 	if err != nil {
 		return item.GetTitle()
 	}
-	builder.WriteString(text)
-	builder.WriteString(" ")
+	return text
+	// builder.WriteString(text)
+	// builder.WriteString(" ")
 
-	for fieldId, value := range item.GetFields() {
-		f, ok := fields[fieldId]
-		if !ok {
-			continue
-		}
-		b := f.GetBaseField()
-		if b.HideFacet || b.InternalOnly || !b.Searchable {
-			continue
-		}
+	// for fieldId, value := range item.GetFields() {
+	// 	f, ok := fields[fieldId]
+	// 	if !ok {
+	// 		continue
+	// 	}
+	// 	b := f.GetBaseField()
+	// 	if b.HideFacet || b.InternalOnly || !b.Searchable {
+	// 		continue
+	// 	}
 
-		if b.Name != "" {
-			builder.WriteString(b.Name)
-			builder.WriteString(": ")
-		}
-		builder.WriteString(fmt.Sprintf("%v", value))
-		builder.WriteString(" ")
-	}
+	// 	if b.Name != "" {
+	// 		builder.WriteString(b.Name)
+	// 		builder.WriteString(": ")
+	// 	}
+	// 	builder.WriteString(fmt.Sprintf("%v", value))
+	// 	builder.WriteString(" ")
+	// }
 	// Add other string representations
 	// strList := item.ToStringList()
 	// for _, str := range strList {
@@ -214,5 +215,5 @@ func buildItemRepresentation(item types.Item, fields map[uint]types.Facet) strin
 	// 	}
 	// }
 
-	return builder.String()
+	//return builder.String()
 }

@@ -18,6 +18,7 @@
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Linting](#linting)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -28,6 +29,12 @@ Instructions on how to install and set up your project.
 ## Usage
 
 Instructions on how to use your project, including examples and screenshots if applicable.
+
+# For reader service
+docker build -f cmd/reader/Dockerfile -t slask-reader .
+
+# For writer service  
+docker build -f cmd/writer/Dockerfile -t slask-writer .
 
 ### Using Ollama Embeddings
 
@@ -82,6 +89,75 @@ When using `NewOllamaEmbeddingsEngineWithMultipleEndpoints`, requests are distri
 The engine automatically handles the distribution of requests in a thread-safe manner, ensuring even load across all endpoints.
 
 Make sure all Ollama servers are running and accessible at the configured endpoints.
+
+## Linting
+
+This repository uses golangci-lint to catch common issues (unused code, unchecked errors, pointer-to-range-variable bugs, etc.).
+
+### Run locally (Windows PowerShell)
+
+```powershell
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+golangci-lint run ./...
+```
+
+If you need a faster first pass (skip tests, only new files):
+
+```powershell
+golangci-lint run --new-from-rev=origin/main
+```
+
+### Enabled linters (highlights)
+- govet / staticcheck: general correctness
+- errcheck: ensure errors are handled
+- exportloopref: prevents taking the address of loop variables
+- rowserrcheck: ensures row iteration errors (future DB code) are handled
+- gosec: basic security checks
+- goconst / prealloc / unparam: minor performance & style improvements
+
+### CI
+GitHub Actions runs the linter on every push and pull request (`.github/workflows/lint.yml`). Failing lint must be fixed before merging.
+
+### Git pre-commit hook
+
+Enable repository-provided hooks (Bash + PowerShell versions available):
+
+```powershell
+git config core.hooksPath .githooks
+```
+
+Hooks run automatically on `git commit`. To skip (rarely, and only with justification):
+
+```powershell
+git commit --no-verify -m "your message"
+```
+
+What the hook does:
+- Detects staged `.go` files; if any, lints only those for speed
+- Falls back to `golangci-lint run ./...` if none detected
+- Fails the commit on any lint errors
+
+Update hook after changes:
+```powershell
+git add .githooks/*
+```
+
+### Common fixes
+- exportloopref: Rewrite `for _, v := range slice { use &v }` to indexed loop `for i := range slice { use &slice[i] }`.
+- errcheck: Assign and handle or explicitly ignore with `//nolint:errcheck` (sparingly).
+- gosec (G404 random): Use `crypto/rand` for security-sensitive randomness.
+
+### Temporarily skip a line
+```go
+value, _ := strconv.Atoi(s) //nolint:errcheck // safe: input validated earlier
+```
+
+### Skip a block/file (only if justified)
+```go
+//nolint:gocyclo,funlen // legacy function; refactor planned
+```
+
+Keep linter suppressions minimal and always include a justification comment.
 
 ## Contributing
 

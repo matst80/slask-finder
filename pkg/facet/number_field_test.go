@@ -11,11 +11,11 @@ type TestItem struct {
 	Id uint
 }
 
-func makeItem(id uint) types.Item {
-	return &types.MockItem{
-		Id: id,
-	}
-}
+// func makeItem(id uint) types.Item {
+// 	return &types.MockItem{
+// 		Id: id,
+// 	}
+// }
 
 func (i TestItem) GetId() uint {
 	return i.Id

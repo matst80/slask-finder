@@ -127,9 +127,7 @@ type Item interface {
 	ToString() string
 	ToStringList() []string
 	GetBaseItem() BaseItem
-	MergeKeyFields(updates []CategoryUpdate) bool
-	GetBasePopularity() float64
-	UpdateBasePopularity(rules ItemPopularityRules)
+	//MergeKeyFields(updates []CategoryUpdate) bool
 	//	GetItem() interface{}
 	CanHaveEmbeddings() bool
 	GetEmbeddingsText() (string, error)
@@ -145,7 +143,7 @@ type Embeddings []float32
 
 type EmbeddingsEngine interface {
 	GenerateEmbeddings(text string) (Embeddings, error)
-	GenerateEmbeddingsFromItem(item Item, fields map[uint]Facet) (Embeddings, error)
+	//GenerateEmbeddingsFromItem(item Item) (Embeddings, error)
 }
 
 type Facet interface {
@@ -173,6 +171,14 @@ type FieldChange struct {
 	*BaseField
 	Action    FieldChangeAction `json:"action"`
 	FieldType uint              `json:"fieldType"`
+}
+
+type SettingsKey string
+
+type SettingsChange struct {
+	Type     SettingsKey `json:"type"`
+	Priority float64     `json:"priority"`
+	Value    interface{} `json:"value"`
 }
 
 func (s *Settings) Lock() {
