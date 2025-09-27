@@ -80,9 +80,15 @@ func main() {
 		log.Fatalf("Failed to register a listener: %v", err)
 	}
 
-	err = diskStorage.LoadEmbeddings(embeddingsIndex.Embeddings)
-	if err != nil {
+	// Load persisted embeddings from disk. We must pass a pointer to the target structure
+	// for gob decoding. Decode into a temporary map to avoid directly mutating the handler's
+	// internal map without its lock, then merge via the provided method.
+	embeddingsData := make(map[uint]types.Embeddings)
+	if err = diskStorage.LoadEmbeddings(&embeddingsData); err != nil {
 		log.Printf("Could not load embeddings from file: %v", err)
+	} else if len(embeddingsData) > 0 {
+		log.Printf("Loaded %d embeddings from disk", len(embeddingsData))
+		embeddingsIndex.LoadEmbeddings(embeddingsData)
 	}
 
 	a := &app{
