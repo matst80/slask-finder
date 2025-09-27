@@ -67,6 +67,9 @@ func main() {
 		defer app.mu.Unlock()
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
+			if len(items) == 0 {
+				return nil
+			}
 			app.HandleItems(items)
 
 			err := diskStorage.SaveJson(app.Items, "item_prices.json")
