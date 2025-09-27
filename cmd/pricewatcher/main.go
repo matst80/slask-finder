@@ -69,10 +69,8 @@ func main() {
 
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
-			if len(items) == 0 {
-				return nil
-			}
 			app.HandleItems(items)
+			log.Printf("Updated, saving %d item prices to disk", len(app.Items))
 			app.mu.RLock()
 			err := diskStorage.SaveJson(&app.Items, "item_prices.json")
 			app.mu.RUnlock()
