@@ -17,10 +17,11 @@ func (app *ItemWatcher) HandleItems(items []index.DataItem) {
 	defer app.mu.Unlock()
 	for _, item := range items {
 		id := item.GetId()
-		if item.GetPrice() <= 0 {
+		itemPrice := item.GetPrice()
+		if itemPrice <= 0 {
 			continue
 		}
-		itemPrice := item.GetPrice()
+
 		existingPrice, ok := app.Items[id]
 		if ok {
 			if existingPrice == itemPrice {

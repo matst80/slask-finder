@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"maps"
 	"net/http"
 	"os"
 	"sync"
@@ -34,15 +35,17 @@ func main() {
 		watcher: *watcher,
 	}
 
-	// Load existing items from disk if available
-	// Must pass pointer so JSON decoder can populate map
-	err := diskStorage.LoadJson(&app.Items, "item_prices.json")
+	var tmp map[uint]int
+	err := diskStorage.LoadJson(&tmp, "item_prices.json")
 	if err != nil {
 		if os.IsNotExist(err) {
 			log.Printf("item_prices.json not found, starting empty")
 		} else {
 			log.Printf("Could not load item prices from file: %v", err)
 		}
+	} else {
+		maps.Copy(app.Items, tmp)
+		log.Printf("Loaded %d item prices from disk", len(app.Items))
 	}
 
 	amqpUrl, ok := os.LookupEnv("RABBIT_HOST")
@@ -72,7 +75,7 @@ func main() {
 			}
 			app.HandleItems(items)
 
-			err := diskStorage.SaveJson(app.Items, "item_prices.json")
+			err := diskStorage.SaveJson(&app.Items, "item_prices.json")
 			if err != nil {
 				log.Printf("Could not save item prices to file: %v", err)
 			}

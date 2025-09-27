@@ -173,7 +173,7 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 	return err
 }
 
-func (p *DiskStorage) SaveGzippedJson(data any, filename string) error {
+func (p *DiskStorage) SaveGzippedJson(data interface{}, filename string) error {
 	fileName, tmpFileName := p.GetFileName(filename)
 
 	file, err := os.Create(tmpFileName)
@@ -224,7 +224,7 @@ func (p *DiskStorage) LoadGzippedJson(data interface{}, filename string) error {
 	return nil
 }
 
-func (p *DiskStorage) SaveJson(data any, name string) error {
+func (p *DiskStorage) SaveJson(data interface{}, name string) error {
 	fileName, tmpFileName := p.GetFileName(name)
 
 	file, err := os.Create(tmpFileName)
@@ -295,7 +295,7 @@ func (p *DiskStorage) SaveItems(items iter.Seq[types.Item]) error {
 	return nil
 }
 
-func (p *DiskStorage) SaveGzippedGob(embeddings any, name string) error {
+func (p *DiskStorage) SaveGzippedGob(embeddings interface{}, name string) error {
 	fileName, tmpFileName := p.GetFileName(name)
 
 	file, err := os.Create(tmpFileName)

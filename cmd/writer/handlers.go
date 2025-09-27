@@ -30,7 +30,7 @@ func (ws *app) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		err = ws.storage.SaveJson(types.CurrentSettings, "settings.json")
+		err = ws.storage.SaveSettings()
 
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
