@@ -30,7 +30,7 @@ func getFieldType[T ~int | ~uint](v T) (uint, bool) {
 	}
 }
 
-func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
+func (ws *app) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	tmpFields := make(map[string]*FieldData)
@@ -82,7 +82,7 @@ func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (ws *MasterApp) GetFields(w http.ResponseWriter, r *http.Request) {
+func (ws *app) GetFields(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(ws.fieldData)
@@ -91,7 +91,7 @@ func (ws *MasterApp) GetFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *MasterApp) GetField(w http.ResponseWriter, r *http.Request) {
+func (ws *app) GetField(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	fieldId := r.PathValue("id")
 	field, ok := ws.fieldData[fieldId]
@@ -107,7 +107,7 @@ func (ws *MasterApp) GetField(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *MasterApp) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
+func (ws *app) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	//toDelete := make([]uint, 0)
@@ -144,7 +144,7 @@ func (ws *MasterApp) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (ws *MasterApp) findFacet(id uint) (*facet.StorageFacet, bool) {
+func (ws *app) findFacet(id uint) (*facet.StorageFacet, bool) {
 	ws.mu.RLock()
 	defer ws.mu.RUnlock()
 	// Iterate by index to return pointer to the actual slice element (not loop copy)
@@ -156,7 +156,7 @@ func (ws *MasterApp) findFacet(id uint) (*facet.StorageFacet, bool) {
 	return nil, false
 }
 
-func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
+func (ws *app) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	fieldId := r.PathValue("id")
 	field, ok := ws.fieldData[fieldId]
@@ -205,7 +205,7 @@ func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
+func (ws *app) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	facetIdString := r.PathValue("id")
 	facetId64, err := strconv.ParseUint(facetIdString, 10, 64)
@@ -239,7 +239,7 @@ func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
+func (ws *app) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	facetIdString := r.PathValue("id")
 	facetId64, err := strconv.ParseUint(facetIdString, 10, 64)
@@ -292,7 +292,7 @@ func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) MissingFacets(w http.ResponseWriter, r *http.Request) {
+func (ws *app) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	missing := make([]FieldData, 0)

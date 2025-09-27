@@ -16,7 +16,7 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type MasterApp struct {
+type app struct {
 	mu            sync.RWMutex
 	fieldData     map[string]FieldData
 	storageFacets []facet.StorageFacet
@@ -54,7 +54,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	app := &MasterApp{
+	app := &app{
 		mu:            sync.RWMutex{},
 		fieldData:     make(map[string]FieldData),
 		storageFacets: make([]facet.StorageFacet, 3000),

@@ -7,11 +7,11 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-func (app *MasterApp) dummyResponse(w http.ResponseWriter, r *http.Request) {
+func (app *app) dummyResponse(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) GetSettings(w http.ResponseWriter, r *http.Request) {
+func (ws *app) GetSettings(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(types.CurrentSettings)
@@ -20,7 +20,7 @@ func (ws *MasterApp) GetSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *MasterApp) UpdateSettings(w http.ResponseWriter, r *http.Request) {
+func (ws *app) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	if r.Method == http.MethodPut {
 		types.CurrentSettings.Lock()
@@ -44,7 +44,7 @@ func (ws *MasterApp) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *MasterApp) GetFacetList(w http.ResponseWriter, r *http.Request) {
+func (ws *app) GetFacetList(w http.ResponseWriter, r *http.Request) {
 	//publicHeaders(w, r, true, "10")
 
 	w.WriteHeader(http.StatusOK)
