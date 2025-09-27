@@ -86,7 +86,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/push/watch/", watcher.WatchPriceChange)
+	mux.HandleFunc("POST /push/watch/{id}", watcher.WatchPriceChange)
 	// mux.HandleFunc("/push/unwatch/", watcher.UnwatchPriceChange)
 	// mux.HandleFunc("/push/list/", watcher.ListWatches)
 	cfg := common.LoadTimeoutConfig(common.TimeoutConfig{
