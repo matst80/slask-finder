@@ -55,10 +55,36 @@ func asSeq(items []types.Item) iter.Seq[types.Item] {
 
 const itemsFile = "items.jz"
 const settingsFile = "settings.json"
+const legacySettingsFile = "settings.jz"
 const facetsFile = "facets.json"
 const embeddingsFile = "embeddings.gob.gz"
 
 func (d *DiskStorage) LoadSettings() error {
+	types.CurrentSettings.Lock()
+	defer types.CurrentSettings.Unlock()
+	legacyPath, _ := d.GetFileName(legacySettingsFile)
+	// Try loading legacy gzipped settings first
+	f, err := os.Stat(legacyPath)
+	if err == nil && !f.IsDir() {
+		log.Printf("Loading legacy settings file: %s", legacyPath)
+		err = d.LoadGzippedJson(&types.CurrentSettings, legacySettingsFile)
+		if err == nil {
+			log.Printf("Successfully loaded legacy settings, saving to new format")
+			err = d.SaveJson(&types.CurrentSettings, settingsFile)
+			if err != nil {
+				log.Printf("Failed to save new settings format: %v", err)
+
+			} else {
+				if err = os.Rename(legacyPath, legacyPath+".bak"); err != nil {
+					log.Printf("Failed to rename legacy settings file: %v", err)
+				}
+			}
+			return nil
+		} else {
+			log.Printf("Failed to load legacy settings: %v", err)
+		}
+
+	}
 	return d.LoadJson(&types.CurrentSettings, settingsFile)
 }
 
@@ -195,29 +221,26 @@ func (p *DiskStorage) LoadGzippedJson(data interface{}, filename string) error {
 		return err
 	}
 
-	enc = nil
-
 	return nil
 }
 
-func (p *DiskStorage) SaveJson(data any, filename string) error {
-	fileName, tmpFileName := p.GetFileName(filename)
+func (p *DiskStorage) SaveJson(data any, name string) error {
+	fileName, tmpFileName := p.GetFileName(name)
 
 	file, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
 
-	defer file.Close()
 	defer runtime.GC()
 	enc := sonic.ConfigDefault.NewEncoder(file)
 
 	err = enc.Encode(data)
+	file.Close()
 	if err != nil {
 		return err
 	}
 
-	enc = nil
 	err = os.Rename(tmpFileName, fileName)
 	//log.Printf("Saved file: %s", filename)
 
