@@ -103,13 +103,13 @@ func AsNumber[K int | float64 | int64](value interface{}) (K, bool) {
 }
 
 func FromJsonTypes[K interface{}](arr JsonTypes) []K {
-	var result []K
+	// Preallocate with full length; capacity hint avoids reallocations.
+	// We still skip elements that don't assert to K; final len may be < cap.
+	result := make([]K, 0, len(arr))
 	for _, v := range arr {
-		r, ok := v.(K)
-		if !ok {
-			continue
+		if r, ok := v.(K); ok {
+			result = append(result, r)
 		}
-		result = append(result, r)
 	}
 	return result
 }

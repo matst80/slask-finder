@@ -5,25 +5,22 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-type MasterApp struct {
+type app struct {
 	mu            sync.RWMutex
-	fieldData     map[string]*FieldData
-	storageFacets []*facet.StorageFacet
+	fieldData     map[string]FieldData
+	storageFacets []facet.StorageFacet
 	storage       *storage.DiskStorage
-	// itemIndex       *index.ItemIndex
-	// embeddingsIndex *embeddings.ItemEmbeddingsHandler
-	amqpSender *AmqpSender
+	amqpSender    *AmqpSender
 }
 
 var country = "se"
@@ -56,32 +53,22 @@ func main() {
 	}
 	defer conn.Close()
 
-	// idx := index.NewItemIndex()
-	// embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
-	// embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func() error {
-
-	// 	log.Println("Embeddings queue processed")
-	// 	//storage.SaveEmbeddings(embeddingsIndex.Embeddings, "data/embeddings-v2.jz")
-	// 	return nil
-	// })
-
-	// err = diskStorage.LoadItems(idx, embeddingsIndex)
-	// if err != nil {
-	// 	log.Printf("Could not load items from file: %v", err)
-	// }
-
-	app := &MasterApp{
+	app := &app{
 		mu:            sync.RWMutex{},
-		fieldData:     make(map[string]*FieldData, 3000),
-		storageFacets: make([]*facet.StorageFacet, 3000),
+		fieldData:     make(map[string]FieldData),
+		storageFacets: make([]facet.StorageFacet, 3000),
 		amqpSender:    NewAmqpSender(country, conn),
 		// itemIndex:       idx,
 		// embeddingsIndex: embeddingsIndex,
 		storage: diskStorage,
 	}
-	err = diskStorage.LoadGzippedJson(app.fieldData, "fields.jz")
-	if err != nil {
-		log.Printf("Could not load fields from file: %v", err)
+	// Load stored field metadata (map must be passed by pointer for decoder)
+	if err = diskStorage.LoadGzippedJson(&app.fieldData, "fields.jz"); err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("fields.jz not found, starting with empty field map")
+		} else {
+			log.Printf("Could not load fields from file: %v", err)
+		}
 	}
 	err = diskStorage.LoadFacets(&app.storageFacets)
 	if err != nil {
@@ -91,9 +78,11 @@ func main() {
 
 	srv.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Failed to write health check response: %v", err)
+		}
 	})
-	var auth AuthHandler = nil
+	var auth AuthHandler
 	auth, err = NewGoogleAuth()
 	if err != nil {
 		log.Printf("Failed to initialize auth: %v", err)
@@ -105,11 +94,12 @@ func main() {
 
 	srv.HandleFunc("admin/auth_callback", auth.AuthCallback)
 
-	srv.HandleFunc("POST /admin/add", auth.Middleware(app.handleItems))
-	srv.HandleFunc("/admin/save", auth.Middleware(app.saveItems))
+	srv.HandleFunc("POST /admin/add", auth.Middleware(app.dummyResponse))
+	srv.HandleFunc("/admin/save", auth.Middleware(app.dummyResponse))
 	//srv.HandleFunc("GET /admin/item/{id}", auth.Middleware(app.getAdminItemById))
 	srv.HandleFunc("GET /admin/facets", app.GetFacetList)
 	srv.HandleFunc("DELETE /admin/facets/{id}", auth.Middleware(app.DeleteFacet))
+	srv.HandleFunc("PUT /admin/facets/{id}", auth.Middleware(app.UpdateFacet))
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
@@ -162,34 +152,12 @@ func main() {
 	   srv.HandleFunc("GET /webauthn/login/start", auth.LoginChallenge)
 	   srv.HandleFunc("POST /webauthn/login/finish", auth.LoginChallengeResponse)
 	*/
-	server := &http.Server{Addr: ":8080", Handler: srv}
+	server := &http.Server{Addr: ":8080", Handler: srv, ReadHeaderTimeout: 5 * time.Second}
 
-	go func() {
-		log.Println("starting server on :8080")
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Could not listen on %s: %v\n", server.Addr, err)
-		}
-	}()
-	// Graceful shutdown
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-	<-stop
-
-	log.Println("Shutting down server...")
-
-	if err := app.storage.SaveFacets(app.storageFacets); err != nil {
-		log.Printf("Failed to save facets: %v", err)
-	}
-	// if err := app.storage.sa(app.storageFacets); err != nil {
-	// 	log.Printf("Failed to save facets: %v", err)
-	// }
-
-	// Shutdown the server
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatalf("Server Shutdown Failed:%+v", err)
+	saveHook := func(ctx context.Context) error {
+		log.Println("saving facets before shutdown")
+		return app.storage.SaveFacets(app.storageFacets)
 	}
 
-	log.Println("Server gracefully stopped")
+	common.RunServerWithShutdown(server, "writer server", 15*time.Second, 5*time.Second, saveHook)
 }

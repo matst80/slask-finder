@@ -49,7 +49,7 @@ func DefaultEmbeddingsHandlerOptions(engine types.EmbeddingsEngine) ItemEmbeddin
 }
 
 // NewItemEmbeddingsHandler creates a new ItemEmbeddingsHandler with the specified options
-func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func() error) *ItemEmbeddingsHandler {
+func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(items map[uint]types.Embeddings) error) *ItemEmbeddingsHandler {
 	handler := &ItemEmbeddingsHandler{
 		mu:               sync.RWMutex{},
 		Embeddings:       make(map[uint]types.Embeddings),
@@ -69,7 +69,11 @@ func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(
 		handler.EmbeddingsQueue = NewEmbeddingsQueue(
 			opts.EmbeddingsEngine,
 			storeFunc,
-			queueDone,
+			func() error {
+				handler.mu.RLock()
+				defer handler.mu.RUnlock()
+				return queueDone(handler.Embeddings)
+			},
 			opts.EmbeddingsWorkers,
 			opts.EmbeddingsQueueSize)
 
@@ -112,7 +116,7 @@ func (h *ItemEmbeddingsHandler) handleItemUnsafe(item types.Item) {
 	_, hasEmbeddings := h.Embeddings[id]
 
 	// Queue item for embeddings generation if needed
-	if !hasEmbeddings && h.EmbeddingsQueue != nil && !item.IsSoftDeleted() && item.CanHaveEmbeddings() {
+	if !hasEmbeddings && h.EmbeddingsQueue != nil && !item.IsDeleted() && item.CanHaveEmbeddings() {
 		if !h.EmbeddingsQueue.QueueItem(item) {
 			log.Printf("Failed to queue item %d for embeddings generation after timeout", id)
 		}

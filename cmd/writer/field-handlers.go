@@ -12,7 +12,25 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
+// getFieldType safely converts an internal int field type to uint while:
+// 1. Preventing negative values (which would underflow to huge uints)
+// 2. Validating against the set of supported facet field types (1=key,2=decimal,3=integer)
+// 3. Avoiding triggering gosec G115 (int -> uint potential overflow) by explicit checks
+// Accept either facet.FieldType or its underlying int (DataType) for flexibility
+// T can be an int-like or uint-like underlying type (writer DataType likely int, facet.FieldType is uint)
+func getFieldType[T ~int | ~uint](v T) (uint, bool) {
+	if v < 0 { // negative would wrap
+		return 0, false
+	}
+	switch v { // enumerate allowed types; adjust if new types introduced
+	case 1, 2, 3:
+		return uint(v), true
+	default:
+		return 0, false
+	}
+}
+
+func (ws *app) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	tmpFields := make(map[string]*FieldData)
@@ -51,7 +69,7 @@ func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		} else {
 			field.LastSeen = time.Now().UnixMilli()
 			field.Created = time.Now().UnixMilli()
-			ws.fieldData[key] = field
+			ws.fieldData[key] = *field
 		}
 	}
 	err = ws.storage.SaveGzippedJson(ws.fieldData, "fields.jz")
@@ -64,7 +82,7 @@ func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (ws *MasterApp) GetFields(w http.ResponseWriter, r *http.Request) {
+func (ws *app) GetFields(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	err := json.NewEncoder(w).Encode(ws.fieldData)
@@ -73,7 +91,7 @@ func (ws *MasterApp) GetFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *MasterApp) GetField(w http.ResponseWriter, r *http.Request) {
+func (ws *app) GetField(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	fieldId := r.PathValue("id")
 	field, ok := ws.fieldData[fieldId]
@@ -89,7 +107,7 @@ func (ws *MasterApp) GetField(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *MasterApp) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
+func (ws *app) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
 	//toDelete := make([]uint, 0)
@@ -126,18 +144,19 @@ func (ws *MasterApp) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (ws *MasterApp) findFacet(id uint) (*facet.StorageFacet, bool) {
+func (ws *app) findFacet(id uint) (*facet.StorageFacet, bool) {
 	ws.mu.RLock()
 	defer ws.mu.RUnlock()
-	for _, facet := range ws.storageFacets {
-		if facet.Id == id {
-			return facet, true
+	// Iterate by index to return pointer to the actual slice element (not loop copy)
+	for i := range ws.storageFacets {
+		if ws.storageFacets[i].Id == id {
+			return &ws.storageFacets[i], true
 		}
 	}
 	return nil, false
 }
 
-func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
+func (ws *app) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	fieldId := r.PathValue("id")
 	field, ok := ws.fieldData[fieldId]
@@ -160,20 +179,24 @@ func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	if slices.Index(field.Purpose, "do not show") != -1 {
 		baseField.HideFacet = true
 	}
-	ws.storageFacets = append(ws.storageFacets, &facet.StorageFacet{
+	ft, okType := getFieldType(field.Type)
+	if !okType {
+		http.Error(w, "Invalid field type", http.StatusBadRequest)
+		return
+	}
+	ws.storageFacets = append(ws.storageFacets, facet.StorageFacet{
 		BaseField: baseField,
-		Type:      facet.FieldType(field.Type),
+		Type:      facet.FieldType(ft),
 	})
 	err := ws.storage.SaveFacets(ws.storageFacets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	change := types.FieldChange{
 		Action:    types.ADD_FIELD,
 		BaseField: baseField,
-		FieldType: uint(field.Type),
+		FieldType: ft,
 	}
 	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
 		log.Printf("Could not send facet changes: %v", err)
@@ -182,18 +205,24 @@ func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
+func (ws *app) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	facetIdString := r.PathValue("id")
-	facetId, err := strconv.Atoi(facetIdString)
+	facetId64, err := strconv.ParseUint(facetIdString, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid facet ID", http.StatusBadRequest)
 		return
 	}
+	// Prevent overflow converting to platform uint (gosec G115 mitigation)
+	if facetId64 > uint64(^uint(0)) { // additional safety if running on 32-bit
+		http.Error(w, "Facet ID out of range", http.StatusBadRequest)
+		return
+	}
+	facetId := uint(facetId64)
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f *facet.StorageFacet) bool {
-		return f.Id == uint(facetId)
+	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f facet.StorageFacet) bool {
+		return f.Id == facetId
 	})
 
 	if err = ws.storage.SaveFacets(ws.storageFacets); err != nil {
@@ -201,7 +230,7 @@ func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	}
 	change := types.FieldChange{
 		Action:    types.REMOVE_FIELD,
-		BaseField: &types.BaseField{Id: uint(facetId)},
+		BaseField: &types.BaseField{Id: facetId},
 		FieldType: 0,
 	}
 	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
@@ -210,14 +239,19 @@ func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
+func (ws *app) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	facetIdString := r.PathValue("id")
-	facetId, err := strconv.Atoi(facetIdString)
+	facetId64, err := strconv.ParseUint(facetIdString, 10, 64)
 	if err != nil {
 		http.Error(w, "Invalid facet ID", http.StatusBadRequest)
 		return
 	}
+	if facetId64 > uint64(^uint(0)) {
+		http.Error(w, "Facet ID out of range", http.StatusBadRequest)
+		return
+	}
+	facetId := uint(facetId64)
 	data := types.BaseField{}
 	err = json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
@@ -225,7 +259,7 @@ func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	facet, ok := ws.findFacet(uint(facetId))
+	facet, ok := ws.findFacet(facetId)
 	if !ok {
 		http.Error(w, "Facet not found", http.StatusNotFound)
 		return
@@ -241,24 +275,27 @@ func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
+	ft, okType := getFieldType(facet.Type)
+	if !okType {
+		http.Error(w, "Invalid facet type", http.StatusInternalServerError)
+		return
+	}
 	change := types.FieldChange{
 		Action:    types.UPDATE_FIELD,
 		BaseField: current,
-		FieldType: uint(facet.Type),
+		FieldType: ft,
 	}
 	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
 		log.Printf("Could not send facet changes: %v", err)
 	}
-	// if ws.FacetHandler.ChangeHandler != nil {
-	// 	ws.FacetHandler.ChangeHandler.FieldsChanged(changes)
-	// }
+
 	w.WriteHeader(http.StatusOK)
 }
 
-func (ws *MasterApp) MissingFacets(w http.ResponseWriter, r *http.Request) {
+func (ws *app) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
-	missing := make([]*FieldData, 0)
+	missing := make([]FieldData, 0)
 	for _, field := range ws.fieldData {
 		_, ok := ws.findFacet(field.Id)
 		if !ok {

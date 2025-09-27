@@ -398,8 +398,6 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 					count++
 
 				}
-			} else {
-				// log.Printf("Facet %d is in filters", id)
 			}
 		}
 	}

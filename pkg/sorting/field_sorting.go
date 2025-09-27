@@ -1,7 +1,6 @@
 package sorting
 
 import (
-	"slices"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -27,35 +26,35 @@ func NewFieldSorting(client *redis.Client) *FieldSorting {
 	}
 }
 
-// makeFieldSort creates the field sorting based on facet data and overrides
-func (fs *FieldSorting) makeFieldSort(fields map[uint]types.Facet, overrides SortOverride) {
+// // makeFieldSort creates the field sorting based on facet data and overrides
+// func (fs *FieldSorting) makeFieldSort(fields map[uint]types.Facet, overrides SortOverride) {
 
-	fs.mu.Lock()
-	defer fs.mu.Unlock()
+// 	fs.mu.Lock()
+// 	defer fs.mu.Unlock()
 
-	fieldMap := make(SortOverride)
+// 	fieldMap := make(SortOverride)
 
-	sortMap := types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
-		var base *types.BaseField
-		for id, item := range fields {
-			base = item.GetBaseField()
-			if base.HideFacet {
-				continue
-			}
-			v := base.Priority + overrides[base.Id]
-			fieldMap[id] = v
-			if !yield(types.Lookup{
-				Id:    id,
-				Value: v,
-			}) {
-				break
-			}
-		}
-	}, types.LookUpReversed))
+// 	sortMap := types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
+// 		var base *types.BaseField
+// 		for id, item := range fields {
+// 			base = item.GetBaseField()
+// 			if base.HideFacet {
+// 				continue
+// 			}
+// 			v := base.Priority + overrides[base.Id]
+// 			fieldMap[id] = v
+// 			if !yield(types.Lookup{
+// 				Id:    id,
+// 				Value: v,
+// 			}) {
+// 				break
+// 			}
+// 		}
+// 	}, types.LookUpReversed))
 
-	fs.fieldMap = &fieldMap
-	fs.FieldSort = &sortMap
-}
+// 	fs.fieldMap = &fieldMap
+// 	fs.FieldSort = &sortMap
+// }
 
 // // setFieldSortOverride updates the field sort override
 // func (fs *FieldSorting) setFieldSortOverride(sort *SortOverride, facetIndex *facet.FacetItemHandler) {

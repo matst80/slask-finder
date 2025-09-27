@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/matst80/slask-finder/pkg/sync"
+	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -47,7 +47,7 @@ func (t *RabbitTracking) connect(url, country string) error {
 		return err
 	}
 	defer ch.Close()
-	return sync.DefineTopic(ch, country, trackingTopic)
+	return messaging.DefineTopic(ch, country, trackingTopic)
 
 }
 
@@ -56,7 +56,7 @@ func (t *RabbitTracking) Close() error {
 }
 
 func (t *RabbitTracking) send(data any) error {
-	return sync.SendChange(t.connection, t.country, trackingTopic, data)
+	return messaging.SendChange(t.connection, t.country, trackingTopic, data)
 }
 
 type BaseEvent struct {

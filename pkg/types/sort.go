@@ -2,6 +2,7 @@ package types
 
 import (
 	"cmp"
+	"fmt"
 	"iter"
 	"log"
 	"strconv"
@@ -34,7 +35,7 @@ func (s *SortIndex) Remove(id uint) {
 
 func (s *SortIndex) FromString(data string) error {
 	for _, str := range strings.Split(data, ",") {
-		i, err := strconv.ParseInt(str, 10, 64)
+		i, err := strconv.ParseUint(str, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -46,7 +47,7 @@ func (s *SortIndex) FromString(data string) error {
 func (s *SortIndex) ToString() string {
 	var buffer strings.Builder
 	for i, id := range *s {
-		buffer.WriteString(strconv.Itoa(int(id)))
+		buffer.WriteString(fmt.Sprintf("%d", id))
 		if i != len(*s)-1 {
 			buffer.WriteString(",")
 		}

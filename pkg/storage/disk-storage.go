@@ -3,8 +3,9 @@ package storage
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"errors"
+	"io"
 	"iter"
-
 	"log"
 	"os"
 	"runtime"
@@ -54,10 +55,36 @@ func asSeq(items []types.Item) iter.Seq[types.Item] {
 
 const itemsFile = "items.jz"
 const settingsFile = "settings.json"
+const legacySettingsFile = "settings.jz"
 const facetsFile = "facets.json"
 const embeddingsFile = "embeddings.gob.gz"
 
 func (d *DiskStorage) LoadSettings() error {
+	types.CurrentSettings.Lock()
+	defer types.CurrentSettings.Unlock()
+	legacyPath, _ := d.GetFileName(legacySettingsFile)
+	// Try loading legacy gzipped settings first
+	f, err := os.Stat(legacyPath)
+	if err == nil && !f.IsDir() {
+		log.Printf("Loading legacy settings file: %s", legacyPath)
+		err = d.LoadGzippedJson(&types.CurrentSettings, legacySettingsFile)
+		if err == nil {
+			log.Printf("Successfully loaded legacy settings, saving to new format")
+			err = d.SaveJson(&types.CurrentSettings, settingsFile)
+			if err != nil {
+				log.Printf("Failed to save new settings format: %v", err)
+
+			} else {
+				if err = os.Rename(legacyPath, legacyPath+".bak"); err != nil {
+					log.Printf("Failed to rename legacy settings file: %v", err)
+				}
+			}
+			return nil
+		} else {
+			log.Printf("Failed to load legacy settings: %v", err)
+		}
+
+	}
 	return d.LoadJson(&types.CurrentSettings, settingsFile)
 }
 
@@ -139,14 +166,14 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 	}
 	decoder = nil
 
-	if err.Error() == "EOF" {
+	if errors.Is(err, io.EOF) {
 		return nil
 	}
 
 	return err
 }
 
-func (p *DiskStorage) SaveGzippedJson(data any, filename string) error {
+func (p *DiskStorage) SaveGzippedJson(data interface{}, filename string) error {
 	fileName, tmpFileName := p.GetFileName(filename)
 
 	file, err := os.Create(tmpFileName)
@@ -190,33 +217,30 @@ func (p *DiskStorage) LoadGzippedJson(data interface{}, filename string) error {
 	defer zipReader.Close()
 
 	err = enc.Decode(data)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
-
-	enc = nil
 
 	return nil
 }
 
-func (p *DiskStorage) SaveJson(data any, filename string) error {
-	fileName, tmpFileName := p.GetFileName(filename)
+func (p *DiskStorage) SaveJson(data interface{}, name string) error {
+	fileName, tmpFileName := p.GetFileName(name)
 
 	file, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
 
-	defer file.Close()
 	defer runtime.GC()
 	enc := sonic.ConfigDefault.NewEncoder(file)
 
 	err = enc.Encode(data)
+	file.Close()
 	if err != nil {
 		return err
 	}
 
-	enc = nil
 	err = os.Rename(tmpFileName, fileName)
 	//log.Printf("Saved file: %s", filename)
 
@@ -236,7 +260,7 @@ func (p *DiskStorage) LoadJson(data interface{}, filename string) error {
 	defer file.Close()
 
 	err = enc.Decode(data)
-	if err != nil {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -271,110 +295,7 @@ func (p *DiskStorage) SaveItems(items iter.Seq[types.Item]) error {
 	return nil
 }
 
-// func (p *DiskStorage) SaveIndex(idx *index.ItemIndex) error {
-
-// 	file, err := os.Create(p.File + ".tmp")
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	defer runtime.GC()
-// 	defer file.Close()
-// 	zipWriter := gzip.NewWriter(file)
-// 	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
-// 	defer zipWriter.Close()
-
-// 	for item := range idx.GetAllItems() {
-// 		store, ok := item.(*index.DataItem)
-// 		if !ok {
-// 			log.Fatalf("Could not convert item to DataItem")
-// 		}
-// 		err = enc.Encode(store)
-// 		if err != nil {
-// 			return err
-// 		}
-// 	}
-
-// 	enc = nil
-// 	err = os.Rename(p.File+".tmp", p.File)
-
-// 	if err != nil {
-// 		return err
-// 	}
-// 	log.Println("Saved index")
-// 	return nil //p.SaveFacets(idx.Facets)
-// }
-
-// func (p *DiskStorage) SaveSettings() error {
-// 	types.CurrentSettings.RLock()
-// 	defer types.CurrentSettings.RUnlock()
-// 	return p.SaveJsonFile(types.CurrentSettings, "settings.json")
-// }
-
-// func (p *DiskStorage) LoadSettings() error {
-// 	types.CurrentSettings.Lock()
-// 	defer types.CurrentSettings.Unlock()
-// 	return p.LoadJsonFile(types.CurrentSettings, "settings.json")
-// }
-
-// func (p *DiskStorage) SaveFacets(facets map[uint]types.Facet) error {
-// 	file, err := os.Create("data/facets.json.tmp")
-// 	toStore := make([]StorageFacet, 0)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer file.Close()
-// 	var base *types.BaseField
-// 	for _, ff := range facets {
-// 		base = ff.GetBaseField()
-// 		if base != nil {
-// 			toStore = append(toStore, StorageFacet{
-// 				BaseField: base,
-// 				Type:      FieldType(ff.GetType()),
-// 			})
-// 		}
-// 	}
-// 	err = sonic.ConfigDefault.NewEncoder(file).Encode(toStore)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return os.Rename("data/facets.json.tmp", "data/facets.json")
-
-// }
-
-// func LoadFacets(idx *facet.FacetItemHandler) error {
-// 	file, err := os.Open("data/facets.json")
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer file.Close()
-// 	toStore := make([]StorageFacet, 0)
-// 	if err = sonic.ConfigDefault.NewDecoder(file).Decode(&toStore); err != nil {
-// 		return err
-// 	}
-
-// 	for _, ff := range toStore {
-// 		//ff.BaseField.Searchable = true
-// 		if ff.BaseField.Type == "fps" {
-// 			ff.BaseField.HideFacet = true
-// 		}
-// 		switch ff.Type {
-// 		case 1:
-// 			idx.AddKeyField(ff.BaseField)
-// 		case 3:
-
-// 			idx.AddIntegerField(ff.BaseField)
-// 		case 2:
-// 			idx.AddDecimalField(ff.BaseField)
-// 		default:
-// 			log.Printf("Unknown field type %d", ff.Type)
-// 		}
-// 	}
-
-// 	return nil
-// }
-
-func (p *DiskStorage) SaveGzippedGob(embeddings any, name string) error {
+func (p *DiskStorage) SaveGzippedGob(embeddings interface{}, name string) error {
 	fileName, tmpFileName := p.GetFileName(name)
 
 	file, err := os.Create(tmpFileName)
@@ -424,8 +345,9 @@ func (p *DiskStorage) LoadGzippedGob(output interface{}, name string) error {
 
 	dec := gob.NewDecoder(zipReader)
 
-	err = dec.Decode(&output)
-	if err != nil {
+	// Decode directly into the provided output (which should be a pointer)
+	err = dec.Decode(output)
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 

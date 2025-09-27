@@ -127,7 +127,7 @@ type Item interface {
 	ToString() string
 	ToStringList() []string
 	GetBaseItem() BaseItem
-	MergeKeyFields(updates []CategoryUpdate) bool
+	//MergeKeyFields(updates []CategoryUpdate) bool
 	//	GetItem() interface{}
 	CanHaveEmbeddings() bool
 	GetEmbeddingsText() (string, error)

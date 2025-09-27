@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -126,14 +127,17 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 // }
 
 func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	id := r.PathValue("id")
-	itemId, err := strconv.Atoi(id)
+	idStr := r.PathValue("id")
+	id64, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		return err
 	}
-	item, ok := ws.itemIndex.GetItem(uint(itemId))
+	if id64 > uint64(^uint(0)) { // overflow safeguard for platform uint size
+		return fmt.Errorf("item id out of range")
+	}
+	item, ok := ws.itemIndex.GetItem(uint(id64))
 	if !ok {
-		return err
+		return fmt.Errorf("item %s not found", idStr)
 	}
 	publicHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
@@ -154,16 +158,17 @@ func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId in
 }
 
 func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
 	idString := r.PathValue("id")
-	id, err := strconv.Atoi(idString)
+	id64, err := strconv.ParseUint(idString, 10, 64)
 	if err != nil {
 		return err
 	}
-
-	item, ok := ws.itemIndex.GetItem(uint(id))
+	if id64 > uint64(^uint(0)) {
+		return fmt.Errorf("item id out of range")
+	}
+	item, ok := ws.itemIndex.GetItem(uint(id64))
 	if !ok {
-		return fmt.Errorf("item %d not found", id)
+		return fmt.Errorf("item %s not found", idString)
 	}
 
 	relatedChan := make(chan *types.ItemList)
@@ -184,8 +189,7 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 	related := <-relatedChan
 
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
-
-		if ok && item.GetId() != uint(id) {
+		if ok && item.GetId() != uint(id64) {
 			err = enc.Encode(item)
 			i++
 		}
@@ -222,13 +226,16 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 		log.Printf("excluded product types %v", excludedProductTypes)
 	}
 	idString := r.PathValue("id")
-	id, err := strconv.Atoi(idString)
+	id64, err := strconv.ParseUint(idString, 10, 64)
 	if err != nil {
 		return err
 	}
-	item, ok := ws.itemIndex.GetItem(uint(id))
+	if id64 > uint64(^uint(0)) {
+		return fmt.Errorf("item id out of range")
+	}
+	item, ok := ws.itemIndex.GetItem(uint(id64))
 	if !ok {
-		return fmt.Errorf("item %d not found", id)
+		return fmt.Errorf("item %s not found", idString)
 	}
 
 	publicHeaders(w, r, false, "600")
@@ -266,17 +273,17 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 
 func (ws *app) GetValues(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	idString := r.PathValue("id")
-	id, err := strconv.Atoi(idString)
+	id64, err := strconv.ParseUint(idString, 10, 64)
 	if err != nil {
 		return err
 	}
-
-	if field, ok := ws.facetHandler.GetFacet(uint(id)); ok {
-		w.WriteHeader(http.StatusOK)
-		err := enc.Encode(field.GetValues())
-		return err
+	if id64 > uint64(^uint(0)) {
+		return fmt.Errorf("facet id out of range")
 	}
-
+	if field, ok := ws.facetHandler.GetFacet(uint(id64)); ok {
+		w.WriteHeader(http.StatusOK)
+		return enc.Encode(field.GetValues())
+	}
 	w.WriteHeader(http.StatusNotFound)
 	return nil
 }
@@ -297,7 +304,9 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 		defaultHeaders(w, r, true, "60")
 
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("\n"))
+		if _, err := w.Write([]byte("\n")); err != nil { // write separator newline
+			return err
+		}
 		max := 30
 		for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
 
@@ -311,7 +320,9 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 			}
 
 		}
-		w.Write([]byte("\n"))
+		if _, err := w.Write([]byte("\n")); err != nil { // final separator newline
+			return err
+		}
 		return nil
 	}
 	query = strings.TrimSpace(query)
@@ -369,7 +380,9 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 		return err
 	}
 
-	w.Write([]byte("\n"))
+	if _, err = w.Write([]byte("\n")); err != nil { // separator between suggestions and items
+		return err
+	}
 
 	idx := 0
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", results, 0)) {
@@ -388,7 +401,9 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	ws.facetHandler.GetSuggestFacets(&results, &types.FacetRequest{Filters: &types.Filters{}}, ch, wg)
 
-	w.Write([]byte("\n"))
+	if _, err := w.Write([]byte("\n")); err != nil { // separator between items and facets
+		return err
+	}
 
 	go func() {
 		wg.Wait()
@@ -407,7 +422,9 @@ func (ws *app) Popular(w http.ResponseWriter, r *http.Request, sessionId int, en
 	defaultHeaders(w, r, true, "60")
 
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("\n"))
+	if _, err := w.Write([]byte("\n")); err != nil { // leading newline before items
+		return err
+	}
 	max := 60
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
 
@@ -440,6 +457,53 @@ func (ws *app) GetFacetGroups(w http.ResponseWriter, r *http.Request, sessionId 
 	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
 	return enc.Encode(types.CurrentSettings.FacetGroups)
+}
+
+func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
+	// Set appropriate headers for JSONL streaming
+	w.Header().Set("Content-Type", "application/jsonl+json; charset=UTF-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.WriteHeader(http.StatusOK)
+
+	// Create JSON encoder
+	enc := json.NewEncoder(w)
+
+	// Create scanner to read line by line
+	scanner := bufio.NewScanner(r.Body)
+
+	// Create iter.Seq[uint] to feed to GetItems
+	idSeq := func(yield func(uint) bool) {
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue // Skip empty lines
+			}
+
+			// Convert string ID to uint
+			id, err := strconv.ParseUint(line, 10, 32)
+			if err != nil {
+				log.Printf("Error parsing item ID '%s': %v", line, err)
+				continue // Skip invalid IDs
+			}
+
+			if !yield(uint(id)) {
+				return
+			}
+		}
+	}
+
+	// Stream items using GetItems
+	for item := range ws.itemIndex.GetItems(idSeq) {
+		if err := enc.Encode(item); err != nil {
+			log.Printf("Error encoding item: %v", err)
+			return
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error reading request body: %v", err)
+	}
 }
 
 // type Similar struct {
