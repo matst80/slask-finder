@@ -5,10 +5,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/storage"
-	"github.com/matst80/slask-finder/pkg/sync"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -26,6 +27,7 @@ func main() {
 	watcher := NewPriceWatcher(diskStorage)
 	app := &ItemWatcher{
 		Items:   make(map[uint]int),
+		mu:      sync.RWMutex{},
 		watcher: *watcher,
 	}
 
@@ -51,7 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	sync.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
+	messaging.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
 		items := []index.DataItem{}
 		app.mu.Lock()
 		defer app.mu.Unlock()

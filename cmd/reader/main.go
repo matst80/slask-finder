@@ -14,10 +14,10 @@ import (
 	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/sorting"
 	"github.com/matst80/slask-finder/pkg/storage"
-	"github.com/matst80/slask-finder/pkg/sync"
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 
@@ -68,7 +68,7 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
 	// items listener
-	sync.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
+	messaging.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
 		var items []index.DataItem
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
@@ -106,7 +106,7 @@ func (a *app) ConnectFacetChange() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	sync.ListenToTopic(ch, country, "facet_change", func(d amqp.Delivery) error {
+	messaging.ListenToTopic(ch, country, "facet_change", func(d amqp.Delivery) error {
 		var items []types.FieldChange
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got fieldchanges %d", len(items))
@@ -124,7 +124,7 @@ func (a *app) ConnectSettingsChange() {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
 	// items listerner
-	sync.ListenToTopic(ch, country, "settings_change", func(d amqp.Delivery) error {
+	messaging.ListenToTopic(ch, country, "settings_change", func(d amqp.Delivery) error {
 		var item types.SettingsChange
 		if err := json.Unmarshal(d.Body, &item); err == nil {
 			log.Printf("Got settings %v", item)

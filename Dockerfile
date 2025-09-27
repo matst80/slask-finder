@@ -15,7 +15,7 @@ COPY cmd ./cmd
 # Build both binaries
 RUN CGO_ENABLED=0 GOOS=linux go build -o /slask-reader ./cmd/reader
 RUN CGO_ENABLED=0 GOOS=linux go build -o /slask-writer ./cmd/writer
-RUN CGO_ENABLED=0 GOOS=linux go build -o /price-watcher ./cmd/price-watcher
+RUN CGO_ENABLED=0 GOOS=linux go build -o /price-watcher ./cmd/pricewatcher
 RUN CGO_ENABLED=0 GOOS=linux go build -o /embeddings ./cmd/embeddings
 
 # Final stage with distroless image

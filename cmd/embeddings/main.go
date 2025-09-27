@@ -8,8 +8,8 @@ import (
 
 	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/storage"
-	"github.com/matst80/slask-finder/pkg/sync"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -50,7 +50,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	sync.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
+	messaging.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
 		items := []index.DataItem{}
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
@@ -67,9 +67,10 @@ func main() {
 	}
 
 	a := &app{
-		country: country,
-		storage: diskStorage,
-		index:   embeddingsIndex,
+		country:  country,
+		storage:  diskStorage,
+		index:    embeddingsIndex,
+		proxyUrl: os.Getenv("PROXY_URL"),
 	}
 
 	mux := http.NewServeMux()
