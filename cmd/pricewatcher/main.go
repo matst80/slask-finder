@@ -61,7 +61,10 @@ func main() {
 			log.Printf("Got upserts %d", len(items))
 			app.HandleItems(items)
 		}
-		diskStorage.SaveJson(app.Items, "item_prices.json")
+		err := diskStorage.SaveJson(app.Items, "item_prices.json")
+		if err != nil {
+			log.Printf("Could not save item prices to file: %v", err)
+		}
 		return nil
 	})
 
