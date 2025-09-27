@@ -47,6 +47,7 @@ type app struct {
 	gotSaveTrigger bool
 	country        string
 	tracker        types.Tracking
+	conn           *amqp.Connection
 	storage        *storage.DiskStorage
 	itemIndex      *index.ItemIndexWithStock
 	searchIndex    *search.FreeTextItemHandler
@@ -54,10 +55,11 @@ type app struct {
 	facetHandler   *facet.FacetItemHandler
 }
 
-func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
+func (a *app) ConnectAmqp(amqpUrl string) {
 	conn, err := amqp.DialConfig(amqpUrl, amqp.Config{
 		Properties: amqp.NewConnectionProperties(),
 	})
+	a.conn = conn
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
@@ -79,11 +81,11 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 			if err := json.Unmarshal(d.Body, &items); err == nil {
 				log.Printf("Got upserts %d", len(items))
 
-				for _, handler := range handlers {
+				go a.itemIndex.HandleItems(asItems(items))
+				go a.facetHandler.HandleItems(asItems(items))
+				go a.sortingHandler.HandleItems(asItems(items))
+				go a.searchIndex.HandleItems(asItems(items))
 
-					handler.HandleItems(asItems(items))
-
-				}
 			} else {
 				log.Printf("Failed to unmarshal upset message %v", err)
 			}
@@ -91,6 +93,7 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 
 	}(toAdd)
 	log.Printf("Listening for item upserts")
+
 	ticker := time.NewTicker(time.Minute * 1)
 	go func() {
 		for range ticker.C {
@@ -104,6 +107,63 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 			}
 		}
 	}()
+}
+
+func (a *app) ConnectFacetChange() {
+	ch, err := a.conn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+	// items listerner
+	fc, err := sync.DeclareBindAndConsume(ch, country, "facet_change")
+	if err != nil {
+		log.Fatalf("Failed to declare and bind to topic: %v", err)
+	}
+	log.Printf("Connected to rabbit upsert topic")
+	go func(msgs <-chan amqp.Delivery) {
+		defer ch.Close()
+		for d := range msgs {
+
+			var items []types.FieldChange
+			if err := json.Unmarshal(d.Body, &items); err == nil {
+				log.Printf("Got fieldchanges %d", len(items))
+
+				a.facetHandler.HandleFieldChanges(items)
+
+			} else {
+				log.Printf("Failed to unmarshal upset message %v", err)
+			}
+		}
+
+	}(fc)
+}
+
+func (a *app) ConnectSettingsChange() {
+	ch, err := a.conn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+	// items listerner
+	fc, err := sync.DeclareBindAndConsume(ch, country, "settings_change")
+	if err != nil {
+		log.Fatalf("Failed to declare and bind to topic: %v", err)
+	}
+	log.Printf("Connected to rabbit settings topic")
+	go func(msgs <-chan amqp.Delivery) {
+		defer ch.Close()
+		for d := range msgs {
+
+			var item types.SettingsChange
+			if err := json.Unmarshal(d.Body, &item); err == nil {
+				log.Printf("Got settings %v", item)
+				a.storage.LoadSettings()
+
+			} else {
+				log.Printf("Failed to unmarshal upset message %v", err)
+			}
+		}
+
+	}(fc)
 }
 
 func main() {
@@ -135,14 +195,10 @@ func main() {
 
 	amqpUrl, ok := os.LookupEnv("RABBIT_HOST")
 	if ok {
-		app.Connect(amqpUrl, itemIndex, sortingHandler, facetHandler, searchHandler)
+		app.ConnectAmqp(amqpUrl)
+		app.ConnectFacetChange()
 	}
-	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
 	var tracker types.Tracking = nil
 	if amqpUrl != "" {
 		tracker, err = tracking.NewRabbitTracking(amqpUrl, country)
@@ -153,6 +209,12 @@ func main() {
 			defer tracker.Close()
 		}
 	}
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
 
 	mux.HandleFunc("/api/stream", common.JsonHandler(tracker, app.SearchStreamed))
 	mux.HandleFunc("/api/facets", common.JsonHandler(tracker, app.GetFacets))
@@ -169,29 +231,21 @@ func main() {
 
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
 	/*
+		  	mux.HandleFunc("/natural", common.JsonHandler(tracking, ws.SearchEmbeddings))
+				mux.HandleFunc("/cosine-similar/{id}", common.JsonHandler(tracking, ws.CosineSimilar))
+				mux.HandleFunc("/trigger-words", common.JsonHandler(tracking, ws.TriggerWords))
+				mux.HandleFunc("/find-related", common.JsonHandler(tracking, app.FindRelated))
 
 
-
-		mux.HandleFunc("/natural", common.JsonHandler(tracking, ws.SearchEmbeddings))
-
-		mux.HandleFunc("/cosine-similar/{id}", common.JsonHandler(tracking, ws.CosineSimilar))
-		mux.HandleFunc("/trigger-words", common.JsonHandler(tracking, ws.TriggerWords))
+				mux.HandleFunc("/reload-settings", common.JsonHandler(tracking, app.ReloadSettings))
 
 
-		mux.HandleFunc("/find-related", common.JsonHandler(tracking, app.FindRelated))
-		//mux.HandleFunc("/categories", common.JsonHandler(tracking, ws.Categories))
-		//mux.HandleFunc("/search", ws.QueryIndex)
-		//mux.HandleFunc("GET /settings", ws.GetSettings)
+				mux.HandleFunc("/ids", common.JsonHandler(tracking, app.GetIds))
 
-		mux.HandleFunc("/reload-settings", common.JsonHandler(tracking, app.ReloadSettings))
+				mux.HandleFunc("POST /get", common.JsonHandler(tracking, app.GetItems))
 
-
-		mux.HandleFunc("/ids", common.JsonHandler(tracking, app.GetIds))
-
-		mux.HandleFunc("POST /get", common.JsonHandler(tracking, app.GetItems))
-
-		mux.HandleFunc("/predict-sequence", common.JsonHandler(tracking, app.PredictSequence))
-		mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
+				mux.HandleFunc("/predict-sequence", common.JsonHandler(tracking, app.PredictSequence))
+				mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
 
 	*/
 	server := &http.Server{Addr: ":8080", Handler: mux}

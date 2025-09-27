@@ -436,6 +436,11 @@ func (ws *app) SaveTrigger(w http.ResponseWriter, r *http.Request, sessionId int
 	w.WriteHeader(http.StatusOK)
 	return nil
 }
+func (ws *app) GetFacetGroups(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	defaultHeaders(w, r, true, "1200")
+	w.WriteHeader(http.StatusOK)
+	return enc.Encode(types.CurrentSettings.FacetGroups)
+}
 
 // type Similar struct {
 // 	ProductType string       `json:"productType"`

@@ -28,6 +28,10 @@ type FacetItemHandler struct {
 	All          types.ItemList // should move to search handler
 }
 
+func (h *FacetItemHandler) HandleFieldChanges(items []types.FieldChange) {
+
+}
+
 func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 	r := &FacetItemHandler{
 		Facets:       make(map[uint]types.Facet),
@@ -178,25 +182,34 @@ func (h *FacetItemHandler) GetKeyFacet(id uint) (*KeyField, bool) {
 	return nil, false
 }
 
-// func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
-// 	h.mu.Lock()
-// 	defer h.mu.Unlock()
-// 	log.Printf("Updating facet fields %d", len(changes))
-// 	for _, change := range changes {
-// 		if change.Action == types.ADD_FIELD {
-// 			log.Println("not implemented add field")
-// 		} else {
-// 			if f, ok := h.Facets[change.Id]; ok {
-// 				switch change.Action {
-// 				case types.UPDATE_FIELD:
-// 					f.UpdateBaseField(change.BaseField)
-// 				case types.REMOVE_FIELD:
-// 					delete(h.Facets, change.Id)
-// 				}
-// 			}
-// 		}
-// 	}
-// }
+func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	log.Printf("Updating facet fields %d", len(changes))
+	for _, change := range changes {
+		if change.Action == types.ADD_FIELD {
+			switch change.FieldType {
+			case 1:
+				h.AddKeyField(change.BaseField)
+			case 3:
+				h.AddIntegerField(change.BaseField)
+			case 2:
+				h.AddDecimalField(change.BaseField)
+			default:
+				log.Printf("Unknown field type %d", change.FieldType)
+			}
+		} else {
+			if f, ok := h.Facets[change.Id]; ok {
+				switch change.Action {
+				case types.UPDATE_FIELD:
+					f.UpdateBaseField(change.BaseField)
+				case types.REMOVE_FIELD:
+					delete(h.Facets, change.Id)
+				}
+			}
+		}
+	}
+}
 
 func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected interface{}) {
 	defer wg.Done()
