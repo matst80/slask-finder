@@ -236,7 +236,7 @@ func (item *DataItem) GetRating() (int, int) {
 func (item *DataItem) CanHaveEmbeddings() bool {
 	// log.Printf("Checking if item %s can have embeddings", item.Sku)
 	// log.Printf("Item fields: %v, %v", item.Fields[10], item.Fields[9])
-	return item.Fields[10] != "Outlet" && item.Fields[9] == "Elgiganten"
+	return item.Fields[10] != "Outlet" && (item.Fields[9] == "Elgiganten" || item.Fields[9] == "Elkjøp" || item.Fields[9] == "Gigantti")
 }
 func (item *DataItem) GetEmbeddingsText() (string, error) {
 	return item.Title + "\n" + item.BulletPoints, nil

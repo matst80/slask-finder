@@ -39,7 +39,17 @@ func main() {
 	}
 	defer conn.Close()
 
-	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngine()
+	ollamaModel, ok := os.LookupEnv("OLLAMA_MODEL")
+	if !ok {
+		ollamaModel = "elkjop-ecom"
+	}
+
+	ollamaURL, ok := os.LookupEnv("OLLAMA_URL")
+	if !ok {
+		ollamaURL = "http://10.10.11.135:11434/api/embeddings"
+	}
+
+	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(ollamaModel, ollamaURL)
 	embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func(data map[uint]types.Embeddings) error {
 		log.Printf("Queue done, saving %d embeddings to disk", len(data))
 		diskStorage.SaveEmbeddings(data)
