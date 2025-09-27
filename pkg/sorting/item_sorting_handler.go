@@ -1,37 +1,22 @@
 package sorting
 
 import (
+	"encoding/json"
 	"iter"
 	"log"
 	"sync"
 	"time"
 
+	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/types"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func NewPopularitySorter() Sorter {
 	return NewBaseSorter("popular", func(item types.Item) float64 {
 		return types.CollectPopularity(item, *types.CurrentSettings.PopularityRules...)
 	})
-}
-
-type LastUpdateSorter struct {
-	mu     sync.RWMutex
-	scores map[uint]float64
-}
-
-func (s *LastUpdateSorter) ProcessItem(item types.Item) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	id := item.GetId()
-	if item.IsDeleted() {
-		delete(s.scores, id)
-		return
-	}
-	lastUpdated := item.GetLastUpdated()
-	if lastUpdated > 0 {
-		s.scores[id] = float64(lastUpdated)
-	}
 }
 
 func NewPriceSorter() Sorter {
@@ -56,6 +41,7 @@ func NewLastUpdateSorter() Sorter {
 
 type SortingItemHandler struct {
 	mu         sync.RWMutex
+	overrides  map[string]SortOverride
 	Sorters    []Sorter
 	sortValues map[string]types.ByValue
 }
@@ -63,6 +49,7 @@ type SortingItemHandler struct {
 func NewSortingItemHandler() *SortingItemHandler {
 	handler := &SortingItemHandler{
 		mu:         sync.RWMutex{},
+		overrides:  make(map[string]SortOverride),
 		sortValues: make(map[string]types.ByValue, 3),
 		Sorters: []Sorter{
 			NewPopularitySorter(),
@@ -79,18 +66,48 @@ func NewSortingItemHandler() *SortingItemHandler {
 	return handler
 }
 
-// ItemHandler interface implementation
-func (h *SortingItemHandler) HandleItem(item types.Item) {
-	h.HandleItemUnsafe(item)
+func (h *SortingItemHandler) Connect(conn *amqp.Connection, country string) {
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+	err = messaging.ListenToTopic(ch, country, "sort_override", func(d amqp.Delivery) error {
+		var item types.SortOverrideUpdate
+		if err := json.Unmarshal(d.Body, &item); err == nil {
+			log.Printf("Got sort override")
+			h.HandleSortOverrideUpdate(item)
+		} else {
+			log.Printf("Failed to unmarshal facet change message %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("Failed to listen to facet_change topic: %v", err)
+	}
+}
+
+func (h *SortingItemHandler) HandleSortOverrideUpdate(item types.SortOverrideUpdate) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.overrides[item.Key] = item.Data
+	for _, s := range h.Sorters {
+		if s.Name() == item.Key {
+			if bs, ok := s.(*BaseSorter); ok {
+				bs.override = item.Data
+				bs.dirty = true
+			}
+			break
+		}
+	}
 }
 
 func (h *SortingItemHandler) HandleItems(it iter.Seq[types.Item]) {
 	for item := range it {
-		h.HandleItemUnsafe(item)
+		h.handleItemUnsafe(item)
 	}
 }
 
-func (h *SortingItemHandler) HandleItemUnsafe(item types.Item) {
+func (h *SortingItemHandler) handleItemUnsafe(item types.Item) {
 	for _, s := range h.Sorters {
 		go s.ProcessItem(item)
 	}
