@@ -113,7 +113,7 @@ func main() {
 	mux.HandleFunc("GET /api/get/{id}", common.JsonHandler(tracker, app.GetItem))
 	mux.HandleFunc("GET /api/by-sku/{sku}", common.JsonHandler(tracker, app.GetItemBySku))
 	mux.HandleFunc("GET /api/related/{id}", common.JsonHandler(tracker, app.Related))
-	mux.HandleFunc("GET /api/compatible/{id}", common.JsonHandler(tracker, app.Compatible))
+	mux.HandleFunc("/api/compatible/{id}", common.JsonHandler(tracker, app.Compatible))
 	mux.HandleFunc("GET /api/values/{id}", common.JsonHandler(tracker, app.GetValues))
 	mux.HandleFunc("GET /api/suggest", common.JsonHandler(tracker, app.Suggest))
 	mux.HandleFunc("GET /api/popular", common.JsonHandler(tracker, app.Popular))
