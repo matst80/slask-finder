@@ -66,16 +66,16 @@ func main() {
 	}
 	err = messaging.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
 		items := []index.DataItem{}
-		app.mu.Lock()
-		defer app.mu.Unlock()
+
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
 			if len(items) == 0 {
 				return nil
 			}
 			app.HandleItems(items)
-
+			app.mu.RLock()
 			err := diskStorage.SaveJson(&app.Items, "item_prices.json")
+			app.mu.RUnlock()
 			if err != nil {
 				log.Printf("Could not save item prices to file: %v", err)
 			}
@@ -100,6 +100,7 @@ func main() {
 		Shutdown:   20 * time.Second,
 		Hook:       5 * time.Second,
 	})
+
 	server := common.NewServerWithTimeouts(&http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: cfg.ReadHeader}, cfg)
 	common.RunServerWithShutdown(server, "pricewatcher server", cfg.Shutdown, cfg.Hook)
 }
