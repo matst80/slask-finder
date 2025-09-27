@@ -190,7 +190,7 @@ func (p *DiskStorage) LoadGzippedJson(data interface{}, filename string) error {
 	defer zipReader.Close()
 
 	err = enc.Decode(data)
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		return err
 	}
 
@@ -236,7 +236,7 @@ func (p *DiskStorage) LoadJson(data interface{}, filename string) error {
 	defer file.Close()
 
 	err = enc.Decode(data)
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		return err
 	}
 
@@ -425,7 +425,7 @@ func (p *DiskStorage) LoadGzippedGob(output interface{}, name string) error {
 	dec := gob.NewDecoder(zipReader)
 
 	err = dec.Decode(&output)
-	if err != nil {
+	if err != nil && err.Error() != "EOF" {
 		return err
 	}
 
