@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"slices"
 	"strconv"
@@ -159,19 +160,25 @@ func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	if slices.Index(field.Purpose, "do not show") != -1 {
 		baseField.HideFacet = true
 	}
-	// switch field.Type {
-	// case KEY:
-	// 	ws.facets[field.Id] = &types.Facet{
-	// 	ws.FacetHandler.AddKeyField(baseField)
-	// case NUMBER:
-	// 	ws.FacetHandler.AddIntegerField(baseField)
-	// case DECIMAL:
-	// 	ws.FacetHandler.AddDecimalField(baseField)
-	// }
-	// err := ws.Db.SaveFacets(ws.FacetHandler.Facets)
-	// if err != nil {
-	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
-	// }
+	ws.storageFacets = append(ws.storageFacets, &facet.StorageFacet{
+		BaseField: baseField,
+		Type:      facet.FieldType(field.Type),
+	})
+	err := ws.storage.SaveFacets(ws.storageFacets)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	change := types.FieldChange{
+		Action:    types.ADD_FIELD,
+		BaseField: baseField,
+		FieldType: uint(field.Type),
+	}
+	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
+		log.Printf("Could not send facet changes: %v", err)
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -191,6 +198,14 @@ func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 
 	if err = ws.storage.SaveFacets(ws.storageFacets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	change := types.FieldChange{
+		Action:    types.REMOVE_FIELD,
+		BaseField: &types.BaseField{Id: uint(facetId)},
+		FieldType: 0,
+	}
+	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
+		log.Printf("Could not send facet changes: %v", err)
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -225,12 +240,15 @@ func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	if err = ws.storage.SaveFacets(ws.storageFacets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	changes := make([]types.FieldChange, 0)
-	changes = append(changes, types.FieldChange{
+
+	change := types.FieldChange{
 		Action:    types.UPDATE_FIELD,
 		BaseField: current,
 		FieldType: uint(facet.Type),
-	})
+	}
+	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
+		log.Printf("Could not send facet changes: %v", err)
+	}
 	// if ws.FacetHandler.ChangeHandler != nil {
 	// 	ws.FacetHandler.ChangeHandler.FieldsChanged(changes)
 	// }

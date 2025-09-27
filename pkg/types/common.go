@@ -173,6 +173,14 @@ type FieldChange struct {
 	FieldType uint              `json:"fieldType"`
 }
 
+type SettingsKey string
+
+type SettingsChange struct {
+	Type     SettingsKey `json:"type"`
+	Priority float64     `json:"priority"`
+	Value    interface{} `json:"value"`
+}
+
 func (s *Settings) Lock() {
 	s.mu.Lock()
 }

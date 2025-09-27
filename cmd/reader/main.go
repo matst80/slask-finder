@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"iter"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -62,7 +65,7 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-
+	// items listerner
 	toAdd, err := sync.DeclareBindAndConsume(ch, country, "item_added")
 	if err != nil {
 		log.Fatalf("Failed to declare and bind to topic: %v", err)
@@ -87,7 +90,20 @@ func (a *app) Connect(amqpUrl string, handlers ...types.ItemHandler) {
 		}
 
 	}(toAdd)
-
+	log.Printf("Listening for item upserts")
+	ticker := time.NewTicker(time.Minute * 1)
+	go func() {
+		for range ticker.C {
+			if a.gotSaveTrigger {
+				log.Println("Saving items due to trigger")
+				err := a.storage.SaveItems(a.itemIndex.GetAllItems())
+				if err != nil {
+					log.Printf("Failed to save items: %v", err)
+				}
+				a.gotSaveTrigger = false
+			}
+		}
+	}()
 }
 
 func main() {
@@ -114,19 +130,6 @@ func main() {
 		sortingHandler: sortingHandler,
 		facetHandler:   facetHandler,
 	}
-	ticker := time.NewTicker(time.Minute * 1)
-	go func() {
-		for range ticker.C {
-			if app.gotSaveTrigger {
-				log.Println("Saving items due to trigger")
-				err := app.storage.SaveItems(app.itemIndex.GetAllItems())
-				if err != nil {
-					log.Printf("Failed to save items: %v", err)
-				}
-				app.gotSaveTrigger = false
-			}
-		}
-	}()
 
 	diskStorage.LoadItems(itemIndex, sortingHandler, facetHandler, searchHandler)
 
@@ -191,5 +194,36 @@ func main() {
 		mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
 
 	*/
-	http.ListenAndServe(":8080", mux)
+	server := &http.Server{Addr: ":8080", Handler: mux}
+
+	go func() {
+		log.Println("starting server on :8080")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on %s: %v\n", server.Addr, err)
+		}
+	}()
+
+	// Graceful shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	log.Println("Shutting down server...")
+
+	// Save the index
+	log.Println("Saving index...")
+	if err := app.storage.SaveItems(app.itemIndex.GetAllItems()); err != nil {
+		log.Printf("Failed to save items: %v", err)
+	} else {
+		log.Println("Index saved successfully.")
+	}
+
+	// Shutdown the server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+v", err)
+	}
+
+	log.Println("Server gracefully stopped")
 }

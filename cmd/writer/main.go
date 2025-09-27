@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/storage"
@@ -105,10 +109,13 @@ func main() {
 	srv.HandleFunc("/admin/save", auth.Middleware(app.saveItems))
 	//srv.HandleFunc("GET /admin/item/{id}", auth.Middleware(app.getAdminItemById))
 	srv.HandleFunc("GET /admin/facets", app.GetFacetList)
+	srv.HandleFunc("DELETE /admin/facets/{id}", auth.Middleware(app.DeleteFacet))
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
 	srv.HandleFunc("PUT /admin/fields", auth.Middleware(app.HandleUpdateFields))
+
+	srv.HandleFunc("GET /admin/fields/{id}/add", auth.Middleware(app.CreateFacetFromField))
 	srv.HandleFunc("GET /admin/missing-fields", auth.Middleware(app.MissingFacets))
 	srv.HandleFunc("POST /admin/update-fields", auth.Middleware(app.UpdateFacetsFromFields))
 
@@ -131,7 +138,7 @@ func main() {
 	   srv.HandleFunc("GET /index/facets", app.Middleware(app.GetSearchIndexedFacets))
 	   srv.HandleFunc("POST /index/facets", app.Middleware(app.SetSearchIndexedFacets))
 	   srv.HandleFunc("GET /item/{id}/popularity", app.Middleware(app.GetItemPopularity))
-	   srv.HandleFunc("GET /fields/{id}/add", app.Middleware(app.CreateFacetFromField))
+
 	   srv.HandleFunc("GET /fields", app.GetFields)
 
 	   srv.HandleFunc("PUT /facet-group", app.Middleware(app.FacetGroupUpdate))
@@ -155,5 +162,34 @@ func main() {
 	   srv.HandleFunc("GET /webauthn/login/start", auth.LoginChallenge)
 	   srv.HandleFunc("POST /webauthn/login/finish", auth.LoginChallengeResponse)
 	*/
-	http.ListenAndServe(":8080", srv)
+	server := &http.Server{Addr: ":8080", Handler: srv}
+
+	go func() {
+		log.Println("starting server on :8080")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Could not listen on %s: %v\n", server.Addr, err)
+		}
+	}()
+	// Graceful shutdown
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+
+	log.Println("Shutting down server...")
+
+	if err := app.storage.SaveFacets(app.storageFacets); err != nil {
+		log.Printf("Failed to save facets: %v", err)
+	}
+	// if err := app.storage.sa(app.storageFacets); err != nil {
+	// 	log.Printf("Failed to save facets: %v", err)
+	// }
+
+	// Shutdown the server
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server Shutdown Failed:%+v", err)
+	}
+
+	log.Println("Server gracefully stopped")
 }

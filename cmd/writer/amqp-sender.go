@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/sync"
+	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -22,8 +22,16 @@ func NewAmqpSender(country string, conn *amqp.Connection) *AmqpSender {
 	return r
 }
 
-func (app *AmqpSender) SendItems(items []index.DataItem) error {
-	return sync.SendChange(app.connection, app.Country, "item_added", items)
+// func (app *AmqpSender) SendItems(items []index.DataItem) error {
+// 	return sync.SendChange(app.connection, app.Country, "item_added", items)
+// }
+
+func (app *AmqpSender) SendFacetChanges(items ...types.FieldChange) error {
+	return sync.SendChange(app.connection, app.Country, "facet_change", items)
+}
+
+func (app *AmqpSender) SendSettingsChange(item types.SettingsChange) error {
+	return sync.SendChange(app.connection, app.Country, "settings_change", item)
 }
 
 func (app *AmqpSender) defineTopics() {
@@ -34,5 +42,11 @@ func (app *AmqpSender) defineTopics() {
 	defer ch.Close()
 	if err := sync.DefineTopic(ch, app.Country, "item_added"); err != nil {
 		log.Fatalf("Failed to declare topic item_added: %v", err)
+	}
+	if err := sync.DefineTopic(ch, app.Country, "facet_change"); err != nil {
+		log.Fatalf("Failed to declare topic facet_change: %v", err)
+	}
+	if err := sync.DefineTopic(ch, app.Country, "settings_change"); err != nil {
+		log.Fatalf("Failed to declare topic settings_change: %v", err)
 	}
 }
