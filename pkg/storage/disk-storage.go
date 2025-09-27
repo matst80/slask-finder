@@ -424,7 +424,8 @@ func (p *DiskStorage) LoadGzippedGob(output interface{}, name string) error {
 
 	dec := gob.NewDecoder(zipReader)
 
-	err = dec.Decode(&output)
+	// Decode directly into the provided output (which should be a pointer)
+	err = dec.Decode(output)
 	if err != nil && err.Error() != "EOF" {
 		return err
 	}

@@ -63,9 +63,13 @@ func main() {
 		// embeddingsIndex: embeddingsIndex,
 		storage: diskStorage,
 	}
-	err = diskStorage.LoadGzippedJson(app.fieldData, "fields.jz")
-	if err != nil {
-		log.Printf("Could not load fields from file: %v", err)
+	// Load stored field metadata (map must be passed by pointer for decoder)
+	if err = diskStorage.LoadGzippedJson(&app.fieldData, "fields.jz"); err != nil {
+		if os.IsNotExist(err) {
+			log.Printf("fields.jz not found, starting with empty field map")
+		} else {
+			log.Printf("Could not load fields from file: %v", err)
+		}
 	}
 	err = diskStorage.LoadFacets(&app.storageFacets)
 	if err != nil {

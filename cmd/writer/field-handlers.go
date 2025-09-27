@@ -129,9 +129,10 @@ func (ws *MasterApp) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Reque
 func (ws *MasterApp) findFacet(id uint) (*facet.StorageFacet, bool) {
 	ws.mu.RLock()
 	defer ws.mu.RUnlock()
-	for _, facet := range ws.storageFacets {
-		if facet.Id == id {
-			return &facet, true
+	// Iterate by index to return pointer to the actual slice element (not loop copy)
+	for i := range ws.storageFacets {
+		if ws.storageFacets[i].Id == id {
+			return &ws.storageFacets[i], true
 		}
 	}
 	return nil, false
