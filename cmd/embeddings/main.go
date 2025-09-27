@@ -52,7 +52,10 @@ func main() {
 	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(ollamaModel, ollamaURL)
 	embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func(data map[uint]types.Embeddings) error {
 		log.Printf("Queue done, saving %d embeddings to disk", len(data))
-		diskStorage.SaveEmbeddings(data)
+		err := diskStorage.SaveEmbeddings(data)
+		if err != nil {
+			log.Printf("Could not save embeddings to file: %v", err)
+		}
 		return nil
 	})
 
