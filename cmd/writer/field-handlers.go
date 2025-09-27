@@ -249,9 +249,7 @@ func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
 		log.Printf("Could not send facet changes: %v", err)
 	}
-	// if ws.FacetHandler.ChangeHandler != nil {
-	// 	ws.FacetHandler.ChangeHandler.FieldsChanged(changes)
-	// }
+
 	w.WriteHeader(http.StatusOK)
 }
 

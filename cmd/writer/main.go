@@ -110,6 +110,7 @@ func main() {
 	//srv.HandleFunc("GET /admin/item/{id}", auth.Middleware(app.getAdminItemById))
 	srv.HandleFunc("GET /admin/facets", app.GetFacetList)
 	srv.HandleFunc("DELETE /admin/facets/{id}", auth.Middleware(app.DeleteFacet))
+	srv.HandleFunc("PUT /admin/facets/{id}", auth.Middleware(app.UpdateFacet))
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
