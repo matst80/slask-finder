@@ -213,6 +213,7 @@ func main() {
 	mux.HandleFunc("GET /api/popular", common.JsonHandler(tracker, app.Popular))
 	mux.HandleFunc("GET /api/save-trigger", common.JsonHandler(tracker, app.SaveTrigger))
 	mux.HandleFunc("GET /api/relation-groups", common.JsonHandler(tracker, app.GetRelationGroups))
+	mux.HandleFunc("GET /api/facet-groups", common.JsonHandler(tracker, app.GetFacetGroups))
 	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
