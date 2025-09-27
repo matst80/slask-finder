@@ -263,13 +263,14 @@ func main() {
 	<-stop
 
 	log.Println("Shutting down server...")
-
-	// Save the index
-	log.Println("Saving index...")
-	if err := app.storage.SaveItems(app.itemIndex.GetAllItems()); err != nil {
-		log.Printf("Failed to save items: %v", err)
-	} else {
-		log.Println("Index saved successfully.")
+	if app.gotSaveTrigger {
+		// Save the index
+		log.Println("Saving index...")
+		if err := app.storage.SaveItems(app.itemIndex.GetAllItems()); err != nil {
+			log.Printf("Failed to save items: %v", err)
+		} else {
+			log.Println("Index saved successfully.")
+		}
 	}
 
 	// Shutdown the server
