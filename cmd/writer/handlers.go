@@ -11,8 +11,8 @@ import (
 
 func asSeq(items []index.DataItem) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
-		for _, item := range items {
-			if !yield(&item) {
+		for i := range items {
+			if !yield(&items[i]) { // use index to avoid pointer to loop copy
 				return
 			}
 		}

@@ -32,9 +32,14 @@ func main() {
 	}
 
 	// Load existing items from disk if available
-	err := diskStorage.LoadJson(app.Items, "item_prices.json")
+	// Must pass pointer so JSON decoder can populate map
+	err := diskStorage.LoadJson(&app.Items, "item_prices.json")
 	if err != nil {
-		log.Printf("Could not load item prices from file: %v", err)
+		if os.IsNotExist(err) {
+			log.Printf("item_prices.json not found, starting empty")
+		} else {
+			log.Printf("Could not load item prices from file: %v", err)
+		}
 	}
 
 	amqpUrl, ok := os.LookupEnv("RABBIT_HOST")
