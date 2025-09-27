@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -440,6 +441,53 @@ func (ws *app) GetFacetGroups(w http.ResponseWriter, r *http.Request, sessionId 
 	defaultHeaders(w, r, true, "1200")
 	w.WriteHeader(http.StatusOK)
 	return enc.Encode(types.CurrentSettings.FacetGroups)
+}
+
+func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
+	// Set appropriate headers for JSONL streaming
+	w.Header().Set("Content-Type", "application/jsonl+json; charset=UTF-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.WriteHeader(http.StatusOK)
+
+	// Create JSON encoder
+	enc := json.NewEncoder(w)
+
+	// Create scanner to read line by line
+	scanner := bufio.NewScanner(r.Body)
+
+	// Create iter.Seq[uint] to feed to GetItems
+	idSeq := func(yield func(uint) bool) {
+		for scanner.Scan() {
+			line := strings.TrimSpace(scanner.Text())
+			if line == "" {
+				continue // Skip empty lines
+			}
+
+			// Convert string ID to uint
+			id, err := strconv.ParseUint(line, 10, 32)
+			if err != nil {
+				log.Printf("Error parsing item ID '%s': %v", line, err)
+				continue // Skip invalid IDs
+			}
+
+			if !yield(uint(id)) {
+				return
+			}
+		}
+	}
+
+	// Stream items using GetItems
+	for item := range ws.itemIndex.GetItems(idSeq) {
+		if err := enc.Encode(item); err != nil {
+			log.Printf("Error encoding item: %v", err)
+			return
+		}
+	}
+
+	// Check for scanning errors
+	if err := scanner.Err(); err != nil {
+		log.Printf("Error reading request body: %v", err)
+	}
 }
 
 // type Similar struct {

@@ -1,4 +1,4 @@
-package server
+package main
 
 import (
 	"context"
@@ -18,7 +18,7 @@ import (
 
 var (
 	priceWatchesMutex sync.RWMutex
-	priceWatchesFile  = "data/price_watches_v2.json"
+	priceWatchesFile  = "price_watches.json"
 )
 
 // PushSubscription represents a Web Push API subscription
@@ -41,14 +41,16 @@ type PriceWatchRequest struct {
 
 // PriceWatchesData represents the structure of the watches file
 type PriceWatchesData struct {
+	storage types.StorageProvider
 	Watches []PriceWatch `json:"watches"`
 }
 
-func NewPriceWatcher() *PriceWatchesData {
+func NewPriceWatcher(storage types.StorageProvider) *PriceWatchesData {
 	r := &PriceWatchesData{
+		storage: storage,
 		Watches: []PriceWatch{},
 	}
-	err := loadPriceWatches(r)
+	err := storage.LoadJson(r, priceWatchesFile)
 	if err != nil {
 		log.Printf("Error loading price watches: %v", err)
 	}
@@ -57,7 +59,7 @@ func NewPriceWatcher() *PriceWatchesData {
 
 // WatchPriceChange handles HTTP requests for adding price watches
 func (p *PriceWatchesData) WatchPriceChange(w http.ResponseWriter, r *http.Request) {
-	defaultHeaders(w, r, false, "0")
+	//defaultHeaders(w, r, false, "0")
 
 	// Get the item ID from path
 	itemID := r.PathValue("id")
@@ -126,44 +128,12 @@ func (p *PriceWatchesData) WatchPriceChange(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-// loadPriceWatches loads the price watches from file
-func loadPriceWatches(instance *PriceWatchesData) error {
-	priceWatchesMutex.RLock()
-	defer priceWatchesMutex.RUnlock()
-
-	// Check if file exists
-	if _, err := os.Stat(priceWatchesFile); os.IsNotExist(err) {
-		return nil
-	}
-
-	data, err := os.ReadFile(priceWatchesFile)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(data, instance)
-	if err != nil {
-		return err
-	}
-
-	if instance.Watches == nil {
-		instance.Watches = []PriceWatch{}
-	}
-
-	return nil
-}
-
 // savePriceWatches saves the price watches to file
 func (p *PriceWatchesData) savePriceWatches() error {
 	priceWatchesMutex.Lock()
 	defer priceWatchesMutex.Unlock()
 
-	data, err := json.MarshalIndent(p, "", "  ")
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(priceWatchesFile, data, 0644)
+	return p.storage.SaveJson(p, priceWatchesFile)
 }
 
 // sendFirebaseNotification sends a notification using the Firebase Admin SDK.

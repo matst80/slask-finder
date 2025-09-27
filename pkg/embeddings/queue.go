@@ -40,11 +40,10 @@ type EmbeddingsQueue struct {
 	queue       chan EmbeddingJob
 	storeFunc   func(uint, types.Embeddings)
 	doneFunc    func() error
-	facets      map[uint]types.Facet
 	workerCount int
 	wg          sync.WaitGroup
 	stopCh      chan struct{}
-	mu          sync.RWMutex
+	//mu          sync.RWMutex
 }
 
 // NewEmbeddingsQueue creates a new embeddings queue with the specified

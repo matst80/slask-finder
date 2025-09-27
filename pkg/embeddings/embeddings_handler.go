@@ -49,7 +49,7 @@ func DefaultEmbeddingsHandlerOptions(engine types.EmbeddingsEngine) ItemEmbeddin
 }
 
 // NewItemEmbeddingsHandler creates a new ItemEmbeddingsHandler with the specified options
-func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func() error) *ItemEmbeddingsHandler {
+func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(items map[uint]types.Embeddings) error) *ItemEmbeddingsHandler {
 	handler := &ItemEmbeddingsHandler{
 		mu:               sync.RWMutex{},
 		Embeddings:       make(map[uint]types.Embeddings),
@@ -69,7 +69,11 @@ func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(
 		handler.EmbeddingsQueue = NewEmbeddingsQueue(
 			opts.EmbeddingsEngine,
 			storeFunc,
-			queueDone,
+			func() error {
+				handler.mu.RLock()
+				defer handler.mu.RUnlock()
+				return queueDone(handler.Embeddings)
+			},
 			opts.EmbeddingsWorkers,
 			opts.EmbeddingsQueueSize)
 

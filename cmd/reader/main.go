@@ -67,31 +67,23 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	// items listerner
-	toAdd, err := sync.DeclareBindAndConsume(ch, country, "item_added")
-	if err != nil {
-		log.Fatalf("Failed to declare and bind to topic: %v", err)
-	}
-	log.Printf("Connected to rabbit upsert topic")
-	go func(msgs <-chan amqp.Delivery) {
-		defer ch.Close()
-		for d := range msgs {
+	// items listener
+	sync.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
+		var items []index.DataItem
+		if err := json.Unmarshal(d.Body, &items); err == nil {
+			log.Printf("Got upserts %d", len(items))
 
-			var items []index.DataItem
-			if err := json.Unmarshal(d.Body, &items); err == nil {
-				log.Printf("Got upserts %d", len(items))
+			go a.itemIndex.HandleItems(asItems(items))
+			go a.facetHandler.HandleItems(asItems(items))
+			go a.sortingHandler.HandleItems(asItems(items))
+			go a.searchIndex.HandleItems(asItems(items))
 
-				go a.itemIndex.HandleItems(asItems(items))
-				go a.facetHandler.HandleItems(asItems(items))
-				go a.sortingHandler.HandleItems(asItems(items))
-				go a.searchIndex.HandleItems(asItems(items))
-
-			} else {
-				log.Printf("Failed to unmarshal upset message %v", err)
-			}
+		} else {
+			log.Printf("Failed to unmarshal upset message %v", err)
 		}
+		return nil
+	})
 
-	}(toAdd)
 	log.Printf("Listening for item upserts")
 
 	ticker := time.NewTicker(time.Minute * 1)
@@ -114,28 +106,16 @@ func (a *app) ConnectFacetChange() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	// items listerner
-	fc, err := sync.DeclareBindAndConsume(ch, country, "facet_change")
-	if err != nil {
-		log.Fatalf("Failed to declare and bind to topic: %v", err)
-	}
-	log.Printf("Connected to rabbit upsert topic")
-	go func(msgs <-chan amqp.Delivery) {
-		defer ch.Close()
-		for d := range msgs {
-
-			var items []types.FieldChange
-			if err := json.Unmarshal(d.Body, &items); err == nil {
-				log.Printf("Got fieldchanges %d", len(items))
-
-				a.facetHandler.HandleFieldChanges(items)
-
-			} else {
-				log.Printf("Failed to unmarshal upset message %v", err)
-			}
+	sync.ListenToTopic(ch, country, "facet_change", func(d amqp.Delivery) error {
+		var items []types.FieldChange
+		if err := json.Unmarshal(d.Body, &items); err == nil {
+			log.Printf("Got fieldchanges %d", len(items))
+			a.facetHandler.HandleFieldChanges(items)
+		} else {
+			log.Printf("Failed to unmarshal facet change message %v", err)
 		}
-
-	}(fc)
+		return nil
+	})
 }
 
 func (a *app) ConnectSettingsChange() {
@@ -144,26 +124,16 @@ func (a *app) ConnectSettingsChange() {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
 	// items listerner
-	fc, err := sync.DeclareBindAndConsume(ch, country, "settings_change")
-	if err != nil {
-		log.Fatalf("Failed to declare and bind to topic: %v", err)
-	}
-	log.Printf("Connected to rabbit settings topic")
-	go func(msgs <-chan amqp.Delivery) {
-		defer ch.Close()
-		for d := range msgs {
-
-			var item types.SettingsChange
-			if err := json.Unmarshal(d.Body, &item); err == nil {
-				log.Printf("Got settings %v", item)
-				a.storage.LoadSettings()
-
-			} else {
-				log.Printf("Failed to unmarshal upset message %v", err)
-			}
+	sync.ListenToTopic(ch, country, "settings_change", func(d amqp.Delivery) error {
+		var item types.SettingsChange
+		if err := json.Unmarshal(d.Body, &item); err == nil {
+			log.Printf("Got settings %v", item)
+			a.storage.LoadSettings()
+		} else {
+			log.Printf("Failed to unmarshal upset message %v", err)
 		}
-
-	}(fc)
+		return nil
+	})
 }
 
 func main() {
@@ -228,6 +198,7 @@ func main() {
 	mux.HandleFunc("GET /api/popular", common.JsonHandler(tracker, app.Popular))
 	mux.HandleFunc("GET /api/save-trigger", common.JsonHandler(tracker, app.SaveTrigger))
 	mux.HandleFunc("GET /api/relation-groups", common.JsonHandler(tracker, app.GetRelationGroups))
+	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
 	/*
