@@ -23,7 +23,7 @@ type app struct {
 
 func (ws *app) CosineSimilar(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
-	id, err := strconv.Atoi(idString)
+	id, err := strconv.ParseUint(idString, 10, 64)
 	if err != nil {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
@@ -71,7 +71,7 @@ func (ws *app) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 	ws.proxyIdsToStream(w, r, ids)
 }
 
-func (ws *app) proxyIdsToStream(w http.ResponseWriter, r *http.Request, ids []uint) {
+func (ws *app) proxyIdsToStream(w http.ResponseWriter, _ *http.Request, ids []uint) {
 	if len(ids) == 0 {
 		w.WriteHeader(http.StatusOK)
 		//w.Write([]byte("[]"))

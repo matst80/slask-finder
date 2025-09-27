@@ -111,7 +111,7 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 			continue
 		}
 
-		id, err := strconv.Atoi(idKey)
+		id, err := strconv.ParseUint(idKey, 10, 64)
 
 		if err != nil {
 			continue

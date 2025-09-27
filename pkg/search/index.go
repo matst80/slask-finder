@@ -130,14 +130,15 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 	tl := len(token)
 
 	score := 0.0
-	found := false
+
 	for i := range i.TokenMap {
+		found := false
 		il := len(i)
 		if il < tl {
 			continue
 		}
 		score = 0.0
-		found = false
+
 		for _, chr := range token {
 			found = false
 			for _, jchr := range i {
@@ -199,23 +200,16 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 		if !found {
 			tries := types.ItemList{}
 			for _, match := range i.Trie.FindMatches(token) {
-				if match.Items != nil {
-					if res.HasIntersection(match.Items) {
-						tries.Merge(match.Items)
-					}
-					found = true
+				if match.Items != nil && res.HasIntersection(match.Items) {
+					tries.Merge(match.Items)
 				}
 			}
 
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
-				if fuzzyIds, ok := i.TokenMap[match]; ok {
-					if fuzzyIds != nil {
-						if res.HasIntersection(fuzzyIds) {
-							tries.Merge(fuzzyIds)
-						}
-					}
+				if fuzzyIds, ok := i.TokenMap[match]; ok && fuzzyIds != nil && res.HasIntersection(fuzzyIds) {
+					tries.Merge(fuzzyIds)
 				}
 			}
 			res.Intersect(tries)

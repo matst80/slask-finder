@@ -1,3 +1,4 @@
+//nolint:gosec // G115 (int->uint32) modulo conversion is safe here: len(o.ApiEndpoints) is bounded by slice length and atomic counter wraps naturally.
 package embeddings
 
 import (
@@ -112,7 +113,7 @@ func (o *OllamaEmbeddingsEngine) GenerateEmbeddings(text string) (types.Embeddin
 	// Use ApiEndpoints if available (for round-robin), otherwise fall back to single ApiEndpoint
 	if len(o.ApiEndpoints) > 0 {
 		// Get the next index using atomic counter for thread safety
-		idx := atomic.AddUint32(&o.counter, 1) % uint32(len(o.ApiEndpoints))
+		idx := atomic.AddUint32(&o.counter, 1) % uint32(len(o.ApiEndpoints)) //nolint:gosec // length cast safe; modulo keeps idx within bounds
 		endpoint = o.ApiEndpoints[idx]
 	} else {
 		endpoint = o.ApiEndpoint

@@ -68,7 +68,7 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
 	// items listener
-	messaging.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
+	err = messaging.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
 		var items []index.DataItem
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
@@ -83,6 +83,9 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Fatalf("Failed to listen to item_added topic: %v", err)
+	}
 
 	log.Printf("Listening for item upserts")
 
@@ -106,7 +109,7 @@ func (a *app) ConnectFacetChange() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	messaging.ListenToTopic(ch, country, "facet_change", func(d amqp.Delivery) error {
+	err = messaging.ListenToTopic(ch, country, "facet_change", func(d amqp.Delivery) error {
 		var items []types.FieldChange
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got fieldchanges %d", len(items))
@@ -116,6 +119,9 @@ func (a *app) ConnectFacetChange() {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Fatalf("Failed to listen to facet_change topic: %v", err)
+	}
 }
 
 func (a *app) ConnectSettingsChange() {
@@ -123,17 +129,23 @@ func (a *app) ConnectSettingsChange() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	// items listerner
-	messaging.ListenToTopic(ch, country, "settings_change", func(d amqp.Delivery) error {
+	// items listener
+	err = messaging.ListenToTopic(ch, country, "settings_change", func(d amqp.Delivery) error {
 		var item types.SettingsChange
 		if err := json.Unmarshal(d.Body, &item); err == nil {
 			log.Printf("Got settings %v", item)
-			a.storage.LoadSettings()
+			err := a.storage.LoadSettings()
+			if err != nil {
+				log.Printf("Could not update settings from file: %v", err)
+			}
 		} else {
 			log.Printf("Failed to unmarshal upset message %v", err)
 		}
 		return nil
 	})
+	if err != nil {
+		log.Fatalf("Failed to listen to settings_change topic: %v", err)
+	}
 }
 
 func main() {
@@ -161,7 +173,10 @@ func main() {
 		facetHandler:   facetHandler,
 	}
 
-	diskStorage.LoadItems(itemIndex, sortingHandler, facetHandler, searchHandler)
+	err = diskStorage.LoadItems(itemIndex, sortingHandler, facetHandler, searchHandler)
+	if err != nil {
+		log.Printf("Could not load items from file: %v", err)
+	}
 
 	amqpUrl, ok := os.LookupEnv("RABBIT_HOST")
 	if ok {
@@ -183,7 +198,9 @@ func main() {
 
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Failed to write health response: %v", err)
+		}
 	})
 
 	mux.HandleFunc("/api/stream", common.JsonHandler(tracker, app.SearchStreamed))
@@ -219,7 +236,7 @@ func main() {
 				mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
 
 	*/
-	server := &http.Server{Addr: ":8080", Handler: mux}
+	server := &http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 
 	go func() {
 		log.Println("starting server on :8080")

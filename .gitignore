@@ -4,7 +4,8 @@ __debug*
 startup.prof
 .DS_Store
 facet-search
-slask-finder.exe
+*.exe
 clickhouse
 .env
 slask-finder
+

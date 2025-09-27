@@ -74,11 +74,11 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 type BaseItem struct {
 	ItemProp
 	//StockLevel string            `json:"stockLevel,omitempty"`
-	Stock     map[string]string `json:"stock"`
-	Sku       string            `json:"sku"`
-	Title     string            `json:"title"`
-	Id        uint              `json:"id"`
-	baseScore float64
+	Stock map[string]string `json:"stock"`
+	Sku   string            `json:"sku"`
+	Title string            `json:"title"`
+	Id    uint              `json:"id"`
+	//baseScore float64
 }
 
 type DataItem struct {
@@ -409,19 +409,4 @@ func (item *DataItem) GetBaseItem() types.BaseItem {
 }
 func (item *DataItem) GetItem() interface{} {
 	return item.BaseItem
-}
-
-func (item *DataItem) MergeKeyFields(updates []types.CategoryUpdate) bool {
-	changed := false
-	for _, update := range updates {
-		field, ok := item.Fields[update.Id]
-		if !ok {
-			item.Fields[update.Id] = update.Value
-			changed = true
-		} else if field != update.Value {
-			field = update.Value
-			changed = true
-		}
-	}
-	return changed
 }

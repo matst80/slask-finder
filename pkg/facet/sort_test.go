@@ -8,12 +8,12 @@ import (
 
 func TestPresortedSorting(t *testing.T) {
 	sortIndex := types.ByValue{
-		types.Lookup{1, 6},
-		types.Lookup{2, 5},
-		types.Lookup{3, 4},
-		types.Lookup{4, 3},
-		types.Lookup{5, 2},
-		types.Lookup{6, 1},
+		types.Lookup{Id: 1, Value: 6},
+		types.Lookup{Id: 2, Value: 5},
+		types.Lookup{Id: 3, Value: 4},
+		types.Lookup{Id: 4, Value: 3},
+		types.Lookup{Id: 5, Value: 2},
+		types.Lookup{Id: 6, Value: 1},
 	}
 	ids := types.ItemList{4: {}, 2: {}, 1: {}, 3: {}}
 

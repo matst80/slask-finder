@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"iter"
+	"log"
 	"strconv"
 	"strings"
 
@@ -142,13 +143,15 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		idString := record[Id]
 		if strings.HasPrefix(idString, "SELLER:") {
 			cleanId := strings.Replace(idString, "SELLER:", "", -1)
-			id, err := strconv.Atoi(cleanId)
+			id, err := strconv.ParseUint(cleanId, 10, 64)
 			if err != nil {
 				return nil, err
 			}
 			var picture interface{}
 			if record[PagePictureUrl] != "" {
-				json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
+				if err := json.Unmarshal([]byte(record[PagePictureUrl]), &picture); err != nil {
+					log.Printf("Could not unmarshal PagePictureUrl: %v", err)
+				}
 			}
 			return SellerContentItem{
 				Id:          uint(id),
@@ -160,13 +163,15 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 			}, nil
 		}
 		cleanId := strings.Replace(idString, "contentbean:", "", -1)
-		id, err := strconv.Atoi(cleanId)
+		id, err := strconv.ParseUint(cleanId, 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		var picture interface{}
 		if record[PagePictureUrl] != "" {
-			json.Unmarshal([]byte(record[PagePictureUrl]), &picture)
+			if err := json.Unmarshal([]byte(record[PagePictureUrl]), &picture); err != nil {
+				log.Printf("Could not unmarshal PagePictureUrl: %v", err)
+			}
 		}
 		//var component *CmsComponent
 		// if record[ComponentsPictures] != "" {
@@ -190,13 +195,15 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 			//Component:   component,
 		}, nil
 	} else {
-		id, err := strconv.Atoi(record[StoreID])
+		id, err := strconv.ParseUint(record[StoreID], 10, 64)
 		if err != nil {
 			return nil, err
 		}
 		var openHours interface{}
 		if record[StoreOpeningHours] != "" {
-			json.Unmarshal([]byte(record[StoreOpeningHours]), &openHours)
+			if err := json.Unmarshal([]byte(record[StoreOpeningHours]), &openHours); err != nil {
+				log.Printf("Could not unmarshal StoreOpeningHours: %v", err)
+			}
 		}
 		return StoreContentItem{
 			Id:          uint(id),

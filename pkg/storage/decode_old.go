@@ -1,10 +1,7 @@
 package storage
 
 import (
-	"encoding/gob"
-
 	"github.com/matst80/slask-finder/pkg/index"
-	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type KeyFieldValue struct {
@@ -30,24 +27,4 @@ type ItemFields struct {
 type StoredItem struct {
 	index.BaseItem
 	ItemFields
-}
-
-func decodeOld(enc *gob.Decoder, item *index.DataItem) error {
-	tmp := &StoredItem{}
-	err := enc.Decode(tmp)
-	if err == nil {
-		fields := make(types.ItemFields)
-		for _, field := range tmp.Fields {
-			fields[field.Id] = field.Value
-		}
-		for _, field := range tmp.DecimalFields {
-			fields[field.Id] = field.Value
-		}
-		for _, field := range tmp.IntegerFields {
-			fields[field.Id] = field.Value
-		}
-		item.BaseItem = &tmp.BaseItem
-		item.Fields = fields
-	}
-	return err
 }

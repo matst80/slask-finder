@@ -112,20 +112,23 @@ func (p *PriceWatchesData) WatchPriceChange(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Send test push notification
-	subscription := PushSubscription{Token: watchRequest.Token}
-	err = sendTestPushNotification(subscription, itemID)
+	// Send test push notification (propagate request context)
+	subscription := PushSubscription(watchRequest)
+	err = sendTestPushNotification(r.Context(), subscription, itemID)
 	if err != nil {
 		log.Printf("Error sending test push notification: %v", err)
 		// Don't fail the request if push notification fails
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	err = json.NewEncoder(w).Encode(map[string]string{
 		"status":  "success",
 		"message": "Price watch added successfully",
 		"itemId":  itemID,
 	})
+	if err != nil {
+		log.Printf("Error encoding response: %v", err)
+	}
 }
 
 // savePriceWatches saves the price watches to file
@@ -137,7 +140,7 @@ func (p *PriceWatchesData) savePriceWatches() error {
 }
 
 // sendFirebaseNotification sends a notification using the Firebase Admin SDK.
-func sendFirebaseNotification(registrationToken string, notification *messaging.Notification, data map[string]string) error {
+func sendFirebaseNotification(ctx context.Context, registrationToken string, notification *messaging.Notification, data map[string]string) error {
 	// GOOGLE_APPLICATION_CREDENTIALS should be set in the environment.
 	// Or you can pass option.WithCredentialsFile("path/to/serviceAccountKey.json")
 	var app *firebase.App
@@ -145,9 +148,9 @@ func sendFirebaseNotification(registrationToken string, notification *messaging.
 
 	if os.Getenv("GOOGLE_APPLICATION_CREDENTIALS") != "" {
 		opt := option.WithCredentialsFile(os.Getenv("GOOGLE_APPLICATION_CREDENTIALS"))
-		app, err = firebase.NewApp(context.Background(), nil, opt)
+		app, err = firebase.NewApp(ctx, nil, opt)
 	} else {
-		app, err = firebase.NewApp(context.Background(), nil)
+		app, err = firebase.NewApp(ctx, nil)
 	}
 
 	if err != nil {
@@ -155,7 +158,6 @@ func sendFirebaseNotification(registrationToken string, notification *messaging.
 		return err
 	}
 
-	ctx := context.Background()
 	client, err := app.Messaging(ctx)
 	if err != nil {
 		log.Printf("error getting Messaging client: %v\n", err)
@@ -179,7 +181,7 @@ func sendFirebaseNotification(registrationToken string, notification *messaging.
 }
 
 // sendTestPushNotification sends a test push notification to verify the subscription works
-func sendTestPushNotification(subscription PushSubscription, itemID string) error {
+func sendTestPushNotification(ctx context.Context, subscription PushSubscription, itemID string) error {
 	// Extract registration token from FCM endpoint
 	// FCM endpoint format: https://fcm.googleapis.com/fcm/send/{token}
 
@@ -195,7 +197,7 @@ func sendTestPushNotification(subscription PushSubscription, itemID string) erro
 		"tag":    "price-watch-test",
 	}
 
-	return sendFirebaseNotification(subscription.Token, notification, data)
+	return sendFirebaseNotification(ctx, subscription.Token, notification, data)
 }
 
 // NotifyPriceWatchers sends notifications to all watchers for a specific item
@@ -214,7 +216,7 @@ func (p *PriceWatchesData) NotifyPriceWatchers(item types.Item) {
 			}
 
 			// We can probably make this concurrent if we have many watches
-			err := sendFirebaseNotification(watch.Token, notification, data)
+			err := sendFirebaseNotification(context.Background(), watch.Token, notification, data)
 			if err != nil {
 				log.Printf("Failed to send price watch notification for item %s to token %s: %v", watch.ID, watch.Token, err)
 			}

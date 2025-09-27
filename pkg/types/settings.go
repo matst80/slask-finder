@@ -94,9 +94,7 @@ func AsStringArray(value interface{}) []string {
 	itemValues := []string{}
 	switch input := value.(type) {
 	case []string:
-		for _, item := range input {
-			itemValues = append(itemValues, item)
-		}
+		itemValues = append(itemValues, input...)
 	case []interface{}:
 		for _, item := range input {
 			if v, ok := item.(string); ok {

@@ -3,8 +3,9 @@ package storage
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"errors"
+	"io"
 	"iter"
-
 	"log"
 	"os"
 	"runtime"
@@ -139,7 +140,7 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 	}
 	decoder = nil
 
-	if err.Error() == "EOF" {
+	if errors.Is(err, io.EOF) {
 		return nil
 	}
 
@@ -190,7 +191,7 @@ func (p *DiskStorage) LoadGzippedJson(data interface{}, filename string) error {
 	defer zipReader.Close()
 
 	err = enc.Decode(data)
-	if err != nil && err.Error() != "EOF" {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -236,7 +237,7 @@ func (p *DiskStorage) LoadJson(data interface{}, filename string) error {
 	defer file.Close()
 
 	err = enc.Decode(data)
-	if err != nil && err.Error() != "EOF" {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 
@@ -426,7 +427,7 @@ func (p *DiskStorage) LoadGzippedGob(output interface{}, name string) error {
 
 	// Decode directly into the provided output (which should be a pointer)
 	err = dec.Decode(output)
-	if err != nil && err.Error() != "EOF" {
+	if err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 

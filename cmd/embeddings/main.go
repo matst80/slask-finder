@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/matst80/slask-finder/pkg/embeddings"
 	"github.com/matst80/slask-finder/pkg/index"
@@ -63,7 +67,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	messaging.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
+	err = messaging.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
 		items := []index.DataItem{}
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
@@ -73,6 +77,9 @@ func main() {
 		}
 		return nil
 	})
+	if err != nil {
+		log.Fatalf("Failed to register a listener: %v", err)
+	}
 
 	err = diskStorage.LoadEmbeddings(embeddingsIndex.Embeddings)
 	if err != nil {
@@ -91,5 +98,31 @@ func main() {
 	mux.HandleFunc("/ai/cosine-similar/{id}", a.CosineSimilar)
 	mux.HandleFunc("/ai/natural", a.SearchEmbeddings)
 
-	http.ListenAndServe(":8080", mux)
+	server := &http.Server{
+		Addr:              ":8080",
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	go func() {
+		log.Println("embeddings server starting on :8080")
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server listen error: %v", err)
+		}
+	}()
+
+	// Graceful shutdown on SIGINT/SIGTERM
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	<-stop
+	log.Println("Shutting down embeddings server...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		log.Printf("Graceful shutdown failed: %v", err)
+	}
+	log.Println("Embeddings server stopped")
 }

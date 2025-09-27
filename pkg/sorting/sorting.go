@@ -338,7 +338,7 @@ import (
 
 func ToSortedMap[K comparable](i map[K]float64) []K {
 	return slices.SortedFunc(func(yield func(K) bool) {
-		for key, _ := range i {
+		for key := range i {
 			if !yield(key) {
 				break
 			}
@@ -471,9 +471,9 @@ func SortByValues(arr types.ByValue) {
 	})
 }
 
-func cloneReversed(arr *types.ByValue) *types.ByValue {
-	n := make(types.ByValue, len(*arr))
-	copy(n, *arr)
-	slices.Reverse(n)
-	return &n
-}
+// func cloneReversed(arr *types.ByValue) *types.ByValue {
+// 	n := make(types.ByValue, len(*arr))
+// 	copy(n, *arr)
+// 	slices.Reverse(n)
+// 	return &n
+// }

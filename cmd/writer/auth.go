@@ -167,7 +167,7 @@ var ContextRole = ContextValue("role")
 func (ws *GoogleAuth) Middleware(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
-		role := "anonymous"
+		var role string
 		if auth != ws.serverApiKey {
 			cookie, err := r.Cookie(tokenCookieName)
 			if err != nil {
@@ -217,9 +217,21 @@ func getUserData(token *oauth2.Token) (*UserData, error) {
 }
 
 func (ws *GoogleAuth) AuthCallback(w http.ResponseWriter, r *http.Request) {
+	// Derive context from the incoming request so cancellations/timeouts propagate.
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 
-	token, err := ws.authConfig.Exchange(context.Background(), r.FormValue("code"))
+	token, err := ws.authConfig.Exchange(ctx, r.FormValue("code"))
 	if err != nil {
+		// If the context timed out or was canceled, surface a 504/499 style error.
+		if ctx.Err() == context.DeadlineExceeded {
+			http.Error(w, "OAuth exchange timed out", http.StatusGatewayTimeout)
+			return
+		}
+		if ctx.Err() == context.Canceled {
+			http.Error(w, "Request canceled", http.StatusRequestTimeout)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

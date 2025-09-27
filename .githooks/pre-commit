@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Pre-commit hook to run golangci-lint. Fails commit on lint errors.
+# Skip with: git commit --no-verify
+
+set -euo pipefail
+
+ensure_linter() {
+  if command -v golangci-lint >/dev/null 2>&1; then
+    return 0
+  fi
+  # Try GOPATH/bin and GOBIN
+  if command -v go >/dev/null 2>&1; then
+    GOPATH_DIR=$(go env GOPATH 2>/dev/null || echo "")
+    GOBIN_DIR=$(go env GOBIN 2>/dev/null || echo "")
+    for d in "$GOBIN_DIR" "$GOPATH_DIR/bin"; do
+      if [ -n "$d" ] && [ -x "$d/golangci-lint" ]; then
+        PATH="$d:$PATH"
+        export PATH
+        return 0
+      fi
+    done
+    # Optional auto-install (comment out if you prefer manual):
+    echo "golangci-lint not found; attempting installation..." >&2
+    go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest || {
+      echo "Failed to install golangci-lint" >&2
+      return 1
+    }
+    # Re-check after install
+    if command -v golangci-lint >/dev/null 2>&1; then
+      return 0
+    fi
+    # Last chance: look again in GOPATH/bin
+    if [ -x "$GOPATH_DIR/bin/golangci-lint" ]; then
+      PATH="$GOPATH_DIR/bin:$PATH"; export PATH; return 0
+    fi
+  fi
+  echo "golangci-lint not installed and could not auto-install. Install with: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest" >&2
+  return 1
+}
+
+ensure_linter || exit 1
+
+# Determine golangci-lint version & pick config.
+pick_config() {
+  local baseCfg=".golangci.yml"
+  local v1Cfg=".golangci-v1.yml"
+  local versionOut
+  if ! versionOut=$(golangci-lint version 2>/dev/null); then
+    echo "$baseCfg"; return
+  fi
+  if echo "$versionOut" | grep -qE 'version 1\.'; then
+    if [ -f "$v1Cfg" ]; then
+      echo "$v1Cfg"; return
+    fi
+  fi
+  echo "$baseCfg"
+}
+
+cfg=$(pick_config)
+echo "Using config: $cfg"
+
+# Only lint staged Go files if possible, else run full.
+staged=$(git diff --cached --name-only --diff-filter=ACMRT | grep -E '\\.go$' || true)
+
+run_lint() {
+  if [ -n "$staged" ]; then
+    echo "Running golangci-lint on staged Go files..."
+    golangci-lint run -c "$cfg" $staged
+  else
+    echo "Running golangci-lint on entire module (no staged .go files detected)..."
+    golangci-lint run -c "$cfg" ./...
+  fi
+}
+
+if ! run_lint 2>lint.err; then
+  if grep -qi 'configuration file for golangci-lint v2' lint.err && [ "$cfg" = ".golangci.yml" ] && [ -f .golangci-v1.yml ]; then
+    echo "v2 config rejected by v1 binary; retrying with .golangci-v1.yml" >&2
+    cfg=".golangci-v1.yml"
+    if ! run_lint; then
+      echo "golangci-lint failed with fallback config" >&2
+      rm -f lint.err
+      exit 1
+    fi
+    rm -f lint.err
+  else
+    cat lint.err >&2
+    rm -f lint.err
+    exit 1
+  fi
+else
+  rm -f lint.err
+fi
