@@ -18,8 +18,8 @@ import (
 
 type MasterApp struct {
 	mu            sync.RWMutex
-	fieldData     map[string]*FieldData
-	storageFacets []*facet.StorageFacet
+	fieldData     map[string]FieldData
+	storageFacets []facet.StorageFacet
 	storage       *storage.DiskStorage
 	amqpSender    *AmqpSender
 }
@@ -56,8 +56,8 @@ func main() {
 
 	app := &MasterApp{
 		mu:            sync.RWMutex{},
-		fieldData:     make(map[string]*FieldData),
-		storageFacets: make([]*facet.StorageFacet, 3000),
+		fieldData:     make(map[string]FieldData),
+		storageFacets: make([]facet.StorageFacet, 3000),
 		amqpSender:    NewAmqpSender(country, conn),
 		// itemIndex:       idx,
 		// embeddingsIndex: embeddingsIndex,

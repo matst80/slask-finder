@@ -51,7 +51,7 @@ func (ws *MasterApp) HandleUpdateFields(w http.ResponseWriter, r *http.Request) 
 		} else {
 			field.LastSeen = time.Now().UnixMilli()
 			field.Created = time.Now().UnixMilli()
-			ws.fieldData[key] = field
+			ws.fieldData[key] = *field
 		}
 	}
 	err = ws.storage.SaveGzippedJson(ws.fieldData, "fields.jz")
@@ -131,7 +131,7 @@ func (ws *MasterApp) findFacet(id uint) (*facet.StorageFacet, bool) {
 	defer ws.mu.RUnlock()
 	for _, facet := range ws.storageFacets {
 		if facet.Id == id {
-			return facet, true
+			return &facet, true
 		}
 	}
 	return nil, false
@@ -160,7 +160,7 @@ func (ws *MasterApp) CreateFacetFromField(w http.ResponseWriter, r *http.Request
 	if slices.Index(field.Purpose, "do not show") != -1 {
 		baseField.HideFacet = true
 	}
-	ws.storageFacets = append(ws.storageFacets, &facet.StorageFacet{
+	ws.storageFacets = append(ws.storageFacets, facet.StorageFacet{
 		BaseField: baseField,
 		Type:      facet.FieldType(field.Type),
 	})
@@ -192,7 +192,7 @@ func (ws *MasterApp) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	}
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f *facet.StorageFacet) bool {
+	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f facet.StorageFacet) bool {
 		return f.Id == uint(facetId)
 	})
 
@@ -256,7 +256,7 @@ func (ws *MasterApp) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 func (ws *MasterApp) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	//defaultHeaders(w, r, true, "0")
 	w.WriteHeader(http.StatusOK)
-	missing := make([]*FieldData, 0)
+	missing := make([]FieldData, 0)
 	for _, field := range ws.fieldData {
 		_, ok := ws.findFacet(field.Id)
 		if !ok {
