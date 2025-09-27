@@ -69,4 +69,5 @@ func main() {
 	mux.HandleFunc("/push/watch/", watcher.WatchPriceChange)
 	// mux.HandleFunc("/push/unwatch/", watcher.UnwatchPriceChange)
 	// mux.HandleFunc("/push/list/", watcher.ListWatches)
+	http.ListenAndServe(":8080", mux)
 }
