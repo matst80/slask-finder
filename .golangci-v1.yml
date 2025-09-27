@@ -14,7 +14,6 @@ linters:
     - misspell
     - gosec
     - goconst
-    - exportloopref
     - rowserrcheck
     - unconvert
     - unparam

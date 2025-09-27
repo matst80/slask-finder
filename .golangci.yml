@@ -15,7 +15,6 @@ linters:
     - misspell
     - gosec
     - goconst
-    - exportloopref
     - rowserrcheck
     - unconvert
     - unparam
@@ -26,5 +25,3 @@ linters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude:
-    - "G115.*_test.go"
