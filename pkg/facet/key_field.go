@@ -185,7 +185,11 @@ func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
 	case nil:
 		return false
 	case float64:
+		f.addString(fmt.Sprintf("%f", typed), itemId)
+		return true
 	case int:
+		f.addString(fmt.Sprintf("%d", typed), itemId)
+		return true
 	case int64:
 		f.addString(fmt.Sprintf("%d", typed), itemId)
 		return true

@@ -11,7 +11,7 @@
       "args": ["-profile-startup=startup.prof"],
       "mode": "auto",
       "envFile": "${workspaceFolder}/.env",
-      "program": "."
+      "program": "./cmd/reader"
     }
   ]
 }

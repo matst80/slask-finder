@@ -86,6 +86,7 @@ func main() {
 		app.ConnectAmqp(amqpUrl)
 		app.ConnectFacetChange()
 		app.ConnectSettingsChange()
+		sortingHandler.Connect(app.conn, country)
 	}
 
 	var tracker types.Tracking = nil
