@@ -1,7 +1,6 @@
 package search
 
 import (
-	"log"
 	"maps"
 	"sync"
 
@@ -138,10 +137,10 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 		}
 		score = 0.0
 		found = false
-		for _, chr := range token {
+		for _, charA := range token {
 			found = false
-			for _, jchr := range i {
-				if chr == jchr {
+			for _, charB := range i {
+				if charA == charB {
 					score += 4.0
 					found = true
 					break
@@ -179,7 +178,7 @@ func (i *FreeTextIndex) Filter(query string, res *types.ItemList) {
 	mappings := types.CurrentSettings.WordMappings
 
 	i.tokenizer.Tokenize(query, func(token Token, original string, count int, last bool) bool {
-		log.Printf("filter on token %s", token)
+		// log.Printf("filter on token %s", token)
 		ids, found := i.TokenMap[token]
 		if found && ids != nil {
 			if res.HasIntersection(ids) {
