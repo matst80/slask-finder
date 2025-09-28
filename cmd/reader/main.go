@@ -57,7 +57,7 @@ func main() {
 	if err != nil {
 		log.Printf("Could not load settings from file: %v", err)
 	}
-	itemIndex := index.NewIndexWithStock()
+	itemIndex := index.NewIndexWithStock(diskStorage)
 	sortingHandler := sorting.NewSortingItemHandler()
 	searchHandler := search.NewFreeTextItemHandler(search.DefaultFreeTextHandlerOptions())
 	facets := []facet.StorageFacet{}
