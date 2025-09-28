@@ -28,14 +28,14 @@ func NewRabbitTracking(url, country string) (*RabbitTracking, error) {
 		connection: nil,
 		country:    country,
 	}
-	err := ret.connect(url, country)
+	err := ret.connect(url)
 	if err != nil {
 		return nil, err
 	}
 	return &ret, nil
 }
 
-func (t *RabbitTracking) connect(url, country string) error {
+func (t *RabbitTracking) connect(url string) error {
 
 	conn, err := amqp.Dial(url)
 	if err != nil {
@@ -47,7 +47,7 @@ func (t *RabbitTracking) connect(url, country string) error {
 		return err
 	}
 	defer ch.Close()
-	return messaging.DefineTopic(ch, country, trackingTopic)
+	return messaging.DefineTopic(ch, "global", trackingTopic)
 
 }
 
@@ -56,11 +56,13 @@ func (t *RabbitTracking) Close() error {
 }
 
 func (t *RabbitTracking) send(data any) error {
-	return messaging.SendChange(t.connection, t.country, trackingTopic, data)
+	return messaging.SendChange(t.connection, "global", trackingTopic, data)
 }
 
 type BaseEvent struct {
 	SessionId int    `json:"session_id"`
+	Country   string `json:"country,omitempty"`
+	Context   string `json:"context,omitempty"`
 	Event     uint16 `json:"event"`
 }
 
@@ -74,6 +76,7 @@ type Session struct {
 
 func (rt *RabbitTracking) TrackSession(sessionId int, r *http.Request) {
 	ip := r.Header.Get("X-Real-Ip")
+
 	if ip == "" {
 		ip = r.Header.Get("X-Forwarded-For")
 	}
@@ -82,7 +85,7 @@ func (rt *RabbitTracking) TrackSession(sessionId int, r *http.Request) {
 	}
 
 	err := rt.send(Session{
-		BaseEvent:    &BaseEvent{Event: 0, SessionId: sessionId},
+		BaseEvent:    &BaseEvent{Event: 0, SessionId: sessionId, Country: rt.country, Context: "b2c"},
 		Language:     r.Header.Get("Accept-Language"),
 		UserAgent:    r.UserAgent(),
 		Ip:           ip,
@@ -117,7 +120,7 @@ type SearchEventData struct {
 func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, resultLen int, query string, page int, r *http.Request) {
 	referer := r.Header.Get("Referer")
 	err := rt.send(&SearchEventData{
-		BaseEvent:       &BaseEvent{Event: 1, SessionId: sessionId},
+		BaseEvent:       &BaseEvent{Event: 1, SessionId: sessionId, Country: rt.country, Context: "b2c"},
 		Filters:         filters,
 		Query:           query,
 		NumberOfResults: resultLen,
@@ -132,7 +135,7 @@ func (rt *RabbitTracking) TrackSearch(sessionId int, filters *types.Filters, res
 
 func (rt *RabbitTracking) TrackAction(sessionId int, value types.TrackingAction) error {
 	return rt.send(&ActionEvent{
-		BaseEvent: &BaseEvent{Event: 6, SessionId: sessionId},
+		BaseEvent: &BaseEvent{Event: 6, SessionId: sessionId, Country: rt.country, Context: "b2c"},
 		Action:    value.Action,
 		Reason:    value.Reason,
 	})
