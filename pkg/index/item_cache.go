@@ -79,7 +79,7 @@ func (c *ItemCache) Set(key uint, value types.Item) {
 
 	if entry, hit := c.cache[key]; hit {
 		entry.value = value
-		entry.lastAccess = time.Now()
+		entry.lastAccess = time.Now().Add(-c.ttl)
 		return
 	}
 
