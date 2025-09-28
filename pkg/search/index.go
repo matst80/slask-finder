@@ -129,14 +129,14 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 	tl := len(token)
 
 	score := 0.0
-	var found = false
+
 	for i := range i.TokenMap {
 		il := len(i)
 		if il < tl {
 			continue
 		}
 		score = 0.0
-		found = false
+		found := false
 		for _, charA := range token {
 			found = false
 			for _, charB := range i {

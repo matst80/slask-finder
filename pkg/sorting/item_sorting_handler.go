@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"iter"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -41,6 +42,7 @@ func NewLastUpdateSorter() Sorter {
 
 type SortingItemHandler struct {
 	mu         sync.RWMutex
+	country    string
 	overrides  map[string]SortOverride
 	Sorters    []Sorter
 	sortValues map[string]types.ByValue
@@ -67,14 +69,15 @@ func NewSortingItemHandler() *SortingItemHandler {
 }
 
 func (h *SortingItemHandler) Connect(conn *amqp.Connection, country string) {
+	h.country = country
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
-	err = messaging.ListenToTopic(ch, country, "sort_override", func(d amqp.Delivery) error {
+	err = messaging.ListenToTopic(ch, "global", "sort_override", func(d amqp.Delivery) error {
 		var item types.SortOverrideUpdate
 		if err := json.Unmarshal(d.Body, &item); err == nil {
-			log.Printf("Got sort override")
+			//log.Printf("Got sort override")
 			h.HandleSortOverrideUpdate(item)
 		} else {
 			log.Printf("Failed to unmarshal facet change message %v", err)
@@ -89,15 +92,14 @@ func (h *SortingItemHandler) Connect(conn *amqp.Connection, country string) {
 func (h *SortingItemHandler) HandleSortOverrideUpdate(item types.SortOverrideUpdate) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if strings.Contains(item.Key, "session-") {
+		// Ignore session specific overrides
+		return
+	}
 	h.overrides[item.Key] = item.Data
+	log.Printf("Applied sort override: %s", item.Key)
 	for _, s := range h.Sorters {
-		if s.Name() == item.Key {
-			if bs, ok := s.(*BaseSorter); ok {
-				bs.override = item.Data
-				bs.dirty = true
-			}
-			break
-		}
+		s.HandleOverride(item)
 	}
 }
 

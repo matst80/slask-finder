@@ -11,25 +11,49 @@ type Sorter interface {
 	GetSort() types.ByValue
 	IsDirty() bool
 	Name() string
+	HandleOverride(types.SortOverrideUpdate)
 }
 
 type BaseSorter struct {
-	mu       sync.RWMutex
-	override SortOverride
-	scores   map[uint]float64
-	name     string
-	dirty    bool
-	fn       func(item types.Item) float64
+	mu          sync.RWMutex
+	override    SortOverride
+	scores      map[uint]float64
+	name        string
+	overrideKey string
+	dirty       bool
+	fn          func(item types.Item) float64
 }
 
 func NewBaseSorter(name string, fn func(item types.Item) float64) Sorter {
 	return &BaseSorter{
-		mu:       sync.RWMutex{},
-		override: SortOverride{},
-		scores:   make(map[uint]float64),
-		name:     name,
-		dirty:    false,
-		fn:       fn,
+		mu:          sync.RWMutex{},
+		override:    SortOverride{},
+		scores:      make(map[uint]float64),
+		name:        name,
+		dirty:       false,
+		fn:          fn,
+		overrideKey: name,
+	}
+}
+
+func NewBaseSorterWithCustomOverrideKey(name string, fn func(item types.Item) float64, overrideKey string) Sorter {
+	return &BaseSorter{
+		mu:          sync.RWMutex{},
+		override:    SortOverride{},
+		scores:      make(map[uint]float64),
+		name:        name,
+		dirty:       false,
+		fn:          fn,
+		overrideKey: overrideKey,
+	}
+}
+
+func (s *BaseSorter) HandleOverride(update types.SortOverrideUpdate) {
+	if update.Key == s.overrideKey {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		s.override = update.Data
+		s.dirty = true
 	}
 }
 
