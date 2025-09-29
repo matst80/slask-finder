@@ -27,7 +27,7 @@ type ItemIndex struct {
 }
 
 func NewItemIndex(storage types.StorageProvider, cachePath string) *ItemIndex {
-	cache, err := NewItemCache(25*time.Hour, 10*time.Minute, storage, cachePath)
+	cache, err := NewItemCache(25*time.Hour, time.Minute, storage, cachePath)
 	if err != nil {
 		panic(err)
 	}

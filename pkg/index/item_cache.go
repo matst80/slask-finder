@@ -172,10 +172,16 @@ func (c *ItemCache) evictExpired() {
 	now := time.Now()
 	for key, entry := range c.cache {
 		if now.Sub(entry.lastAccess) > c.ttl {
-			// Evict
-			delete(c.cache, key)
+
 			// Save to disk
-			_ = c.saveToDisk(entry.value)
+			err := c.saveToDisk(entry.value)
+			if err != nil {
+				fmt.Printf("Error saving item %d to disk: %v\n", key, err)
+
+			} else {
+				// Evict
+				delete(c.cache, key)
+			}
 		}
 	}
 }
