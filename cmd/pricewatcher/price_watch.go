@@ -28,15 +28,17 @@ type PushSubscription struct {
 
 // PriceWatch represents a price watch entry
 type PriceWatch struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"userId,omitempty"`
-	Token     string    `json:"token"`
-	CreatedAt time.Time `json:"createdAt"`
+	ID           string    `json:"id"`
+	UserID       string    `json:"userId,omitempty"`
+	Token        string    `json:"token"`
+	CreatedAt    time.Time `json:"createdAt"`
+	TriggerPrice int       `json:"triggerPrice,omitempty"`
 }
 
 // PriceWatchRequest represents the incoming request
 type PriceWatchRequest struct {
-	Token string `json:"token"`
+	Token        string `json:"token"`
+	TriggerPrice int    `json:"triggerPrice"`
 }
 
 // PriceWatchesData represents the structure of the watches file
@@ -84,9 +86,10 @@ func (p *PriceWatchesData) WatchPriceChange(w http.ResponseWriter, r *http.Reque
 
 	// Create new watch entry
 	newWatch := PriceWatch{
-		ID:        itemID,
-		Token:     watchRequest.Token,
-		CreatedAt: time.Now(),
+		ID:           itemID,
+		Token:        watchRequest.Token,
+		CreatedAt:    time.Now(),
+		TriggerPrice: watchRequest.TriggerPrice,
 	}
 
 	// Add to watches (remove existing watch for same item if exists)
@@ -113,7 +116,9 @@ func (p *PriceWatchesData) WatchPriceChange(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Send test push notification (propagate request context)
-	subscription := PushSubscription(watchRequest)
+	subscription := PushSubscription{
+		Token: watchRequest.Token,
+	}
 	err = sendTestPushNotification(r.Context(), subscription, itemID)
 	if err != nil {
 		log.Printf("Error sending test push notification: %v", err)
