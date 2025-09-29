@@ -1,6 +1,7 @@
 package sorting
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -84,4 +85,10 @@ func (s *SortOverride) ToSortedLookup() types.ByValue {
 		}
 	}, types.LookUpReversed)
 
+}
+
+func SortByValues(arr types.ByValue) {
+	slices.SortFunc(arr, func(a, b types.Lookup) int {
+		return cmp.Compare(b.Value, a.Value)
+	})
 }

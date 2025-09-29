@@ -5,6 +5,7 @@ import (
 	"iter"
 	"log"
 	"net/http"
+	httpprof "net/http/pprof"
 	"os"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -101,13 +103,6 @@ func main() {
 	}
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("ok")); err != nil {
-			log.Printf("Failed to write health response: %v", err)
-		}
-	})
-
 	mux.HandleFunc("/api/stream", common.JsonHandler(tracker, app.SearchStreamed))
 	mux.HandleFunc("/api/facets", common.JsonHandler(tracker, app.GetFacets))
 	mux.HandleFunc("GET /api/facet-list", common.JsonHandler(tracker, app.Facets))
@@ -123,24 +118,21 @@ func main() {
 	mux.HandleFunc("GET /api/facet-groups", common.JsonHandler(tracker, app.GetFacetGroups))
 	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Failed to write health response: %v", err)
+		}
+	})
+	mux.Handle("/metrics", promhttp.Handler())
+	mux.HandleFunc("/debug/pprof/", httpprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", httpprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", httpprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", httpprof.Trace)
+
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
-	/*
 
-		mux.HandleFunc("/trigger-words", common.JsonHandler(tracking, ws.TriggerWords))
-		mux.HandleFunc("/find-related", common.JsonHandler(tracking, app.FindRelated))
-
-
-		mux.HandleFunc("/reload-settings", common.JsonHandler(tracking, app.ReloadSettings))
-
-
-		mux.HandleFunc("/ids", common.JsonHandler(tracking, app.GetIds))
-
-		mux.HandleFunc("POST /get", common.JsonHandler(tracking, app.GetItems))
-
-		mux.HandleFunc("/predict-sequence", common.JsonHandler(tracking, app.PredictSequence))
-		mux.HandleFunc("/predict-tree", common.JsonHandler(tracking, app.PredictTree))
-
-	*/
 	// Load timeout configuration from env with defaults
 	cfg := common.LoadTimeoutConfig(common.TimeoutConfig{
 		ReadHeader: 5 * time.Second,
