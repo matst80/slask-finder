@@ -124,12 +124,15 @@ func main() {
 			log.Printf("Failed to write health response: %v", err)
 		}
 	})
-	mux.Handle("/metrics", promhttp.Handler())
-	mux.HandleFunc("/debug/pprof/", httpprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", httpprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", httpprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", httpprof.Trace)
+	debugMux := http.NewServeMux()
+	debugMux.Handle("/metrics", promhttp.Handler())
+	debugMux.HandleFunc("/debug/pprof/", httpprof.Index)
+	debugMux.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
+	debugMux.HandleFunc("/debug/pprof/profile", httpprof.Profile)
+	debugMux.HandleFunc("/debug/pprof/symbol", httpprof.Symbol)
+	debugMux.HandleFunc("/debug/pprof/trace", httpprof.Trace)
+
+	go http.ListenAndServe(":8081", debugMux)
 
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))
 

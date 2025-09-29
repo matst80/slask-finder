@@ -35,7 +35,7 @@ func (c *ConverterHandler) HandleItems(itemIter iter.Seq[types.Item]) {
 			log.Printf("Could not convert item to DataItem: %T", item)
 		}
 	}
-	err := c.storage.SaveStorageItems(func(yield func(index.StorageDataItem) bool) {
+	err := c.storage.SaveStorageItems(func(yield func(*index.StorageDataItem) bool) {
 		for _, item := range c.items {
 			if !yield(index.ToStorageDataItem(&item)) { // use index to avoid pointer to loop variable copy
 				return

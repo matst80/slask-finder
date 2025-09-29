@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	gob.Register(index.DataItem{})
+	gob.Register(index.StorageDataItem{})
 	gob.Register([]string{})
 	gob.Register(types.ItemFields{})
 	gob.Register(types.Embeddings{})
@@ -55,7 +55,7 @@ func asSeq(items []*index.StorageDataItem) iter.Seq[types.Item] {
 }
 
 const itemsFile = "items.jz"
-const storageItemFile = "items-v2.json"
+const storageItemFile = "items-v2.gz"
 const settingsFile = "settings.json"
 const legacySettingsFile = "settings.jz"
 const facetsFile = "facets.json"
@@ -120,12 +120,13 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 	defer runtime.GC()
 	defer file.Close()
 
-	// zipReader, err := gzip.NewReader(file)
-	// if err != nil {
-	// 	return err
-	// }
+	zipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer zipReader.Close()
 
-	decoder := json.NewDecoder(file)
+	decoder := gob.NewDecoder(zipReader)
 	//defer zipReader.Close()
 
 	tmp := make([]*index.StorageDataItem, 0)
@@ -136,6 +137,7 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 		go hs.HandleItems(asSeq(tmp))
 	}
 	decoder = nil
+	tmp = nil
 
 	if errors.Is(err, io.EOF) {
 		return nil
@@ -294,21 +296,21 @@ func (p *DiskStorage) LoadJson(data interface{}, filename string) error {
 	return nil
 }
 
-func (p *DiskStorage) SaveStorageItems(items iter.Seq[index.StorageDataItem]) error {
+func (p *DiskStorage) SaveStorageItems(items iter.Seq[*index.StorageDataItem]) error {
 	fileName, tmpFileName := p.GetFileName(storageItemFile)
 
 	file, err := os.Create(tmpFileName)
 	if err != nil {
 		return err
 	}
-
-	//zipWriter := gzip.NewWriter(file)
-	enc := json.NewEncoder(file)
-	//defer zipWriter.Close()
+	defer file.Close()
+	zipWriter := gzip.NewWriter(file)
+	enc := gob.NewEncoder(zipWriter)
+	defer zipWriter.Close()
 	toStore := slices.Collect(items)
 	log.Printf("Saving %d items to %s", len(toStore), fileName)
-	err = enc.Encode(&toStore)
-	file.Close()
+	err = enc.Encode(toStore)
+
 	if err != nil {
 		return err
 	}

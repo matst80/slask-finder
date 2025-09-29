@@ -14,43 +14,12 @@ type StorageDataItem struct {
 }
 
 // ToInternalDataItem converts a DataItem to an InternalDataItem.
-func ToStorageDataItem(dataItem *DataItem) StorageDataItem {
-	i := StorageDataItem{
+func ToStorageDataItem(dataItem *DataItem) *StorageDataItem {
+	return &StorageDataItem{
 		BaseItem:     dataItem.BaseItem,
 		StringFields: dataItem.GetStringFields(),
 		NumberFields: dataItem.GetNumberFields(),
 	}
-	// for id, value := range dataItem.Fields {
-	// 	switch v := value.(type) {
-	// 	case string:
-	// 		i.StringFields[id] = []string{v}
-	// 	case []string:
-	// 		i.StringFields[id] = v
-	// 	case []interface{}:
-	// 		strs := make([]string, 0, len(v))
-	// 		for _, vi := range v {
-	// 			if s, ok := vi.(string); ok {
-	// 				strs = append(strs, s)
-	// 			} else {
-	// 				log.Printf("Non-string value in string array for id %d: %T", id, vi)
-	// 			}
-	// 		}
-	// 		if len(strs) > 0 {
-	// 			i.StringFields[id] = strs
-	// 		}
-	// 	case float64:
-	// 		i.NumberFields[id] = v
-	// 	case int:
-	// 		i.NumberFields[id] = float64(v)
-	// 	case int64:
-	// 		i.NumberFields[id] = float64(v)
-	// 	case nil:
-	// 		// skip
-	// 	default:
-	// 		log.Printf("Unknown field type for id %d: %T", id, v)
-	// 	}
-	// }
-	return i
 }
 
 func FromStorageDataItem(dataItem *StorageDataItem) DataItem {
