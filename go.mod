@@ -1,6 +1,6 @@
 module github.com/matst80/slask-finder
 
-go 1.24.0
+go 1.25.1
 
 require (
 	firebase.google.com/go/v4 v4.18.0
