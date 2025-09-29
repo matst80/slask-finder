@@ -44,10 +44,10 @@ type Field struct {
 // 	return nil
 // }
 
-func asSeq(items []index.StorageDataItem) iter.Seq[types.Item] {
+func asSeq(items []*index.StorageDataItem) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
 		for _, item := range items {
-			if !yield(&item) {
+			if !yield(item) {
 				return
 			}
 		}
@@ -128,7 +128,7 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 	decoder := json.NewDecoder(file)
 	//defer zipReader.Close()
 
-	tmp := make([]index.StorageDataItem, 0)
+	tmp := make([]*index.StorageDataItem, 0)
 
 	err = decoder.Decode(&tmp)
 	log.Printf("Loaded %d items from %s", len(tmp), fileName)
@@ -138,10 +138,8 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 	decoder = nil
 
 	if errors.Is(err, io.EOF) {
-
 		return nil
 	}
-	log.Printf("ERROR: %v", err)
 
 	return err
 }

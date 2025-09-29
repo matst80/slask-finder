@@ -92,8 +92,8 @@ func (item *StorageDataItem) IsDeleted() bool {
 }
 
 func (item *StorageDataItem) HasStock() bool {
-	v, ok := item.GetFieldValue(3)
-	return ok && v != nil
+	a, ok := item.GetStringFieldValue(3)
+	return ok && (a != "" && a != "0")
 }
 
 func (item *StorageDataItem) GetPropertyValue(name string) interface{} {
@@ -293,11 +293,11 @@ func (item *StorageDataItem) SetValue(id uint, value interface{}) {
 }
 
 func (item *StorageDataItem) GetRating() (int, int) {
-	average, ok := item.GetFieldValue(6)
+	average, ok := item.GetNumberFieldValue(6)
 	if !ok {
 		return 0, 0
 	}
-	grades, ok := item.GetFieldValue(7)
+	grades, ok := item.GetNumberFieldValue(7)
 	if !ok {
 		return 0, 0
 	}
@@ -305,8 +305,11 @@ func (item *StorageDataItem) GetRating() (int, int) {
 }
 
 func (item *StorageDataItem) CanHaveEmbeddings() bool {
-	mainCategory := item.StringFields[10]
-	seller := item.StringFields[9]
+	mainCategory, okA := item.StringFields[10]
+	seller, okB := item.StringFields[9]
+	if !okA || !okB {
+		return false
+	}
 	if len(mainCategory) == 0 || len(seller) == 0 {
 		return false
 	}
@@ -327,7 +330,7 @@ func (item *StorageDataItem) GetCreated() int64 {
 
 func (item *StorageDataItem) GetDiscount() int {
 	price := item.GetPrice()
-	orgPriceValue, ok := item.GetFieldValue(5)
+	orgPriceValue, ok := item.GetNumberFieldValue(5)
 	if !ok {
 		return 0
 	}
