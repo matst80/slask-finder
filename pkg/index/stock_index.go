@@ -12,9 +12,9 @@ type ItemIndexWithStock struct {
 	ItemsInStock map[string]types.ItemList
 }
 
-func NewIndexWithStock(cacheStorage types.StorageProvider) *ItemIndexWithStock {
+func NewIndexWithStock() *ItemIndexWithStock {
 	idx := &ItemIndexWithStock{
-		ItemIndex:    NewItemIndex(cacheStorage, "_cache"),
+		ItemIndex:    NewItemIndex(),
 		ItemsBySku:   make(map[string]uint),
 		ItemsInStock: make(map[string]types.ItemList),
 	}
@@ -65,7 +65,7 @@ func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
 	i.ItemIndex.handleItemUnsafe(item)
 
 	id := item.GetId()
-	current, isUpdate := i.GetItem(id)
+	current, isUpdate := i.Items[id]
 	if isUpdate {
 		i.removeItemValues(current)
 	}

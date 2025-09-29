@@ -67,7 +67,7 @@ func (m *MockStorageProvider) LoadJson(data interface{}, filename string) error 
 		return assert.AnError
 	}
 	// This is a bit of a hack to get the data back into the pointer
-	*(data.(*DataItem)) = *(item.(*DataItem))
+	*(data.(*StorageDataItem)) = *(item.(*StorageDataItem))
 	return nil
 }
 
@@ -88,13 +88,19 @@ func TestItemCache_EvictionAndReload(t *testing.T) {
 	defer cache.StopCleanup()
 
 	// Create a test item
-	testItem := &DataItem{
+	testItem := &StorageDataItem{
 		BaseItem: &BaseItem{
 			Id:    1,
 			Sku:   "test-sku",
 			Title: "Test Item",
 		},
-		Fields: make(types.ItemFields),
+		StringFields: map[uint][]string{
+			1: []string{"value1"},
+			2: []string{"value2"},
+		},
+		NumberFields: map[uint]float64{
+			3: 123.45,
+		},
 	}
 
 	// 1. Set the item in the cache

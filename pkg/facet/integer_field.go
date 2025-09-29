@@ -267,8 +267,15 @@ func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
 			f.addValueLink(intValue, itemId)
 			return true
 		}
+	case []string:
+		first := value[0]
+		intValue, err := strconv.Atoi(first)
+		if err == nil {
+			f.addValueLink(intValue, itemId)
+			return true
+		}
 	default:
-		log.Printf("IntegerField: AddValueLink: %T", value)
+		log.Printf("'%v': AddValueLink: %T %d (%s)", data, value, f.Id, f.Name)
 	}
 
 	return false

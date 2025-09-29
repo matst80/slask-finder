@@ -87,14 +87,6 @@ type DataItem struct {
 	Fields types.ItemFields `json:"values"`
 }
 
-func ToItemArray(items []DataItem) []types.Item {
-	baseItems := make([]types.Item, 0, len(items))
-	for _, item := range items {
-		baseItems = append(baseItems, &item)
-	}
-	return baseItems
-}
-
 func (item *DataItem) GetId() uint {
 	return item.Id
 }
@@ -212,8 +204,91 @@ func (item *DataItem) GetStock() map[string]string {
 	return item.Stock
 }
 
-func (item *DataItem) GetFields() map[uint]interface{} {
-	return item.Fields.GetFacets()
+// func (item *DataItem) GetFields() map[uint]interface{} {
+// 	return item.Fields.GetFacets()
+// }
+
+func (m *DataItem) GetFields() []uint {
+	fields := make([]uint, 0, len(m.Fields))
+	for k := range m.Fields {
+		fields = append(fields, k)
+	}
+	return fields
+}
+
+func (m *DataItem) GetStringFields() map[uint][]string {
+	ret := make(map[uint][]string, len(m.Fields))
+	for k, v := range m.Fields {
+		switch value := v.(type) {
+		case string:
+			ret[k] = []string{value}
+		case []string:
+			ret[k] = value
+		case []interface{}:
+			strs := make([]string, 0, len(value))
+			for _, iv := range value {
+				if s, ok := iv.(string); ok {
+					strs = append(strs, s)
+				}
+			}
+			if len(strs) > 0 {
+				ret[k] = strs
+			}
+		}
+	}
+	return ret
+}
+
+func (m *DataItem) GetNumberFields() map[uint]float64 {
+	ret := make(map[uint]float64, len(m.Fields))
+	for k, v := range m.Fields {
+		switch value := v.(type) {
+		case int:
+			ret[k] = float64(value)
+		case int64:
+			ret[k] = float64(value)
+		case float64:
+			ret[k] = value
+		case []interface{}:
+			if len(value) == 1 {
+				switch nvalue := value[0].(type) {
+				case int:
+					ret[k] = float64(nvalue)
+				case int64:
+					ret[k] = float64(nvalue)
+				case float64:
+					ret[k] = nvalue
+				}
+			}
+		}
+	}
+	return ret
+}
+
+func (m *DataItem) GetStringFieldValue(id uint) (string, bool) {
+	fields := m.GetStringFields()
+	v, ok := fields[id]
+	if ok && len(v) > 0 {
+		return v[0], true
+	}
+
+	return "", false
+}
+
+func (m *DataItem) GetStringsFieldValue(id uint) ([]string, bool) {
+	fields := m.GetStringFields()
+	if v, ok := fields[id]; ok {
+		return v, true
+	}
+
+	return nil, false
+}
+func (m *DataItem) GetNumberFieldValue(id uint) (float64, bool) {
+	fields := m.GetNumberFields()
+	if v, ok := fields[id]; ok {
+		return v, true
+	}
+	return 0, false
 }
 
 func (item *DataItem) GetFieldValue(id uint) (interface{}, bool) {
@@ -329,15 +404,15 @@ func (item *DataItem) ToString() string {
 	return strings.Join(item.ToStringList(), " ")
 }
 
-func (item *DataItem) GetBaseItem() types.BaseItem {
-	return types.BaseItem{
-		Id:    item.Id,
-		Sku:   item.Sku,
-		Title: item.Title,
-		Price: item.GetPrice(),
-		Img:   item.Img,
-	}
-}
-func (item *DataItem) GetItem() interface{} {
-	return item.BaseItem
-}
+//	func (item *DataItem) GetBaseItem() types.BaseItem {
+//		return types.BaseItem{
+//			Id:    item.Id,
+//			Sku:   item.Sku,
+//			Title: item.Title,
+//			Price: item.GetPrice(),
+//			Img:   item.Img,
+//		}
+//	}
+// func (item *DataItem) GetItem() interface{} {
+// 	return item.BaseItem
+// }

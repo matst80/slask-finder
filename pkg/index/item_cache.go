@@ -79,7 +79,7 @@ func (c *ItemCache) Set(key uint, value types.Item) {
 
 	if entry, hit := c.cache[key]; hit {
 		entry.value = value
-		entry.lastAccess = time.Now().Add(-c.ttl)
+		entry.lastAccess = time.Now()
 		return
 	}
 
@@ -147,7 +147,7 @@ func (c *ItemCache) addToCache(key uint, value types.Item) {
 	entry := &CacheEntry{
 		key:        key,
 		value:      value,
-		lastAccess: time.Now(),
+		lastAccess: time.Now().Add(-c.ttl),
 	}
 	c.cache[key] = entry
 }
@@ -196,7 +196,7 @@ func (c *ItemCache) saveToDisk(item types.Item) error {
 }
 
 func (c *ItemCache) loadFromDisk(key uint) (types.Item, error) {
-	var item DataItem
+	var item StorageDataItem
 	fileName := c.filePath(key)
 	err := c.storage.LoadJson(&item, fileName)
 	if err != nil {

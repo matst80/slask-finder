@@ -13,9 +13,10 @@ import (
 )
 
 type queueItem struct {
-	id      uint
-	deleted bool
-	values  map[uint]interface{}
+	id           uint
+	deleted      bool
+	stringValues map[uint][]string
+	numberValues map[uint]float64
 }
 
 type FacetItemHandler struct {
@@ -104,7 +105,12 @@ func (h *FacetItemHandler) processItems(items []queueItem) {
 		h.ItemFieldIds[item.id] = types.ItemList{}
 		if item.deleted {
 			delete(h.ItemFieldIds, item.id)
-			for fieldId, fieldValue := range item.values {
+			for fieldId, fieldValue := range item.stringValues {
+				if f, ok := h.Facets[fieldId]; ok {
+					f.RemoveValueLink(fieldValue, item.id)
+				}
+			}
+			for fieldId, fieldValue := range item.numberValues {
 				if f, ok := h.Facets[fieldId]; ok {
 					f.RemoveValueLink(fieldValue, item.id)
 				}
@@ -112,7 +118,21 @@ func (h *FacetItemHandler) processItems(items []queueItem) {
 			delete(h.All, item.id)
 		} else {
 			h.All.AddId(item.id)
-			for id, fieldValue := range item.values {
+			for id, fieldValue := range item.stringValues {
+				if f, ok := h.Facets[id]; ok {
+					b := f.GetBaseField()
+					if b.Searchable && f.AddValueLink(fieldValue, item.id) {
+						if !b.HideFacet {
+							if fids, ok := h.ItemFieldIds[item.id]; ok {
+								fids.AddId(id)
+							} else {
+								log.Printf("No field for item id: %d, id: %d", item.id, id)
+							}
+						}
+					}
+				}
+			}
+			for id, fieldValue := range item.numberValues {
 				if f, ok := h.Facets[id]; ok {
 					b := f.GetBaseField()
 					if b.Searchable && f.AddValueLink(fieldValue, item.id) {
@@ -130,22 +150,24 @@ func (h *FacetItemHandler) processItems(items []queueItem) {
 	}
 }
 
-// ItemHandler interface implementation
-func (h *FacetItemHandler) HandleItem(item types.Item) {
-	h.queue.Add(queueItem{
-		id:      item.GetId(),
-		values:  item.GetFields(),
-		deleted: item.IsDeleted(),
-	})
-}
+// // ItemHandler interface implementation
+// func (h *FacetItemHandler) HandleItem(item types.Item) {
+// 	h.queue.Add(queueItem{
+// 		id:           item.GetId(),
+// 		stringValues: item.GetStringFields(),
+// 		numberValues: item.GetNumberFields(),
+// 		deleted:      item.IsDeleted(),
+// 	})
+// }
 
 func toQueueItem(items iter.Seq[types.Item]) iter.Seq[queueItem] {
 	return func(yield func(queueItem) bool) {
 		for item := range items {
 			if !yield(queueItem{
-				id:      item.GetId(),
-				values:  item.GetFields(),
-				deleted: item.IsDeleted(),
+				id:           item.GetId(),
+				stringValues: item.GetStringFields(),
+				numberValues: item.GetNumberFields(),
+				deleted:      item.IsDeleted(),
 			}) {
 				return
 			}

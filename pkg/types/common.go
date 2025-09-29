@@ -107,33 +107,6 @@ type CategoryUpdate struct {
 	Value string `json:"value"`
 }
 
-type Item interface {
-	GetId() uint
-	GetSku() string
-	GetStock() map[string]string
-	HasStock() bool
-	GetFields() map[uint]interface{}
-	IsDeleted() bool
-	IsSoftDeleted() bool
-	GetPropertyValue(name string) interface{}
-	GetPrice() int
-	GetDiscount() int
-	GetRating() (int, int)
-	GetFieldValue(id uint) (interface{}, bool)
-	GetLastUpdated() int64
-	GetCreated() int64
-	//GetPopularity() float64
-	GetTitle() string
-	ToString() string
-	ToStringList() []string
-	GetBaseItem() BaseItem
-	//MergeKeyFields(updates []CategoryUpdate) bool
-	//	GetItem() interface{}
-	CanHaveEmbeddings() bool
-	GetEmbeddingsText() (string, error)
-	//StreamLine(w http.ResponseWriter)
-}
-
 const FacetKeyType = 1
 const FacetNumberType = 2
 const FacetIntegerType = 3

@@ -2,8 +2,8 @@ package index
 
 import (
 	"iter"
+	"maps"
 	"sync"
-	"time"
 
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -23,17 +23,14 @@ var (
 
 type ItemIndex struct {
 	mu    sync.RWMutex
-	Items *ItemCache
+	Items map[uint]types.Item
 }
 
-func NewItemIndex(storage types.StorageProvider, cachePath string) *ItemIndex {
-	cache, err := NewItemCache(25*time.Hour, time.Minute, storage, cachePath)
-	if err != nil {
-		panic(err)
-	}
+func NewItemIndex() *ItemIndex {
 	idx := &ItemIndex{
 		mu:    sync.RWMutex{},
-		Items: cache,
+		Items: make(map[uint]types.Item, 350_000),
+		//categories:   make(map[uint]*Category),
 	}
 	return idx
 }
@@ -56,31 +53,35 @@ func (i *ItemIndex) GetAllItems() iter.Seq[types.Item] {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
-	return i.Items.AllItems()
+	return maps.Values(i.Items)
+
 }
 
 func (i *ItemIndex) handleItemUnsafe(item types.Item) {
+
 	id := item.GetId()
 
 	if item.IsDeleted() {
-		i.Items.Delete(id)
+		delete(i.Items, id)
+
 		go noDeletes.Inc()
 		return
 	}
 
-	i.Items.Set(id, item)
+	i.Items[id] = item
 	go noUpdates.Inc()
 }
 
 func (i *ItemIndex) GetItem(id uint) (types.Item, bool) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	return i.Items.Get(id)
+	item, ok := i.Items[id]
+	return item, ok
 }
 
 func (i *ItemIndex) HasItem(id uint) bool {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
-	_, ok := i.Items.Get(id)
+	_, ok := i.Items[id]
 	return ok
 }

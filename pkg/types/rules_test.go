@@ -8,8 +8,11 @@ import (
 var item = &MockItem{
 	Id:    1,
 	Title: "Hello",
-	Fields: map[uint]interface{}{
-		10: "World",
+	StringFields: map[uint][]string{
+		10: []string{"World"},
+	},
+	NumberFields: map[uint]float64{
+		4: 15000,
 	},
 	OrgPrice: 200,
 	Buyable:  true,

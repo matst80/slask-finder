@@ -216,8 +216,8 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 		if err == nil {
 			for item := range ws.itemIndex.GetItems(slices.Values(cartItemIds)) {
 
-				if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
-					excludedProductTypes = append(excludedProductTypes, productType.(string))
+				if productType, typeOk := item.GetStringFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+					excludedProductTypes = append(excludedProductTypes, productType)
 				}
 
 			}
@@ -250,10 +250,9 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
 
 		if len(excludedProductTypes) > 0 {
-			if productType, typeOk := item.GetFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
+			if productType, typeOk := item.GetStringFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
 
-				itemProductType := productType.(string)
-				if slices.Contains(excludedProductTypes, itemProductType) {
+				if slices.Contains(excludedProductTypes, productType) {
 					//log.Printf("skipping %d %s", item.GetId(), itemProductType)
 					continue
 				}

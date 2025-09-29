@@ -71,19 +71,19 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 		})
 	}
 	for _, relation := range f.Relations {
-		itemValue, ok := item.GetFieldValue(relation.FacetId)
+		itemValue, ok := item.GetStringsFieldValue(relation.FacetId)
 		if !ok {
 			continue
 		}
-		keyValue, ok := AsKeyFilterValue(itemValue)
-		if !ok {
-			log.Printf("Failed to convert %v to key filter value", itemValue)
-			continue
-		}
+		// keyValue, ok := AsKeyFilterValue(itemValue)
+		// if !ok {
+		// 	log.Printf("Failed to convert %v to key filter value", itemValue)
+		// 	continue
+		// }
 		if relation.ValueConverter == NoConverter {
 			result = append(result, StringFilter{
 				Id:    relation.DestinationFacetId,
-				Value: keyValue,
+				Value: itemValue,
 			})
 		}
 	}
@@ -131,7 +131,7 @@ func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
 
 func (f *FacetRelationGroup) Matches(item Item) bool {
 	for _, relation := range f.ItemRequirements {
-		itemValue, ok := item.GetFieldValue(relation.FacetId)
+		itemValue, ok := item.GetStringsFieldValue(relation.FacetId)
 		if !ok {
 			// log.Printf("Item %d does not have field %d", item.GetId(), relation.FacetId)
 			return false
@@ -145,7 +145,7 @@ func (f *FacetRelationGroup) Matches(item Item) bool {
 		}
 	}
 	for _, relation := range f.Relations {
-		_, ok := item.GetFieldValue(relation.FacetId)
+		_, ok := item.GetStringsFieldValue(relation.FacetId)
 		if !ok {
 			// log.Printf("Item %d does not have related field %d", item.GetId(), relation.FacetId)
 			return false

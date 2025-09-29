@@ -1,19 +1,23 @@
 package types
 
+import "log"
+
 type MockItem struct {
-	Id          uint
-	Sku         string
-	Fields      map[uint]interface{}
-	Deleted     bool
-	Price       int
-	OrgPrice    int
-	StockLevel  string
-	Stock       map[string]string
-	Buyable     bool
-	LastUpdated int64
-	Created     int64
-	Popularity  float64
-	Title       string
+	Id  uint
+	Sku string
+	//Fields      map[uint]interface{}
+	StringFields map[uint][]string
+	NumberFields map[uint]float64
+	Deleted      bool
+	Price        int
+	OrgPrice     int
+	StockLevel   string
+	Stock        map[string]string
+	Buyable      bool
+	LastUpdated  int64
+	Created      int64
+	Popularity   float64
+	Title        string
 }
 
 func (m *MockItem) GetDiscount() int {
@@ -40,9 +44,37 @@ func (m *MockItem) GetRating() (int, int) {
 	return 20, 5
 }
 
-func (m *MockItem) GetFieldValue(id uint) (interface{}, bool) {
-	v, ok := m.Fields[id]
-	return v, ok
+// func (m *MockItem) GetFieldValue(id uint) (interface{}, bool) {
+// 	v, ok := m.Fields[id]
+// 	return v, ok
+// }
+
+func (m *MockItem) GetStringFields() map[uint][]string {
+	return m.StringFields
+}
+
+func (m *MockItem) GetNumberFields() map[uint]float64 {
+	return m.NumberFields
+}
+
+func (m *MockItem) GetStringFieldValue(id uint) (string, bool) {
+	if v, ok := m.StringFields[id]; ok && len(v) > 0 {
+		return v[0], true
+	}
+	return "", false
+}
+
+func (m *MockItem) GetStringsFieldValue(id uint) ([]string, bool) {
+	if v, ok := m.StringFields[id]; ok {
+		return v, true
+	}
+	return nil, false
+}
+func (m *MockItem) GetNumberFieldValue(id uint) (float64, bool) {
+	if v, ok := m.NumberFields[id]; ok {
+		return v, true
+	}
+	return 0, false
 }
 
 func (m *MockItem) GetId() uint {
@@ -61,9 +93,9 @@ func (m *MockItem) GetStock() map[string]string {
 	return m.Stock
 }
 
-func (m *MockItem) GetFields() map[uint]interface{} {
-	return m.Fields
-}
+// func (m *MockItem) GetFields() map[uint]interface{} {
+// 	return m.Fields
+// }
 
 func (m *MockItem) IsDeleted() bool {
 	return m.Deleted
@@ -122,6 +154,17 @@ func (m *MockItem) GetItem() interface{} {
 	return m
 }
 
+func (m *MockItem) GetFields() []uint {
+	fields := make([]uint, 0, len(m.StringFields)+len(m.NumberFields))
+	for k := range m.StringFields {
+		fields = append(fields, k)
+	}
+	for k := range m.NumberFields {
+		fields = append(fields, k)
+	}
+	return fields
+}
+
 type MockField struct {
 	Key   uint
 	Value interface{}
@@ -129,11 +172,39 @@ type MockField struct {
 
 func MakeMockItem(id uint, fields ...MockField) Item {
 	ret := &MockItem{
-		Id:     id,
-		Fields: make(map[uint]interface{}),
+		Id:           id,
+		StringFields: make(map[uint][]string),
+		NumberFields: make(map[uint]float64),
+		Deleted:      false,
+		Stock:        make(map[string]string),
 	}
 	for _, field := range fields {
-		ret.Fields[field.Key] = field.Value
+		switch v := field.Value.(type) {
+		case string:
+			ret.StringFields[field.Key] = []string{v}
+		case []string:
+			ret.StringFields[field.Key] = v
+		case []interface{}:
+			strs := make([]string, 0, len(v))
+			for _, vi := range v {
+				if s, ok := vi.(string); ok {
+					strs = append(strs, s)
+				} else {
+					log.Printf("Non-string value in string array for id %d: %T", field.Key, vi)
+				}
+			}
+			if len(strs) > 0 {
+				ret.StringFields[field.Key] = strs
+			}
+		case float64:
+			ret.NumberFields[field.Key] = v
+		case int:
+			ret.NumberFields[field.Key] = float64(v)
+		case int64:
+			ret.NumberFields[field.Key] = float64(v)
+		default:
+			log.Printf("Unsupported field type for id %d: %T", field.Key, v)
+		}
 
 	}
 	return ret

@@ -57,7 +57,7 @@ func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 	// First batch
 	wg.Add(1)
 	for i := 0; i < 5; i++ {
-		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
+		queue.QueueItem(&index.StorageDataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
 	}
 	wg.Wait()
 
@@ -72,7 +72,7 @@ func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 	// Second batch
 	wg.Add(1)
 	for i := 5; i < 10; i++ {
-		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
+		queue.QueueItem(&index.StorageDataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
 	}
 	wg.Wait()
 
@@ -111,7 +111,7 @@ func TestEmbeddingsQueue_StopWithRemainingItems(t *testing.T) {
 
 	wg.Add(1)
 	for i := 0; i < 10; i++ {
-		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
+		queue.QueueItem(&index.StorageDataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
 	}
 	wg.Wait() // wait for idle first time
 
@@ -147,7 +147,7 @@ func TestEmbeddingsQueue_DoneFuncError(t *testing.T) {
 	queue.Start()
 
 	wg.Add(1)
-	queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: 1}})
+	queue.QueueItem(&index.StorageDataItem{BaseItem: &index.BaseItem{Id: 1}})
 	wg.Wait()
 
 	assert.Equal(t, int32(1), atomic.LoadInt32(&called), "done should be called exactly once even on error")
