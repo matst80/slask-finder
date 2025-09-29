@@ -221,6 +221,18 @@ func (item *DataItem) GetFieldValue(id uint) (interface{}, bool) {
 	return v, ok
 }
 
+func (item *DataItem) GetFacetValue(id uint) (interface{}, bool) {
+	return item.Fields.GetFacetValue(id)
+}
+
+func (item *DataItem) GetFacets() map[uint]interface{} {
+	return item.Fields.GetFacets()
+}
+
+func (item *DataItem) SetValue(id uint, value interface{}) {
+	item.Fields.SetValue(id, value)
+}
+
 func (item *DataItem) GetRating() (int, int) {
 	average, ok := item.GetFieldValue(6)
 	if !ok {
