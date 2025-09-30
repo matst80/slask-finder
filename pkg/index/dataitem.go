@@ -200,97 +200,24 @@ func (item *DataItem) GetStock() map[string]string {
 	return item.Stock
 }
 
-// func (item *DataItem) GetFields() map[uint]interface{} {
-// 	return item.Fields.GetFacets()
-// }
-
 func (m *DataItem) GetStringFields() map[uint]string {
 	return m.Fields.GetStringFields()
-	// ret := make(map[uint]string, len(m.Fields))
-	// for k, v := range m.Fields {
-	// 	switch value := v.(type) {
-	// 	case string:
-	// 		ret[k] = value
-	// 	case []string:
-	// 		ret[k] = strings.Join(value, ";;")
-	// 	case []any:
-	// 		strs := make([]string, 0, len(value))
-	// 		for _, iv := range value {
-	// 			if s, ok := iv.(string); ok {
-	// 				strs = append(strs, s)
-	// 			}
-	// 		}
-	// 		if len(strs) > 0 {
-	// 			ret[k] = strings.Join(strs, ";;")
-	// 		}
-	// 	}
-	// }
-	// return ret
 }
 
 func (m *DataItem) GetNumberFields() map[uint]float64 {
 	return m.Fields.GetNumberFields()
-	// ret := make(map[uint]float64, len(m.Fields))
-	// for k, v := range m.Fields {
-	// 	switch value := v.(type) {
-	// 	case int:
-	// 		ret[k] = float64(value)
-	// 	case int64:
-	// 		ret[k] = float64(value)
-	// 	case float64:
-	// 		ret[k] = value
-	// 	case []any:
-	// 		if len(value) == 1 {
-	// 			switch nvalue := value[0].(type) {
-	// 			case int:
-	// 				ret[k] = float64(nvalue)
-	// 			case int64:
-	// 				ret[k] = float64(nvalue)
-	// 			case float64:
-	// 				ret[k] = nvalue
-	// 			}
-	// 		}
-	// 	}
-	// }
-	// return ret
 }
 
 func (m *DataItem) GetStringFieldValue(id uint) (string, bool) {
 	return m.Fields.GetStringFieldValue(id)
-	// fields := m.GetStringFields()
-	// v, ok := fields[id]
-	// if ok && len(v) > 0 {
-	// 	return v, true
-	// }
-
-	// return "", false
 }
 
 func (m *DataItem) GetStringsFieldValue(id uint) ([]string, bool) {
 	return m.Fields.GetStringsFieldValue(id)
-	//  fields := m.GetStringFields()
-	// if v, ok := fields[id]; ok {
-	// 	return strings.Split(v, ";;"), true
-	// }
-
-	// return nil, false
 }
 func (m *DataItem) GetNumberFieldValue(id uint) (float64, bool) {
 	return m.Fields.GetNumberFieldValue(id)
-	// fields := m.GetNumberFields()
-	// if v, ok := fields[id]; ok {
-	// 	return v, true
-	// }
-	// return 0, false
 }
-
-// func (item *DataItem) GetFacetValue(id uint) (any, bool) {
-// 	return item.Fields.GetFacetValue(id)
-// }
-
-// func (item *DataItem) GetFacets() map[uint]any {
-// 	return item.Fields.GetFacets()
-// }
 
 func (item *DataItem) GetRating() (int, int) {
 	average, ok := item.GetNumberFieldValue(6)
@@ -407,16 +334,3 @@ func (item *DataItem) Write(w io.Writer) (int, error) {
 	n, err := w.Write([]byte("\n"))
 	return b + n, err
 }
-
-//	func (item *DataItem) GetBaseItem() types.BaseItem {
-//		return types.BaseItem{
-//			Id:    item.Id,
-//			Sku:   item.Sku,
-//			Title: item.Title,
-//			Price: item.GetPrice(),
-//			Img:   item.Img,
-//		}
-//	}
-// func (item *DataItem) GetItem() interface{} {
-// 	return item.BaseItem
-// }
