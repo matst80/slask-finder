@@ -1,11 +1,12 @@
 package types
 
+import "io"
+
 type Item interface {
 	GetId() uint
 	GetSku() string
 	GetStock() map[string]string
 	HasStock() bool
-	GetFields() []uint
 	IsDeleted() bool
 	IsSoftDeleted() bool
 	GetPropertyValue(name string) any
@@ -13,7 +14,7 @@ type Item interface {
 	GetDiscount() int
 	GetRating() (int, int)
 	//GetFieldValue(id uint) (interface{}, bool)
-	GetStringFields() map[uint][]string
+	GetStringFields() map[uint]string
 	GetNumberFields() map[uint]float64
 	GetStringFieldValue(id uint) (string, bool)
 	GetStringsFieldValue(id uint) ([]string, bool)
@@ -30,5 +31,6 @@ type Item interface {
 	//	GetItem() interface{}
 	CanHaveEmbeddings() bool
 	GetEmbeddingsText() (string, error)
+	Write(writer io.Writer) (int, error)
 	//StreamLine(w http.ResponseWriter)
 }

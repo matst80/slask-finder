@@ -3,8 +3,6 @@ package index
 import (
 	"encoding/json"
 	"testing"
-
-	"github.com/matst80/slask-finder/pkg/types"
 )
 
 const (
@@ -136,7 +134,7 @@ func TestDataItem_GetFacetValue(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, ok := item.GetFacetValue(1); !ok {
+	if _, ok := item.GetNumberFieldValue(1); !ok {
 		t.Error("expected to find facet value with id 1")
 	}
 }
@@ -147,19 +145,8 @@ func TestDataItem_GetFacets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	facets := item.GetFacets()
+	facets := item.GetStringFields()
 	if len(facets) == 0 {
 		t.Error("expected to find facets")
-	}
-}
-
-func TestDataItem_SetValue(t *testing.T) {
-	item := DataItem{
-		Fields: make(types.ItemFields),
-	}
-	item.SetValue(1, "test")
-
-	if val, ok := item.GetFacetValue(1); !ok || val != "test" {
-		t.Error("expected to find facet value with id 1 and value 'test'")
 	}
 }

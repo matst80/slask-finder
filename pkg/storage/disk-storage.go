@@ -17,7 +17,7 @@ import (
 )
 
 func init() {
-	gob.Register(index.StorageDataItem{})
+	gob.Register(index.RawDataItem{})
 	gob.Register([]string{})
 	gob.Register(types.ItemFields{})
 	gob.Register(types.Embeddings{})
@@ -44,7 +44,7 @@ type Field struct {
 // 	return nil
 // }
 
-func asSeq(items []*index.StorageDataItem) iter.Seq[types.Item] {
+func asSeq(items []*index.RawDataItem) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
 		for _, item := range items {
 			if !yield(item) {
@@ -55,7 +55,7 @@ func asSeq(items []*index.StorageDataItem) iter.Seq[types.Item] {
 }
 
 const itemsFile = "items.jz"
-const storageItemFile = "items-v2.gz"
+const storageItemFile = "items-v3.gz"
 const settingsFile = "settings.json"
 const legacySettingsFile = "settings.jz"
 const facetsFile = "facets.json"
@@ -127,9 +127,9 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 	defer zipReader.Close()
 
 	decoder := gob.NewDecoder(zipReader)
-	//defer zipReader.Close()
+	defer zipReader.Close()
 
-	tmp := make([]*index.StorageDataItem, 0)
+	tmp := make([]*index.RawDataItem, 0)
 
 	err = decoder.Decode(&tmp)
 	log.Printf("Loaded %d items from %s", len(tmp), fileName)
@@ -138,7 +138,6 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 	}
 	decoder = nil
 	tmp = nil
-	defer runtime.GC()
 
 	if errors.Is(err, io.EOF) {
 		return nil
@@ -148,11 +147,11 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 }
 
 func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
-	newFileName, _ := d.GetFileName(storageItemFile)
-	_, err := os.Stat(newFileName)
-	if err == nil {
-		return d.loadNewItems(newFileName, handlers...)
-	}
+	// newFileName, _ := d.GetFileName(storageItemFile)
+	// _, err := os.Stat(newFileName)
+	// if err == nil {
+	// 	return d.loadNewItems(newFileName, handlers...)
+	// }
 	fileName, _ := d.GetFileName(itemsFile)
 	file, err := os.Open(fileName)
 	if err != nil {
@@ -177,13 +176,13 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue
 			}
-			cgm, ok := tmp.Fields[35]
-			if ok {
-				cgmString, isString := cgm.(string)
-				if isString {
-					tmp.Fields[37] = cgmString[:3]
-				}
-			}
+			// cgm, ok := tmp.Fields[35]
+			// if ok {
+			// 	cgmString, isString := cgm.(string)
+			// 	if isString {
+			// 		tmp.Fields[37] = cgmString[:3]
+			// 	}
+			// }
 			items = append(items, tmp)
 
 			tmp = &index.DataItem{}
@@ -297,7 +296,7 @@ func (p *DiskStorage) LoadJson(data any, filename string) error {
 	return nil
 }
 
-func (p *DiskStorage) SaveStorageItems(items iter.Seq[*index.StorageDataItem]) error {
+func (p *DiskStorage) SaveRawItems(items iter.Seq[*index.RawDataItem]) error {
 	fileName, tmpFileName := p.GetFileName(storageItemFile)
 
 	file, err := os.Create(tmpFileName)
@@ -340,7 +339,7 @@ func (p *DiskStorage) SaveItems(items iter.Seq[types.Item]) error {
 			log.Printf("Warning: item is not of type *index.DataItem, skipping, got %T", item)
 			continue
 		}
-		err = enc.Encode(index.ToStorageDataItem(baseItem))
+		err = enc.Encode(baseItem)
 		if err != nil {
 			break
 		}

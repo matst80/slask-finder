@@ -87,7 +87,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 
 	for item := range ws.itemIndex.GetItems(fn) {
 
-		err = enc.Encode(item)
+		_, err = item.Write(w)
 		idx++
 
 		if idx >= sr.PageSize {
@@ -141,7 +141,8 @@ func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, en
 	}
 	publicHeaders(w, r, true, "120")
 	w.WriteHeader(http.StatusOK)
-	return enc.Encode(item)
+	_, err = item.Write(w)
+	return err
 }
 
 func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -154,7 +155,8 @@ func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId in
 	}
 
 	w.WriteHeader(http.StatusOK)
-	return enc.Encode(item)
+	_, err := item.Write(w)
+	return err
 }
 
 func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -190,7 +192,7 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
 		if ok && item.GetId() != uint(id64) {
-			err = enc.Encode(item)
+			_, err = item.Write(w)
 			i++
 		}
 		if i > 20 || err != nil {
@@ -260,7 +262,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 			}
 		}
 
-		err = enc.Encode(item)
+		_, err = item.Write(w)
 		i++
 
 		if i > maxItems || err != nil {
@@ -309,7 +311,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 		max := 30
 		for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
 
-			err := enc.Encode(item)
+			_, err := item.Write(w)
 			if err != nil {
 				return err
 			}
@@ -386,7 +388,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 	idx := 0
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", results, 0)) {
 		idx++
-		err = enc.Encode(item)
+		_, err = item.Write(w)
 		if idx >= 20 || err != nil {
 			break
 		}
@@ -427,7 +429,7 @@ func (ws *app) Popular(w http.ResponseWriter, r *http.Request, sessionId int, en
 	max := 60
 	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
 
-		err := enc.Encode(item)
+		_, err := item.Write(w)
 		if err != nil {
 			return err
 		}
@@ -464,9 +466,6 @@ func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)
 
-	// Create JSON encoder
-	enc := json.NewEncoder(w)
-
 	// Create scanner to read line by line
 	scanner := bufio.NewScanner(r.Body)
 
@@ -493,7 +492,8 @@ func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
 
 	// Stream items using GetItems
 	for item := range ws.itemIndex.GetItems(idSeq) {
-		if err := enc.Encode(item); err != nil {
+
+		if _, err := item.Write(w); err != nil {
 			log.Printf("Error encoding item: %v", err)
 			return
 		}

@@ -3,6 +3,7 @@ package facet
 import (
 	"log"
 	"slices"
+	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -183,7 +184,7 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 		// }
 
 		maybeMerger.Add(func() *types.ItemList {
-			return target.MatchFilterValue(fieldValue)
+			return target.MatchFilterValue(strings.Split(fieldValue, ";;"))
 		})
 
 	}
@@ -218,7 +219,7 @@ func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
 		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
 			//if keyValue, ok := types.AsKeyFilterValue(itemField); ok {
 			qm.Add(func() *types.ItemList {
-				return field.MatchFilterValue(fieldValue)
+				return field.MatchFilterValue(strings.Split(fieldValue, ";;"))
 			})
 			//}
 		}

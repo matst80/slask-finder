@@ -1,12 +1,17 @@
 package types
 
-import "log"
+import (
+	"encoding/json"
+	"io"
+	"log"
+	"strings"
+)
 
 type MockItem struct {
 	Id  uint
 	Sku string
 	//Fields      map[uint]interface{}
-	StringFields map[uint][]string
+	StringFields map[uint]string
 	NumberFields map[uint]float64
 	Deleted      bool
 	Price        int
@@ -49,7 +54,7 @@ func (m *MockItem) GetRating() (int, int) {
 // 	return v, ok
 // }
 
-func (m *MockItem) GetStringFields() map[uint][]string {
+func (m *MockItem) GetStringFields() map[uint]string {
 	return m.StringFields
 }
 
@@ -59,14 +64,14 @@ func (m *MockItem) GetNumberFields() map[uint]float64 {
 
 func (m *MockItem) GetStringFieldValue(id uint) (string, bool) {
 	if v, ok := m.StringFields[id]; ok && len(v) > 0 {
-		return v[0], true
+		return v, true
 	}
 	return "", false
 }
 
 func (m *MockItem) GetStringsFieldValue(id uint) ([]string, bool) {
 	if v, ok := m.StringFields[id]; ok {
-		return v, true
+		return strings.Split(v, ";;"), true
 	}
 	return nil, false
 }
@@ -92,10 +97,6 @@ func (m *MockItem) IsSoftDeleted() bool {
 func (m *MockItem) GetStock() map[string]string {
 	return m.Stock
 }
-
-// func (m *MockItem) GetFields() map[uint]interface{} {
-// 	return m.Fields
-// }
 
 func (m *MockItem) IsDeleted() bool {
 	return m.Deleted
@@ -173,7 +174,7 @@ type MockField struct {
 func MakeMockItem(id uint, fields ...MockField) Item {
 	ret := &MockItem{
 		Id:           id,
-		StringFields: make(map[uint][]string),
+		StringFields: make(map[uint]string),
 		NumberFields: make(map[uint]float64),
 		Deleted:      false,
 		Stock:        make(map[string]string),
@@ -181,9 +182,9 @@ func MakeMockItem(id uint, fields ...MockField) Item {
 	for _, field := range fields {
 		switch v := field.Value.(type) {
 		case string:
-			ret.StringFields[field.Key] = []string{v}
-		case []string:
 			ret.StringFields[field.Key] = v
+		case []string:
+			ret.StringFields[field.Key] = strings.Join(v, ";;")
 		case []any:
 			strs := make([]string, 0, len(v))
 			for _, vi := range v {
@@ -194,7 +195,7 @@ func MakeMockItem(id uint, fields ...MockField) Item {
 				}
 			}
 			if len(strs) > 0 {
-				ret.StringFields[field.Key] = strs
+				ret.StringFields[field.Key] = strings.Join(strs, ";;")
 			}
 		case float64:
 			ret.NumberFields[field.Key] = v
@@ -212,4 +213,12 @@ func MakeMockItem(id uint, fields ...MockField) Item {
 
 func (m *MockItem) ToItem() Item {
 	return m
+}
+
+func (m *MockItem) Write(w io.Writer) (int, error) {
+	bytes, err := json.Marshal(m)
+	if err != nil {
+		return 0, err
+	}
+	return w.Write(bytes)
 }

@@ -15,7 +15,7 @@ import (
 type queueItem struct {
 	id           uint
 	deleted      bool
-	stringValues map[uint][]string
+	stringValues map[uint]string
 	numberValues map[uint]float64
 }
 
