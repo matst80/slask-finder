@@ -161,7 +161,7 @@ func (eq *EmbeddingsQueue) QueueCapacity() int {
 // signalActivity removed in simplified version
 
 // Status returns the current status of the embeddings queue
-func (eq *EmbeddingsQueue) Status() map[string]interface{} {
+func (eq *EmbeddingsQueue) Status() map[string]any {
 
 	queueLen := len(eq.queue)
 	queueCap := cap(eq.queue)
@@ -175,7 +175,7 @@ func (eq *EmbeddingsQueue) Status() map[string]interface{} {
 	// Calculate estimated time based on worker count
 	estimatedTime := estimateTimeLeft(queueLen, float64(eq.workerCount))
 
-	return map[string]interface{}{
+	return map[string]any{
 		"workerCount":       eq.workerCount,
 		"queueLength":       queueLen,
 		"queueCapacity":     queueCap,

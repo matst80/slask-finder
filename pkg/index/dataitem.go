@@ -21,7 +21,7 @@ type PriceTuple struct {
 
 type OutletItem struct {
 	ArticleNumber string     `json:"sku,omitempty"`
-	Price         PriceTuple `json:"price,omitempty"`
+	Price         PriceTuple `json:"price"`
 	Title         string     `json:"title"`
 }
 
@@ -120,7 +120,7 @@ func (item *DataItem) HasStock() bool {
 	return ok && v != nil
 }
 
-func (item *DataItem) GetPropertyValue(name string) interface{} {
+func (item *DataItem) GetPropertyValue(name string) any {
 	switch name {
 	case "Sku":
 		return item.Sku
@@ -212,11 +212,11 @@ func (item *DataItem) GetStock() map[string]string {
 	return item.Stock
 }
 
-func (item *DataItem) GetFields() map[uint]interface{} {
+func (item *DataItem) GetFields() map[uint]any {
 	return item.Fields.GetFacets()
 }
 
-func (item *DataItem) GetFieldValue(id uint) (interface{}, bool) {
+func (item *DataItem) GetFieldValue(id uint) (any, bool) {
 	v, ok := item.Fields[id]
 	return v, ok
 }
@@ -250,7 +250,7 @@ func (item *DataItem) GetCreated() int64 {
 	return item.Created
 }
 
-func getNumberValue[K float64 | int](fieldValue interface{}) K {
+func getNumberValue[K float64 | int](fieldValue any) K {
 
 	switch value := fieldValue.(type) {
 	case int:
@@ -281,7 +281,7 @@ func (item *DataItem) GetTitle() string {
 	return item.Title
 }
 
-func getStringValues(fieldValue interface{}, found bool) []string {
+func getStringValues(fieldValue any, found bool) []string {
 	if !found {
 		return []string{}
 	}
@@ -326,6 +326,6 @@ func (item *DataItem) GetBaseItem() types.BaseItem {
 		Img:   item.Img,
 	}
 }
-func (item *DataItem) GetItem() interface{} {
+func (item *DataItem) GetItem() any {
 	return item.BaseItem
 }

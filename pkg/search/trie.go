@@ -289,10 +289,7 @@ func (t *Trie) PredictTree(prev Token, prefix Token, maxDepth int, k int) []Pred
 	if len(matches) == 0 {
 		return nil
 	}
-	limit := k
-	if len(matches) < limit {
-		limit = len(matches)
-	}
+	limit := min(len(matches), k)
 	nodes := make([]PredictionNode, 0, limit)
 	for i := 0; i < limit; i++ {
 		m := matches[i]
@@ -342,10 +339,7 @@ func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited
 		}
 		return cands[i].pop > cands[j].pop
 	})
-	limit := k
-	if len(cands) < limit {
-		limit = len(cands)
-	}
+	limit := min(len(cands), k)
 	res := make([]PredictionNode, 0, limit)
 	for i := 0; i < limit; i++ {
 		c := cands[i]

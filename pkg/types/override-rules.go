@@ -9,7 +9,7 @@ type FilterOverrideules []FilterMatchRule
 type RuleActionType string
 
 type RuleAction struct {
-	Value interface{}    `json:"value"`
+	Value any            `json:"value"`
 	Type  RuleActionType `json:"id"`
 }
 

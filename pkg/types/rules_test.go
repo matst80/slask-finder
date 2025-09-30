@@ -8,7 +8,7 @@ import (
 var item = &MockItem{
 	Id:    1,
 	Title: "Hello",
-	Fields: map[uint]interface{}{
+	Fields: map[uint]any{
 		10: "World",
 	},
 	OrgPrice: 200,

@@ -34,8 +34,8 @@ type ValueWithCount struct {
 	Count int    `json:"count"`
 }
 
-func (f KeyField) GetValues() []interface{} {
-	ret := make([]interface{}, len(f.Keys))
+func (f KeyField) GetValues() []any {
+	ret := make([]any, len(f.Keys))
 	idx := 0
 	for value := range f.Keys {
 		ret[idx] = ValueWithCount{
@@ -87,7 +87,7 @@ func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemLi
 	return &ret
 }
 
-func (f KeyField) Match(input interface{}) *types.ItemList {
+func (f KeyField) Match(input any) *types.ItemList {
 	value, ok := types.AsKeyFilterValue(input)
 	if !ok {
 		log.Printf("KeyField: Match: Unknown type %T", input)
@@ -176,7 +176,7 @@ func (f *KeyField) removeString(value string, id uint) {
 	}
 }
 
-func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
+func (f KeyField) AddValueLink(data any, itemId uint) bool {
 	if !f.Searchable {
 		return false
 	}
@@ -193,7 +193,7 @@ func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
 	case int64:
 		f.addString(fmt.Sprintf("%d", typed), itemId)
 		return true
-	case []interface{}:
+	case []any:
 
 		for _, v := range typed {
 			if str, ok := v.(string); ok {
@@ -227,11 +227,11 @@ func (f KeyField) AddValueLink(data interface{}, itemId uint) bool {
 	return false
 }
 
-func (f KeyField) RemoveValueLink(data interface{}, id uint) {
+func (f KeyField) RemoveValueLink(data any, id uint) {
 	switch typed := data.(type) {
 	case nil:
 		return
-	case []interface{}:
+	case []any:
 
 		for _, v := range typed {
 			if str, ok := v.(string); ok {

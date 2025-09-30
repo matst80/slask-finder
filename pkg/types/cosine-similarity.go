@@ -15,7 +15,7 @@ func CosineSimilarity(a, b Embeddings) float64 {
 	var normA float64
 	var normB float64
 
-	for i := 0; i < len(a); i++ {
+	for i := range a {
 		dotProduct += float64(a[i] * b[i])
 		normA += float64(a[i] * a[i])
 		normB += float64(b[i] * b[i])

@@ -1,5 +1,7 @@
 package types
 
+import "slices"
+
 type BaseField struct {
 	Id               uint    `json:"id"`
 	Name             string  `json:"name"`
@@ -81,12 +83,7 @@ func (f *FacetRequest) IsIgnored(id uint) bool {
 		}
 		return true
 	}
-	for _, v := range f.IgnoreFacets {
-		if v == id {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(f.IgnoreFacets, id)
 }
 
 type LocationStock []struct {
@@ -112,14 +109,14 @@ type Item interface {
 	GetSku() string
 	GetStock() map[string]string
 	HasStock() bool
-	GetFields() map[uint]interface{}
+	GetFields() map[uint]any
 	IsDeleted() bool
 	IsSoftDeleted() bool
-	GetPropertyValue(name string) interface{}
+	GetPropertyValue(name string) any
 	GetPrice() int
 	GetDiscount() int
 	GetRating() (int, int)
-	GetFieldValue(id uint) (interface{}, bool)
+	GetFieldValue(id uint) (any, bool)
 	GetLastUpdated() int64
 	GetCreated() int64
 	//GetPopularity() float64
@@ -148,13 +145,13 @@ type EmbeddingsEngine interface {
 
 type Facet interface {
 	GetType() uint
-	Match(data interface{}) *ItemList
+	Match(data any) *ItemList
 	// MatchAsync(data interface{}, results chan<- *ItemList)
 	GetBaseField() *BaseField
-	AddValueLink(value interface{}, id uint) bool
-	RemoveValueLink(value interface{}, id uint)
+	AddValueLink(value any, id uint) bool
+	RemoveValueLink(value any, id uint)
 	UpdateBaseField(data *BaseField)
-	GetValues() []interface{}
+	GetValues() []any
 	IsExcludedFromFacets() bool
 	IsCategory() bool
 }
@@ -178,7 +175,7 @@ type SettingsKey string
 type SettingsChange struct {
 	Type     SettingsKey `json:"type"`
 	Priority float64     `json:"priority"`
-	Value    interface{} `json:"value"`
+	Value    any         `json:"value"`
 }
 
 func (s *Settings) Lock() {

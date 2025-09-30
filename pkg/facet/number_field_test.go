@@ -25,7 +25,7 @@ var total = 300000
 
 func makeNumberField() *IntegerField {
 	r := EmptyIntegerField(&types.BaseField{Id: 1, Name: "number", Searchable: true, Description: "number field"})
-	for i := 0; i < total; i++ {
+	for i := range total {
 		//for j := 0; j < 100; j++ {
 		r.AddValueLink(i, uint(i))
 		//r.AddValueLink(i, uint((total*100)+total+i+j))
@@ -36,8 +36,8 @@ func makeNumberField() *IntegerField {
 
 func makeDecimalField() *DecimalField {
 	r := EmptyDecimalField(&types.BaseField{Id: 1, Name: "number", Description: "number field"})
-	for i := 0; i < total; i++ {
-		for j := 0; j < 100; j++ {
+	for i := range total {
+		for j := range 100 {
 			r.AddValueLink(i, uint((total*100)+j))
 			r.AddValueLink(i, uint((total*100)+total+i+j))
 		}

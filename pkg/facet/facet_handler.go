@@ -15,7 +15,7 @@ import (
 type queueItem struct {
 	id      uint
 	deleted bool
-	values  map[uint]interface{}
+	values  map[uint]any
 }
 
 type FacetItemHandler struct {
@@ -211,7 +211,7 @@ func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
 	}
 }
 
-func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected interface{}) {
+func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected any) {
 	defer wg.Done()
 
 	baseField := f.GetBaseField()

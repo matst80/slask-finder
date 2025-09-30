@@ -139,9 +139,9 @@ func (h *ItemEmbeddingsHandler) GetEmbeddingsQueueStatus() (queueLength int, que
 }
 
 // GetEmbeddingsQueueDetails returns detailed information about the embeddings queue status
-func (h *ItemEmbeddingsHandler) GetEmbeddingsQueueDetails() map[string]interface{} {
+func (h *ItemEmbeddingsHandler) GetEmbeddingsQueueDetails() map[string]any {
 	if h.EmbeddingsQueue == nil {
-		return map[string]interface{}{
+		return map[string]any{
 			"hasQueue": false,
 		}
 	}
@@ -179,9 +179,7 @@ func (h *ItemEmbeddingsHandler) GetAllEmbeddings() map[uint]types.Embeddings {
 
 	// Create a copy to avoid race conditions
 	result := make(map[uint]types.Embeddings, len(h.Embeddings))
-	for id, emb := range h.Embeddings {
-		result[id] = emb
-	}
+	maps.Copy(result, h.Embeddings)
 	return result
 }
 

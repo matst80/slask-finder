@@ -10,7 +10,7 @@ type RuleSource struct {
 	FieldId      uint   `json:"fieldId,omitempty"`
 }
 
-func (r RuleSource) GetSourceValue(item Item) interface{} {
+func (r RuleSource) GetSourceValue(item Item) any {
 	fetchByFieldId := r.Source == FieldId || (r.Source == "" && r.FieldId > 0)
 
 	if fetchByFieldId {

@@ -11,18 +11,18 @@ type StringFilter struct {
 }
 
 type RangeFilter struct {
-	Min interface{} `json:"min"`
-	Max interface{} `json:"max"`
-	Id  uint        `json:"id"`
+	Min any  `json:"min"`
+	Max any  `json:"max"`
+	Id  uint `json:"id"`
 }
 
-func AsKeyFilterValue(value interface{}) (StringFilterValue, bool) {
+func AsKeyFilterValue(value any) (StringFilterValue, bool) {
 	switch v := value.(type) {
 	case string:
 		return StringFilterValue{v}, true
 	case []string:
 		return v, true
-	case []interface{}:
+	case []any:
 		ret := make(StringFilterValue, 0)
 		for _, val := range v {
 			if str, ok := val.(string); ok {

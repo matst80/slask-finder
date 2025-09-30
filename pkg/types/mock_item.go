@@ -3,7 +3,7 @@ package types
 type MockItem struct {
 	Id          uint
 	Sku         string
-	Fields      map[uint]interface{}
+	Fields      map[uint]any
 	Deleted     bool
 	Price       int
 	OrgPrice    int
@@ -32,7 +32,7 @@ func (m *MockItem) GetBasePopularity() float64 {
 	return m.Popularity
 }
 
-func (m *MockItem) GetPropertyValue(name string) interface{} {
+func (m *MockItem) GetPropertyValue(name string) any {
 	return nil
 }
 
@@ -40,7 +40,7 @@ func (m *MockItem) GetRating() (int, int) {
 	return 20, 5
 }
 
-func (m *MockItem) GetFieldValue(id uint) (interface{}, bool) {
+func (m *MockItem) GetFieldValue(id uint) (any, bool) {
 	v, ok := m.Fields[id]
 	return v, ok
 }
@@ -61,7 +61,7 @@ func (m *MockItem) GetStock() map[string]string {
 	return m.Stock
 }
 
-func (m *MockItem) GetFields() map[uint]interface{} {
+func (m *MockItem) GetFields() map[uint]any {
 	return m.Fields
 }
 
@@ -118,19 +118,19 @@ func (item *MockItem) MergeKeyFields(updates []CategoryUpdate) bool {
 	return false
 }
 
-func (m *MockItem) GetItem() interface{} {
+func (m *MockItem) GetItem() any {
 	return m
 }
 
 type MockField struct {
 	Key   uint
-	Value interface{}
+	Value any
 }
 
 func MakeMockItem(id uint, fields ...MockField) Item {
 	ret := &MockItem{
 		Id:     id,
-		Fields: make(map[uint]interface{}),
+		Fields: make(map[uint]any),
 	}
 	for _, field := range fields {
 		ret.Fields[field.Key] = field.Value
