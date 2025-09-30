@@ -77,7 +77,7 @@ func (s *BaseSorter) ProcessItem(item types.Item) {
 	if current, ok := s.scores[id]; ok && current == newscore {
 		return
 	}
-	s.scores[id] = s.fn(item)
+	s.scores[id] = newscore + s.override[id]
 	s.dirty = true
 }
 
@@ -90,9 +90,11 @@ func (s *BaseSorter) GetSort() types.ByValue {
 	i := 0
 	var id uint
 	var score float64
+	var o float64
 	for id, score = range s.scores {
 		j += 0.0000000000001
-		sortMap[i] = types.Lookup{Id: id, Value: score + s.override[id] + j}
+		o = s.override[id]
+		sortMap[i] = types.Lookup{Id: id, Value: score + o + j}
 		i++
 	}
 	sortMap = sortMap[:i]
