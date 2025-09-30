@@ -31,10 +31,10 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 			log.Printf("Got upserts %d", len(items))
 			wg := &sync.WaitGroup{}
 			for _, item := range items {
-				go a.itemIndex.HandleItem(item, wg)
-				go a.facetHandler.HandleItem(item, wg)
-				go a.sortingHandler.HandleItem(item, wg)
-				go a.searchIndex.HandleItem(item, wg)
+				a.itemIndex.HandleItem(item, wg)
+				a.facetHandler.HandleItem(item, wg)
+				a.sortingHandler.HandleItem(item, wg)
+				a.searchIndex.HandleItem(item, wg)
 			}
 			wg.Wait()
 

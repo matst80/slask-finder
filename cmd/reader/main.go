@@ -80,7 +80,8 @@ func main() {
 		app.ConnectAmqp(amqpUrl)
 		app.ConnectFacetChange()
 		app.ConnectSettingsChange()
-		sortingHandler.Connect(app.conn, country)
+		sortingHandler.Connect(app.conn)
+		facetHandler.Connect(app.conn)
 	}
 
 	var tracker types.Tracking = nil

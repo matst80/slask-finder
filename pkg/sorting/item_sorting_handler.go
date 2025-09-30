@@ -42,7 +42,6 @@ func NewLastUpdateSorter() Sorter {
 
 type SortingItemHandler struct {
 	mu         sync.RWMutex
-	country    string
 	overrides  map[string]SortOverride
 	Sorters    []Sorter
 	sortValues map[string]types.ByValue
@@ -68,8 +67,7 @@ func NewSortingItemHandler() *SortingItemHandler {
 	return handler
 }
 
-func (h *SortingItemHandler) Connect(conn *amqp.Connection, country string) {
-	h.country = country
+func (h *SortingItemHandler) Connect(conn *amqp.Connection) {
 	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)

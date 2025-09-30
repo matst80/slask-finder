@@ -2,19 +2,23 @@ package facet
 
 import (
 	"cmp"
+	"encoding/json"
 	"iter"
 	"log"
 	"maps"
 	"slices"
 	"sync"
 
+	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/types"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type FacetItemHandler struct {
 	mu           sync.RWMutex
 	sortMap      map[uint]float64
 	sortValues   types.ByValue
+	override     map[uint]float64
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
 	AllFacets    types.ItemList
@@ -22,6 +26,35 @@ type FacetItemHandler struct {
 
 func (h *FacetItemHandler) HandleFieldChanges(items []types.FieldChange) {
 	h.UpdateFields(items)
+}
+
+func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+	err = messaging.ListenToTopic(ch, "global", "field_sort_override", func(d amqp.Delivery) error {
+		var item types.SortOverrideUpdate
+		if err := json.Unmarshal(d.Body, &item); err == nil {
+			log.Printf("Got sort override")
+			if item.Key == "popular-fields" {
+				h.mu.Lock()
+				h.override = item.Data
+				log.Printf("Got field overrides")
+				h.mu.Unlock()
+			} else {
+				log.Printf("Discarding field sort override %s", item.Key)
+			}
+
+		} else {
+			log.Printf("Failed to unmarshal facet change message %v", err)
+		}
+		return nil
+	})
+	if err != nil {
+		log.Fatalf("Failed to listen to facet_change topic: %v", err)
+	}
 }
 
 func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
