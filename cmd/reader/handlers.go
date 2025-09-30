@@ -59,9 +59,9 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
 	publicHeaders(w, r, true, "600")
 	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
+	w.WriteHeader(http.StatusOK)
 	ws.facetHandler.SortJsonFacets(ret)
 	return enc.Encode(ret)
 }
