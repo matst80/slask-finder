@@ -427,16 +427,7 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 	count := 0
 
 	if len(fieldIds) == 0 {
-		for id := range ws.sortValues.SortMap(ws.AllFacets) {
-			if count > limit {
-				break
-			}
-
-			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
-
-			}
-		}
-
+		fieldIds = ws.AllFacets
 	}
 
 	for id := range ws.sortValues.SortMap(fieldIds) {
