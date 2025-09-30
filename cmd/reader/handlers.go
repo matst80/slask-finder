@@ -50,10 +50,10 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	ret := make([]*facet.JsonFacet, 0)
 	for jsonFacet := range ch {
 		if jsonFacet == nil {
-			log.Printf("got nil field")
+
 			continue
 		}
-		log.Printf("got facet %s", jsonFacet.Name)
+
 		if jsonFacet.Result.HasValues() || jsonFacet.Selected != nil {
 			ret = append(ret, jsonFacet)
 		}
