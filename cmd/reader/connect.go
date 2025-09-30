@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/index"
@@ -25,14 +26,17 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 	}
 	// items listener
 	err = messaging.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
-		var items []index.DataItem
+		var items []*index.DataItem
 		if err := json.Unmarshal(d.Body, &items); err == nil {
 			log.Printf("Got upserts %d", len(items))
-
-			go a.itemIndex.HandleItems(asItems(items))
-			go a.facetHandler.HandleItems(asItems(items))
-			go a.sortingHandler.HandleItems(asItems(items))
-			go a.searchIndex.HandleItems(asItems(items))
+			wg := &sync.WaitGroup{}
+			for _, item := range items {
+				go a.itemIndex.HandleItem(item, wg)
+				go a.facetHandler.HandleItem(item, wg)
+				go a.sortingHandler.HandleItem(item, wg)
+				go a.searchIndex.HandleItem(item, wg)
+			}
+			wg.Wait()
 
 		} else {
 			log.Printf("Failed to unmarshal upset message %v", err)

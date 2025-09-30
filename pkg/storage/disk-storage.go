@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"sync"
 
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -18,6 +19,7 @@ import (
 
 func init() {
 	gob.Register(index.RawDataItem{})
+	gob.Register(index.DataItem{})
 	gob.Register([]string{})
 	gob.Register(types.ItemFields{})
 	gob.Register(types.Embeddings{})
@@ -44,15 +46,15 @@ type Field struct {
 // 	return nil
 // }
 
-func asSeq(items []*index.RawDataItem) iter.Seq[types.Item] {
-	return func(yield func(types.Item) bool) {
-		for _, item := range items {
-			if !yield(item) {
-				return
-			}
-		}
-	}
-}
+// func asSeq(items []*index.RawDataItem) iter.Seq[types.Item] {
+// 	return func(yield func(types.Item) bool) {
+// 		for _, item := range items {
+// 			if !yield(item) {
+// 				return
+// 			}
+// 		}
+// 	}
+// }
 
 const itemsFile = "items.jz"
 const storageItemFile = "items-v3.gz"
@@ -112,41 +114,41 @@ func (d *DiskStorage) SaveEmbeddings(embeddings any) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 
-func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandler) error {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return err
-	}
-	defer runtime.GC()
-	defer file.Close()
+// func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandler) error {
+// 	file, err := os.Open(fileName)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer runtime.GC()
+// 	defer file.Close()
 
-	zipReader, err := gzip.NewReader(file)
-	if err != nil {
-		return err
-	}
-	defer zipReader.Close()
+// 	zipReader, err := gzip.NewReader(file)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	defer zipReader.Close()
 
-	decoder := gob.NewDecoder(zipReader)
-	defer zipReader.Close()
+// 	decoder := gob.NewDecoder(zipReader)
+// 	defer zipReader.Close()
 
-	tmp := make([]*index.RawDataItem, 0)
+// 	tmp := make([]*index.RawDataItem, 0)
 
-	err = decoder.Decode(&tmp)
-	log.Printf("Loaded %d items from %s", len(tmp), fileName)
-	for _, hs := range handlers {
-		go hs.HandleItems(asSeq(tmp))
-	}
-	decoder = nil
-	tmp = nil
+// 	err = decoder.Decode(&tmp)
+// 	log.Printf("Loaded %d items from %s", len(tmp), fileName)
+// 	for _, hs := range handlers {
+// 		go hs.HandleItems(asSeq(tmp))
+// 	}
+// 	decoder = nil
+// 	tmp = nil
 
-	if errors.Is(err, io.EOF) {
-		return nil
-	}
+// 	if errors.Is(err, io.EOF) {
+// 		return nil
+// 	}
 
-	return err
-}
+// 	return err
+// }
 
-func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
+func (d *DiskStorage) LoadItems(wg *sync.WaitGroup, handlers ...types.ItemHandler) error {
 	// newFileName, _ := d.GetFileName(storageItemFile)
 	// _, err := os.Stat(newFileName)
 	// if err == nil {
@@ -169,7 +171,7 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 	defer zipReader.Close()
 
 	tmp := &index.DataItem{}
-	items := make([]types.Item, 0)
+	//items := make([]types.Item, 0)
 	for err == nil {
 
 		if err = decoder.Decode(tmp); err == nil {
@@ -183,14 +185,17 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 			// 		tmp.Fields[37] = cgmString[:3]
 			// 	}
 			// }
-			items = append(items, tmp)
+			for _, hs := range handlers {
+				go hs.HandleItem(tmp, wg)
+			}
+			//items = append(items, tmp)
 
 			tmp = &index.DataItem{}
 		}
 	}
-	for _, hs := range handlers {
-		go hs.HandleItems(slices.Values(items))
-	}
+	// for _, hs := range handlers {
+	// 	go hs.HandleItems(slices.Values(items))
+	// }
 	decoder = nil
 
 	if errors.Is(err, io.EOF) {

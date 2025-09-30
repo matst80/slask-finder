@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
-	"iter"
 	"log"
 	"net/http"
 	httpprof "net/http/pprof"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -28,16 +28,6 @@ func init() {
 	c, ok := os.LookupEnv("COUNTRY")
 	if ok {
 		country = c
-	}
-}
-
-func asItems(items []index.DataItem) iter.Seq[types.Item] {
-	return func(yield func(types.Item) bool) {
-		for i := range items {
-			if !yield(&items[i]) { // use index to avoid pointer to loop variable copy
-				return
-			}
-		}
 	}
 }
 
@@ -78,7 +68,9 @@ func main() {
 		facetHandler:   facetHandler,
 	}
 
-	err = diskStorage.LoadItems(itemIndex, sortingHandler, facetHandler, searchHandler)
+	wg := sync.WaitGroup{}
+
+	err = diskStorage.LoadItems(&wg, itemIndex, sortingHandler, facetHandler, searchHandler)
 	if err != nil {
 		log.Printf("Could not load items from file: %v", err)
 	}

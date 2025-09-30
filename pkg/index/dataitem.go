@@ -2,7 +2,6 @@ package index
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"strings"
 
@@ -356,25 +355,25 @@ func (item *DataItem) GetTitle() string {
 	return item.Title
 }
 
-func getStringValues(fieldValue any, found bool) []string {
-	if !found {
-		return []string{}
-	}
-	switch value := fieldValue.(type) {
-	case []string:
-		return value
-	case string:
-		return []string{value}
-	case int:
-		return []string{fmt.Sprintf("%d", value)}
-	case int64:
-		return []string{fmt.Sprintf("%d", value)}
-	case float64:
-		return []string{fmt.Sprintf("%f", value)}
-	default:
-		return []string{}
-	}
-}
+// func getStringValues(fieldValue any, found bool) []string {
+// 	if !found {
+// 		return []string{}
+// 	}
+// 	switch value := fieldValue.(type) {
+// 	case []string:
+// 		return value
+// 	case string:
+// 		return []string{value}
+// 	case int:
+// 		return []string{fmt.Sprintf("%d", value)}
+// 	case int64:
+// 		return []string{fmt.Sprintf("%d", value)}
+// 	case float64:
+// 		return []string{fmt.Sprintf("%f", value)}
+// 	default:
+// 		return []string{}
+// 	}
+// }
 
 func (item *DataItem) ToStringList() []string {
 	fieldValues := make([]string, 0)

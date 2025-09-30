@@ -1,7 +1,6 @@
 package main
 
 import (
-	"iter"
 	"log"
 	"os"
 	"sync"
@@ -21,21 +20,39 @@ func init() {
 }
 
 type ConverterHandler struct {
-	storage *storage.DiskStorage
-	wg      *sync.WaitGroup
-	items   []index.DataItem
+	mu    sync.Mutex
+	items []index.DataItem
 }
 
-func (c *ConverterHandler) HandleItems(itemIter iter.Seq[types.Item]) {
-	defer c.wg.Done()
-	for item := range itemIter {
+func (c *ConverterHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
+	wg.Go(func() {
 		if di, ok := item.(*index.DataItem); ok {
+			c.mu.Lock()
 			c.items = append(c.items, *di)
+			c.mu.Unlock()
 		} else {
 			log.Printf("Could not convert item to DataItem: %T", item)
 		}
+
+	})
+
+}
+
+func main() {
+	s := storage.NewDiskStorage(country, "data")
+	wg := sync.WaitGroup{}
+
+	c := &ConverterHandler{
+		items: make([]index.DataItem, 0),
 	}
-	err := c.storage.SaveRawItems(func(yield func(*index.RawDataItem) bool) {
+
+	err := s.LoadItems(&wg, c)
+	if err != nil {
+		log.Fatalf("Could not load items: %v", err)
+	}
+	wg.Wait()
+	log.Printf("Done converting items, saving %d items", len(c.items))
+	err = s.SaveRawItems(func(yield func(*index.RawDataItem) bool) {
 		for _, item := range c.items {
 			if !yield(index.NewRawConverted(&item)) { // use index to avoid pointer to loop variable copy
 				return
@@ -46,22 +63,5 @@ func (c *ConverterHandler) HandleItems(itemIter iter.Seq[types.Item]) {
 		log.Fatalf("Could not save items: %v", err)
 	}
 	log.Printf("Saved %d items", len(c.items))
-}
 
-func main() {
-	s := storage.NewDiskStorage(country, "data")
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	c := &ConverterHandler{
-		storage: s,
-		wg:      &wg,
-		items:   make([]index.DataItem, 0),
-	}
-
-	err := s.LoadItems(c)
-	if err != nil {
-		log.Fatalf("Could not load items: %v", err)
-	}
-	wg.Wait()
-	log.Printf("Done converting items")
 }

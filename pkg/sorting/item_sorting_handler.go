@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"iter"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -91,6 +92,10 @@ func (h *SortingItemHandler) Connect(conn *amqp.Connection, country string) {
 func (h *SortingItemHandler) HandleSortOverrideUpdate(item types.SortOverrideUpdate) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	if strings.Contains(item.Key, "session-") {
+		// Session specific overrides are ignored for now
+		return
+	}
 	h.overrides[item.Key] = item.Data
 	log.Printf("Applied sort override: %s", item.Key)
 	for _, s := range h.Sorters {
@@ -102,6 +107,14 @@ func (h *SortingItemHandler) HandleItems(it iter.Seq[types.Item]) {
 	for item := range it {
 		h.handleItemUnsafe(item)
 	}
+}
+
+func (h *SortingItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
+	wg.Go(func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.handleItemUnsafe(item)
+	})
 }
 
 func (h *SortingItemHandler) handleItemUnsafe(item types.Item) {

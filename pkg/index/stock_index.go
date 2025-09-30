@@ -2,6 +2,7 @@ package index
 
 import (
 	"iter"
+	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -46,10 +47,12 @@ func (i *ItemIndexWithStock) removeItemValues(item types.Item) {
 	}
 }
 
-func (i *ItemIndexWithStock) HandleItem(item types.Item) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-	i.handleItemUnsafe(item)
+func (i *ItemIndexWithStock) HandleItem(item types.Item, wg *sync.WaitGroup) {
+	wg.Go(func() {
+		i.mu.Lock()
+		defer i.mu.Unlock()
+		i.handleItemUnsafe(item)
+	})
 }
 
 func (i *ItemIndexWithStock) HandleItems(it iter.Seq[types.Item]) {

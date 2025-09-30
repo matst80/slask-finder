@@ -109,24 +109,24 @@ func BenchmarkDecodeMockItem(b *testing.B) {
 func BenchmarkDecodeStorageMockItem(b *testing.B) {
 	b.ReportAllocs()
 	for b.Loop() {
-		var item StorageDataItem
+		var item DataItem
 		if err := json.Unmarshal([]byte(mockStorageItem), &item); err != nil {
 			b.Fatal(err)
 		}
 	}
 }
 
-func BenchmarkDecodeStorageMockItemAsRegularItem(b *testing.B) {
-	b.ReportAllocs()
-	for b.Loop() {
-		var item StorageDataItem
+// func BenchmarkDecodeStorageMockItemAsRegularItem(b *testing.B) {
+// 	b.ReportAllocs()
+// 	for b.Loop() {
+// 		var item DataItem
 
-		if err := json.Unmarshal([]byte(mockStorageItem), &item); err != nil {
-			b.Fatal(err)
-		}
-		FromStorageDataItem(&item)
-	}
-}
+// 		if err := json.Unmarshal([]byte(mockStorageItem), &item); err != nil {
+// 			b.Fatal(err)
+// 		}
+// 		FromStorageDataItem(&item)
+// 	}
+// }
 
 func TestDataItem_GetFacetValue(t *testing.T) {
 	var item DataItem

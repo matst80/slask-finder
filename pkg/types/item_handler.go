@@ -1,10 +1,8 @@
 package types
 
-import (
-	"iter"
-)
+import "sync"
 
 // ItemHandler is an interface for handling items
 type ItemHandler interface {
-	HandleItems(itemIter iter.Seq[Item])
+	HandleItem(item Item, wg *sync.WaitGroup)
 }

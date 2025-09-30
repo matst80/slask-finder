@@ -8,29 +8,19 @@ import (
 	"slices"
 	"sync"
 
-	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-type queueItem struct {
-	id           uint
-	deleted      bool
-	stringValues map[uint]string
-	numberValues map[uint]float64
-}
-
 type FacetItemHandler struct {
 	mu           sync.RWMutex
-	queue        *common.QueueHandler[queueItem]
 	sortMap      map[uint]float64
 	sortValues   types.ByValue
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
-	All          types.ItemList // should move to search handler
 }
 
 func (h *FacetItemHandler) HandleFieldChanges(items []types.FieldChange) {
-
+	h.UpdateFields(items)
 }
 
 func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
@@ -39,7 +29,7 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 		ItemFieldIds: make(map[uint]types.ItemList),
 		sortMap:      make(map[uint]float64),
 		mu:           sync.RWMutex{},
-		All:          types.ItemList{},
+		//All:          types.ItemList{},
 	}
 
 	for _, f := range facets {
@@ -63,7 +53,7 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 			if base.HideFacet {
 				continue
 			}
-			v := base.Priority + j //+ overrides[base.Id]
+			v := base.Priority + j // + r.overrides[base.Id]
 			j += 0.000000000001
 			r.sortMap[id] = v
 			if !yield(types.Lookup{
@@ -75,7 +65,6 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 		}
 	}, types.LookUpReversed))
 
-	r.queue = common.NewQueueHandler(r.processItems, 100)
 	return r
 }
 
@@ -98,85 +87,60 @@ func (h *FacetItemHandler) GetAll() iter.Seq[types.Facet] {
 	}
 }
 
-func (h *FacetItemHandler) processItems(items []queueItem) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	for _, item := range items {
-		h.ItemFieldIds[item.id] = types.ItemList{}
-		if item.deleted {
-			delete(h.ItemFieldIds, item.id)
-			for fieldId, fieldValue := range item.stringValues {
+func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
+	wg.Go(func() {
+
+		itemId := item.GetId()
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		h.ItemFieldIds[itemId] = types.ItemList{}
+		if item.IsDeleted() {
+			delete(h.ItemFieldIds, itemId)
+
+			for fieldId, fieldValue := range item.GetStringFields() {
 				if f, ok := h.Facets[fieldId]; ok {
-					f.RemoveValueLink(fieldValue, item.id)
+					f.RemoveValueLink(fieldValue, itemId)
 				}
 			}
-			for fieldId, fieldValue := range item.numberValues {
+			for fieldId, fieldValue := range item.GetNumberFields() {
 				if f, ok := h.Facets[fieldId]; ok {
-					f.RemoveValueLink(fieldValue, item.id)
+					f.RemoveValueLink(fieldValue, itemId)
 				}
 			}
-			delete(h.All, item.id)
+
 		} else {
-			h.All.AddId(item.id)
-			for id, fieldValue := range item.stringValues {
-				if f, ok := h.Facets[id]; ok {
+
+			for fieldId, fieldValue := range item.GetStringFields() {
+				if f, ok := h.Facets[fieldId]; ok {
 					b := f.GetBaseField()
-					if b.Searchable && f.AddValueLink(fieldValue, item.id) {
+					if b.Searchable && f.AddValueLink(fieldValue, fieldId) {
 						if !b.HideFacet {
-							if fids, ok := h.ItemFieldIds[item.id]; ok {
-								fids.AddId(id)
+							if fids, ok := h.ItemFieldIds[itemId]; ok {
+								fids.AddId(fieldId)
 							} else {
-								log.Printf("No field for item id: %d, id: %d", item.id, id)
+								log.Printf("No string field for item id: %d, fieldId: %d", itemId, fieldId)
 							}
 						}
 					}
 				}
 			}
-			for id, fieldValue := range item.numberValues {
-				if f, ok := h.Facets[id]; ok {
+			for fieldId, fieldValue := range item.GetNumberFields() {
+				if f, ok := h.Facets[fieldId]; ok {
 					b := f.GetBaseField()
-					if b.Searchable && f.AddValueLink(fieldValue, item.id) {
+					if b.Searchable && f.AddValueLink(fieldValue, fieldId) {
 						if !b.HideFacet {
-							if fids, ok := h.ItemFieldIds[item.id]; ok {
-								fids.AddId(id)
+							if fids, ok := h.ItemFieldIds[itemId]; ok {
+								fids.AddId(fieldId)
 							} else {
-								log.Printf("No field for item id: %d, id: %d", item.id, id)
+								log.Printf("No number field for item id: %d, id: %d", itemId, fieldId)
 							}
 						}
 					}
 				}
 			}
 		}
-	}
-}
+	})
 
-// // ItemHandler interface implementation
-// func (h *FacetItemHandler) HandleItem(item types.Item) {
-// 	h.queue.Add(queueItem{
-// 		id:           item.GetId(),
-// 		stringValues: item.GetStringFields(),
-// 		numberValues: item.GetNumberFields(),
-// 		deleted:      item.IsDeleted(),
-// 	})
-// }
-
-func toQueueItem(items iter.Seq[types.Item]) iter.Seq[queueItem] {
-	return func(yield func(queueItem) bool) {
-		for item := range items {
-			if !yield(queueItem{
-				id:           item.GetId(),
-				stringValues: item.GetStringFields(),
-				numberValues: item.GetNumberFields(),
-				deleted:      item.IsDeleted(),
-			}) {
-				return
-			}
-		}
-	}
-}
-
-func (h *FacetItemHandler) HandleItems(items iter.Seq[types.Item]) {
-	h.queue.AddIter(toQueueItem(items))
 }
 
 // Facet management methods
@@ -373,7 +337,7 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 
 	fieldIds := make(map[uint]struct{})
 	limit := 30
-	resultCount := len(*baseIds)
+
 	t := 0
 	for id := range *baseIds {
 		var itemFieldIds types.ItemList
@@ -391,36 +355,25 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 	}
 
 	count := 0
-	//var base *types.BaseField = nil
-	if resultCount == 0 {
 
-		mainCat := ws.Facets[10] // todo setting
-
-		if mainCat != nil {
-			//base = mainCat.GetBaseField()
-			wg.Add(1)
-			go getFacetResult(mainCat, &ws.All, ch, wg, nil)
+	for id := range ws.sortValues.SortMap(fieldIds) {
+		if count > limit {
+			break
 		}
-	} else {
 
-		for id := range ws.sortValues.SortMap(fieldIds) {
-			if count > limit {
-				break
-			}
+		if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
 
-			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
+			f, facetExists := ws.Facets[id]
 
-				f, facetExists := ws.Facets[id]
+			if facetExists && !f.IsExcludedFromFacets() {
 
-				if facetExists && !f.IsExcludedFromFacets() {
+				wg.Add(1)
+				go getFacetResult(f, baseIds, ch, wg, nil)
 
-					wg.Add(1)
-					go getFacetResult(f, baseIds, ch, wg, nil)
+				count++
 
-					count++
-
-				}
 			}
 		}
 	}
+
 }
