@@ -8,7 +8,7 @@ type Item interface {
 	GetFields() []uint
 	IsDeleted() bool
 	IsSoftDeleted() bool
-	GetPropertyValue(name string) interface{}
+	GetPropertyValue(name string) any
 	GetPrice() int
 	GetDiscount() int
 	GetRating() (int, int)

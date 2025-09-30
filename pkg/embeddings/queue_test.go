@@ -56,7 +56,7 @@ func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 
 	// First batch
 	wg.Add(1)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		queue.QueueItem(&index.StorageDataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
 	}
 	wg.Wait()
@@ -110,7 +110,7 @@ func TestEmbeddingsQueue_StopWithRemainingItems(t *testing.T) {
 	queue.Start()
 
 	wg.Add(1)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		queue.QueueItem(&index.StorageDataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
 	}
 	wg.Wait() // wait for idle first time

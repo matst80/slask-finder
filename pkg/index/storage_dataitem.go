@@ -65,7 +65,7 @@ func (item *StorageDataItem) HasStock() bool {
 	return ok && (a != "" && a != "0")
 }
 
-func (item *StorageDataItem) GetPropertyValue(name string) interface{} {
+func (item *StorageDataItem) GetPropertyValue(name string) any {
 	switch name {
 	case "Sku":
 		return item.Sku
@@ -211,7 +211,7 @@ func (m *StorageDataItem) GetNumberFieldValue(id uint) (float64, bool) {
 	return 0, false
 }
 
-func (item *StorageDataItem) GetFieldValue(id uint) (interface{}, bool) {
+func (item *StorageDataItem) GetFieldValue(id uint) (any, bool) {
 	if v, ok := item.StringFields[id]; ok {
 		return v, true
 	}
@@ -229,13 +229,13 @@ func (item *StorageDataItem) GetFieldValue(id uint) (interface{}, bool) {
 // 	return item.Fields.GetFacets()
 // }
 
-func (item *StorageDataItem) SetValue(id uint, value interface{}) {
+func (item *StorageDataItem) SetValue(id uint, value any) {
 	switch v := value.(type) {
 	case string:
 		item.StringFields[id] = []string{v}
 	case []string:
 		item.StringFields[id] = v
-	case []interface{}:
+	case []any:
 		strs := make([]string, 0, len(v))
 		for _, vi := range v {
 			if s, ok := vi.(string); ok {

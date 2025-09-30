@@ -100,7 +100,7 @@ const (
 
 func BenchmarkDecodeMockItem(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var item DataItem
 		if err := json.Unmarshal([]byte(mockItem), &item); err != nil {
 			b.Fatal(err)
@@ -110,7 +110,7 @@ func BenchmarkDecodeMockItem(b *testing.B) {
 
 func BenchmarkDecodeStorageMockItem(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var item StorageDataItem
 		if err := json.Unmarshal([]byte(mockStorageItem), &item); err != nil {
 			b.Fatal(err)
@@ -120,7 +120,7 @@ func BenchmarkDecodeStorageMockItem(b *testing.B) {
 
 func BenchmarkDecodeStorageMockItemAsRegularItem(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		var item StorageDataItem
 
 		if err := json.Unmarshal([]byte(mockStorageItem), &item); err != nil {

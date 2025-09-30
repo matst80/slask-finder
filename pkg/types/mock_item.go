@@ -184,7 +184,7 @@ func MakeMockItem(id uint, fields ...MockField) Item {
 			ret.StringFields[field.Key] = []string{v}
 		case []string:
 			ret.StringFields[field.Key] = v
-		case []interface{}:
+		case []any:
 			strs := make([]string, 0, len(v))
 			for _, vi := range v {
 				if s, ok := vi.(string); ok {

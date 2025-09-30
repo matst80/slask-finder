@@ -224,7 +224,7 @@ func (m *DataItem) GetStringFields() map[uint][]string {
 			ret[k] = []string{value}
 		case []string:
 			ret[k] = value
-		case []interface{}:
+		case []any:
 			strs := make([]string, 0, len(value))
 			for _, iv := range value {
 				if s, ok := iv.(string); ok {
@@ -249,7 +249,7 @@ func (m *DataItem) GetNumberFields() map[uint]float64 {
 			ret[k] = float64(value)
 		case float64:
 			ret[k] = value
-		case []interface{}:
+		case []any:
 			if len(value) == 1 {
 				switch nvalue := value[0].(type) {
 				case int:
@@ -296,15 +296,15 @@ func (item *DataItem) GetFieldValue(id uint) (any, bool) {
 	return v, ok
 }
 
-func (item *DataItem) GetFacetValue(id uint) (interface{}, bool) {
+func (item *DataItem) GetFacetValue(id uint) (any, bool) {
 	return item.Fields.GetFacetValue(id)
 }
 
-func (item *DataItem) GetFacets() map[uint]interface{} {
+func (item *DataItem) GetFacets() map[uint]any {
 	return item.Fields.GetFacets()
 }
 
-func (item *DataItem) SetValue(id uint, value interface{}) {
+func (item *DataItem) SetValue(id uint, value any) {
 	item.Fields.SetValue(id, value)
 }
 

@@ -17,12 +17,12 @@ type MockStorageProvider struct {
 }
 
 // LoadGzippedGob implements types.StorageProvider.
-func (m *MockStorageProvider) LoadGzippedGob(output interface{}, filename string) error {
+func (m *MockStorageProvider) LoadGzippedGob(output any, filename string) error {
 	panic("unimplemented")
 }
 
 // LoadGzippedJson implements types.StorageProvider.
-func (m *MockStorageProvider) LoadGzippedJson(data interface{}, filename string) error {
+func (m *MockStorageProvider) LoadGzippedJson(data any, filename string) error {
 	panic("unimplemented")
 }
 
@@ -52,14 +52,14 @@ func NewMockStorageProvider() *MockStorageProvider {
 	}
 }
 
-func (m *MockStorageProvider) SaveJson(data interface{}, filename string) error {
+func (m *MockStorageProvider) SaveJson(data any, filename string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.store[filename] = data.(types.Item)
 	return nil
 }
 
-func (m *MockStorageProvider) LoadJson(data interface{}, filename string) error {
+func (m *MockStorageProvider) LoadJson(data any, filename string) error {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	item, ok := m.store[filename]
