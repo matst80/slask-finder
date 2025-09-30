@@ -17,6 +17,7 @@ type FacetItemHandler struct {
 	sortValues   types.ByValue
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
+	AllFacets    types.ItemList
 }
 
 func (h *FacetItemHandler) HandleFieldChanges(items []types.FieldChange) {
@@ -36,12 +37,19 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 		switch f.Type {
 		case 1:
 			r.AddKeyField(f.BaseField)
+
 		case 3:
 			r.AddIntegerField(f.BaseField)
+
 		case 2:
 			r.AddDecimalField(f.BaseField)
+
 		default:
 			log.Printf("Unknown field type %d", f.Type)
+			continue
+		}
+		if f.BaseField.Searchable || !f.BaseField.HideFacet {
+			r.AllFacets.AddId(f.Id)
 		}
 	}
 
@@ -200,6 +208,8 @@ func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
 func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected any) {
 	defer wg.Done()
 
+	returnAll := len(*baseIds) == 0
+
 	baseField := f.GetBaseField()
 	if baseField.HideFacet {
 		c <- nil
@@ -213,6 +223,11 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 		count := 0
 		//var ok bool
 		for key, sourceIds := range field.Keys {
+			if returnAll {
+				hasValues = true
+				r[key] = count
+				continue
+			}
 			count = sourceIds.IntersectionLen(*baseIds)
 
 			if count > 0 {
@@ -233,29 +248,49 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 		}
 
 	case IntegerField:
-
-		r := field.GetExtents(baseIds)
-		if r == nil {
-			c <- nil
-			return
-		}
-		c <- &JsonFacet{
-			BaseField: baseField,
-			Selected:  selected,
-			Result:    r,
+		if returnAll {
+			c <- &JsonFacet{
+				BaseField: baseField,
+				Selected:  selected,
+				Result: &IntegerFieldResult{
+					Min: field.Min,
+					Max: field.Max,
+				},
+			}
+		} else {
+			r := field.GetExtents(baseIds)
+			if r == nil {
+				c <- nil
+				return
+			}
+			c <- &JsonFacet{
+				BaseField: baseField,
+				Selected:  selected,
+				Result:    r,
+			}
 		}
 	case DecimalField:
-		r := field.GetExtents(baseIds)
-		if r == nil {
-			c <- nil
-			return
+		if returnAll {
+			c <- &JsonFacet{
+				BaseField: baseField,
+				Selected:  selected,
+				Result: &DecimalFieldResult{
+					Min: field.Min,
+					Max: field.Max,
+				},
+			}
+		} else {
+			r := field.GetExtents(baseIds)
+			if r == nil {
+				c <- nil
+				return
+			}
+			c <- &JsonFacet{
+				BaseField: baseField,
+				Selected:  selected,
+				Result:    r,
+			}
 		}
-		c <- &JsonFacet{
-			BaseField: baseField,
-			Selected:  selected,
-			Result:    r,
-		}
-
 	}
 }
 
@@ -355,6 +390,19 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 	}
 
 	count := 0
+
+	if len(fieldIds) == 0 {
+		for id := range ws.sortValues.SortMap(ws.AllFacets) {
+			if count > limit {
+				break
+			}
+
+			if !sr.Filters.HasField(id) && !sr.IsIgnored(id) {
+
+			}
+		}
+
+	}
 
 	for id := range ws.sortValues.SortMap(fieldIds) {
 		if count > limit {
