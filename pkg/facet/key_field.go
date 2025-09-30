@@ -193,14 +193,6 @@ func (f KeyField) AddValueLink(data any, itemId uint) bool {
 	case int64:
 		f.addString(fmt.Sprintf("%d", typed), itemId)
 		return true
-	case []any:
-
-		for _, v := range typed {
-			if str, ok := v.(string); ok {
-				f.addString(str, itemId)
-			}
-		}
-		return true
 	case []string:
 
 		for _, v := range typed {
@@ -221,6 +213,17 @@ func (f KeyField) AddValueLink(data any, itemId uint) bool {
 		}
 
 		return true
+	// case []any:
+
+	// 	for _, v := range typed {
+	// 		if str, ok := v.(string); ok {
+	// 			f.addString(str, itemId)
+	// 		} else {
+	// 			log.Printf("KeyField: AddValueLink: Unknown array type %T, fieldId: %d", v, f.Id)
+	// 		}
+	// 	}
+
+	// 	return true
 	default:
 		log.Printf("KeyField: AddValueLink: Unknown type %T, fieldId: %d", typed, f.Id)
 	}

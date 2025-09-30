@@ -1,6 +1,9 @@
 package types
 
-import "sync"
+import (
+	"maps"
+	"sync"
+)
 
 type IQueryMerger interface {
 	Add(func() *ItemList)
@@ -16,6 +19,11 @@ type QueryMerger struct {
 	merger     Merger
 	result     *ItemList
 	exclude    *ItemList
+}
+
+func (m *QueryMerger) GetClone(output *ItemList) {
+	m.wg.Wait()
+	maps.Copy(*output, *m.result)
 }
 
 type Merger = func(current *ItemList, next *ItemList, isFirst bool)

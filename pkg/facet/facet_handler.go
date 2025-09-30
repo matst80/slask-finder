@@ -136,7 +136,7 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 		itemId := item.GetId()
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		h.ItemFieldIds[itemId] = types.ItemList{}
+
 		if item.IsDeleted() {
 			delete(h.ItemFieldIds, itemId)
 
@@ -152,17 +152,18 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 			}
 
 		} else {
+			fid, ok := h.ItemFieldIds[itemId]
+			if !ok {
+				fid = types.ItemList{}
+				h.ItemFieldIds[itemId] = fid
+			}
 
 			for fieldId, fieldValue := range item.GetStringFields() {
 				if f, ok := h.Facets[fieldId]; ok {
 					b := f.GetBaseField()
-					if b.Searchable && f.AddValueLink(fieldValue, fieldId) {
+					if b.Searchable && f.AddValueLink(fieldValue, itemId) {
 						if !b.HideFacet {
-							if fids, ok := h.ItemFieldIds[itemId]; ok {
-								fids.AddId(fieldId)
-							} else {
-								log.Printf("No string field for item id: %d, fieldId: %d", itemId, fieldId)
-							}
+							fid.AddId(fieldId)
 						}
 					}
 				}
@@ -170,13 +171,9 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 			for fieldId, fieldValue := range item.GetNumberFields() {
 				if f, ok := h.Facets[fieldId]; ok {
 					b := f.GetBaseField()
-					if b.Searchable && f.AddValueLink(fieldValue, fieldId) {
+					if b.Searchable && f.AddValueLink(fieldValue, itemId) {
 						if !b.HideFacet {
-							if fids, ok := h.ItemFieldIds[itemId]; ok {
-								fids.AddId(fieldId)
-							} else {
-								log.Printf("No number field for item id: %d, id: %d", itemId, fieldId)
-							}
+							fid.AddId(fieldId)
 						}
 					}
 				}
@@ -243,35 +240,35 @@ func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
 func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected any) {
 	defer wg.Done()
 
-	returnAll := len(*baseIds) == 0
+	l := len(*baseIds)
+	returnAll := l == 0
 
 	baseField := f.GetBaseField()
 	if baseField.HideFacet {
-		c <- nil
+		log.Printf("this should never been called field %d", baseField.Id)
 		return
 	}
 
 	switch field := f.(type) {
 	case KeyField:
-		hasValues := false
+		hasValues := returnAll
 		r := make(map[string]int, len(field.Keys))
 		count := 0
 		//var ok bool
 		for key, sourceIds := range field.Keys {
 			if returnAll {
-				hasValues = true
-				r[key] = count
-				continue
-			}
-			count = sourceIds.IntersectionLen(*baseIds)
+				r[key] = len(sourceIds)
+			} else {
+				count = sourceIds.IntersectionLen(*baseIds)
 
-			if count > 0 {
-				hasValues = true
-				r[key] = count
+				if count > 0 {
+					hasValues = true
+					r[key] = count
+				}
 			}
 		}
 		if !hasValues {
-			c <- nil
+			//c <- nil
 			return
 		}
 		c <- &JsonFacet{
@@ -295,7 +292,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 		} else {
 			r := field.GetExtents(baseIds)
 			if r == nil {
-				c <- nil
+				//c <- nil
 				return
 			}
 			c <- &JsonFacet{
@@ -316,16 +313,18 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 			}
 		} else {
 			r := field.GetExtents(baseIds)
-			if r == nil {
-				c <- nil
-				return
-			}
+			// if r == nil {
+			// 	c <- nil
+			// 	return
+			// }
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,
 				Result:    r,
 			}
 		}
+	default:
+		log.Printf("unkown field type %T", field)
 	}
 }
 
@@ -442,9 +441,8 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 			if facetExists && !f.IsExcludedFromFacets() {
 
 				wg.Add(1)
-				go getFacetResult(f, baseIds, ch, wg, nil)
-
 				count++
+				go getFacetResult(f, baseIds, ch, wg, nil)
 
 			}
 		}
