@@ -138,6 +138,7 @@ func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandle
 	}
 	decoder = nil
 	tmp = nil
+	defer runtime.GC()
 
 	if errors.Is(err, io.EOF) {
 		return nil
