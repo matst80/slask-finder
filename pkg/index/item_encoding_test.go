@@ -9,7 +9,7 @@ import (
 func TestEncodingFlag(t *testing.T) {
 	AllowConditionalData = false
 	// Create a sample DataItem
-	item := ItemProp{
+	item := BaseItem{
 
 		MarginPercent: 4.0,
 	}
@@ -27,7 +27,7 @@ func TestEncodingFlag(t *testing.T) {
 func TestEncodingFlagAllowed(t *testing.T) {
 	AllowConditionalData = true
 	// Create a sample DataItem
-	item := ItemProp{
+	item := BaseItem{
 
 		MarginPercent: 4.0,
 	}

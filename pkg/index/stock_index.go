@@ -71,6 +71,7 @@ func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
 	}
 	if item.IsDeleted() {
 		delete(i.ItemsBySku, item.GetSku())
+		return
 	}
 
 	i.ItemsBySku[item.GetSku()] = id

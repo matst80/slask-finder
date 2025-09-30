@@ -14,7 +14,13 @@ func (r RuleSource) GetSourceValue(item Item) any {
 	fetchByFieldId := r.Source == FieldId || (r.Source == "" && r.FieldId > 0)
 
 	if fetchByFieldId {
-		return item.GetFields()[r.FieldId]
+		if v, ok := item.GetStringFieldValue(r.FieldId); ok {
+			return v
+		}
+		if v, ok := item.GetNumberFieldValue(r.FieldId); ok {
+			return v
+		}
+		return nil
 	} else {
 		if r.PropertyName == "" {
 			return nil

@@ -3,6 +3,7 @@ package index
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -27,32 +28,6 @@ type OutletItem struct {
 
 type MarginPercent float64
 
-type ItemProp struct {
-	Url string `json:"url"`
-
-	Disclaimer       string        `json:"disclaimer,omitempty"`
-	ReleaseDate      string        `json:"releaseDate,omitempty"`
-	SaleStatus       string        `json:"saleStatus"`
-	OnlineSaleStatus string        `json:"onlineSaleStatus"`
-	PresaleDate      string        `json:"presaleDate,omitempty"`
-	Restock          string        `json:"restock,omitempty"`
-	AdvertisingText  string        `json:"advertisingText,omitempty"`
-	Img              string        `json:"img,omitempty"`
-	BadgeUrl         string        `json:"badgeUrl,omitempty"`
-	BulletPoints     string        `json:"bp,omitempty"`
-	LastUpdate       int64         `json:"lastUpdate,omitempty"`
-	Created          int64         `json:"created,omitempty"`
-	Buyable          bool          `json:"buyable"`
-	Description      string        `json:"description,omitempty"`
-	BuyableInStore   bool          `json:"buyableInStore"`
-	BoxSize          string        `json:"boxSize,omitempty"`
-	ArticleType      string        `json:"articleType,omitempty"`
-	CheapestBItem    *OutletItem   `json:"bItem,omitempty"`
-	AItem            *OutletItem   `json:"aItem,omitempty"`
-	EnergyRating     *EnergyRating `json:"energyRating,omitempty"`
-	MarginPercent    MarginPercent `json:"mp,omitempty"`
-}
-
 var AllowConditionalData = false
 
 func (a *MarginPercent) UnmarshalJSON(b []byte) error {
@@ -72,27 +47,41 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 }
 
 type BaseItem struct {
-	ItemProp
-	//StockLevel string            `json:"stockLevel,omitempty"`
-	Stock map[string]string `json:"stock"`
-	Sku   string            `json:"sku"`
-	Title string            `json:"title"`
-	Id    uint              `json:"id"`
-	//baseScore float64
+	Id         uint  `json:"id"`
+	LastUpdate int64 `json:"lastUpdate,omitempty"`
+	Created    int64 `json:"created,omitempty"`
+
+	Disclaimer       string `json:"disclaimer,omitempty"`
+	ReleaseDate      string `json:"releaseDate,omitempty"`
+	SaleStatus       string `json:"saleStatus"`
+	OnlineSaleStatus string `json:"onlineSaleStatus"`
+	PresaleDate      string `json:"presaleDate,omitempty"`
+	Restock          string `json:"restock,omitempty"`
+	AdvertisingText  string `json:"advertisingText,omitempty"`
+	Img              string `json:"img,omitempty"`
+	BadgeUrl         string `json:"badgeUrl,omitempty"`
+	BulletPoints     string `json:"bp,omitempty"`
+
+	Description string `json:"description,omitempty"`
+
+	BoxSize       string        `json:"boxSize,omitempty"`
+	ArticleType   string        `json:"articleType,omitempty"`
+	CheapestBItem *OutletItem   `json:"bItem,omitempty"`
+	AItem         *OutletItem   `json:"aItem,omitempty"`
+	EnergyRating  *EnergyRating `json:"energyRating,omitempty"`
+	MarginPercent MarginPercent `json:"mp,omitempty"`
+
+	Stock          map[string]string `json:"stock"`
+	Sku            string            `json:"sku"`
+	Title          string            `json:"title"`
+	Buyable        bool              `json:"buyable"`
+	BuyableInStore bool              `json:"buyableInStore"`
 }
 
 type DataItem struct {
 	*BaseItem
 	//Taxonomy []string         `json:"taxonomy"`
 	Fields types.ItemFields `json:"values"`
-}
-
-func ToItemArray(items []DataItem) []types.Item {
-	baseItems := make([]types.Item, 0, len(items))
-	for _, item := range items {
-		baseItems = append(baseItems, &item)
-	}
-	return baseItems
 }
 
 func (item *DataItem) GetId() uint {
@@ -116,8 +105,8 @@ func (item *DataItem) IsDeleted() bool {
 }
 
 func (item *DataItem) HasStock() bool {
-	v, ok := item.GetFieldValue(3)
-	return ok && v != nil
+	v, ok := item.GetNumberFieldValue(3)
+	return ok && v > 0
 }
 
 func (item *DataItem) GetPropertyValue(name string) any {
@@ -176,7 +165,7 @@ func (item *DataItem) GetPropertyValue(name string) any {
 }
 
 func (item *DataItem) IsSoftDeleted() bool {
-	p, ok := item.Fields.GetFacetValue(4)
+	p, ok := item.GetNumberFieldValue(4)
 	if !ok {
 		return true
 	}
@@ -201,7 +190,7 @@ func (item *DataItem) IsSoftDeleted() bool {
 
 func (item *DataItem) GetPrice() int {
 
-	priceField, ok := item.Fields.GetFacetValue(4)
+	priceField, ok := item.GetNumberFieldValue(4)
 	if !ok {
 		return 0
 	}
@@ -212,21 +201,104 @@ func (item *DataItem) GetStock() map[string]string {
 	return item.Stock
 }
 
-func (item *DataItem) GetFields() map[uint]any {
-	return item.Fields.GetFacets()
+// func (item *DataItem) GetFields() map[uint]interface{} {
+// 	return item.Fields.GetFacets()
+// }
+
+func (m *DataItem) GetStringFields() map[uint]string {
+	return m.Fields.GetStringFields()
+	// ret := make(map[uint]string, len(m.Fields))
+	// for k, v := range m.Fields {
+	// 	switch value := v.(type) {
+	// 	case string:
+	// 		ret[k] = value
+	// 	case []string:
+	// 		ret[k] = strings.Join(value, ";;")
+	// 	case []any:
+	// 		strs := make([]string, 0, len(value))
+	// 		for _, iv := range value {
+	// 			if s, ok := iv.(string); ok {
+	// 				strs = append(strs, s)
+	// 			}
+	// 		}
+	// 		if len(strs) > 0 {
+	// 			ret[k] = strings.Join(strs, ";;")
+	// 		}
+	// 	}
+	// }
+	// return ret
 }
 
-func (item *DataItem) GetFieldValue(id uint) (any, bool) {
-	v, ok := item.Fields[id]
-	return v, ok
+func (m *DataItem) GetNumberFields() map[uint]float64 {
+	return m.Fields.GetNumberFields()
+	// ret := make(map[uint]float64, len(m.Fields))
+	// for k, v := range m.Fields {
+	// 	switch value := v.(type) {
+	// 	case int:
+	// 		ret[k] = float64(value)
+	// 	case int64:
+	// 		ret[k] = float64(value)
+	// 	case float64:
+	// 		ret[k] = value
+	// 	case []any:
+	// 		if len(value) == 1 {
+	// 			switch nvalue := value[0].(type) {
+	// 			case int:
+	// 				ret[k] = float64(nvalue)
+	// 			case int64:
+	// 				ret[k] = float64(nvalue)
+	// 			case float64:
+	// 				ret[k] = nvalue
+	// 			}
+	// 		}
+	// 	}
+	// }
+	// return ret
 }
+
+func (m *DataItem) GetStringFieldValue(id uint) (string, bool) {
+	return m.Fields.GetStringFieldValue(id)
+	// fields := m.GetStringFields()
+	// v, ok := fields[id]
+	// if ok && len(v) > 0 {
+	// 	return v, true
+	// }
+
+	// return "", false
+}
+
+func (m *DataItem) GetStringsFieldValue(id uint) ([]string, bool) {
+	return m.Fields.GetStringsFieldValue(id)
+	//  fields := m.GetStringFields()
+	// if v, ok := fields[id]; ok {
+	// 	return strings.Split(v, ";;"), true
+	// }
+
+	// return nil, false
+}
+func (m *DataItem) GetNumberFieldValue(id uint) (float64, bool) {
+	return m.Fields.GetNumberFieldValue(id)
+	// fields := m.GetNumberFields()
+	// if v, ok := fields[id]; ok {
+	// 	return v, true
+	// }
+	// return 0, false
+}
+
+// func (item *DataItem) GetFacetValue(id uint) (any, bool) {
+// 	return item.Fields.GetFacetValue(id)
+// }
+
+// func (item *DataItem) GetFacets() map[uint]any {
+// 	return item.Fields.GetFacets()
+// }
 
 func (item *DataItem) GetRating() (int, int) {
-	average, ok := item.GetFieldValue(6)
+	average, ok := item.GetNumberFieldValue(6)
 	if !ok {
 		return 0, 0
 	}
-	grades, ok := item.GetFieldValue(7)
+	grades, ok := item.GetNumberFieldValue(7)
 	if !ok {
 		return 0, 0
 	}
@@ -234,9 +306,12 @@ func (item *DataItem) GetRating() (int, int) {
 }
 
 func (item *DataItem) CanHaveEmbeddings() bool {
-	// log.Printf("Checking if item %s can have embeddings", item.Sku)
-	// log.Printf("Item fields: %v, %v", item.Fields[10], item.Fields[9])
-	return item.Fields[10] != "Outlet" && (item.Fields[9] == "Elgiganten" || item.Fields[9] == "Elkjøp" || item.Fields[9] == "Gigantti")
+	outlet, okA := item.Fields.GetStringFieldValue(10)
+	seller, okB := item.Fields.GetStringFieldValue(9)
+	if !okA || !okB {
+		return false
+	}
+	return outlet != "Outlet" && (seller == "Elgiganten" || seller == "Elkjøp" || seller == "Gigantti")
 }
 func (item *DataItem) GetEmbeddingsText() (string, error) {
 	return item.Title + "\n" + item.BulletPoints, nil
@@ -265,7 +340,7 @@ func getNumberValue[K float64 | int](fieldValue any) K {
 
 func (item *DataItem) GetDiscount() int {
 	price := item.GetPrice()
-	orgPriceValue, ok := item.GetFieldValue(5)
+	orgPriceValue, ok := item.Fields.GetNumberFieldValue(5)
 	if !ok {
 		return 0
 	}
@@ -307,7 +382,10 @@ func (item *DataItem) ToStringList() []string {
 	fieldValues = append(fieldValues, item.Sku)
 	fieldValues = append(fieldValues, item.BulletPoints)
 	for _, id := range types.CurrentSettings.FieldsToIndex {
-		fieldValues = append(fieldValues, getStringValues(item.GetFieldValue(id))...)
+		v, found := item.GetStringsFieldValue(id)
+		if found {
+			fieldValues = append(fieldValues, v...)
+		}
 	}
 
 	return fieldValues
@@ -317,15 +395,29 @@ func (item *DataItem) ToString() string {
 	return strings.Join(item.ToStringList(), " ")
 }
 
-func (item *DataItem) GetBaseItem() types.BaseItem {
-	return types.BaseItem{
-		Id:    item.Id,
-		Sku:   item.Sku,
-		Title: item.Title,
-		Price: item.GetPrice(),
-		Img:   item.Img,
+func (item *DataItem) Write(w io.Writer) (int, error) {
+	bytes, err := json.Marshal(item)
+	if err != nil {
+		return 0, err
 	}
+
+	b, err := w.Write(bytes)
+	if err != nil {
+		return b, err
+	}
+	n, err := w.Write([]byte("\n"))
+	return b + n, err
 }
-func (item *DataItem) GetItem() any {
-	return item.BaseItem
-}
+
+//	func (item *DataItem) GetBaseItem() types.BaseItem {
+//		return types.BaseItem{
+//			Id:    item.Id,
+//			Sku:   item.Sku,
+//			Title: item.Title,
+//			Price: item.GetPrice(),
+//			Img:   item.Img,
+//		}
+//	}
+// func (item *DataItem) GetItem() interface{} {
+// 	return item.BaseItem
+// }

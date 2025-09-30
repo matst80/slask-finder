@@ -3,20 +3,21 @@ package storage
 import (
 	"compress/gzip"
 	"encoding/gob"
+	"encoding/json"
 	"errors"
 	"io"
 	"iter"
 	"log"
 	"os"
 	"runtime"
+	"slices"
 
-	"github.com/bytedance/sonic"
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 func init() {
-	gob.Register(index.DataItem{})
+	gob.Register(index.RawDataItem{})
 	gob.Register([]string{})
 	gob.Register(types.ItemFields{})
 	gob.Register(types.Embeddings{})
@@ -43,7 +44,7 @@ type Field struct {
 // 	return nil
 // }
 
-func asSeq(items []types.Item) iter.Seq[types.Item] {
+func asSeq(items []*index.RawDataItem) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
 		for _, item := range items {
 			if !yield(item) {
@@ -54,6 +55,7 @@ func asSeq(items []types.Item) iter.Seq[types.Item] {
 }
 
 const itemsFile = "items.jz"
+const storageItemFile = "items-v3.gz"
 const settingsFile = "settings.json"
 const legacySettingsFile = "settings.jz"
 const facetsFile = "facets.json"
@@ -110,18 +112,45 @@ func (d *DiskStorage) SaveEmbeddings(embeddings any) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 
-func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
-	// idx.Lock()
-	// defer idx.Unlock()
-	// err := p.LoadFacets(idx)
-	// if err != nil {
-	// 	return err
-	// }
+func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandler) error {
+	file, err := os.Open(fileName)
+	if err != nil {
+		return err
+	}
+	defer runtime.GC()
+	defer file.Close()
 
-	// // Load embeddings if available
-	// if err := p.LoadEmbeddings(idx); err != nil {
-	// 	log.Printf("Error loading embeddings: %v", err)
-	// 	// Continue loading even if embeddings failed to load
+	zipReader, err := gzip.NewReader(file)
+	if err != nil {
+		return err
+	}
+	defer zipReader.Close()
+
+	decoder := gob.NewDecoder(zipReader)
+	defer zipReader.Close()
+
+	tmp := make([]*index.RawDataItem, 0)
+
+	err = decoder.Decode(&tmp)
+	log.Printf("Loaded %d items from %s", len(tmp), fileName)
+	for _, hs := range handlers {
+		go hs.HandleItems(asSeq(tmp))
+	}
+	decoder = nil
+	tmp = nil
+
+	if errors.Is(err, io.EOF) {
+		return nil
+	}
+
+	return err
+}
+
+func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
+	// newFileName, _ := d.GetFileName(storageItemFile)
+	// _, err := os.Stat(newFileName)
+	// if err == nil {
+	// 	return d.loadNewItems(newFileName, handlers...)
 	// }
 	fileName, _ := d.GetFileName(itemsFile)
 	file, err := os.Open(fileName)
@@ -136,7 +165,7 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 		return err
 	}
 
-	decoder := sonic.ConfigStd.NewDecoder(zipReader)
+	decoder := json.NewDecoder(zipReader)
 	defer zipReader.Close()
 
 	tmp := &index.DataItem{}
@@ -147,22 +176,20 @@ func (d *DiskStorage) LoadItems(handlers ...types.ItemHandler) error {
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue
 			}
-			cgm, ok := tmp.Fields[35]
-			if ok {
-				cgmString, isString := cgm.(string)
-				if isString {
-					tmp.Fields[37] = cgmString[:3]
-				}
-			}
+			// cgm, ok := tmp.Fields[35]
+			// if ok {
+			// 	cgmString, isString := cgm.(string)
+			// 	if isString {
+			// 		tmp.Fields[37] = cgmString[:3]
+			// 	}
+			// }
 			items = append(items, tmp)
 
-			//idx.UpsertItemUnsafe(tmp)
-			//tmp = nil
 			tmp = &index.DataItem{}
 		}
 	}
 	for _, hs := range handlers {
-		go hs.HandleItems(asSeq(items))
+		go hs.HandleItems(slices.Values(items))
 	}
 	decoder = nil
 
@@ -184,7 +211,7 @@ func (p *DiskStorage) SaveGzippedJson(data any, filename string) error {
 	defer file.Close()
 	defer runtime.GC()
 	zipWriter := gzip.NewWriter(file)
-	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
+	enc := json.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 
 	err = enc.Encode(data)
@@ -213,7 +240,7 @@ func (p *DiskStorage) LoadGzippedJson(data any, filename string) error {
 		return err
 	}
 
-	enc := sonic.ConfigDefault.NewDecoder(zipReader)
+	enc := json.NewDecoder(zipReader)
 	defer zipReader.Close()
 
 	err = enc.Decode(data)
@@ -233,7 +260,7 @@ func (p *DiskStorage) SaveJson(data any, name string) error {
 	}
 
 	defer runtime.GC()
-	enc := sonic.ConfigDefault.NewEncoder(file)
+	enc := json.NewEncoder(file)
 
 	err = enc.Encode(data)
 	file.Close()
@@ -256,7 +283,7 @@ func (p *DiskStorage) LoadJson(data any, filename string) error {
 	defer file.Close()
 	defer runtime.GC()
 
-	enc := sonic.ConfigDefault.NewDecoder(file)
+	enc := json.NewDecoder(file)
 	defer file.Close()
 
 	err = enc.Decode(data)
@@ -269,6 +296,32 @@ func (p *DiskStorage) LoadJson(data any, filename string) error {
 	return nil
 }
 
+func (p *DiskStorage) SaveRawItems(items iter.Seq[*index.RawDataItem]) error {
+	fileName, tmpFileName := p.GetFileName(storageItemFile)
+
+	file, err := os.Create(tmpFileName)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	zipWriter := gzip.NewWriter(file)
+	enc := gob.NewEncoder(zipWriter)
+	defer zipWriter.Close()
+	toStore := slices.Collect(items)
+	log.Printf("Saving %d items to %s", len(toStore), fileName)
+	err = enc.Encode(toStore)
+
+	if err != nil {
+		return err
+	}
+
+	err = os.Rename(tmpFileName, fileName)
+	if err != nil {
+		log.Printf("Error renaming file: %v", err)
+	}
+	return nil
+}
+
 func (p *DiskStorage) SaveItems(items iter.Seq[types.Item]) error {
 	fileName, tmpFileName := p.GetFileName(itemsFile)
 
@@ -276,23 +329,32 @@ func (p *DiskStorage) SaveItems(items iter.Seq[types.Item]) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	zipWriter := gzip.NewWriter(file)
-	enc := sonic.ConfigDefault.NewEncoder(zipWriter)
+	enc := json.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 	for item := range items {
-		err = enc.Encode(item)
+		baseItem, ok := item.(*index.DataItem)
+		if !ok {
+			log.Printf("Warning: item is not of type *index.DataItem, skipping, got %T", item)
+			continue
+		}
+		err = enc.Encode(baseItem)
 		if err != nil {
-			return err
+			break
 		}
 	}
+	file.Close()
+	if err != nil {
+		return err
+	}
+
 	enc = nil
 	err = os.Rename(tmpFileName, fileName)
 	if err != nil {
 		log.Printf("Error renaming file: %v", err)
 	}
-	return nil
+	return err
 }
 
 func (p *DiskStorage) SaveGzippedGob(embeddings any, name string) error {
@@ -303,13 +365,12 @@ func (p *DiskStorage) SaveGzippedGob(embeddings any, name string) error {
 		return err
 	}
 
-	//defer runtime.GC()
-	defer file.Close()
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
 	defer zipWriter.Close()
 
 	err = enc.Encode(embeddings)
+	file.Close()
 	if err != nil {
 		log.Printf("Error encoding embeddings: %v", err)
 		return err

@@ -3,6 +3,7 @@ package facet
 import (
 	"log"
 	"slices"
+	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
@@ -162,7 +163,7 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 	var field *KeyField
 	var target *KeyField
 	var ok bool
-	for id, itemField := range item.GetFields() {
+	for id, fieldValue := range item.GetStringFields() {
 
 		if field, ok = i.GetKeyFacet(id); !ok {
 			continue
@@ -176,14 +177,14 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 			continue
 		}
 
-		keyValue, ok := types.AsKeyFilterValue(itemField)
-		if !ok {
-			log.Printf("Not a valid key filter for field %d", id)
-			continue
-		}
+		// keyValue, ok := types.AsKeyFilterValue(itemField)
+		// if !ok {
+		// 	log.Printf("Not a valid key filter for field %d", id)
+		// 	continue
+		// }
 
 		maybeMerger.Add(func() *types.ItemList {
-			return target.MatchFilterValue(keyValue)
+			return target.MatchFilterValue(strings.Split(fieldValue, ";;"))
 		})
 
 	}
@@ -208,7 +209,7 @@ func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
 			result.Intersect(*next)
 		}
 	})
-	for id, itemField := range item.GetFields() {
+	for id, fieldValue := range item.GetStringFields() {
 		field, ok := i.GetKeyFacet(id)
 		if !ok {
 			continue
@@ -216,11 +217,11 @@ func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
 
 		base = field.GetBaseField()
 		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
-			if keyValue, ok := types.AsKeyFilterValue(itemField); ok {
-				qm.Add(func() *types.ItemList {
-					return field.MatchFilterValue(keyValue)
-				})
-			}
+			//if keyValue, ok := types.AsKeyFilterValue(itemField); ok {
+			qm.Add(func() *types.ItemList {
+				return field.MatchFilterValue(strings.Split(fieldValue, ";;"))
+			})
+			//}
 		}
 	}
 	qm.Wait()

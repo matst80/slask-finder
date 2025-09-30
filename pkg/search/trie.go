@@ -291,7 +291,7 @@ func (t *Trie) PredictTree(prev Token, prefix Token, maxDepth int, k int) []Pred
 	}
 	limit := min(len(matches), k)
 	nodes := make([]PredictionNode, 0, limit)
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		m := matches[i]
 		tok := Token(m.Prefix)
 		count := 0
@@ -341,7 +341,7 @@ func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited
 	})
 	limit := min(len(cands), k)
 	res := make([]PredictionNode, 0, limit)
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		c := cands[i]
 		word := string(c.tok)
 		if n := t.Search(word); n != nil && n.IsLeaf && len(n.Word) > 0 {
