@@ -26,9 +26,9 @@ type FacetGroup struct {
 }
 
 type ItemRequirement struct {
-	FacetId uint        `json:"facetId"`
-	Exclude bool        `json:"exclude,omitempty"`
-	Value   interface{} `json:"value"`
+	FacetId uint `json:"facetId"`
+	Exclude bool `json:"exclude,omitempty"`
+	Value   any  `json:"value"`
 }
 
 type ValueConverter string
@@ -90,12 +90,12 @@ func (f *FacetRelationGroup) GetFilter(item Item) []StringFilter {
 	return result
 }
 
-func AsStringArray(value interface{}) []string {
+func AsStringArray(value any) []string {
 	itemValues := []string{}
 	switch input := value.(type) {
 	case []string:
 		itemValues = append(itemValues, input...)
-	case []interface{}:
+	case []any:
 		for _, item := range input {
 			if v, ok := item.(string); ok {
 				itemValues = append(itemValues, v)
@@ -107,7 +107,7 @@ func AsStringArray(value interface{}) []string {
 	return itemValues
 }
 
-func matchInterfaceValues(value interface{}, matchValue interface{}) bool {
+func matchInterfaceValues(value any, matchValue any) bool {
 	if value == nil {
 		return false
 	}

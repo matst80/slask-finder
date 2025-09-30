@@ -35,7 +35,7 @@ func NormalizeValues(input []uint) []uint {
 		}
 	}
 	result := make([]uint, len(input))
-	for i := 0; i < len(input); i++ {
+	for i := range input {
 		result[i] = uint((float64(input[i]-min) / float64(max-min)) * MAX_RESULT_VALUE)
 	}
 	return result
@@ -49,7 +49,7 @@ func NormalizeResults(input []uint) []uint {
 	result := make([]uint, 0, EXPECTED_RESULT_SIZE)
 	itemsToGroup := l / EXPECTED_RESULT_SIZE
 	sum := uint(0)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		sum += input[i]
 		if (i+1)%itemsToGroup == 0 {
 			result = append(result, sum)
@@ -200,7 +200,7 @@ func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList 
 
 }
 
-func (f IntegerField) Match(input interface{}) *types.ItemList {
+func (f IntegerField) Match(input any) *types.ItemList {
 	value, ok := input.(types.RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
@@ -218,7 +218,7 @@ func (f IntegerField) UpdateBaseField(field *types.BaseField) {
 	f.BaseField.UpdateFrom(field)
 }
 
-func (f IntegerField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+func (f IntegerField) MatchAsync(input any, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }
 
@@ -231,8 +231,8 @@ func (f *IntegerField) Bounds() NumberRange[int] {
 	return *f.NumberRange
 }
 
-func (f IntegerField) GetValues() []interface{} {
-	return []interface{}{f.NumberRange}
+func (f IntegerField) GetValues() []any {
+	return []any{f.NumberRange}
 }
 
 func (f *IntegerField) addValueLink(value int, itemId uint) {
@@ -250,7 +250,7 @@ func (f *IntegerField) addValueLink(value int, itemId uint) {
 
 }
 
-func (f IntegerField) AddValueLink(data interface{}, itemId uint) bool {
+func (f IntegerField) AddValueLink(data any, itemId uint) bool {
 	if !f.Searchable {
 		return false
 	}
@@ -292,7 +292,7 @@ func (f *IntegerField) removeValueLink(value int, id uint) {
 
 }
 
-func (f IntegerField) RemoveValueLink(data interface{}, id uint) {
+func (f IntegerField) RemoveValueLink(data any, id uint) {
 	switch value := data.(type) {
 	case int:
 		f.removeValueLink(value, id)

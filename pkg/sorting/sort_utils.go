@@ -29,7 +29,7 @@ func (s *StaticPositions) ToString() string {
 
 func (s *StaticPositions) FromString(data string) error {
 	*s = make(map[int]uint)
-	for _, item := range strings.Split(data, ",") {
+	for item := range strings.SplitSeq(data, ",") {
 		var key int
 		var value uint
 		_, err := fmt.Sscanf(item, "%d:%d", &key, &value)
@@ -60,7 +60,7 @@ func (s *SortOverride) Set(id uint, value float64) {
 
 func (s *SortOverride) FromString(data string) error {
 
-	for _, item := range strings.Split(data, ",") {
+	for item := range strings.SplitSeq(data, ",") {
 		var key uint
 		var value float64
 		_, err := fmt.Sscanf(item, "%d:%f", &key, &value)

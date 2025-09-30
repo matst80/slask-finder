@@ -124,7 +124,7 @@ func absDiffInt(x, y int) int {
 
 func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 	matching := make([]tokenScore, max)
-	for j := 0; j < max; j++ {
+	for j := range max {
 		matching[j] = tokenScore{score: -99999999.0, token: token}
 	}
 	tl := len(token)
@@ -151,7 +151,7 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 			}
 		}
 		score -= float64(absDiffInt(il, tl))
-		for j := 0; j < max; j++ {
+		for j := range max {
 			if matching[j].score < score {
 				matching[j].score = score
 				matching[j].token = i
@@ -160,7 +160,7 @@ func (i *FreeTextIndex) getBestFuzzyMatch(token Token, max int) []Token {
 		}
 	}
 	ret := make([]Token, 0, max)
-	for j := 0; j < max; j++ {
+	for j := range max {
 		if matching[j].score < 0 {
 			break
 		}

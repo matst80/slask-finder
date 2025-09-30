@@ -66,30 +66,30 @@ const (
 )
 
 type CmsComponent struct {
-	DetailTest string      `json:"detailText"`
-	TeaserText string      `json:"teaserText"`
-	Tiles      interface{} `json:"tiles"`
-	Pictures   interface{} `json:"pictures"`
+	DetailTest string `json:"detailText"`
+	TeaserText string `json:"teaserText"`
+	Tiles      any    `json:"tiles"`
+	Pictures   any    `json:"pictures"`
 }
 
 type CmsContentItem struct {
-	Id          uint        `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Picture     interface{} `json:"picture"`
-	Features    string      `json:"features"`
-	PhoneNumber string      `json:"phoneNumber"`
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Picture     any    `json:"picture"`
+	Features    string `json:"features"`
+	PhoneNumber string `json:"phoneNumber"`
 	//Component   *CmsComponent `json:"component,omitempty"`
 	Url string `json:"url"`
 }
 
 type SellerContentItem struct {
-	Id          uint        `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Image       string      `json:"image"`
-	Picture     interface{} `json:"picture"`
-	Url         string      `json:"url"`
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Image       string `json:"image"`
+	Picture     any    `json:"picture"`
+	Url         string `json:"url"`
 }
 
 func (i SellerContentItem) GetId() uint {
@@ -109,14 +109,14 @@ func (i CmsContentItem) IndexData() string {
 }
 
 type StoreContentItem struct {
-	Id          uint        `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
-	Image       string      `json:"image"`
-	OpenHours   interface{} `json:"openHours"`
-	Url         string      `json:"url"`
-	Lat         string      `json:"lat"`
-	Lng         string      `json:"lng"`
+	Id          uint   `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Image       string `json:"image"`
+	OpenHours   any    `json:"openHours"`
+	Url         string `json:"url"`
+	Lat         string `json:"lat"`
+	Lng         string `json:"lng"`
 }
 
 func (i StoreContentItem) GetId() uint {
@@ -147,7 +147,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 			if err != nil {
 				return nil, err
 			}
-			var picture interface{}
+			var picture any
 			if record[PagePictureUrl] != "" {
 				if err := json.Unmarshal([]byte(record[PagePictureUrl]), &picture); err != nil {
 					log.Printf("Could not unmarshal PagePictureUrl: %v", err)
@@ -167,7 +167,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		if err != nil {
 			return nil, err
 		}
-		var picture interface{}
+		var picture any
 		if record[PagePictureUrl] != "" {
 			if err := json.Unmarshal([]byte(record[PagePictureUrl]), &picture); err != nil {
 				log.Printf("Could not unmarshal PagePictureUrl: %v", err)
@@ -199,7 +199,7 @@ func ContentItemFromLine(record []string) (ContentItem, error) {
 		if err != nil {
 			return nil, err
 		}
-		var openHours interface{}
+		var openHours any
 		if record[StoreOpeningHours] != "" {
 			if err := json.Unmarshal([]byte(record[StoreOpeningHours]), &openHours); err != nil {
 				log.Printf("Could not unmarshal StoreOpeningHours: %v", err)

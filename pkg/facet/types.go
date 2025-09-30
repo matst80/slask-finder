@@ -18,6 +18,6 @@ func (k *KeyFieldResult) HasValues() bool {
 
 type JsonFacet struct {
 	*types.BaseField
-	Selected interface{} `json:"selected,omitempty"`
+	Selected any         `json:"selected,omitempty"`
 	Result   FieldResult `json:"result,omitempty"`
 }

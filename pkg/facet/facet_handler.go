@@ -233,7 +233,7 @@ func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
 	}
 }
 
-func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected interface{}) {
+func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected any) {
 	defer wg.Done()
 
 	baseField := f.GetBaseField()

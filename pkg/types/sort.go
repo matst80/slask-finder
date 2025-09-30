@@ -34,7 +34,7 @@ func (s *SortIndex) Remove(id uint) {
 }
 
 func (s *SortIndex) FromString(data string) error {
-	for _, str := range strings.Split(data, ",") {
+	for str := range strings.SplitSeq(data, ",") {
 		i, err := strconv.ParseUint(str, 10, 64)
 		if err != nil {
 			return err

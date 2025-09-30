@@ -25,8 +25,8 @@ func (f TreeField) Len() int {
 	return len(f.Branches)
 }
 
-func (f TreeField) GetValues() []interface{} {
-	ret := make([]interface{}, len(f.Branches))
+func (f TreeField) GetValues() []any {
+	ret := make([]any, len(f.Branches))
 	idx := 0
 	for key := range f.Branches {
 		ret[idx] = key
@@ -35,7 +35,7 @@ func (f TreeField) GetValues() []interface{} {
 	return ret
 }
 
-func (f TreeField) Match(input interface{}) *types.ItemList {
+func (f TreeField) Match(input any) *types.ItemList {
 	if input == nil {
 		return &types.ItemList{}
 	}
@@ -58,7 +58,7 @@ func (f TreeField) Match(input interface{}) *types.ItemList {
 	return &types.ItemList{}
 }
 
-func (f TreeField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+func (f TreeField) MatchAsync(input any, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }
 
@@ -88,14 +88,14 @@ func (f *TreeField) addValue(keys []string, id uint) {
 	}
 }
 
-func (f TreeField) AddValueLink(data interface{}, item types.Item) bool {
+func (f TreeField) AddValueLink(data any, item types.Item) bool {
 	if !f.Searchable {
 		return false
 	}
 	switch typed := data.(type) {
 	case nil:
 		return false
-	case []interface{}:
+	case []any:
 		itemId := item.GetId()
 		keys := make([]string, 0)
 		for _, v := range typed {
@@ -140,7 +140,7 @@ func (f TreeField) AddValueLink(data interface{}, item types.Item) bool {
 	return false
 }
 
-func (f TreeField) RemoveValueLink(data interface{}, id uint) {
+func (f TreeField) RemoveValueLink(data any, id uint) {
 	// if str, ok := data.(string); ok {
 	// 	if keyId, ok := f.Keys[str]; ok {
 	// 		delete(keyId, id)

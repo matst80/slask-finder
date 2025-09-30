@@ -2,10 +2,10 @@ package types
 
 type MatchRule struct {
 	RuleSource
-	Match           interface{} `json:"match"`
-	Invert          bool        `json:"invert,omitempty"`
-	ValueIfMatch    float64     `json:"value"`
-	ValueIfNotMatch float64     `json:"valueIfNotMatch"`
+	Match           any     `json:"match"`
+	Invert          bool    `json:"invert,omitempty"`
+	ValueIfMatch    float64 `json:"value"`
+	ValueIfNotMatch float64 `json:"valueIfNotMatch"`
 }
 
 func (_ *MatchRule) Type() RuleType {

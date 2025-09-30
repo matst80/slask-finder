@@ -260,7 +260,7 @@ func (ws *GoogleAuth) AuthCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (ws *GoogleAuth) ParseJwt(tokenString string) (*jwt.Token, error) {
-	return jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	return jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return ws.serverKey, nil
 	})
 }

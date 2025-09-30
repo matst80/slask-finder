@@ -2,6 +2,7 @@ package search
 
 import (
 	"github.com/matst80/slask-finder/pkg/types"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -20,10 +21,8 @@ type CharReplacement struct {
 type TokenList []Token
 
 func (t *TokenList) AddToken(token Token) {
-	for _, existing := range *t {
-		if existing == token {
-			return
-		}
+	if slices.Contains(*t, token) {
+		return
 	}
 	*t = append(*t, token)
 }

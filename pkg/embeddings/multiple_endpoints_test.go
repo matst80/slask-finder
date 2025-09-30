@@ -40,12 +40,12 @@ func TestMultipleEndpointsLoadTesting(t *testing.T) {
 	startTime := time.Now()
 
 	// Launch concurrent workers
-	for i := 0; i < concurrency; i++ {
+	for i := range concurrency {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
 
-			for j := 0; j < requestsPerWorker; j++ {
+			for j := range requestsPerWorker {
 				// Create a unique text for each request
 				text := fmt.Sprintf("Sample text for embeddings generation - worker %d, request %d", workerID, j)
 

@@ -66,7 +66,7 @@ func (l JsonTypes) MarshalJSON() ([]byte, error) {
 			continue
 		}
 
-		b.Write(slices.Insert(item, len(item)-1, []byte(fmt.Sprintf(`,"$type":"%s"`, i.Type()))...))
+		b.Write(slices.Insert(item, len(item)-1, fmt.Appendf(nil, `,"$type":"%s"`, i.Type())...))
 		if idx < len(l)-1 {
 			b.Write([]byte(","))
 		}
@@ -75,7 +75,7 @@ func (l JsonTypes) MarshalJSON() ([]byte, error) {
 	return b.Bytes(), nil
 }
 
-func GetPropertyValue(item interface{}, propertyName string) interface{} {
+func GetPropertyValue(item any, propertyName string) any {
 	val := reflect.ValueOf(item).Elem()
 
 	field := val.FieldByName(propertyName)
@@ -85,7 +85,7 @@ func GetPropertyValue(item interface{}, propertyName string) interface{} {
 	return field.Interface()
 }
 
-func AsNumber[K int | float64 | int64](value interface{}) (K, bool) {
+func AsNumber[K int | float64 | int64](value any) (K, bool) {
 	found := false
 	var v K
 	switch input := value.(type) {
@@ -102,7 +102,7 @@ func AsNumber[K int | float64 | int64](value interface{}) (K, bool) {
 	return v, found
 }
 
-func FromJsonTypes[K interface{}](arr JsonTypes) []K {
+func FromJsonTypes[K any](arr JsonTypes) []K {
 	// Preallocate with full length; capacity hint avoids reallocations.
 	// We still skip elements that don't assert to K; final len may be < cap.
 	result := make([]K, 0, len(arr))

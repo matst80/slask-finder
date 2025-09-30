@@ -55,9 +55,8 @@ func NewCustomMerger(result *ItemList, merger Merger) *QueryMerger {
 }
 
 func (m *QueryMerger) Add(getResult func() *ItemList) {
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+
+	m.wg.Go(func() {
 		items := getResult()
 		if items == nil && m.isFirst {
 			return
@@ -69,30 +68,26 @@ func (m *QueryMerger) Add(getResult func() *ItemList) {
 		m.merger(m.result, items, m.isFirst)
 		m.isFirst = false
 
-	}()
+	})
 }
 
 func (m *QueryMerger) Intersect(getResult func() *ItemList) {
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		items := getResult()
 
 		m.l.Lock()
 		defer m.l.Unlock()
 		m.result.Intersect(*items)
-	}()
+	})
 }
 
 func (m *QueryMerger) Exclude(getResult func() *ItemList) {
-	m.wg.Add(1)
-	go func() {
-		defer m.wg.Done()
+	m.wg.Go(func() {
 		items := getResult()
 		m.l.Lock()
 		defer m.l.Unlock()
 		m.exclude.Merge(items)
-	}()
+	})
 }
 
 func (m *QueryMerger) Wait() {

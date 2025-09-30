@@ -104,7 +104,7 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 	return &found
 }
 
-func (f DecimalField) Match(input interface{}) *types.ItemList {
+func (f DecimalField) Match(input any) *types.ItemList {
 	value, ok := input.(types.RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
@@ -126,7 +126,7 @@ func (f DecimalField) UpdateBaseField(field *types.BaseField) {
 	f.updateBaseField(field)
 }
 
-func (f DecimalField) MatchAsync(input interface{}, ch chan<- *types.ItemList) {
+func (f DecimalField) MatchAsync(input any, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }
 
@@ -143,11 +143,11 @@ func (f *DecimalField) Bounds() NumberRange[float64] {
 	return *f.NumberRange
 }
 
-func (f DecimalField) GetValues() []interface{} {
-	return []interface{}{f.NumberRange}
+func (f DecimalField) GetValues() []any {
+	return []any{f.NumberRange}
 }
 
-func (f DecimalField) AddValueLink(data interface{}, itemId uint) bool {
+func (f DecimalField) AddValueLink(data any, itemId uint) bool {
 	if !f.Searchable {
 		return false
 	}
@@ -171,7 +171,7 @@ func (f DecimalField) AddValueLink(data interface{}, itemId uint) bool {
 	return true
 }
 
-func (f DecimalField) RemoveValueLink(data interface{}, id uint) {
+func (f DecimalField) RemoveValueLink(data any, id uint) {
 	value, ok := data.(float64)
 	if !ok {
 		return

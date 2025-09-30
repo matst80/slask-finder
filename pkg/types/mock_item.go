@@ -36,7 +36,7 @@ func (m *MockItem) GetBasePopularity() float64 {
 	return m.Popularity
 }
 
-func (m *MockItem) GetPropertyValue(name string) interface{} {
+func (m *MockItem) GetPropertyValue(name string) any {
 	return nil
 }
 
@@ -150,7 +150,7 @@ func (item *MockItem) MergeKeyFields(updates []CategoryUpdate) bool {
 	return false
 }
 
-func (m *MockItem) GetItem() interface{} {
+func (m *MockItem) GetItem() any {
 	return m
 }
 
@@ -167,7 +167,7 @@ func (m *MockItem) GetFields() []uint {
 
 type MockField struct {
 	Key   uint
-	Value interface{}
+	Value any
 }
 
 func MakeMockItem(id uint, fields ...MockField) Item {
