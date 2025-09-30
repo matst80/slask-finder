@@ -63,6 +63,8 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 		ItemFieldIds: make(map[uint]types.ItemList),
 		sortMap:      make(map[uint]float64),
 		mu:           sync.RWMutex{},
+		override:     make(map[uint]float64),
+		AllFacets:    make(types.ItemList),
 		//All:          types.ItemList{},
 	}
 
