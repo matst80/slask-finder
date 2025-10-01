@@ -324,7 +324,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 			}
 		}
 	default:
-		log.Printf("unkown field type %T", field)
+		log.Printf("unknown field type %T", field)
 	}
 }
 
