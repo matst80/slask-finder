@@ -18,8 +18,6 @@ import (
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 var country = "se"
@@ -35,7 +33,7 @@ type app struct {
 	gotSaveTrigger bool
 	country        string
 	tracker        types.Tracking
-	conn           *amqp.Connection
+	//conn           *amqp.Connection
 	storage        *storage.DiskStorage
 	itemIndex      *index.ItemIndexWithStock
 	searchIndex    *search.FreeTextItemHandler
@@ -69,6 +67,7 @@ func main() {
 	}
 
 	wg := sync.WaitGroup{}
+	loading := true
 
 	err = diskStorage.LoadItems(&wg, itemIndex, sortingHandler, facetHandler, searchHandler)
 	if err != nil {
@@ -76,12 +75,16 @@ func main() {
 	}
 
 	amqpUrl, ok := os.LookupEnv("RABBIT_HOST")
-	if ok {
-		app.ConnectAmqp(amqpUrl)
-		app.ConnectFacetChange()
-		app.ConnectSettingsChange()
-		sortingHandler.Connect(app.conn, country)
-	}
+
+	go func() {
+		wg.Wait()
+		loading = false
+		log.Printf("Finished loading items, now serving requests")
+		if ok {
+			app.ConnectAmqp(amqpUrl)
+
+		}
+	}()
 
 	var tracker types.Tracking = nil
 	if amqpUrl != "" {
@@ -110,10 +113,17 @@ func main() {
 	mux.HandleFunc("GET /api/facet-groups", common.JsonHandler(tracker, app.GetFacetGroups))
 	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		if _, err := w.Write([]byte("ok")); err != nil {
 			log.Printf("Failed to write health response: %v", err)
+		}
+	})
+	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if loading {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusOK)
 		}
 	})
 	debugMux := http.NewServeMux()
@@ -124,6 +134,7 @@ func main() {
 	debugMux.HandleFunc("/debug/pprof/symbol", httpprof.Symbol)
 	debugMux.HandleFunc("/debug/pprof/trace", httpprof.Trace)
 
+	log.Printf("Starting reader server for country %s", country)
 	go http.ListenAndServe(":8081", debugMux)
 
 	//mux.HandleFunc("/api/similar", common.JsonHandler(tracker, app.Similar))

@@ -16,7 +16,7 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 	conn, err := amqp.DialConfig(amqpUrl, amqp.Config{
 		Properties: amqp.NewConnectionProperties(),
 	})
-	a.conn = conn
+	//a.conn = conn
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
@@ -62,10 +62,14 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 			}
 		}
 	}()
+
+	a.ConnectFacetChange(conn)
+	a.ConnectSettingsChange(conn)
+	a.sortingHandler.Connect(conn, country)
 }
 
-func (a *app) ConnectFacetChange() {
-	ch, err := a.conn.Channel()
+func (a *app) ConnectFacetChange(conn *amqp.Connection) {
+	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}
@@ -84,8 +88,8 @@ func (a *app) ConnectFacetChange() {
 	}
 }
 
-func (a *app) ConnectSettingsChange() {
-	ch, err := a.conn.Channel()
+func (a *app) ConnectSettingsChange(conn *amqp.Connection) {
+	ch, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("Failed to open a channel: %v", err)
 	}

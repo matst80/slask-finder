@@ -224,8 +224,8 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 
 			}
 		}
-		log.Printf("cart item ids %v", cartItemIds)
-		log.Printf("excluded product types %v", excludedProductTypes)
+		// log.Printf("cart item ids %v", cartItemIds)
+		// log.Printf("excluded product types %v", excludedProductTypes)
 	}
 	idString := r.PathValue("id")
 	id64, err := strconv.ParseUint(idString, 10, 64)
