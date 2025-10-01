@@ -71,7 +71,7 @@ func (m *MockItem) GetStringFieldValue(id uint) (string, bool) {
 
 func (m *MockItem) GetStringsFieldValue(id uint) ([]string, bool) {
 	if v, ok := m.StringFields[id]; ok {
-		return strings.Split(v, ";;"), true
+		return strings.Split(v, ";"), true
 	}
 	return nil, false
 }
@@ -184,7 +184,7 @@ func MakeMockItem(id uint, fields ...MockField) Item {
 		case string:
 			ret.StringFields[field.Key] = v
 		case []string:
-			ret.StringFields[field.Key] = strings.Join(v, ";;")
+			ret.StringFields[field.Key] = strings.Join(v, ";")
 		case []any:
 			strs := make([]string, 0, len(v))
 			for _, vi := range v {
@@ -195,7 +195,7 @@ func MakeMockItem(id uint, fields ...MockField) Item {
 				}
 			}
 			if len(strs) > 0 {
-				ret.StringFields[field.Key] = strings.Join(strs, ";;")
+				ret.StringFields[field.Key] = strings.Join(strs, ";")
 			}
 		case float64:
 			ret.NumberFields[field.Key] = v

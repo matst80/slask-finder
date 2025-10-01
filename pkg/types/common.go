@@ -16,6 +16,7 @@ type BaseField struct {
 	KeySpecification bool    `json:"isKey,omitempty"`
 	InternalOnly     bool    `json:"internal,omitempty"`
 	Searchable       bool    `json:"searchable,omitempty"`
+
 	// IgnoreCategoryIfSearched bool    `json:"-"`
 	// IgnoreIfInSearch         bool    `json:"-"`
 }
@@ -116,17 +117,17 @@ type EmbeddingsEngine interface {
 	//GenerateEmbeddingsFromItem(item Item) (Embeddings, error)
 }
 
-type Facet interface {
-	GetType() uint
-	Match(data any) *ItemList
+type Facet[T any] interface {
+	//GetType() uint
+	Match(data T) *ItemList
 	// MatchAsync(data interface{}, results chan<- *ItemList)
-	GetBaseField() *BaseField
-	AddValueLink(value any, id uint) bool
-	RemoveValueLink(value any, id uint)
-	UpdateBaseField(data *BaseField)
-	GetValues() []any
-	IsExcludedFromFacets() bool
-	IsCategory() bool
+	//GetBaseField() *BaseField
+	AddValueLink(value T, id uint) bool
+	RemoveValueLink(value T, id uint)
+	//UpdateBaseField(data *BaseField)
+	GetValues() any
+	//IsExcludedFromFacets() bool
+	//IsCategory() bool
 }
 
 type FieldChangeAction = string

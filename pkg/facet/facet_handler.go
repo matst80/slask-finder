@@ -14,18 +14,104 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
+type Facet[T any] struct {
+	*types.BaseField
+	index types.Facet[T]
+}
+
 type FacetItemHandler struct {
-	mu           sync.RWMutex
-	sortMap      map[uint]float64
-	sortValues   types.ByValue
-	override     map[uint]float64
-	Facets       map[uint]types.Facet
-	ItemFieldIds map[uint]types.ItemList
-	AllFacets    types.ItemList
+	mu            sync.RWMutex
+	sortMap       map[uint]float64
+	sortValues    types.ByValue
+	override      map[uint]float64
+	stringFacets  map[uint]Facet[string]
+	integerFacets map[uint]Facet[int]
+	floatFacets   map[uint]Facet[float64]
+	itemFieldIds  map[uint]types.ItemList
+	allFacets     types.ItemList
+}
+
+func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
+	r := &FacetItemHandler{
+		stringFacets:  make(map[uint]Facet[string]),
+		integerFacets: make(map[uint]Facet[int]),
+		floatFacets:   make(map[uint]Facet[float64]),
+		itemFieldIds:  make(map[uint]types.ItemList),
+		sortMap:       make(map[uint]float64),
+		mu:            sync.RWMutex{},
+		override:      make(map[uint]float64),
+		allFacets:     make(types.ItemList),
+		//All:          types.ItemList{},
+	}
+
+	for _, f := range facets {
+		switch f.Type {
+		case 1:
+			r.AddKeyField(f.BaseField)
+
+		case 3:
+			r.AddIntegerField(f.BaseField)
+
+		case 2:
+			r.AddDecimalField(f.BaseField)
+
+		default:
+			log.Printf("Unknown field type %d", f.Type)
+			continue
+		}
+		if f.BaseField.Searchable || !f.BaseField.HideFacet {
+			r.allFacets.AddId(f.Id)
+		}
+	}
+
+	r.sortValues = types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
+		var base *types.BaseField
+		j := 0.0
+		for id, item := range r.Facets {
+			base = item.GetBaseField()
+			if base.HideFacet {
+				continue
+			}
+			v := base.Priority + j // + r.overrides[base.Id]
+			j += 0.000000000001
+			r.sortMap[id] = v
+			if !yield(types.Lookup{
+				Id:    id,
+				Value: v,
+			}) {
+				break
+			}
+		}
+	}, types.LookUpReversed))
+
+	return r
 }
 
 func (h *FacetItemHandler) HandleFieldChanges(items []types.FieldChange) {
 	h.UpdateFields(items)
+}
+
+func (h *FacetItemHandler) updateFieldSort(items []types.FieldChange) {
+
+	types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
+		var base *types.BaseField
+		j := 0.0
+		for id, item := range r.Facets {
+			base = item.GetBaseField()
+			if base.HideFacet {
+				continue
+			}
+			v := base.Priority + j // + r.overrides[base.Id]
+			j += 0.000000000001
+			r.sortMap[id] = v
+			if !yield(types.Lookup{
+				Id:    id,
+				Value: v,
+			}) {
+				break
+			}
+		}
+	}, types.LookUpReversed))
 }
 
 func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
@@ -57,60 +143,6 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 	}
 }
 
-func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
-	r := &FacetItemHandler{
-		Facets:       make(map[uint]types.Facet),
-		ItemFieldIds: make(map[uint]types.ItemList),
-		sortMap:      make(map[uint]float64),
-		mu:           sync.RWMutex{},
-		override:     make(map[uint]float64),
-		AllFacets:    make(types.ItemList),
-		//All:          types.ItemList{},
-	}
-
-	for _, f := range facets {
-		switch f.Type {
-		case 1:
-			r.AddKeyField(f.BaseField)
-
-		case 3:
-			r.AddIntegerField(f.BaseField)
-
-		case 2:
-			r.AddDecimalField(f.BaseField)
-
-		default:
-			log.Printf("Unknown field type %d", f.Type)
-			continue
-		}
-		if f.BaseField.Searchable || !f.BaseField.HideFacet {
-			r.AllFacets.AddId(f.Id)
-		}
-	}
-
-	r.sortValues = types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
-		var base *types.BaseField
-		j := 0.0
-		for id, item := range r.Facets {
-			base = item.GetBaseField()
-			if base.HideFacet {
-				continue
-			}
-			v := base.Priority + j // + r.overrides[base.Id]
-			j += 0.000000000001
-			r.sortMap[id] = v
-			if !yield(types.Lookup{
-				Id:    id,
-				Value: v,
-			}) {
-				break
-			}
-		}
-	}, types.LookUpReversed))
-
-	return r
-}
-
 func (h *FacetItemHandler) GetFacet(id uint) (types.Facet, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
@@ -138,7 +170,7 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 		defer h.mu.Unlock()
 
 		if item.IsDeleted() {
-			delete(h.ItemFieldIds, itemId)
+			delete(h.itemFieldIds, itemId)
 
 			for fieldId, fieldValue := range item.GetStringFields() {
 				if f, ok := h.Facets[fieldId]; ok {
@@ -152,10 +184,10 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 			}
 
 		} else {
-			fid, ok := h.ItemFieldIds[itemId]
+			fid, ok := h.itemFieldIds[itemId]
 			if !ok {
 				fid = types.ItemList{}
-				h.ItemFieldIds[itemId] = fid
+				h.itemFieldIds[itemId] = fid
 			}
 
 			for fieldId, fieldValue := range item.GetStringFields() {
@@ -185,15 +217,15 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 
 // Facet management methods
 func (h *FacetItemHandler) AddKeyField(field *types.BaseField) {
-	h.Facets[field.Id] = EmptyKeyValueField(field)
+	h.stringFacets[field.Id] = EmptyKeyValueField(field)
 }
 
 func (h *FacetItemHandler) AddDecimalField(field *types.BaseField) {
-	h.Facets[field.Id] = EmptyDecimalField(field)
+	h.floatFacets[field.Id] = EmptyDecimalField(field)
 }
 
 func (h *FacetItemHandler) AddIntegerField(field *types.BaseField) {
-	h.Facets[field.Id] = EmptyIntegerField(field)
+	h.integerFacets[field.Id] = EmptyIntegerField(field)
 }
 
 func (h *FacetItemHandler) GetKeyFacet(id uint) (*KeyField, bool) {
@@ -412,7 +444,7 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 		var itemFieldIds types.ItemList
 		var ok bool
 
-		itemFieldIds, ok = ws.ItemFieldIds[id]
+		itemFieldIds, ok = ws.itemFieldIds[id]
 
 		if ok {
 			maps.Copy(fieldIds, itemFieldIds)
@@ -426,7 +458,7 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 	count := 0
 
 	if len(fieldIds) == 0 {
-		fieldIds = ws.AllFacets
+		fieldIds = ws.allFacets
 	}
 
 	for id := range ws.sortValues.SortMap(fieldIds) {
