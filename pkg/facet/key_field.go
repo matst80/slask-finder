@@ -9,25 +9,25 @@ import (
 )
 
 type KeyField struct {
-	*types.BaseField
+	//*types.BaseField
 	Keys map[string]types.ItemList
 }
 
-func (f KeyField) GetType() uint {
-	return types.FacetKeyType
-}
+// func (f KeyField) GetType() uint {
+// 	return types.FacetKeyType
+// }
 
 func (f KeyField) Len() int {
 	return len(f.Keys)
 }
 
-func (f KeyField) IsExcludedFromFacets() bool {
-	return f.BaseField.HideFacet || f.BaseField.InternalOnly
-}
+// func (f KeyField) IsExcludedFromFacets() bool {
+// 	return f.BaseField.HideFacet || f.BaseField.InternalOnly
+// }
 
-func (f KeyField) IsCategory() bool {
-	return f.CategoryLevel > 0
-}
+// func (f KeyField) IsCategory() bool {
+// 	return f.CategoryLevel > 0
+// }
 
 type ValueWithCount struct {
 	Value string `json:"value"`
@@ -66,9 +66,9 @@ func (f *KeyField) match(value string) *types.ItemList {
 	return &types.ItemList{}
 }
 
-func (f KeyField) UpdateBaseField(field *types.BaseField) {
-	f.BaseField.UpdateFrom(field)
-}
+// func (f KeyField) UpdateBaseField(field *types.BaseField) {
+// 	f.BaseField.UpdateFrom(field)
+// }
 
 func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemList {
 	// todo implement
@@ -131,9 +131,9 @@ func (f KeyField) Match(input any) *types.ItemList {
 // 	ch <- f.Match(input)
 // }
 
-func (f KeyField) GetBaseField() *types.BaseField {
-	return f.BaseField
-}
+// func (f KeyField) GetBaseField() *types.BaseField {
+// 	return f.BaseField
+// }
 
 func (f *KeyField) addString(value string, id uint) {
 	v := strings.TrimSpace(value)
