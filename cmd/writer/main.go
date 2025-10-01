@@ -12,6 +12,7 @@ import (
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/types"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -108,6 +109,23 @@ func main() {
 	srv.HandleFunc("GET /admin/fields/{id}/add", auth.Middleware(app.CreateFacetFromField))
 	srv.HandleFunc("GET /admin/missing-fields", auth.Middleware(app.MissingFacets))
 	srv.HandleFunc("POST /admin/update-fields", auth.Middleware(app.UpdateFacetsFromFields))
+
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Failed to write health response: %v", err)
+		}
+	})
+	debugMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+
+		w.WriteHeader(http.StatusOK)
+
+	})
+	debugMux.Handle("/metrics", promhttp.Handler())
+
+	log.Printf("Starting writer server for country %s", country)
+	go http.ListenAndServe(":8081", debugMux)
 
 	// srv.HandleFunc("GET /users", auth.Middleware(webAuth.ListUsers))
 	//    srv.HandleFunc("DELETE /users/{id}", auth.Middleware(webAuth.DeleteUser))

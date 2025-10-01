@@ -68,20 +68,6 @@ func main() {
 
 	wg := sync.WaitGroup{}
 	loading := true
-	debugMux := http.NewServeMux()
-	debugMux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		if _, err := w.Write([]byte("ok")); err != nil {
-			log.Printf("Failed to write health response: %v", err)
-		}
-	})
-	debugMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
-		if loading {
-			w.WriteHeader(http.StatusServiceUnavailable)
-		} else {
-			w.WriteHeader(http.StatusOK)
-		}
-	})
 
 	err = diskStorage.LoadItems(&wg, itemIndex, sortingHandler, facetHandler, searchHandler)
 	if err != nil {
@@ -126,6 +112,20 @@ func main() {
 	mux.HandleFunc("GET /api/facet-groups", common.JsonHandler(tracker, app.GetFacetGroups))
 	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
+	debugMux := http.NewServeMux()
+	debugMux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write([]byte("ok")); err != nil {
+			log.Printf("Failed to write health response: %v", err)
+		}
+	})
+	debugMux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if loading {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		} else {
+			w.WriteHeader(http.StatusOK)
+		}
+	})
 	debugMux.Handle("/metrics", promhttp.Handler())
 	debugMux.HandleFunc("/debug/pprof/", httpprof.Index)
 	debugMux.HandleFunc("/debug/pprof/cmdline", httpprof.Cmdline)
