@@ -76,7 +76,6 @@ func main() {
 				embeddingsIndex.HandleItem(&item)
 			}
 		}
-		messaging.SendChange()
 		return nil
 	})
 	if err != nil {
