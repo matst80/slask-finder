@@ -25,11 +25,12 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	}
 
 	ids := &types.ItemList{}
-
+	baseIds := &types.ItemList{}
 	qm := types.NewQueryMerger(ids)
 
 	ws.searchIndex.MatchQuery(sr.Query, qm)
 	ws.itemIndex.MatchStock(sr.Stock, qm)
+	qm.GetClone(baseIds)
 	ws.facetHandler.Match(sr.Filters, qm)
 
 	ch := make(chan *facet.JsonFacet)
@@ -38,7 +39,7 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	qm.Wait()
 
 	ws.facetHandler.GetOtherFacets(ids, sr, ch, wg)
-	ws.facetHandler.GetSearchedFacets(ids, sr, ch, wg)
+	ws.facetHandler.GetSearchedFacets(baseIds, sr, ch, wg)
 
 	// todo optimize
 	go func() {
@@ -47,15 +48,20 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	}()
 
 	ret := make([]*facet.JsonFacet, 0)
-	for item := range ch {
-		if item != nil && (item.Result.HasValues() || item.Selected != nil) {
-			ret = append(ret, item)
+	for jsonFacet := range ch {
+		if jsonFacet == nil {
+
+			continue
+		}
+
+		if jsonFacet.Result.HasValues() || jsonFacet.Selected != nil {
+			ret = append(ret, jsonFacet)
 		}
 	}
 
-	w.WriteHeader(http.StatusOK)
 	publicHeaders(w, r, true, "600")
 	w.Header().Set("x-duration", fmt.Sprintf("%v", time.Since(s)))
+	w.WriteHeader(http.StatusOK)
 	ws.facetHandler.SortJsonFacets(ret)
 	return enc.Encode(ret)
 }
