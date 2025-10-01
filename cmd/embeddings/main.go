@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
@@ -18,11 +19,22 @@ import (
 )
 
 var country = "se"
+var ollamaUrls = []string{"http://10.10.11.135:11434/api/embeddings"}
+var ollamaModel = "elkjop-ecom"
 
 func init() {
 	c, ok := os.LookupEnv("COUNTRY")
 	if ok {
 		country = c
+	}
+	model, ok := os.LookupEnv("OLLAMA_MODEL")
+	if ok {
+		ollamaModel = model
+	}
+
+	ollamaURL, ok := os.LookupEnv("OLLAMA_URL")
+	if ok {
+		ollamaUrls = strings.Split(ollamaURL, ";")
 	}
 }
 
@@ -42,17 +54,7 @@ func main() {
 	}
 	defer conn.Close()
 
-	ollamaModel, ok := os.LookupEnv("OLLAMA_MODEL")
-	if !ok {
-		ollamaModel = "elkjop-ecom"
-	}
-
-	ollamaURL, ok := os.LookupEnv("OLLAMA_URL")
-	if !ok {
-		ollamaURL = "http://10.10.11.135:11434/api/embeddings"
-	}
-
-	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(ollamaModel, ollamaURL)
+	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(ollamaModel, ollamaUrls...)
 	embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func(data map[uint]types.Embeddings) error {
 		log.Printf("Queue done, saving %d embeddings to disk", len(data))
 		err := diskStorage.SaveEmbeddings(data)
@@ -74,6 +76,7 @@ func main() {
 				embeddingsIndex.HandleItem(&item)
 			}
 		}
+		messaging.SendChange()
 		return nil
 	})
 	if err != nil {

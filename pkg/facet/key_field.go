@@ -177,13 +177,11 @@ func (f *KeyField) removeString(value string, id uint) {
 }
 
 func (f KeyField) AddValueLink(data any, itemId uint) bool {
-	if !f.Searchable {
+	if !f.Searchable || data == nil {
 		return false
 	}
 
 	switch typed := data.(type) {
-	case nil:
-		return false
 	case float64:
 		f.addString(fmt.Sprintf("%f", typed), itemId)
 		return true
@@ -206,24 +204,12 @@ func (f KeyField) AddValueLink(data any, itemId uint) bool {
 			log.Printf("KeyField: AddValueLink: Ignoring HTML escaped value, field id: %d", f.Id)
 			return false
 		}
-		parts := strings.Split(typed, ";")
 
-		for _, partData := range parts {
+		for _, partData := range strings.Split(typed, ";") {
 			f.addString(partData, itemId)
 		}
 
 		return true
-	// case []any:
-
-	// 	for _, v := range typed {
-	// 		if str, ok := v.(string); ok {
-	// 			f.addString(str, itemId)
-	// 		} else {
-	// 			log.Printf("KeyField: AddValueLink: Unknown array type %T, fieldId: %d", v, f.Id)
-	// 		}
-	// 	}
-
-	// 	return true
 	default:
 		log.Printf("KeyField: AddValueLink: Unknown type %T, fieldId: %d", typed, f.Id)
 	}

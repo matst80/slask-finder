@@ -13,9 +13,9 @@ func (a ItemList) Exclude(b *ItemList) {
 	}
 }
 
-func (i *ItemList) Add(item Item) {
-	(*i)[item.GetId()] = struct{}{}
-}
+// func (i *ItemList) Add(item Item) {
+// 	(*i)[item.GetId()] = struct{}{}
+// }
 
 func (i *ItemList) AddId(id uint) {
 	(*i)[id] = struct{}{}
