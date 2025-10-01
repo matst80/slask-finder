@@ -206,7 +206,7 @@ func (f KeyField) AddValueLink(data any, itemId uint) bool {
 			log.Printf("KeyField: AddValueLink: Ignoring HTML escaped value, field id: %d", f.Id)
 			return false
 		}
-		parts := strings.Split(typed, ";;")
+		parts := strings.Split(typed, ";")
 
 		for _, partData := range parts {
 			f.addString(partData, itemId)

@@ -34,7 +34,7 @@ func (f ItemFields) GetStringsFieldValue(id uint) ([]string, bool) {
 
 	v, ok := f.keyFacets[id]
 	if ok {
-		return strings.Split(v, ";;"), true
+		return strings.Split(v, ";"), true
 	}
 	return nil, false
 }
@@ -101,8 +101,8 @@ func (f ItemFields) MarshalJSON() ([]byte, error) {
 		buf.WriteByte('"')
 		buf.WriteString(strconv.FormatUint(uint64(id), 10))
 		buf.WriteString(`":`)
-		if strings.Contains(value, ";;") {
-			parts := strings.Split(value, ";;")
+		if strings.Contains(value, ";") {
+			parts := strings.Split(value, ";")
 			buf.WriteByte('[')
 			for i, part := range parts {
 				if i > 0 {
@@ -237,7 +237,7 @@ func (f *ItemFields) UnmarshalJSON(data []byte) error {
 					return err
 				}
 				if !firstElem {
-					sb.WriteString(";;")
+					sb.WriteString(";")
 				} else {
 					firstElem = false
 				}
