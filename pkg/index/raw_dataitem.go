@@ -98,7 +98,7 @@ func (item *RawDataItem) GetPrice() int {
 	return item.getItem().GetPrice()
 }
 
-func (item *RawDataItem) GetStock() map[string]string {
+func (item *RawDataItem) GetStock() map[string]uint {
 	return item.getItem().GetStock()
 }
 

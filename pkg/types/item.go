@@ -5,7 +5,7 @@ import "io"
 type Item interface {
 	GetId() uint
 	GetSku() string
-	GetStock() map[string]string
+	GetStock() map[string]uint
 	HasStock() bool
 	IsDeleted() bool
 	IsSoftDeleted() bool

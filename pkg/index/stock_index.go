@@ -26,10 +26,10 @@ func NewIndexWithStock() *ItemIndexWithStock {
 func (i *ItemIndexWithStock) addItemValues(item types.Item) {
 	itemId := item.GetId()
 
-	for id, stock := range item.GetStock() {
-		if stock == "" || stock == "0" {
-			continue
-		}
+	for id, _ := range item.GetStock() {
+		// if stock == "" || stock == "0" {
+		// 	continue
+		// }
 		stockLocation, ok := i.ItemsInStock[id]
 		if !ok {
 			i.ItemsInStock[id] = types.ItemList{itemId: struct{}{}}

@@ -16,8 +16,8 @@ var item = &MockItem{
 	},
 	OrgPrice: 200,
 	Buyable:  true,
-	Stock: map[string]string{
-		"1": "1",
+	Stock: map[string]uint{
+		"1": 1,
 	},
 	Price: 100,
 }

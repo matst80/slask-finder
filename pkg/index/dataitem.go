@@ -70,11 +70,11 @@ type BaseItem struct {
 	EnergyRating  *EnergyRating `json:"energyRating,omitempty"`
 	MarginPercent MarginPercent `json:"mp,omitempty"`
 
-	Stock          map[string]string `json:"stock"`
-	Sku            string            `json:"sku"`
-	Title          string            `json:"title"`
-	Buyable        bool              `json:"buyable"`
-	BuyableInStore bool              `json:"buyableInStore"`
+	Stock          types.MapStock `json:"stock"`
+	Sku            string         `json:"sku"`
+	Title          string         `json:"title"`
+	Buyable        bool           `json:"buyable"`
+	BuyableInStore bool           `json:"buyableInStore"`
 }
 
 type DataItem struct {
@@ -196,8 +196,8 @@ func (item *DataItem) GetPrice() int {
 	return getNumberValue[int](priceField)
 }
 
-func (item *DataItem) GetStock() map[string]string {
-	return item.Stock
+func (item *DataItem) GetStock() map[string]uint {
+	return item.Stock.GetStock()
 }
 
 func (m *DataItem) GetStringFields() map[uint]string {
