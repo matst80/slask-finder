@@ -145,8 +145,19 @@ func (d *DiskStorage) SaveEmbeddings(embeddings any) error {
 // 		return nil
 // 	}
 
-// 	return err
-// }
+//		return err
+//	}
+func (d *DiskStorage) LoadSortOverride(name string) (*types.SortOverride, error) {
+	fileName := d.GetOverrideFilename(name)
+
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+	tmp := &types.SortOverride{}
+	err = tmp.FromString(string(b))
+	return tmp, err
+}
 
 func (d *DiskStorage) LoadItems(wg *sync.WaitGroup, handlers ...types.ItemHandler) error {
 	// newFileName, _ := d.GetFileName(storageItemFile)

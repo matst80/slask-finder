@@ -47,15 +47,23 @@ func main() {
 	if err != nil {
 		log.Printf("Could not load settings from file: %v", err)
 	}
+	itemPopularity, err := diskStorage.LoadSortOverride("popular")
+	if err != nil {
+		log.Printf("Could not load sort override from storage: %v", err)
+	}
 	itemIndex := index.NewIndexWithStock()
-	sortingHandler := sorting.NewSortingItemHandler()
+	sortingHandler := sorting.NewSortingItemHandler(*itemPopularity)
 	searchHandler := search.NewFreeTextItemHandler(search.DefaultFreeTextHandlerOptions())
 	facets := []facet.StorageFacet{}
+	fieldPopularity, err := diskStorage.LoadSortOverride("popular-fields")
+	if err != nil {
+		log.Printf("Could not load sort override from storage: %v", err)
+	}
 	err = diskStorage.LoadFacets(&facets)
 	if err != nil {
 		log.Printf("Could not load facets from storage: %v", err)
 	}
-	facetHandler := facet.NewFacetItemHandler(facets)
+	facetHandler := facet.NewFacetItemHandler(facets, fieldPopularity)
 
 	app := &app{
 		country:        country,

@@ -42,21 +42,29 @@ func NewLastUpdateSorter() Sorter {
 
 type SortingItemHandler struct {
 	mu         sync.RWMutex
-	overrides  map[string]SortOverride
+	overrides  map[string]types.SortOverride
 	Sorters    []Sorter
 	sortValues map[string]types.ByValue
 }
 
-func NewSortingItemHandler() *SortingItemHandler {
+func NewSortingItemHandler(itemPopularity types.SortOverride) *SortingItemHandler {
+	popSorter := NewPopularitySorter()
 	handler := &SortingItemHandler{
 		mu:         sync.RWMutex{},
-		overrides:  make(map[string]SortOverride),
+		overrides:  make(map[string]types.SortOverride),
 		sortValues: make(map[string]types.ByValue, 3),
 		Sorters: []Sorter{
-			NewPopularitySorter(),
+			popSorter,
 			NewLastUpdateSorter(),
 			NewPriceSorter(),
 		},
+	}
+	if itemPopularity != nil {
+		handler.overrides["popular"] = itemPopularity
+		popSorter.HandleOverride(types.SortOverrideUpdate{
+			Key:  "popular",
+			Data: itemPopularity,
+		})
 	}
 	ticker := time.NewTicker(time.Second * 10)
 	go func() {

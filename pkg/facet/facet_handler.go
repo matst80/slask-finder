@@ -16,9 +16,9 @@ import (
 
 type FacetItemHandler struct {
 	mu           sync.RWMutex
-	sortMap      map[uint]float64
+	sortMap      types.SortOverride
 	sortValues   types.ByValue
-	override     map[uint]float64
+	override     types.SortOverride
 	Facets       map[uint]types.Facet
 	ItemFieldIds map[uint]types.ItemList
 	AllFacets    types.ItemList
@@ -41,8 +41,9 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 			if item.Key == "popular-fields" {
 				h.mu.Lock()
 				h.override = item.Data
-				log.Printf("Got field overrides")
 				h.mu.Unlock()
+				log.Printf("Got field overrides")
+				h.updateSortMap()
 			} else {
 				log.Printf("Discarding field sort override %s", item.Key)
 			}
@@ -57,15 +58,18 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 	}
 }
 
-func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
+func NewFacetItemHandler(facets []StorageFacet, overrides *types.SortOverride) *FacetItemHandler {
 	r := &FacetItemHandler{
 		Facets:       make(map[uint]types.Facet),
 		ItemFieldIds: make(map[uint]types.ItemList),
-		sortMap:      make(map[uint]float64),
+		sortMap:      make(types.SortOverride),
 		mu:           sync.RWMutex{},
-		override:     make(map[uint]float64),
+		override:     make(types.SortOverride),
 		AllFacets:    make(types.ItemList),
 		//All:          types.ItemList{},
+	}
+	if overrides != nil {
+		r.override = *overrides
 	}
 
 	for _, f := range facets {
@@ -88,17 +92,25 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 		}
 	}
 
-	r.sortValues = types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
+	r.updateSortMap()
+
+	return r
+}
+
+func (h *FacetItemHandler) updateSortMap() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	values := types.ByValue(slices.SortedFunc(func(yield func(value types.Lookup) bool) {
 		var base *types.BaseField
 		j := 0.0
-		for id, item := range r.Facets {
+		for id, item := range h.Facets {
 			base = item.GetBaseField()
 			if base.HideFacet {
 				continue
 			}
-			v := base.Priority + j // + r.overrides[base.Id]
+			v := base.Priority + j + h.override[base.Id]
 			j += 0.000000000001
-			r.sortMap[id] = v
+			h.sortMap[id] = v
 			if !yield(types.Lookup{
 				Id:    id,
 				Value: v,
@@ -107,8 +119,7 @@ func NewFacetItemHandler(facets []StorageFacet) *FacetItemHandler {
 			}
 		}
 	}, types.LookUpReversed))
-
-	return r
+	h.sortValues = values
 }
 
 func (h *FacetItemHandler) GetFacet(id uint) (types.Facet, bool) {
