@@ -90,14 +90,15 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 	end := start + sr.PageSize
 
 	qm.Wait()
-	fn := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, *ids, start)
+	log.Printf("start: %d", start)
+	sortedItemsItr := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, *ids, start)
 
 	idx := 0
 
-	for item := range ws.itemIndex.GetItems(fn) {
+	for item := range ws.itemIndex.GetItems(sortedItemsItr) {
+		idx++
 
 		_, err = item.Write(w)
-		idx++
 
 		if idx >= sr.PageSize {
 			break
