@@ -143,6 +143,8 @@ func (f *MapStock) UnmarshalJSON(data []byte) error {
 				id64 = 5
 			case "1+":
 				id64 = 1
+			case "<10":
+				id64 = 5
 			case "<5":
 				id64 = 5
 			default:

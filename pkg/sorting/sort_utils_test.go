@@ -1,9 +1,13 @@
 package sorting
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/matst80/slask-finder/pkg/types"
+)
 
 func TestSortOverride(t *testing.T) {
-	s := SortOverride{
+	s := types.SortOverride{
 		1: 0.5,
 		2: 0.3,
 		3: 0.7,

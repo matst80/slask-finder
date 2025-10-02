@@ -23,3 +23,8 @@ func (ds *DiskStorage) GetFileName(name string) (string, string) {
 	tmpFileName := fileName + ".tmp-" + fmt.Sprintf("%d", time.Now().UnixMilli())
 	return fileName, tmpFileName
 }
+
+func (ds *DiskStorage) GetOverrideFilename(name string) string {
+	fileName := path.Join(ds.RootFolder, "overrides", name)
+	return fileName
+}

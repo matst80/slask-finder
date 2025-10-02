@@ -16,7 +16,7 @@ type Sorter interface {
 
 type BaseSorter struct {
 	mu          sync.RWMutex
-	override    SortOverride
+	override    types.SortOverride
 	scores      map[uint]float64
 	name        string
 	overrideKey string
@@ -27,7 +27,7 @@ type BaseSorter struct {
 func NewBaseSorter(name string, fn func(item types.Item) float64) Sorter {
 	return &BaseSorter{
 		mu:          sync.RWMutex{},
-		override:    SortOverride{},
+		override:    types.SortOverride{},
 		scores:      make(map[uint]float64),
 		name:        name,
 		dirty:       false,
@@ -39,7 +39,7 @@ func NewBaseSorter(name string, fn func(item types.Item) float64) Sorter {
 func NewBaseSorterWithCustomOverrideKey(name string, fn func(item types.Item) float64, overrideKey string) Sorter {
 	return &BaseSorter{
 		mu:          sync.RWMutex{},
-		override:    SortOverride{},
+		override:    types.SortOverride{},
 		scores:      make(map[uint]float64),
 		name:        name,
 		dirty:       false,
