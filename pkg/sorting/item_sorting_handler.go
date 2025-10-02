@@ -47,7 +47,7 @@ type SortingItemHandler struct {
 	sortValues map[string]types.ByValue
 }
 
-func NewSortingItemHandler(itemPopularity types.SortOverride) *SortingItemHandler {
+func NewSortingItemHandler(itemPopularity *types.SortOverride) *SortingItemHandler {
 	popSorter := NewPopularitySorter()
 	handler := &SortingItemHandler{
 		mu:         sync.RWMutex{},
@@ -60,10 +60,10 @@ func NewSortingItemHandler(itemPopularity types.SortOverride) *SortingItemHandle
 		},
 	}
 	if itemPopularity != nil {
-		handler.overrides["popular"] = itemPopularity
+		handler.overrides["popular"] = *itemPopularity
 		popSorter.HandleOverride(types.SortOverrideUpdate{
 			Key:  "popular",
-			Data: itemPopularity,
+			Data: *itemPopularity,
 		})
 	}
 	ticker := time.NewTicker(time.Second * 10)

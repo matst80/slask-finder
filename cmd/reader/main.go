@@ -52,7 +52,7 @@ func main() {
 		log.Printf("Could not load sort override from storage: %v", err)
 	}
 	itemIndex := index.NewIndexWithStock()
-	sortingHandler := sorting.NewSortingItemHandler(*itemPopularity)
+	sortingHandler := sorting.NewSortingItemHandler(itemPopularity)
 	searchHandler := search.NewFreeTextItemHandler(search.DefaultFreeTextHandlerOptions())
 	facets := []facet.StorageFacet{}
 	fieldPopularity, err := diskStorage.LoadSortOverride("popular-fields")

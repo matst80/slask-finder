@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -25,22 +26,25 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	}
 
 	ids := &types.ItemList{}
-	//baseIds := &types.ItemList{}
+	baseIds := &types.ItemList{}
+
 	qm := types.NewQueryMerger(ids)
 
 	ws.searchIndex.MatchQuery(sr.Query, qm)
 	ws.itemIndex.MatchStock(sr.Stock, qm)
-	//qm.GetClone(baseIds)
+	qm.GetClone(baseIds)
 	ws.facetHandler.Match(sr.Filters, qm)
 
 	ch := make(chan *facet.JsonFacet)
 	wg := &sync.WaitGroup{}
 
 	qm.Wait()
+	if len(*baseIds) == 0 {
+		maps.Copy(*baseIds, ws.searchIndex.All)
 
+	}
 	ws.facetHandler.GetOtherFacets(ids, sr, ch, wg)
-	ws.facetHandler.GetSearchedFacets(ids, sr, ch, wg)
-
+	ws.facetHandler.GetSearchedFacets(baseIds, sr, ch, wg)
 	// todo optimize
 	go func() {
 		wg.Wait()
