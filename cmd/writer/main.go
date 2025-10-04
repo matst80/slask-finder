@@ -100,11 +100,16 @@ func main() {
 	srv.HandleFunc("GET /admin/facets", app.GetFacetList)
 	srv.HandleFunc("DELETE /admin/facets/{id}", auth.Middleware(app.DeleteFacet))
 	srv.HandleFunc("PUT /admin/facets/{id}", auth.Middleware(app.UpdateFacet))
+
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
+	srv.HandleFunc("/admin/words", auth.Middleware(app.HandleWordReplacements))
+	srv.HandleFunc("/admin/rules/popular", auth.Middleware(app.HandlePopularRules))
+	srv.HandleFunc("POST /admin/relation-groups", auth.Middleware(app.SaveHandleRelationGroups))
+	srv.HandleFunc("/facet-groups", auth.Middleware(app.HandleFacetGroups))
+
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
 	srv.HandleFunc("PUT /admin/fields", auth.Middleware(app.HandleUpdateFields))
-
 	srv.HandleFunc("GET /admin/fields/{id}/add", auth.Middleware(app.CreateFacetFromField))
 	srv.HandleFunc("GET /admin/missing-fields", auth.Middleware(app.MissingFacets))
 	srv.HandleFunc("POST /admin/update-fields", auth.Middleware(app.UpdateFacetsFromFields))
@@ -153,7 +158,7 @@ func main() {
 
 	   srv.HandleFunc("POST /price-watch/{id}", priceWatcher.WatchPriceChange)
 
-	   srv.HandleFunc("GET /missing-fields", app.Middleware(app.MissingFacets))
+
 	   srv.HandleFunc("GET /fields/{id}", app.GetField)
 	   srv.HandleFunc("/rules/popular", app.Middleware(app.HandlePopularRules))
 	   srv.HandleFunc("/sort/popular", app.Middleware(app.HandlePopularOverride))

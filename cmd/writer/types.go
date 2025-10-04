@@ -19,3 +19,8 @@ type FieldData struct {
 	LastSeen  int64    `json:"lastSeen"`
 	Created   int64    `json:"created"`
 }
+
+type WordReplacementConfig struct {
+	SplitWords   []string          `json:"splitWords"`
+	WordMappings map[string]string `json:"wordMappings"`
+}
