@@ -106,11 +106,11 @@ func (d *DiskStorage) SaveFacets(facets any) error {
 	return d.SaveJson(facets, facetsFile)
 }
 
-func (d *DiskStorage) LoadEmbeddings(output any) error {
+func (d *DiskStorage) LoadEmbeddings(output *map[uint]types.Embeddings) error {
 	return d.LoadGzippedGob(output, embeddingsFile)
 }
 
-func (d *DiskStorage) SaveEmbeddings(embeddings any) error {
+func (d *DiskStorage) SaveEmbeddings(embeddings *map[uint]types.Embeddings) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 

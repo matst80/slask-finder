@@ -58,7 +58,7 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 	}
 }
 
-func NewFacetItemHandler(facets []StorageFacet, overrides *types.SortOverride) *FacetItemHandler {
+func NewFacetItemHandler(facets []types.StorageFacet, overrides *types.SortOverride) *FacetItemHandler {
 	r := &FacetItemHandler{
 		Facets:       make(map[uint]types.Facet),
 		ItemFieldIds: make(map[uint]types.ItemList),

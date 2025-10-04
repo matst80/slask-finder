@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -19,7 +18,7 @@ import (
 type app struct {
 	mu            sync.RWMutex
 	fieldData     map[string]FieldData
-	storageFacets []facet.StorageFacet
+	storageFacets []types.StorageFacet
 	storage       *storage.DiskStorage
 	amqpSender    *AmqpSender
 }
@@ -57,7 +56,7 @@ func main() {
 	app := &app{
 		mu:            sync.RWMutex{},
 		fieldData:     make(map[string]FieldData),
-		storageFacets: make([]facet.StorageFacet, 3000),
+		storageFacets: make([]types.StorageFacet, 3000),
 		amqpSender:    NewAmqpSender(country, conn),
 		// itemIndex:       idx,
 		// embeddingsIndex: embeddingsIndex,

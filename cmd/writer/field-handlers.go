@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -144,7 +143,7 @@ func (ws *app) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *app) findFacet(id uint) (*facet.StorageFacet, bool) {
+func (ws *app) findFacet(id uint) (*types.StorageFacet, bool) {
 	ws.mu.RLock()
 	defer ws.mu.RUnlock()
 	// Iterate by index to return pointer to the actual slice element (not loop copy)
@@ -184,9 +183,9 @@ func (ws *app) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid field type", http.StatusBadRequest)
 		return
 	}
-	ws.storageFacets = append(ws.storageFacets, facet.StorageFacet{
+	ws.storageFacets = append(ws.storageFacets, types.StorageFacet{
 		BaseField: baseField,
-		Type:      facet.FieldType(ft),
+		Type:      types.FieldType(ft),
 	})
 	err := ws.storage.SaveFacets(ws.storageFacets)
 	if err != nil {
@@ -221,7 +220,7 @@ func (ws *app) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	facetId := uint(facetId64)
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
-	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f facet.StorageFacet) bool {
+	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f types.StorageFacet) bool {
 		return f.Id == facetId
 	})
 
