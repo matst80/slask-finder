@@ -75,7 +75,7 @@ func (ws *app) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	err = ws.storage.SaveFacets(ws.storageFacets)
+	err = ws.storage.SaveFacets(&ws.storageFacets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -137,7 +137,7 @@ func (ws *app) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	// 	delete(ws.Index.Facets, id)
 	// }
 
-	err := ws.storage.SaveFacets(ws.storageFacets)
+	err := ws.storage.SaveFacets(&ws.storageFacets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -187,7 +187,7 @@ func (ws *app) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 		BaseField: baseField,
 		Type:      types.FieldType(ft),
 	})
-	err := ws.storage.SaveFacets(ws.storageFacets)
+	err := ws.storage.SaveFacets(&ws.storageFacets)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -224,7 +224,7 @@ func (ws *app) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 		return f.Id == facetId
 	})
 
-	if err = ws.storage.SaveFacets(ws.storageFacets); err != nil {
+	if err = ws.storage.SaveFacets(&ws.storageFacets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	change := types.FieldChange{
@@ -270,7 +270,7 @@ func (ws *app) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 	}
 	current.UpdateFrom(&data)
 
-	if err = ws.storage.SaveFacets(ws.storageFacets); err != nil {
+	if err = ws.storage.SaveFacets(&ws.storageFacets); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 

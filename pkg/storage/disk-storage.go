@@ -31,31 +31,6 @@ type Field struct {
 	Value any
 }
 
-// func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
-
-// 	err := enc.Decode(item)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	// if item.AdvertisingText != "" {
-// 	// 	item.Fields[21] = item.AdvertisingText
-// 	// } else {
-// 	// 	delete(item.Fields, 21)
-// 	// }
-
-// 	return nil
-// }
-
-// func asSeq(items []*index.RawDataItem) iter.Seq[types.Item] {
-// 	return func(yield func(types.Item) bool) {
-// 		for _, item := range items {
-// 			if !yield(item) {
-// 				return
-// 			}
-// 		}
-// 	}
-// }
-
 const itemsFile = "items.jz"
 const storageItemFile = "items-v3.gz"
 const settingsFile = "settings.json"
