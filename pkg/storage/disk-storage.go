@@ -98,11 +98,11 @@ func (d *DiskStorage) SaveSettings() error {
 	return d.SaveJson(&types.CurrentSettings, settingsFile)
 }
 
-func (d *DiskStorage) LoadFacets(output any) error {
+func (d *DiskStorage) LoadFacets(output *[]types.StorageFacet) error {
 	return d.LoadJson(output, facetsFile)
 }
 
-func (d *DiskStorage) SaveFacets(facets any) error {
+func (d *DiskStorage) SaveFacets(facets *[]types.StorageFacet) error {
 	return d.SaveJson(facets, facetsFile)
 }
 

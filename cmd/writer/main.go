@@ -173,7 +173,7 @@ func main() {
 
 	saveHook := func(ctx context.Context) error {
 		log.Println("saving facets before shutdown")
-		return app.storage.SaveFacets(app.storageFacets)
+		return app.storage.SaveFacets(&app.storageFacets)
 	}
 
 	common.RunServerWithShutdown(server, "writer server", 15*time.Second, 5*time.Second, saveHook)
