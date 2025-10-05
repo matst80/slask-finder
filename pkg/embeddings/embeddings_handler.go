@@ -70,9 +70,11 @@ func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(
 			opts.EmbeddingsEngine,
 			storeFunc,
 			func() error {
-				handler.mu.RLock()
-				defer handler.mu.RUnlock()
-				return queueDone(handler.Embeddings)
+				if queueDone == nil {
+					return nil
+				}
+				snapshot := handler.GetAllEmbeddings()
+				return queueDone(snapshot)
 			},
 			opts.EmbeddingsWorkers,
 			opts.EmbeddingsQueueSize)

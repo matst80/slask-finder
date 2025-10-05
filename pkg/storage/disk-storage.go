@@ -46,22 +46,21 @@ func (d *DiskStorage) LoadSettings() error {
 	f, err := os.Stat(legacyPath)
 	if err == nil && !f.IsDir() {
 		log.Printf("Loading legacy settings file: %s", legacyPath)
-		err = d.LoadGzippedJson(&types.CurrentSettings, legacySettingsFile)
-		if err == nil {
+		if err = d.LoadGzippedJson(&types.CurrentSettings, legacySettingsFile); err == nil {
 			log.Printf("Successfully loaded legacy settings, saving to new format")
-			err = d.SaveJson(&types.CurrentSettings, settingsFile)
-			if err != nil {
+			if err = d.SaveJson(&types.CurrentSettings, settingsFile); err != nil {
 				log.Printf("Failed to save new settings format: %v", err)
-
 			} else {
-				if err = os.Rename(legacyPath, legacyPath+".bak"); err != nil {
-					log.Printf("Failed to rename legacy settings file: %v", err)
+				if removeErr := os.Remove(legacyPath); removeErr != nil && !os.IsNotExist(removeErr) {
+					log.Printf("Failed to remove legacy settings file: %v", removeErr)
+				}
+				if removeErr := os.Remove(legacyPath + ".bak"); removeErr != nil && !os.IsNotExist(removeErr) {
+					log.Printf("Failed to remove legacy settings backup file: %v", removeErr)
 				}
 			}
 			return nil
-		} else {
-			log.Printf("Failed to load legacy settings: %v", err)
 		}
+		log.Printf("Failed to load legacy settings: %v", err)
 
 	}
 	return d.LoadJson(&types.CurrentSettings, settingsFile)
@@ -275,8 +274,6 @@ func (p *DiskStorage) LoadJson(data any, filename string) error {
 	defer runtime.GC()
 
 	enc := json.NewDecoder(file)
-	defer file.Close()
-
 	err = enc.Decode(data)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
@@ -358,17 +355,28 @@ func (p *DiskStorage) SaveGzippedGob(embeddings any, name string) error {
 
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
-	defer zipWriter.Close()
 
-	err = enc.Encode(embeddings)
-	file.Close()
-	if err != nil {
+	if err = enc.Encode(embeddings); err != nil {
 		log.Printf("Error encoding embeddings: %v", err)
+		_ = zipWriter.Close()
+		_ = file.Close()
+		_ = os.Remove(tmpFileName)
 		return err
 	}
 
-	err = os.Rename(tmpFileName, fileName)
-	if err != nil {
+	if err = zipWriter.Close(); err != nil {
+		_ = file.Close()
+		_ = os.Remove(tmpFileName)
+		return err
+	}
+
+	if err = file.Close(); err != nil {
+		_ = os.Remove(tmpFileName)
+		return err
+	}
+
+	if err = os.Rename(tmpFileName, fileName); err != nil {
+		_ = os.Remove(tmpFileName)
 		return err
 	}
 

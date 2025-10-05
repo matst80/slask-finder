@@ -49,6 +49,7 @@ func main() {
 		if err != nil {
 			log.Printf("Could not save embeddings to file: %v", err)
 		}
+		log.Printf("Saved %d embeddings to disk", len(data))
 		return nil
 	})
 
