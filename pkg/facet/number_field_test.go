@@ -26,23 +26,20 @@ var total = 300000
 func makeNumberField() *IntegerField {
 	r := EmptyIntegerField(&types.BaseField{Id: 1, Name: "number", Searchable: true, Description: "number field"})
 	for i := range total {
-		//for j := 0; j < 100; j++ {
-		r.AddValueLink(i, uint(i))
-		//r.AddValueLink(i, uint((total*100)+total+i+j))
-		//}
+		r.AddValueLink(i, types.ItemId(i))
 	}
-	return &r
+	return r
 }
 
 func makeDecimalField() *DecimalField {
 	r := EmptyDecimalField(&types.BaseField{Id: 1, Name: "number", Description: "number field"})
 	for i := range total {
 		for j := range 100 {
-			r.AddValueLink(i, uint((total*100)+j))
-			r.AddValueLink(i, uint((total*100)+total+i+j))
+			r.AddValueLink(i, types.ItemId((total*100)+j))
+			r.AddValueLink(i, types.ItemId((total*100)+total+i+j))
 		}
 	}
-	return &r
+	return r
 }
 
 var ranges = []struct {
@@ -86,13 +83,9 @@ func BenchmarkRangeFunction(b *testing.B) {
 	b.Run(fmt.Sprintf("Extents min %d", total), func(b *testing.B) {
 
 		c := NumberField.GetExtents(ids)
-		b.Logf("Extents %d %d, id len: %d", c.Min, c.Max, len(*ids))
+		b.Logf("Extents %d %d, id len: %d", c.Min, c.Max, ids.Len())
 	})
 
-	b.Run(fmt.Sprintf("Extents if %d", total), func(b *testing.B) {
-
-		c := NumberField.GetExtents2(ids)
-		b.Logf("Extents %d %d, id len: %d", c.Min, c.Max, len(*ids))
-	})
+	// Removed obsolete GetExtents2 benchmark (method no longer exists)
 
 }

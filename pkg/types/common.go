@@ -3,12 +3,12 @@ package types
 import "slices"
 
 type BaseField struct {
-	Id               uint    `json:"id"`
+	Id               FacetId `json:"id"`
 	Name             string  `json:"name"`
 	Description      string  `json:"description,omitempty"`
 	Priority         float64 `json:"prio,omitempty"`
 	Type             string  `json:"valueType,omitempty"`
-	LinkedId         uint    `json:"linkedId,omitempty"`
+	LinkedId         FacetId `json:"linkedId,omitempty"`
 	ValueSorting     uint    `json:"sorting,omitempty"`
 	GroupId          uint    `json:"groupId,omitempty"`
 	CategoryLevel    int     `json:"categoryLevel,omitempty"`
@@ -22,9 +22,9 @@ type BaseField struct {
 
 type FacetRequest struct {
 	*Filters
-	Query        string   `json:"query" schema:"query"`
-	Stock        []string `json:"stock" schema:"stock"`
-	IgnoreFacets []uint   `json:"skipFacets" schema:"sf"`
+	Query        string    `json:"query" schema:"query"`
+	Stock        []string  `json:"stock" schema:"stock"`
+	IgnoreFacets []FacetId `json:"skipFacets" schema:"sf"`
 }
 
 func (s *FacetRequest) Sanitize() {
@@ -59,7 +59,7 @@ func (b *BaseField) UpdateFrom(field *BaseField) {
 	b.InternalOnly = field.InternalOnly
 }
 
-func (f *FacetRequest) HasField(id uint) bool {
+func (f *FacetRequest) HasField(id FacetId) bool {
 	for _, v := range f.StringFilter {
 		if v.Id == id {
 			return true
@@ -73,7 +73,7 @@ func (f *FacetRequest) HasField(id uint) bool {
 	return false
 }
 
-func (f *FacetRequest) IsIgnored(id uint) bool {
+func (f *FacetRequest) IsIgnored(id FacetId) bool {
 	// should be config
 	if id >= 11 && id <= 14 {
 		for _, sf := range f.StringFilter {
@@ -92,7 +92,7 @@ type LocationStock []struct {
 }
 
 type BaseItem struct {
-	Id    uint
+	Id    ItemId
 	Sku   string
 	Title string
 	Price int
@@ -100,7 +100,7 @@ type BaseItem struct {
 }
 
 type CategoryUpdate struct {
-	Id    uint   `json:"id"`
+	Id    ItemId `json:"id"`
 	Value string `json:"value"`
 }
 
@@ -121,8 +121,8 @@ type Facet interface {
 	Match(data any) *ItemList
 	// MatchAsync(data interface{}, results chan<- *ItemList)
 	GetBaseField() *BaseField
-	AddValueLink(value any, id uint) bool
-	RemoveValueLink(value any, id uint)
+	AddValueLink(value any, id ItemId) bool
+	RemoveValueLink(value any, id ItemId)
 	UpdateBaseField(data *BaseField)
 	GetValues() []any
 	IsExcludedFromFacets() bool

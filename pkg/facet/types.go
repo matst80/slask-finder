@@ -9,7 +9,7 @@ type FieldResult interface {
 }
 
 type KeyFieldResult struct {
-	Values map[string]int `json:"values,omitempty"`
+	Values map[string]uint64 `json:"values,omitempty"`
 }
 
 func (k *KeyFieldResult) HasValues() bool {

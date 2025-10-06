@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -39,9 +38,8 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	wg := &sync.WaitGroup{}
 
 	qm.Wait()
-	if len(*baseIds) == 0 {
-		maps.Copy(*baseIds, ws.searchIndex.All)
-
+	if baseIds.Len() == 0 {
+		baseIds.Merge(ws.searchIndex.All)
 	}
 	ws.facetHandler.GetOtherFacets(ids, sr, ch, wg)
 	ws.facetHandler.GetSearchedFacets(baseIds, sr, ch, wg)
@@ -91,7 +89,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 
 	qm.Wait()
 
-	sortedItemsItr := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, *ids, start)
+	sortedItemsItr := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, ids, start)
 
 	idx := 0
 
@@ -112,7 +110,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 	if err != nil {
 		return err
 	}
-	l := len(*ids)
+	l := ids.Len()
 
 	if ws.tracker != nil && !sr.SkipTracking {
 		go ws.tracker.TrackSearch(sessionId, sr.Filters, l, sr.Query, sr.Page, r)
@@ -142,10 +140,8 @@ func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, en
 	if err != nil {
 		return err
 	}
-	if id64 > uint64(^uint(0)) { // overflow safeguard for platform uint size
-		return fmt.Errorf("item id out of range")
-	}
-	item, ok := ws.itemIndex.GetItem(uint(id64))
+
+	item, ok := ws.itemIndex.GetItem(types.ItemId(id64))
 	if !ok {
 		return fmt.Errorf("item %s not found", idStr)
 	}
@@ -178,7 +174,7 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 	if id64 > uint64(^uint(0)) {
 		return fmt.Errorf("item id out of range")
 	}
-	item, ok := ws.itemIndex.GetItem(uint(id64))
+	item, ok := ws.itemIndex.GetItem(types.ItemId(id64))
 	if !ok {
 		return fmt.Errorf("item %s not found", idString)
 	}
@@ -200,8 +196,8 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 	i := 0
 	related := <-relatedChan
 
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
-		if ok && item.GetId() != uint(id64) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", related, 0)) {
+		if ok && item.GetId() != types.ItemId(id64) {
 			_, err = item.Write(w)
 			i++
 		}
@@ -223,7 +219,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 		}
 	}
 	if r.Method != http.MethodGet {
-		cartItemIds := make([]uint, 0)
+		cartItemIds := make([]types.ItemId, 0)
 		err := json.NewDecoder(r.Body).Decode(&cartItemIds)
 		if err == nil {
 			for item := range ws.itemIndex.GetItems(slices.Values(cartItemIds)) {
@@ -245,7 +241,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 	if id64 > uint64(^uint(0)) {
 		return fmt.Errorf("item id out of range")
 	}
-	item, ok := ws.itemIndex.GetItem(uint(id64))
+	item, ok := ws.itemIndex.GetItem(types.ItemId(id64))
 	if !ok {
 		return fmt.Errorf("item %s not found", idString)
 	}
@@ -259,7 +255,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 	}
 	i := 0
 
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", related, 0)) {
 
 		if len(excludedProductTypes) > 0 {
 			if productType, typeOk := item.GetStringFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
@@ -291,7 +287,7 @@ func (ws *app) GetValues(w http.ResponseWriter, r *http.Request, sessionId int, 
 	if id64 > uint64(^uint(0)) {
 		return fmt.Errorf("facet id out of range")
 	}
-	if field, ok := ws.facetHandler.GetFacet(uint(id64)); ok {
+	if field, ok := ws.facetHandler.GetFacet(types.FacetId(id64)); ok {
 		w.WriteHeader(http.StatusOK)
 		return enc.Encode(field.GetValues())
 	}
@@ -351,7 +347,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	docResult := ws.searchIndex.Search(query)
 
-	types.Merge(results, *docResult)
+	(&results).Merge(docResult)
 
 	// Use previous word to rank suggestions via Markov chain if available
 	prevWord := ""
@@ -367,19 +363,19 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	suggestResult := &SuggestResult{}
 	suggestResult.Other = other
-	hasResults := len(results) > 0
+	hasResults := results.Len() > 0
 	var err error
 	for _, s := range <-wordMatchesChan {
 		suggestResult.Prefix = lastWord
 		suggestResult.Word = s.Word
-		totalHits := len(*s.Items)
+		totalHits := s.Items.Cardinality()
 		if totalHits > 0 {
 			if !hasResults {
 				suggestResult.Hits = totalHits
 				err = enc.Encode(suggestResult)
 				//results.Merge(s.Items)
 			} else if results.HasIntersection(s.Items) {
-				suggestResult.Hits = results.IntersectionLen(*s.Items)
+				suggestResult.Hits = results.IntersectionLen(s.Items)
 				err = enc.Encode(suggestResult)
 				// dont intersect with the other words yet since partial
 				//results.Intersect(*s.Items)
@@ -396,7 +392,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 	}
 
 	idx := 0
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", results, 0)) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", &results, 0)) {
 		idx++
 		_, err = item.Write(w)
 		if idx >= 20 || err != nil {
@@ -480,7 +476,7 @@ func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
 	scanner := bufio.NewScanner(r.Body)
 
 	// Create iter.Seq[uint] to feed to GetItems
-	idSeq := func(yield func(uint) bool) {
+	idSeq := func(yield func(types.ItemId) bool) {
 		for scanner.Scan() {
 			line := strings.TrimSpace(scanner.Text())
 			if line == "" {
@@ -494,7 +490,7 @@ func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
 				continue // Skip invalid IDs
 			}
 
-			if !yield(uint(id)) {
+			if !yield(types.ItemId(id)) {
 				return
 			}
 		}

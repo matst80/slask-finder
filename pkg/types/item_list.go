@@ -1,156 +1,286 @@
 package types
 
-import "maps"
+import (
+	"sort"
 
-type ItemList map[uint]struct{}
+	"github.com/RoaringBitmap/roaring/v2"
+)
 
-func (a ItemList) Exclude(b *ItemList) {
-	for id := range *b {
-		_, ok := a[id]
-		if ok {
-			delete(a, id)
-		}
+/*
+ItemList
+
+A compatibility wrapper around a *roaring.Bitmap providing (mostly) the
+same semantics as the legacy map[uint]struct{}-based ItemList while
+leveraging roaring bitmaps for:
+
+  - Dramatically lower memory footprint for large sparse ID sets
+  - Fast intersections / unions / differences
+  - Efficient cardinality queries
+
+Design choices:
+  - Zero value is usable: a zero ItemList lazily allocates its internal bitmap.
+  - All mutating operations ensure() the underlying bitmap.
+  - Methods use pointer receivers; calling them on a value is still valid
+    (Go will take the address of an addressable value automatically).
+  - Nil pointer receiver is tolerated (treated as empty / no-op).
+
+Semantics:
+  - Merge(other)        : set union            (A = A ∪ B)
+  - Intersect(other)    : in-place intersection (A = A ∩ B)
+  - Exclude(other)      : relative complement   (A = A \ B)
+  - AddId(id)           : add single element
+  - HasIntersection(b)  : true if (A ∩ B) ≠ ∅
+  - IntersectionLen(b)  : |A ∩ B|
+  - Len()               : |A|
+  - Contains(id)        : membership test
+  - ForEach(fn)         : ordered iteration (ascending IDs)
+  - ToSlice()           : ordered slice of IDs
+  - ToMap()             : map[uint]struct{} (only when needed for legacy code)
+  - AddAllFrom(other)   : union (same as Merge)
+  - MergeMap(m)         : merge keys from map[uint]struct{}
+  - FromBitmap / OrBitmap helpers for integration with roaring-native paths.
+
+NOTE:
+  - Operations that produce temporary clones (HasIntersection / IntersectionLen)
+    only allocate when both sets are non-empty; they pick the smaller set
+    to reduce memory churn.
+*/
+
+type ItemList struct {
+	bm *roaring.Bitmap
+}
+
+// ensure lazily allocates the bitmap.
+func (l *ItemList) ensure() {
+	if l != nil && l.bm == nil {
+		l.bm = roaring.NewBitmap()
 	}
 }
 
-// func (i *ItemList) Add(item Item) {
-// 	(*i)[item.GetId()] = struct{}{}
-// }
-
-func (i *ItemList) AddId(id uint) {
-	(*i)[id] = struct{}{}
+// NewItemList constructs an empty list.
+func NewItemList() *ItemList {
+	return &ItemList{bm: roaring.NewBitmap()}
 }
 
-func (a ItemList) Intersect(b ItemList) {
-
-	for id := range a {
-		_, ok := b[id]
-		if !ok {
-			delete(a, id)
-		}
+// Clone returns a deep copy.
+func (l *ItemList) Clone() *ItemList {
+	if l == nil || l.bm == nil {
+		return NewItemList()
 	}
+	return &ItemList{bm: l.bm.Clone()}
 }
 
-//func (a ItemList) ToIntersected(b ItemList) (*ItemList, bool) {
-//	result := make(ItemList)
-//
-//	for id := range a {
-//		if _, ok := b[id]; ok {
-//			result[id] = struct{}{}
-//		}
-//	}
-//	return &result, len(result) > 0
-//}
+// FromBitmap wraps (clones) an existing roaring bitmap.
+func FromBitmap(bm *roaring.Bitmap) *ItemList {
+	if bm == nil {
+		return NewItemList()
+	}
+	return &ItemList{bm: bm.Clone()}
+}
 
-func (a ItemList) OnIntersect(b ItemList, onMatch func(id uint) bool) {
-	al := len(a)
-	bl := len(b)
-	if al == 0 || bl == 0 {
+func (l *ItemList) RemoveId(id uint32) {
+	l.bm.Remove(id)
+}
+
+// Bitmap exposes the internal bitmap (read-only!). Never mutate it directly.
+func (l *ItemList) Bitmap() *roaring.Bitmap {
+	if l == nil {
+		return nil
+	}
+	return l.bm
+}
+
+// AddId adds a single id.
+func (l *ItemList) AddId(id uint32) {
+	if l == nil {
 		return
 	}
-	if al > bl {
-		a, b = b, a
-	}
+	l.ensure()
+	l.bm.Add(id)
+}
 
-	for id := range a {
-		if _, ok := b[id]; ok {
-			if !onMatch(id) {
-				break
-			}
+// Merge (union) with other (A = A ∪ B).
+func (l *ItemList) Merge(other *ItemList) {
+	if l == nil || other == nil || other.bm == nil || other.bm.IsEmpty() {
+		return
+	}
+	l.ensure()
+	l.bm.Or(other.bm)
+}
+
+// Intersect in-place (A = A ∩ B).
+func (l *ItemList) Intersect(other *ItemList) {
+	if l == nil || l.bm == nil || other == nil || other.bm == nil {
+		return
+	}
+	l.bm.And(other.bm)
+}
+
+// Exclude subtracts other (A = A \ B).
+func (l *ItemList) Exclude(other *ItemList) {
+	if l == nil || l.bm == nil || other == nil || other.bm == nil || other.bm.IsEmpty() {
+		return
+	}
+	l.bm.AndNot(other.bm)
+}
+
+// HasIntersection returns true if any element overlaps.
+func (l *ItemList) HasIntersection(other *ItemList) bool {
+	if l == nil || other == nil || l.bm == nil || other.bm == nil {
+		return false
+	}
+	if l.bm.IsEmpty() || other.bm.IsEmpty() {
+		return false
+	}
+	// Optimize by cloning smaller
+	if l.bm.GetCardinality() > other.bm.GetCardinality() {
+		l, other = other, l
+	}
+	tmp := l.bm.Clone()
+	tmp.And(other.bm)
+	return !tmp.IsEmpty()
+}
+
+// IntersectionLen returns |A ∩ B|.
+func (l *ItemList) IntersectionLen(other *ItemList) uint64 {
+	if l == nil || other == nil || l.bm == nil || other.bm == nil || l.bm.IsEmpty() || other.bm.IsEmpty() {
+		return 0
+	}
+	if l.bm.GetCardinality() > other.bm.GetCardinality() {
+		l, other = other, l
+	}
+	tmp := l.bm.Clone()
+	tmp.And(other.bm)
+	return tmp.GetCardinality()
+}
+
+// Len returns cardinality as int.
+func (l *ItemList) Len() int {
+	if l == nil || l.bm == nil {
+		return 0
+	}
+	return int(l.bm.GetCardinality())
+}
+
+// Cardinality returns cardinality as uint64.
+func (l *ItemList) Cardinality() uint64 {
+	if l == nil || l.bm == nil {
+		return 0
+	}
+	return l.bm.GetCardinality()
+}
+
+// Contains tests membership.
+func (l *ItemList) Contains(id uint32) bool {
+	if l == nil || l.bm == nil {
+		return false
+	}
+	return l.bm.Contains(id)
+}
+
+// ForEach iterates in ascending order; stop early if fn returns false.
+func (l *ItemList) ForEach(fn func(id uint32) bool) {
+	if l == nil || l.bm == nil || fn == nil {
+		return
+	}
+	it := l.bm.Iterator()
+	for it.HasNext() {
+		if !fn(it.Next()) {
+			return
 		}
 	}
 }
 
-// func Intersect[K any](a ItemList, b map[uint]K) ItemList {
-// 	result := make(ItemList)
-// 	for id := range a {
-// 		if _, ok := b[id]; ok {
-// 			result[id] = struct{}{}
-// 		}
+// ToSlice returns all ids (ascending).
+func (l *ItemList) ToSlice() []uint {
+	if l == nil || l.bm == nil {
+		return []uint{}
+	}
+	out32 := l.bm.ToArray() // already ascending
+	out := make([]uint, len(out32))
+	for i, v := range out32 {
+		out[i] = uint(v)
+	}
+	return out
+}
+
+// // MergeMap merges keys from a map[uint]struct{}.
+// func (l *ItemList) MergeMap(m map[uint]struct{}) {
+// 	if l == nil || len(m) == 0 {
+// 		return
 // 	}
-// 	return result
+// 	l.ensure()
+// 	// Copy keys into slice for potential batch addition improvements (keeps sorted insert stable)
+// 	keys := make([]uint32, 0, len(m))
+// 	for k := range m {
+// 		keys = append(keys, uint32(k))
+// 	}
+// 	// roaring.AddMany does not guarantee deduped order; sort for compression effectiveness.
+// 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+// 	l.bm.AddMany(keys)
 // }
 
-func Merge[K any](a ItemList, b map[uint]K) {
-	for id := range b {
-		a[id] = struct{}{}
+// // OrBitmap unions an external roaring bitmap.
+// func (l *ItemList) OrBitmap(bm *roaring.Bitmap) {
+// 	if bm == nil || bm.IsEmpty() || l == nil {
+// 		return
+// 	}
+// 	l.ensure()
+// 	l.bm.Or(bm)
+// }
+
+// FromSlice builds an ItemList from ids (deduplicates & sorts).
+func FromSlice(ids []uint) *ItemList {
+	il := NewItemList()
+	if len(ids) == 0 {
+		return il
 	}
-}
-
-func (i ItemList) Merge(other *ItemList) {
-	maps.Copy(i, *other)
-}
-
-func (i ItemList) HasIntersection(other *ItemList) bool {
-	found := false
-	i.OnIntersect(*other, func(id uint) bool {
-		found = true
-		return false
-	})
-	return found
-	// l1 := len(i)
-	// l2 := len(*other)
-	// if l1 == 0 || l2 == 0 {
-	// 	return false
-	// }
-	// for id := range i {
-	// 	_, ok := (*other)[id]
-	// 	if ok {
-	// 		return true
-	// 	}
-	// }
-	// return false
-}
-
-func (a ItemList) IntersectionLen(b ItemList) int {
-
-	count := 0
-	al := len(a)
-	bl := len(b)
-	if al == 0 || bl == 0 {
-		return count
-	}
-	if al > bl {
-		a, b = b, a
-	}
-	ok := false
-	for id := range a {
-		if _, ok = b[id]; ok {
-			count++
+	tmp := make([]uint32, 0, len(ids))
+	seen := make(map[uint]struct{}, len(ids))
+	for _, id := range ids {
+		if _, ok := seen[id]; ok {
+			continue
 		}
+		seen[id] = struct{}{}
+		tmp = append(tmp, uint32(id))
 	}
-	return count
+	sort.Slice(tmp, func(i, j int) bool { return tmp[i] < tmp[j] })
+	il.bm.AddMany(tmp)
+	return il
 }
 
-//type FilterResult struct {
-//	Ids     *ItemList
-//	Exclude bool
-//}
-//
-//func MakeIntersectResult(r chan FilterResult, len int) *ItemList {
-//	defer close(r)
-//	first := &ItemList{}
-//	if len == 0 {
-//		return first
-//	}
-//
-//	next := <-r
-//	if next.Ids != nil {
-//		first.Merge(next.Ids)
-//	}
-//
-//	for i := 1; i < len; i++ {
-//		next = <-r
-//		if next.Ids != nil {
-//			if next.Exclude {
-//				first.Exclude(next.Ids)
-//			} else {
-//				first.Intersect(*next.Ids)
-//			}
-//		} else {
-//			return &ItemList{}
-//		}
-//	}
-//
-//	return first
-//}
+// Equals tests set equality (helper for tests).
+func (l *ItemList) Equals(other *ItemList) bool {
+	if l == other {
+		return true
+	}
+	if l == nil || other == nil {
+		return l.Len() == other.Len()
+	}
+	if l.Len() != other.Len() {
+		return false
+	}
+	// Compare by cloning smaller & intersecting; if cardinality unchanged sets equal
+	if l.bm.GetCardinality() > other.bm.GetCardinality() {
+		l, other = other, l
+	}
+	tmp := l.bm.Clone()
+	tmp.And(other.bm)
+	return tmp.GetCardinality() == l.bm.GetCardinality()
+}
+
+// Reset clears the bitmap.
+func (l *ItemList) Reset() {
+	if l == nil {
+		return
+	}
+	if l.bm == nil {
+		return
+	}
+	l.bm.Clear()
+}
+
+// IsEmpty reports if the set is empty.
+func (l *ItemList) IsEmpty() bool {
+	return l == nil || l.bm == nil || l.bm.IsEmpty()
+}

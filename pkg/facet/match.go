@@ -105,30 +105,30 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 			// match all items for this relation
 
 			outerMerger.Add(func() *types.ItemList {
-				relationResult := make(types.ItemList, 5000)
-				merger := types.NewQueryMerger(&relationResult)
+				relationResult := types.NewItemList()
+				merger := types.NewQueryMerger(relationResult)
 				i.MatchStringsSync(relation.GetFilter(item), merger)
 				merger.Wait()
-				return &relationResult
+				return relationResult
 			})
 
 			if len(relation.Include) > 0 {
 				outerMerger.Add(func() *types.ItemList {
-					ret := make(types.ItemList, 5000)
+					ret := types.NewItemList()
 					for _, id := range relation.Include {
-						ret.AddId(id)
+						ret.AddId(uint32(id))
 					}
-					return &ret
+					return ret
 				})
 			}
 
 			if len(relation.Exclude) > 0 {
 				outerMerger.Exclude(func() *types.ItemList {
-					ret := make(types.ItemList, 5000)
+					ret := types.NewItemList()
 					for _, id := range relation.Exclude {
-						ret.AddId(id)
+						ret.AddId(uint32(id))
 					}
-					return &ret
+					return ret
 				})
 			}
 
@@ -138,21 +138,21 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 	}
 	if hasRealRelations {
 		outerMerger.Wait()
-		if len(result) > 0 {
+		if !result.IsEmpty() {
 			return &result, nil
 		}
 	}
 	mergedProperties := 0
 	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
-		if len(*current) == 0 && next != nil {
+		if current.IsEmpty() && next != nil {
 			current.Merge(next)
 			mergedProperties++
 			return
 		}
-		if next != nil && len(*next) > 0 {
-			l := current.IntersectionLen(*next)
+		if next != nil && !next.IsEmpty() {
+			l := current.IntersectionLen(next)
 			if l >= 2 {
-				current.Intersect(*next)
+				current.Intersect(next)
 				mergedProperties++
 			} else {
 				current.Merge(next)
@@ -201,12 +201,12 @@ func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
 	result := types.ItemList{}
 	var base *types.BaseField
 	qm := types.NewCustomMerger(&result, func(current, next *types.ItemList, isFirst bool) {
-		if len(*current) < 10 && next != nil {
+		if current.Cardinality() < 10 && next != nil {
 			result.Merge(next)
 			return
 		}
-		if next != nil && result.IntersectionLen(*next) > 10 {
-			result.Intersect(*next)
+		if next != nil && result.IntersectionLen(next) > 10 {
+			result.Intersect(next)
 		}
 	})
 	for id, fieldValue := range item.GetStringFields() {

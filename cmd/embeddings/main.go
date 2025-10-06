@@ -43,7 +43,7 @@ func main() {
 	diskStorage := storage.NewDiskStorage(country, "data")
 
 	embeddingsEngine := embeddings.NewOllamaEmbeddingsEngineWithMultipleEndpoints(ollamaModel, ollamaUrls...)
-	embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func(data map[uint]types.Embeddings) error {
+	embeddingsIndex := embeddings.NewItemEmbeddingsHandler(embeddings.DefaultEmbeddingsHandlerOptions(embeddingsEngine), func(data map[types.ItemId]types.Embeddings) error {
 		log.Printf("Queue done, saving %d embeddings to disk", len(data))
 		err := diskStorage.SaveEmbeddings(&data)
 		if err != nil {
@@ -56,7 +56,7 @@ func main() {
 	// Load persisted embeddings from disk. We must pass a pointer to the target structure
 	// for gob decoding. Decode into a temporary map to avoid directly mutating the handler's
 	// internal map without its lock, then merge via the provided method.
-	embeddingsData := make(map[uint]types.Embeddings)
+	embeddingsData := make(map[types.ItemId]types.Embeddings)
 	if err := diskStorage.LoadEmbeddings(&embeddingsData); err != nil {
 		log.Printf("Could not load embeddings from file: %v", err)
 	} else if len(embeddingsData) > 0 {

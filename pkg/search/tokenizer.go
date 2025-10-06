@@ -1,10 +1,11 @@
 package search
 
 import (
-	"github.com/matst80/slask-finder/pkg/types"
 	"slices"
 	"strings"
 	"unicode"
+
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type Token string

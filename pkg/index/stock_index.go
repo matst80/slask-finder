@@ -4,6 +4,7 @@ import (
 	"iter"
 	"sync"
 
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -21,8 +22,8 @@ var (
 )
 
 // stockEntry is defined in stock_entry.go:
-// type stockEntry struct { mu sync.RWMutex; items types.ItemList }
-// with helper methods: add(id uint), remove(id uint), snapshot() types.ItemList
+// It internally maintains a roaring bitmap (lock-free copy-on-write).
+// Helpers: add(id uint), remove(id uint), bitmap() *roaring.Bitmap
 
 // ItemIndexWithStock maintains item and stock indexes using only sync.Map
 // for concurrency (no outer RWMutex layer).
@@ -54,7 +55,7 @@ func (i *ItemIndexWithStock) addItemValues(item types.Item) {
 		} else {
 			entry = entryAny.(*stockEntry)
 		}
-		entry.add(itemId)
+		entry.add(uint32(itemId))
 	}
 }
 
@@ -63,7 +64,7 @@ func (i *ItemIndexWithStock) removeItemValues(item types.Item) {
 	itemId := item.GetId()
 	i.ItemsInStock.Range(func(_, value any) bool {
 		entry := value.(*stockEntry)
-		entry.remove(itemId)
+		entry.remove(uint32(itemId))
 		return true
 	})
 }
@@ -111,16 +112,19 @@ func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
 	noUpdates.Inc()
 }
 
-// GetStockResult merges item sets for provided stock location IDs.
+// GetStockResult merges item sets for provided stock location IDs without
+// materializing intermediate ItemLists, aggregating roaring bitmaps directly.
 func (i *ItemIndexWithStock) GetStockResult(stockLocations []string) *types.ItemList {
-	result := types.ItemList{}
+	if len(stockLocations) == 0 {
+		return &types.ItemList{}
+	}
+	acc := roaring.NewBitmap()
 	for _, stockId := range stockLocations {
 		if entryAny, ok := i.ItemsInStock.Load(stockId); ok {
-			snap := entryAny.(*stockEntry).snapshot()
-			result.Merge(&snap)
+			acc.Or(entryAny.(*stockEntry).bitmap())
 		}
 	}
-	return &result
+	return types.FromBitmap(acc)
 }
 
 // MatchStock integrates stock filtering into a QueryMerger.
@@ -145,14 +149,14 @@ func (i *ItemIndexWithStock) GetAllItems() iter.Seq[types.Item] {
 // GetItemBySku retrieves an item by SKU.
 func (i *ItemIndexWithStock) GetItemBySku(sku string) (types.Item, bool) {
 	if idAny, ok := i.ItemsBySku.Load(sku); ok {
-		id := idAny.(uint)
+		id := idAny.(types.ItemId)
 		return i.GetItem(id)
 	}
 	return nil, false
 }
 
 // GetItem retrieves an item by id.
-func (i *ItemIndexWithStock) GetItem(id uint) (types.Item, bool) {
+func (i *ItemIndexWithStock) GetItem(id types.ItemId) (types.Item, bool) {
 	if val, ok := i.Items.Load(id); ok {
 		return val.(types.Item), true
 	}
@@ -166,7 +170,7 @@ func (i *ItemIndexWithStock) HasItem(id uint) bool {
 }
 
 // GetItems returns a sequence for a set of ids.
-func (i *ItemIndexWithStock) GetItems(ids iter.Seq[uint]) iter.Seq[types.Item] {
+func (i *ItemIndexWithStock) GetItems(ids iter.Seq[types.ItemId]) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
 		for id := range ids {
 			if item, ok := i.GetItem(id); ok {

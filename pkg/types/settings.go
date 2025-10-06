@@ -11,9 +11,9 @@ type Settings struct {
 	SearchMergeLimit int                  `json:"searchMergeLimit"`
 	SplitWords       []string             `json:"splitWords"`
 	WordMappings     map[string]string    `json:"wordMappings"`
-	SuggestFacets    []uint               `json:"suggestFacets"`
-	ProductTypeId    uint                 `json:"productTypeId"`
-	FieldsToIndex    []uint               `json:"fieldsToIndex"`
+	SuggestFacets    []FacetId            `json:"suggestFacets"`
+	ProductTypeId    FacetId              `json:"productTypeId"`
+	FieldsToIndex    []FacetId            `json:"fieldsToIndex"`
 	FacetRelations   []FacetRelationGroup `json:"facetRelations"`
 	PopularityRules  *ItemPopularityRules `json:"popularityRules"`
 	FacetGroups      []FacetGroup         `json:"facetGroups"`
@@ -26,9 +26,9 @@ type FacetGroup struct {
 }
 
 type ItemRequirement struct {
-	FacetId uint `json:"facetId"`
-	Exclude bool `json:"exclude,omitempty"`
-	Value   any  `json:"value"`
+	FacetId FacetId `json:"facetId"`
+	Exclude bool    `json:"exclude,omitempty"`
+	Value   any     `json:"value"`
 }
 
 type ValueConverter string
@@ -41,8 +41,8 @@ const (
 
 type FacetRelation struct {
 	Name               string         `json:"name,omitempty"`
-	FacetId            uint           `json:"fromId"`
-	DestinationFacetId uint           `json:"toId"`
+	FacetId            FacetId        `json:"fromId"`
+	DestinationFacetId FacetId        `json:"toId"`
 	ValueConverter     ValueConverter `json:"converter"`
 }
 
@@ -51,8 +51,8 @@ type FacetRelationGroup struct {
 	GroupId           int               `json:"groupId"`
 	ItemRequirements  []ItemRequirement `json:"requiredForItem"`
 	AdditionalQueries []ItemRequirement `json:"additionalQueries"`
-	Include           []uint            `json:"include_ids"`
-	Exclude           []uint            `json:"exclude_ids"`
+	Include           []ItemId          `json:"include_ids"`
+	Exclude           []ItemId          `json:"exclude_ids"`
 	Relations         []FacetRelation   `json:"relations"`
 }
 
@@ -164,7 +164,7 @@ var CurrentSettings = &Settings{
 		"vilfa":   "wilfa",
 		"earpods": "airpods",
 	},
-	FieldsToIndex: []uint{
+	FieldsToIndex: []FacetId{
 		2,
 		31158,
 		//12,
@@ -173,7 +173,7 @@ var CurrentSettings = &Settings{
 		//11,
 		10,
 	},
-	SuggestFacets: []uint{
+	SuggestFacets: []FacetId{
 		2,
 		31158,
 		30290,

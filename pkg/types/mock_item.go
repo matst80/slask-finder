@@ -8,11 +8,11 @@ import (
 )
 
 type MockItem struct {
-	Id  uint
+	Id  ItemId
 	Sku string
 	//Fields      map[uint]interface{}
-	StringFields map[uint]string
-	NumberFields map[uint]float64
+	StringFields map[FacetId]string
+	NumberFields map[FacetId]float64
 	Deleted      bool
 	Price        int
 	OrgPrice     int
@@ -54,35 +54,35 @@ func (m *MockItem) GetRating() (int, int) {
 // 	return v, ok
 // }
 
-func (m *MockItem) GetStringFields() map[uint]string {
+func (m *MockItem) GetStringFields() map[FacetId]string {
 	return m.StringFields
 }
 
-func (m *MockItem) GetNumberFields() map[uint]float64 {
+func (m *MockItem) GetNumberFields() map[FacetId]float64 {
 	return m.NumberFields
 }
 
-func (m *MockItem) GetStringFieldValue(id uint) (string, bool) {
+func (m *MockItem) GetStringFieldValue(id FacetId) (string, bool) {
 	if v, ok := m.StringFields[id]; ok && len(v) > 0 {
 		return v, true
 	}
 	return "", false
 }
 
-func (m *MockItem) GetStringsFieldValue(id uint) ([]string, bool) {
+func (m *MockItem) GetStringsFieldValue(id FacetId) ([]string, bool) {
 	if v, ok := m.StringFields[id]; ok {
 		return strings.Split(v, ";"), true
 	}
 	return nil, false
 }
-func (m *MockItem) GetNumberFieldValue(id uint) (float64, bool) {
+func (m *MockItem) GetNumberFieldValue(id FacetId) (float64, bool) {
 	if v, ok := m.NumberFields[id]; ok {
 		return v, true
 	}
 	return 0, false
 }
 
-func (m *MockItem) GetId() uint {
+func (m *MockItem) GetId() ItemId {
 	return m.Id
 }
 
@@ -155,8 +155,8 @@ func (m *MockItem) GetItem() any {
 	return m
 }
 
-func (m *MockItem) GetFields() []uint {
-	fields := make([]uint, 0, len(m.StringFields)+len(m.NumberFields))
+func (m *MockItem) GetFields() []FacetId {
+	fields := make([]FacetId, 0, len(m.StringFields)+len(m.NumberFields))
 	for k := range m.StringFields {
 		fields = append(fields, k)
 	}
@@ -167,15 +167,15 @@ func (m *MockItem) GetFields() []uint {
 }
 
 type MockField struct {
-	Key   uint
+	Key   FacetId
 	Value any
 }
 
-func MakeMockItem(id uint, fields ...MockField) Item {
+func MakeMockItem(id ItemId, fields ...MockField) Item {
 	ret := &MockItem{
 		Id:           id,
-		StringFields: make(map[uint]string),
-		NumberFields: make(map[uint]float64),
+		StringFields: make(map[FacetId]string),
+		NumberFields: make(map[FacetId]float64),
 		Deleted:      false,
 		Stock:        make(map[string]uint),
 	}

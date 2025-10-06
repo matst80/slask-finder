@@ -15,11 +15,15 @@ func TestPresortedSorting(t *testing.T) {
 		types.Lookup{Id: 5, Value: 2},
 		types.Lookup{Id: 6, Value: 1},
 	}
-	ids := types.ItemList{4: {}, 2: {}, 1: {}, 3: {}}
+	ids := types.NewItemList()
+	ids.AddId(4)
+	ids.AddId(2)
+	ids.AddId(1)
+	ids.AddId(3)
 
-	expected := []uint{1, 2, 3, 4}
+	expected := []uint32{1, 2, 3, 4}
 	i := 0
-	for v := range sortIndex.SortMap(ids) {
+	for v := range sortIndex.SortBitmap(*ids.Bitmap()) {
 		if v != expected[i] {
 			t.Errorf("Expected %v, got %v", expected[i], v)
 		}

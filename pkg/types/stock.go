@@ -145,7 +145,7 @@ func (f *MapStock) UnmarshalJSON(data []byte) error {
 				id64 = 1
 			case "<10":
 				id64 = 5
-			case "<5":
+			case "\u003c5":
 				id64 = 5
 			default:
 				id64, err = strconv.ParseUint(s, 10, 64)

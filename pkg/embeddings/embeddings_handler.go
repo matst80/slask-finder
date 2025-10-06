@@ -13,19 +13,14 @@ import (
 type EmbeddingsRate = float64
 
 type EmbeddingsClient interface {
-	GetEmbeddings(itemId uint) (types.Embeddings, bool)
-}
-
-type EmbeddingsClientHandler struct {
-	Embeddings       map[uint]types.Embeddings
-	EmbeddingsEngine types.EmbeddingsEngine
+	GetEmbeddings(itemId types.ItemId) (types.Embeddings, bool)
 }
 
 // ItemEmbeddingsHandler handles embeddings-related operations for items
 // It implements the types.ItemHandler interface
 type ItemEmbeddingsHandler struct {
 	mu               sync.RWMutex
-	Embeddings       map[uint]types.Embeddings
+	Embeddings       map[types.ItemId]types.Embeddings
 	EmbeddingsEngine types.EmbeddingsEngine
 	EmbeddingsQueue  *EmbeddingsQueue
 }
@@ -49,17 +44,17 @@ func DefaultEmbeddingsHandlerOptions(engine types.EmbeddingsEngine) ItemEmbeddin
 }
 
 // NewItemEmbeddingsHandler creates a new ItemEmbeddingsHandler with the specified options
-func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(items map[uint]types.Embeddings) error) *ItemEmbeddingsHandler {
+func NewItemEmbeddingsHandler(opts ItemEmbeddingsHandlerOptions, queueDone func(items map[types.ItemId]types.Embeddings) error) *ItemEmbeddingsHandler {
 	handler := &ItemEmbeddingsHandler{
 		mu:               sync.RWMutex{},
-		Embeddings:       make(map[uint]types.Embeddings),
+		Embeddings:       make(map[types.ItemId]types.Embeddings),
 		EmbeddingsEngine: opts.EmbeddingsEngine,
 	}
 
 	// Initialize embeddings queue if an embeddings engine is available
 	if opts.EmbeddingsEngine != nil {
 		// Create a store function that safely stores embeddings in the handler
-		storeFunc := func(itemId uint, emb types.Embeddings) {
+		storeFunc := func(itemId types.ItemId, emb types.Embeddings) {
 			handler.mu.Lock()
 			defer handler.mu.Unlock()
 			handler.Embeddings[itemId] = emb
@@ -152,7 +147,7 @@ func (h *ItemEmbeddingsHandler) GetEmbeddingsQueueDetails() map[string]any {
 }
 
 // GetEmbeddings returns the embeddings for a specific item ID
-func (h *ItemEmbeddingsHandler) GetEmbeddings(itemId uint) (types.Embeddings, bool) {
+func (h *ItemEmbeddingsHandler) GetEmbeddings(itemId types.ItemId) (types.Embeddings, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	emb, exists := h.Embeddings[itemId]
@@ -160,7 +155,7 @@ func (h *ItemEmbeddingsHandler) GetEmbeddings(itemId uint) (types.Embeddings, bo
 }
 
 // HasEmbeddings checks if embeddings exist for a specific item ID
-func (h *ItemEmbeddingsHandler) HasEmbeddings(itemId uint) bool {
+func (h *ItemEmbeddingsHandler) HasEmbeddings(itemId types.ItemId) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	_, exists := h.Embeddings[itemId]
@@ -168,25 +163,25 @@ func (h *ItemEmbeddingsHandler) HasEmbeddings(itemId uint) bool {
 }
 
 // RemoveEmbeddings removes embeddings for a specific item ID
-func (h *ItemEmbeddingsHandler) RemoveEmbeddings(itemId uint) {
+func (h *ItemEmbeddingsHandler) RemoveEmbeddings(itemId types.ItemId) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	delete(h.Embeddings, itemId)
 }
 
 // GetAllEmbeddings returns a copy of all embeddings for persistence operations
-func (h *ItemEmbeddingsHandler) GetAllEmbeddings() map[uint]types.Embeddings {
+func (h *ItemEmbeddingsHandler) GetAllEmbeddings() map[types.ItemId]types.Embeddings {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	// Create a copy to avoid race conditions
-	result := make(map[uint]types.Embeddings, len(h.Embeddings))
+	result := make(map[types.ItemId]types.Embeddings, len(h.Embeddings))
 	maps.Copy(result, h.Embeddings)
 	return result
 }
 
 // LoadEmbeddings loads embeddings from a map for initialization
-func (h *ItemEmbeddingsHandler) LoadEmbeddings(embeddings map[uint]types.Embeddings) {
+func (h *ItemEmbeddingsHandler) LoadEmbeddings(embeddings map[types.ItemId]types.Embeddings) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.Embeddings = embeddings

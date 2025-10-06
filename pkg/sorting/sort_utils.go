@@ -9,10 +9,10 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
-func ToMap(f *types.ByValue) map[uint]float64 {
-	m := make(map[uint]float64)
+func ToMap(f *types.ByValue) map[uint32]float64 {
+	m := make(map[uint32]float64)
 	for _, item := range *f {
-		m[item.Id] = item.Value
+		m[uint32(item.Id)] = item.Value
 	}
 	return m
 }

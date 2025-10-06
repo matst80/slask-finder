@@ -17,7 +17,7 @@ type Sorter interface {
 type BaseSorter struct {
 	mu          sync.RWMutex
 	override    types.SortOverride
-	scores      map[uint]float64
+	scores      map[types.ItemId]float64
 	name        string
 	overrideKey string
 	dirty       bool
@@ -28,7 +28,7 @@ func NewBaseSorter(name string, fn func(item types.Item) float64) Sorter {
 	return &BaseSorter{
 		mu:          sync.RWMutex{},
 		override:    types.SortOverride{},
-		scores:      make(map[uint]float64),
+		scores:      make(map[types.ItemId]float64),
 		name:        name,
 		dirty:       false,
 		fn:          fn,
@@ -40,7 +40,7 @@ func NewBaseSorterWithCustomOverrideKey(name string, fn func(item types.Item) fl
 	return &BaseSorter{
 		mu:          sync.RWMutex{},
 		override:    types.SortOverride{},
-		scores:      make(map[uint]float64),
+		scores:      make(map[types.ItemId]float64),
 		name:        name,
 		dirty:       false,
 		fn:          fn,
@@ -77,7 +77,7 @@ func (s *BaseSorter) ProcessItem(item types.Item) {
 	if current, ok := s.scores[id]; ok && current == newscore {
 		return
 	}
-	s.scores[id] = newscore + s.override[id]
+	s.scores[id] = newscore + s.override[uint32(id)]
 	s.dirty = true
 }
 
@@ -88,13 +88,13 @@ func (s *BaseSorter) GetSort() types.ByValue {
 	j := 0.0
 	sortMap := make(types.ByValue, l)
 	i := 0
-	var id uint
+	var id types.ItemId
 	var score float64
 	var o float64
 	for id, score = range s.scores {
 		j += 0.0000000000001
-		o = s.override[id]
-		sortMap[i] = types.Lookup{Id: id, Value: score + o + j}
+		o = s.override[uint32(id)]
+		sortMap[i] = types.Lookup{Id: uint32(id), Value: score + o + j}
 		i++
 	}
 	sortMap = sortMap[:i]

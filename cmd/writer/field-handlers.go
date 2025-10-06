@@ -39,7 +39,7 @@ func (ws *app) HandleUpdateFields(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for key, field := range tmpFields {
-		facet, ok := ws.findFacet(field.Id)
+		facet, ok := ws.findFacet(types.FacetId(field.Id))
 		if ok {
 			base := facet.BaseField
 			if base != nil {
@@ -113,7 +113,7 @@ func (ws *app) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 	for _, field := range ws.fieldData {
-		facet, ok := ws.findFacet(field.Id)
+		facet, ok := ws.findFacet(types.FacetId(field.Id))
 		if ok {
 			base := facet.BaseField
 			if base != nil {
@@ -143,7 +143,7 @@ func (ws *app) UpdateFacetsFromFields(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (ws *app) findFacet(id uint) (*types.StorageFacet, bool) {
+func (ws *app) findFacet(id types.FacetId) (*types.StorageFacet, bool) {
 	ws.mu.RLock()
 	defer ws.mu.RUnlock()
 	// Iterate by index to return pointer to the actual slice element (not loop copy)
@@ -163,7 +163,7 @@ func (ws *app) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Field not found", http.StatusNotFound)
 		return
 	}
-	_, found := ws.findFacet(field.Id)
+	_, found := ws.findFacet(types.FacetId(field.Id))
 	if found {
 		http.Error(w, "Facet already exists", http.StatusBadRequest)
 		return
@@ -171,7 +171,7 @@ func (ws *app) CreateFacetFromField(w http.ResponseWriter, r *http.Request) {
 	baseField := &types.BaseField{
 		Name:        field.Name,
 		Description: field.Description,
-		Id:          field.Id,
+		Id:          types.FacetId(field.Id),
 		Priority:    10,
 		Searchable:  true,
 	}
@@ -221,7 +221,7 @@ func (ws *app) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	ws.mu.Lock()
 	defer ws.mu.Unlock()
 	ws.storageFacets = slices.DeleteFunc(ws.storageFacets, func(f types.StorageFacet) bool {
-		return f.Id == facetId
+		return f.Id == types.FacetId(facetId)
 	})
 
 	if err = ws.storage.SaveFacets(&ws.storageFacets); err != nil {
@@ -229,7 +229,7 @@ func (ws *app) DeleteFacet(w http.ResponseWriter, r *http.Request) {
 	}
 	change := types.FieldChange{
 		Action:    types.REMOVE_FIELD,
-		BaseField: &types.BaseField{Id: facetId},
+		BaseField: &types.BaseField{Id: types.FacetId(facetId)},
 		FieldType: 0,
 	}
 	if err = ws.amqpSender.SendFacetChanges(change); err != nil {
@@ -250,7 +250,7 @@ func (ws *app) UpdateFacet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Facet ID out of range", http.StatusBadRequest)
 		return
 	}
-	facetId := uint(facetId64)
+	facetId := types.FacetId(facetId64)
 	data := types.BaseField{}
 	err = json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
@@ -296,7 +296,7 @@ func (ws *app) MissingFacets(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	missing := make([]FieldData, 0)
 	for _, field := range ws.fieldData {
-		_, ok := ws.findFacet(field.Id)
+		_, ok := ws.findFacet(types.FacetId(field.Id))
 		if !ok {
 			missing = append(missing, field)
 		}
