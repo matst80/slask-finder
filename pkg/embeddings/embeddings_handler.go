@@ -189,7 +189,7 @@ func (h *ItemEmbeddingsHandler) GetAllEmbeddings() map[uint]types.Embeddings {
 func (h *ItemEmbeddingsHandler) LoadEmbeddings(embeddings map[uint]types.Embeddings) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	maps.Copy(h.Embeddings, embeddings)
+	h.Embeddings = embeddings
 }
 
 // GetEmbeddingsEngine returns the embeddings engine for external use
