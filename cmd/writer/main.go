@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
-	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/storage"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -19,7 +18,7 @@ import (
 type app struct {
 	mu            sync.RWMutex
 	fieldData     map[string]FieldData
-	storageFacets []facet.StorageFacet
+	storageFacets []types.StorageFacet
 	storage       *storage.DiskStorage
 	amqpSender    *AmqpSender
 }
@@ -57,7 +56,7 @@ func main() {
 	app := &app{
 		mu:            sync.RWMutex{},
 		fieldData:     make(map[string]FieldData),
-		storageFacets: make([]facet.StorageFacet, 3000),
+		storageFacets: make([]types.StorageFacet, 3000),
 		amqpSender:    NewAmqpSender(country, conn),
 		// itemIndex:       idx,
 		// embeddingsIndex: embeddingsIndex,
@@ -101,11 +100,16 @@ func main() {
 	srv.HandleFunc("GET /admin/facets", app.GetFacetList)
 	srv.HandleFunc("DELETE /admin/facets/{id}", auth.Middleware(app.DeleteFacet))
 	srv.HandleFunc("PUT /admin/facets/{id}", auth.Middleware(app.UpdateFacet))
+
 	srv.HandleFunc("GET /admin/settings", auth.Middleware(app.GetSettings))
 	srv.HandleFunc("PUT /admin/settings", auth.Middleware(app.UpdateSettings))
+	srv.HandleFunc("/admin/words", auth.Middleware(app.HandleWordReplacements))
+	srv.HandleFunc("/admin/rules/popular", auth.Middleware(app.HandlePopularRules))
+	srv.HandleFunc("POST /admin/relation-groups", auth.Middleware(app.SaveHandleRelationGroups))
+	srv.HandleFunc("/facet-groups", auth.Middleware(app.HandleFacetGroups))
+
 	srv.HandleFunc("GET /admin/fields", auth.Middleware(app.GetFields))
 	srv.HandleFunc("PUT /admin/fields", auth.Middleware(app.HandleUpdateFields))
-
 	srv.HandleFunc("GET /admin/fields/{id}/add", auth.Middleware(app.CreateFacetFromField))
 	srv.HandleFunc("GET /admin/missing-fields", auth.Middleware(app.MissingFacets))
 	srv.HandleFunc("POST /admin/update-fields", auth.Middleware(app.UpdateFacetsFromFields))
@@ -154,7 +158,7 @@ func main() {
 
 	   srv.HandleFunc("POST /price-watch/{id}", priceWatcher.WatchPriceChange)
 
-	   srv.HandleFunc("GET /missing-fields", app.Middleware(app.MissingFacets))
+
 	   srv.HandleFunc("GET /fields/{id}", app.GetField)
 	   srv.HandleFunc("/rules/popular", app.Middleware(app.HandlePopularRules))
 	   srv.HandleFunc("/sort/popular", app.Middleware(app.HandlePopularOverride))
@@ -174,7 +178,7 @@ func main() {
 
 	saveHook := func(ctx context.Context) error {
 		log.Println("saving facets before shutdown")
-		return app.storage.SaveFacets(app.storageFacets)
+		return app.storage.SaveFacets(&app.storageFacets)
 	}
 
 	common.RunServerWithShutdown(server, "writer server", 15*time.Second, 5*time.Second, saveHook)

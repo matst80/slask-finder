@@ -31,31 +31,6 @@ type Field struct {
 	Value any
 }
 
-// func decodeNormal(enc *gob.Decoder, item *index.DataItem) error {
-
-// 	err := enc.Decode(item)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	// if item.AdvertisingText != "" {
-// 	// 	item.Fields[21] = item.AdvertisingText
-// 	// } else {
-// 	// 	delete(item.Fields, 21)
-// 	// }
-
-// 	return nil
-// }
-
-// func asSeq(items []*index.RawDataItem) iter.Seq[types.Item] {
-// 	return func(yield func(types.Item) bool) {
-// 		for _, item := range items {
-// 			if !yield(item) {
-// 				return
-// 			}
-// 		}
-// 	}
-// }
-
 const itemsFile = "items.jz"
 const storageItemFile = "items-v3.gz"
 const settingsFile = "settings.json"
@@ -71,22 +46,21 @@ func (d *DiskStorage) LoadSettings() error {
 	f, err := os.Stat(legacyPath)
 	if err == nil && !f.IsDir() {
 		log.Printf("Loading legacy settings file: %s", legacyPath)
-		err = d.LoadGzippedJson(&types.CurrentSettings, legacySettingsFile)
-		if err == nil {
+		if err = d.LoadGzippedJson(&types.CurrentSettings, legacySettingsFile); err == nil {
 			log.Printf("Successfully loaded legacy settings, saving to new format")
-			err = d.SaveJson(&types.CurrentSettings, settingsFile)
-			if err != nil {
+			if err = d.SaveJson(&types.CurrentSettings, settingsFile); err != nil {
 				log.Printf("Failed to save new settings format: %v", err)
-
 			} else {
-				if err = os.Rename(legacyPath, legacyPath+".bak"); err != nil {
-					log.Printf("Failed to rename legacy settings file: %v", err)
+				if removeErr := os.Remove(legacyPath); removeErr != nil && !os.IsNotExist(removeErr) {
+					log.Printf("Failed to remove legacy settings file: %v", removeErr)
+				}
+				if removeErr := os.Remove(legacyPath + ".bak"); removeErr != nil && !os.IsNotExist(removeErr) {
+					log.Printf("Failed to remove legacy settings backup file: %v", removeErr)
 				}
 			}
 			return nil
-		} else {
-			log.Printf("Failed to load legacy settings: %v", err)
 		}
+		log.Printf("Failed to load legacy settings: %v", err)
 
 	}
 	return d.LoadJson(&types.CurrentSettings, settingsFile)
@@ -98,19 +72,19 @@ func (d *DiskStorage) SaveSettings() error {
 	return d.SaveJson(&types.CurrentSettings, settingsFile)
 }
 
-func (d *DiskStorage) LoadFacets(output any) error {
+func (d *DiskStorage) LoadFacets(output *[]types.StorageFacet) error {
 	return d.LoadJson(output, facetsFile)
 }
 
-func (d *DiskStorage) SaveFacets(facets any) error {
+func (d *DiskStorage) SaveFacets(facets *[]types.StorageFacet) error {
 	return d.SaveJson(facets, facetsFile)
 }
 
-func (d *DiskStorage) LoadEmbeddings(output any) error {
+func (d *DiskStorage) LoadEmbeddings(output *map[uint]types.Embeddings) error {
 	return d.LoadGzippedGob(output, embeddingsFile)
 }
 
-func (d *DiskStorage) SaveEmbeddings(embeddings any) error {
+func (d *DiskStorage) SaveEmbeddings(embeddings *map[uint]types.Embeddings) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 
@@ -311,8 +285,6 @@ func (p *DiskStorage) LoadJson(data any, filename string) error {
 	defer runtime.GC()
 
 	enc := json.NewDecoder(file)
-	defer file.Close()
-
 	err = enc.Decode(data)
 	if err != nil && !errors.Is(err, io.EOF) {
 		return err
@@ -394,17 +366,28 @@ func (p *DiskStorage) SaveGzippedGob(embeddings any, name string) error {
 
 	zipWriter := gzip.NewWriter(file)
 	enc := gob.NewEncoder(zipWriter)
-	defer zipWriter.Close()
 
-	err = enc.Encode(embeddings)
-	file.Close()
-	if err != nil {
+	if err = enc.Encode(embeddings); err != nil {
 		log.Printf("Error encoding embeddings: %v", err)
+		_ = zipWriter.Close()
+		_ = file.Close()
+		_ = os.Remove(tmpFileName)
 		return err
 	}
 
-	err = os.Rename(tmpFileName, fileName)
-	if err != nil {
+	if err = zipWriter.Close(); err != nil {
+		_ = file.Close()
+		_ = os.Remove(tmpFileName)
+		return err
+	}
+
+	if err = file.Close(); err != nil {
+		_ = os.Remove(tmpFileName)
+		return err
+	}
+
+	if err = os.Rename(tmpFileName, fileName); err != nil {
+		_ = os.Remove(tmpFileName)
 		return err
 	}
 

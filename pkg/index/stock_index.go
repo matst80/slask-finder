@@ -26,7 +26,7 @@ func NewIndexWithStock() *ItemIndexWithStock {
 func (i *ItemIndexWithStock) addItemValues(item types.Item) {
 	itemId := item.GetId()
 
-	for id, _ := range item.GetStock() {
+	for id := range item.GetStock() {
 		// if stock == "" || stock == "0" {
 		// 	continue
 		// }
