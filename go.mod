@@ -4,11 +4,11 @@ go 1.25.1
 
 require (
 	firebase.google.com/go/v4 v4.18.0
+	github.com/RoaringBitmap/roaring/v2 v2.10.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/schema v1.4.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/rabbitmq/amqp091-go v1.10.0
-	github.com/redis/go-redis/v9 v9.8.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.30.0
 	google.golang.org/api v0.231.0
@@ -29,13 +29,11 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.51.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.51.0 // indirect
 	github.com/MicahParks/keyfunc v1.9.0 // indirect
-	github.com/RoaringBitmap/roaring/v2 v2.10.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20250501225837-2ac532fd4443 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
