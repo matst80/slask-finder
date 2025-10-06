@@ -196,7 +196,7 @@ func (item *DataItem) GetPrice() int {
 	return getNumberValue[int](priceField)
 }
 
-func (item *DataItem) GetStock() map[string]uint {
+func (item *DataItem) GetStock() map[string]uint32 {
 	return item.Stock.GetStock()
 }
 

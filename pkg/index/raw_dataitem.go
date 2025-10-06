@@ -100,7 +100,7 @@ func (item *RawDataItem) GetPrice() int {
 	return item.getItem().GetPrice()
 }
 
-func (item *RawDataItem) GetStock() map[string]uint {
+func (item *RawDataItem) GetStock() map[string]uint32 {
 	return item.getItem().GetStock()
 }
 

@@ -8,7 +8,7 @@ type ItemId uint32
 type Item interface {
 	GetId() ItemId
 	GetSku() string
-	GetStock() map[string]uint
+	GetStock() map[string]uint32
 	HasStock() bool
 	IsDeleted() bool
 	IsSoftDeleted() bool

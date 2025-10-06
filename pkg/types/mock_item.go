@@ -17,7 +17,7 @@ type MockItem struct {
 	Price        int
 	OrgPrice     int
 	StockLevel   string
-	Stock        map[string]uint
+	Stock        map[string]uint32
 	Buyable      bool
 	LastUpdated  int64
 	Created      int64
@@ -94,7 +94,7 @@ func (m *MockItem) IsSoftDeleted() bool {
 	return false
 }
 
-func (m *MockItem) GetStock() map[string]uint {
+func (m *MockItem) GetStock() map[string]uint32 {
 	return m.Stock
 }
 
@@ -177,7 +177,7 @@ func MakeMockItem(id ItemId, fields ...MockField) Item {
 		StringFields: make(map[FacetId]string),
 		NumberFields: make(map[FacetId]float64),
 		Deleted:      false,
-		Stock:        make(map[string]uint),
+		Stock:        make(map[string]uint32),
 	}
 	for _, field := range fields {
 		switch v := field.Value.(type) {
