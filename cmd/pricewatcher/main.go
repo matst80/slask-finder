@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/common"
+	"github.com/matst80/slask-finder/pkg/types"
 
 	"github.com/matst80/slask-finder/pkg/index"
 	"github.com/matst80/slask-finder/pkg/messaging"
@@ -30,12 +31,12 @@ func main() {
 	diskStorage := storage.NewDiskStorage(country, "data")
 	watcher := NewPriceWatcher(diskStorage)
 	app := &ItemWatcher{
-		Items:   make(map[uint]int),
+		Items:   make(map[types.ItemId]int),
 		mu:      sync.RWMutex{},
 		watcher: *watcher,
 	}
 
-	var tmp map[uint]int
+	var tmp map[types.ItemId]int
 	err := diskStorage.LoadJson(&tmp, "item_prices.json")
 	if err != nil {
 		if os.IsNotExist(err) {

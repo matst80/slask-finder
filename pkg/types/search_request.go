@@ -98,8 +98,8 @@ func facetQueryFromRequestQuery(query url.Values, result *FacetRequest) error {
 
 func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 	var err error
-	key := map[uint]StringFilter{}
-	rng := map[uint]RangeFilter{}
+	key := map[FacetId]StringFilter{}
+	rng := map[FacetId]RangeFilter{}
 	for _, v := range query["str"] {
 		parts := strings.Split(v, ":")
 		if len(parts) != 2 {
@@ -111,8 +111,8 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 			continue
 		}
 
-		id, err := strconv.ParseUint(idKey, 10, 64)
-
+		id64, err := strconv.ParseUint(idKey, 10, 64)
+		id := FacetId(id64)
 		if err != nil {
 			continue
 		}
@@ -120,16 +120,17 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 		if exclude {
 			value = strings.TrimPrefix(value, "!")
 		}
+
 		if strings.Contains(value, "||") {
-			key[uint(id)] = StringFilter{
-				Id:    uint(id),
+			key[id] = StringFilter{
+				Id:    id,
 				Not:   exclude,
 				Value: strings.Split(value, "||"),
 			}
 		} else {
 
-			key[uint(id)] = StringFilter{
-				Id:    uint(id),
+			key[id] = StringFilter{
+				Id:    id,
 				Not:   exclude,
 				Value: []string{value},
 			}
@@ -138,7 +139,7 @@ func decodeFiltersFromRequest(query url.Values, result *FacetRequest) error {
 	}
 
 	for _, v := range query["rng"] {
-		var id uint
+		var id FacetId
 		var _min float64
 		var _max float64
 		_, err := fmt.Sscanf(v, "%d:%f-%f", &id, &_min, &_max)
@@ -164,7 +165,7 @@ func makeBaseFacetRequest() *FacetRequest {
 			StringFilter: []StringFilter{},
 			RangeFilter:  []RangeFilter{},
 		},
-		IgnoreFacets: []uint{},
+		IgnoreFacets: []FacetId{},
 		Stock:        []string{},
 		Query:        "",
 	}

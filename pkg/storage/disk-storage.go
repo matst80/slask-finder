@@ -11,6 +11,7 @@ import (
 	"os"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/index"
@@ -80,11 +81,11 @@ func (d *DiskStorage) SaveFacets(facets *[]types.StorageFacet) error {
 	return d.SaveJson(facets, facetsFile)
 }
 
-func (d *DiskStorage) LoadEmbeddings(output *map[uint]types.Embeddings) error {
+func (d *DiskStorage) LoadEmbeddings(output *map[types.ItemId]types.Embeddings) error {
 	return d.LoadGzippedGob(output, embeddingsFile)
 }
 
-func (d *DiskStorage) SaveEmbeddings(embeddings *map[uint]types.Embeddings) error {
+func (d *DiskStorage) SaveEmbeddings(embeddings *map[types.ItemId]types.Embeddings) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 
@@ -187,6 +188,9 @@ func (d *DiskStorage) LoadItems(wg *sync.WaitGroup, handlers ...types.ItemHandle
 			//items = append(items, tmp)
 
 			tmp = &index.DataItem{}
+		} else if strings.Contains(err.Error(), "json: cannot unmarshal number") {
+			log.Print(err)
+			err = nil
 		}
 	}
 	// for _, hs := range handlers {

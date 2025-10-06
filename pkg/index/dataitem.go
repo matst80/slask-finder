@@ -46,9 +46,9 @@ func (a MarginPercent) MarshalJSON() ([]byte, error) {
 }
 
 type BaseItem struct {
-	Id         uint  `json:"id"`
-	LastUpdate int64 `json:"lastUpdate,omitempty"`
-	Created    int64 `json:"created,omitempty"`
+	Id         types.ItemId `json:"id"`
+	LastUpdate int64        `json:"lastUpdate,omitempty"`
+	Created    int64        `json:"created,omitempty"`
 
 	Disclaimer       string `json:"disclaimer,omitempty"`
 	ReleaseDate      string `json:"releaseDate,omitempty"`
@@ -83,7 +83,7 @@ type DataItem struct {
 	Fields types.ItemFields `json:"values"`
 }
 
-func (item *DataItem) GetId() uint {
+func (item *DataItem) GetId() types.ItemId {
 	return item.Id
 }
 
@@ -200,22 +200,22 @@ func (item *DataItem) GetStock() map[string]uint {
 	return item.Stock.GetStock()
 }
 
-func (m *DataItem) GetStringFields() map[uint]string {
+func (m *DataItem) GetStringFields() map[types.FacetId]string {
 	return m.Fields.GetStringFields()
 }
 
-func (m *DataItem) GetNumberFields() map[uint]float64 {
+func (m *DataItem) GetNumberFields() map[types.FacetId]float64 {
 	return m.Fields.GetNumberFields()
 }
 
-func (m *DataItem) GetStringFieldValue(id uint) (string, bool) {
+func (m *DataItem) GetStringFieldValue(id types.FacetId) (string, bool) {
 	return m.Fields.GetStringFieldValue(id)
 }
 
-func (m *DataItem) GetStringsFieldValue(id uint) ([]string, bool) {
+func (m *DataItem) GetStringsFieldValue(id types.FacetId) ([]string, bool) {
 	return m.Fields.GetStringsFieldValue(id)
 }
-func (m *DataItem) GetNumberFieldValue(id uint) (float64, bool) {
+func (m *DataItem) GetNumberFieldValue(id types.FacetId) (float64, bool) {
 	return m.Fields.GetNumberFieldValue(id)
 }
 

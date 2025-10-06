@@ -4,11 +4,12 @@ import (
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/index"
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type ItemWatcher struct {
 	mu      sync.RWMutex
-	Items   map[uint]int `json:"items"`
+	Items   map[types.ItemId]int `json:"items"`
 	watcher PriceWatchesData
 }
 

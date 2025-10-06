@@ -31,14 +31,14 @@ func CosineSimilarity(a, b Embeddings) float64 {
 
 // FindMostSimilarEmbeddings takes a query embedding and a map of ID -> Embeddings
 // and returns the ID of the most similar embedding and its similarity score
-func FindMostSimilarEmbeddings(query Embeddings, embeddings map[uint]Embeddings) (bestID uint, similarity float64) {
+func FindMostSimilarEmbeddings(query Embeddings, embeddings map[ItemId]Embeddings) (bestID uint32, similarity float64) {
 	bestSimilarity := -1.0 // Initialize with value below possible cosine similarity range
 
 	for id, vec := range embeddings {
 		sim := CosineSimilarity(query, vec)
 		if sim > bestSimilarity {
 			bestSimilarity = sim
-			bestID = id
+			bestID = uint32(id)
 		}
 	}
 
@@ -47,9 +47,9 @@ func FindMostSimilarEmbeddings(query Embeddings, embeddings map[uint]Embeddings)
 
 // FindTopSimilarEmbeddings takes a query embedding, a map of ID -> Embeddings, and the number of results to return
 // It returns a slice of IDs sorted by similarity (highest first) along with their similarity scores
-func FindTopSimilarEmbeddings(query Embeddings, embeddings map[uint]Embeddings, topN int) ([]uint, []float64) {
+func FindTopSimilarEmbeddings(query Embeddings, embeddings map[ItemId]Embeddings, topN int) ([]uint32, []float64) {
 	type result struct {
-		id         uint
+		id         uint32
 		similarity float64
 	}
 
@@ -72,16 +72,16 @@ func FindTopSimilarEmbeddings(query Embeddings, embeddings map[uint]Embeddings, 
 			for i, r := range results {
 				if sim > r.similarity {
 					// Insert at position i
-					results = append(results, result{}) // Make space
-					copy(results[i+1:], results[i:])    // Shift elements to the right
-					results[i] = result{id, sim}        // Insert new element
+					results = append(results, result{})  // Make space
+					copy(results[i+1:], results[i:])     // Shift elements to the right
+					results[i] = result{uint32(id), sim} // Insert new element
 					inserted = true
 					break
 				}
 			}
 			if !inserted {
 				// If we didn't insert in the middle, append to the end
-				results = append(results, result{id, sim})
+				results = append(results, result{uint32(id), sim})
 			}
 		} else if sim > results[len(results)-1].similarity {
 			// If our results slice is full but this similarity is higher than the lowest one
@@ -92,12 +92,12 @@ func FindTopSimilarEmbeddings(query Embeddings, embeddings map[uint]Embeddings, 
 			}
 			// Shift elements and insert
 			copy(results[pos+1:], results[pos:len(results)-1]) // Shift elements to the right
-			results[pos] = result{id, sim}                     // Insert new element
+			results[pos] = result{uint32(id), sim}             // Insert new element
 		}
 	}
 
 	// Extract IDs and similarities
-	ids := make([]uint, len(results))
+	ids := make([]uint32, len(results))
 	similarities := make([]float64, len(results))
 
 	for i, r := range results {

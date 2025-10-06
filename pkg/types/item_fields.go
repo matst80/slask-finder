@@ -11,18 +11,18 @@ import (
 // ItemFields stores string and numeric facets separately to avoid interface{} boxing.
 // It implements custom JSON marshal / unmarshal optimized for low allocations.
 type ItemFields struct {
-	keyFacets    map[uint]string
-	numberFacets map[uint]float64
+	keyFacets    map[FacetId]string
+	numberFacets map[FacetId]float64
 }
 
 func NewItemFields() *ItemFields {
 	return &ItemFields{
-		keyFacets:    make(map[uint]string),
-		numberFacets: make(map[uint]float64),
+		keyFacets:    make(map[FacetId]string),
+		numberFacets: make(map[FacetId]float64),
 	}
 }
 
-func (f ItemFields) GetNumberFieldValue(id uint) (float64, bool) {
+func (f ItemFields) GetNumberFieldValue(id FacetId) (float64, bool) {
 	v, ok := f.numberFacets[id]
 	if ok {
 		return v, true
@@ -30,7 +30,7 @@ func (f ItemFields) GetNumberFieldValue(id uint) (float64, bool) {
 	return 0, false
 }
 
-func (f ItemFields) GetStringsFieldValue(id uint) ([]string, bool) {
+func (f ItemFields) GetStringsFieldValue(id FacetId) ([]string, bool) {
 
 	v, ok := f.keyFacets[id]
 	if ok {
@@ -39,7 +39,7 @@ func (f ItemFields) GetStringsFieldValue(id uint) ([]string, bool) {
 	return nil, false
 }
 
-func (f ItemFields) GetStringFieldValue(id uint) (string, bool) {
+func (f ItemFields) GetStringFieldValue(id FacetId) (string, bool) {
 	v, ok := f.keyFacets[id]
 	if ok {
 		return v, true
@@ -47,11 +47,11 @@ func (f ItemFields) GetStringFieldValue(id uint) (string, bool) {
 	return "", false
 }
 
-func (f ItemFields) GetNumberFields() map[uint]float64 {
+func (f ItemFields) GetNumberFields() map[FacetId]float64 {
 	return f.numberFacets
 }
 
-func (f ItemFields) GetStringFields() map[uint]string {
+func (f ItemFields) GetStringFields() map[FacetId]string {
 	return f.keyFacets
 }
 
@@ -70,12 +70,12 @@ func (f ItemFields) GetStringFields() map[uint]string {
 
 // upsertString inserts / updates a string facet.
 func (f *ItemFields) upsertString(id uint, val string) {
-	f.keyFacets[id] = val
+	f.keyFacets[FacetId(id)] = val
 }
 
 // upsertNumber inserts / updates a numeric facet.
 func (f *ItemFields) upsertNumber(id uint, val float64) {
-	f.numberFacets[id] = val
+	f.numberFacets[FacetId(id)] = val
 
 }
 
@@ -134,8 +134,8 @@ func (f ItemFields) MarshalJSON() ([]byte, error) {
 // Accepts values: string, number, or array of strings (joined with ", ").
 func (f *ItemFields) UnmarshalJSON(data []byte) error {
 	// Reset slices (allow reuse of underlying arrays).
-	f.keyFacets = map[uint]string{}
-	f.numberFacets = map[uint]float64{}
+	f.keyFacets = map[FacetId]string{}
+	f.numberFacets = map[FacetId]float64{}
 
 	i := 0
 	skipWS := func() {

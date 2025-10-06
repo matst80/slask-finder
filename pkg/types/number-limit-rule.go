@@ -5,9 +5,9 @@ type NumberComparator string
 type Source string
 
 type RuleSource struct {
-	Source       Source `json:"source"`
-	PropertyName string `json:"property,omitempty"`
-	FieldId      uint   `json:"fieldId,omitempty"`
+	Source       Source  `json:"source"`
+	PropertyName string  `json:"property,omitempty"`
+	FieldId      FacetId `json:"fieldId,omitempty"`
 }
 
 func (r RuleSource) GetSourceValue(item Item) any {

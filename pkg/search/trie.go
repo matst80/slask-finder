@@ -3,6 +3,7 @@ package search
 import (
 	"sort"
 
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -18,7 +19,7 @@ type Node struct {
 	Children map[rune]*Node
 	IsLeaf   bool
 	Word     string
-	Items    types.ItemList
+	Items    *roaring.Bitmap
 }
 
 func NewTrie() *Trie {
@@ -32,11 +33,11 @@ func NewTrie() *Trie {
 }
 
 // untested
-func (t *Trie) RemoveDocument(id uint) {
+func (t *Trie) RemoveDocument(id uint32) {
 	var removeHelper func(node *Node) bool
 	removeHelper = func(node *Node) bool {
 		if node.Items != nil {
-			delete(node.Items, id)
+			node.Items.Remove(id)
 		}
 		// Recursively clean up children
 		for r, child := range node.Children {
@@ -45,12 +46,12 @@ func (t *Trie) RemoveDocument(id uint) {
 			}
 		}
 		// If this node has no items and no children, it can be removed
-		return len(node.Items) == 0 && len(node.Children) == 0
+		return node.Items.GetCardinality() == 0 && len(node.Children) == 0
 	}
 	removeHelper(t.Root)
 }
 
-func (t *Trie) Insert(word Token, raw string, id uint) {
+func (t *Trie) Insert(word Token, raw string, id uint32) {
 	node := t.Root
 
 	for _, r := range word {
@@ -65,10 +66,10 @@ func (t *Trie) Insert(word Token, raw string, id uint) {
 	node.IsLeaf = true
 	node.Word = raw
 	if node.Items == nil {
-		node.Items = types.ItemList{id: struct{}{}}
-	} else {
-		node.Items.AddId(id)
+		node.Items = roaring.New()
 	}
+	node.Items.Add(id)
+
 }
 
 // AddTransition increments the bigram count from prev -> next.
@@ -130,11 +131,13 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 		sort.SliceStable(matches, func(i, j int) bool {
 			li := 0
 			if matches[i].Items != nil {
-				li = len(*matches[i].Items)
+				li = int(matches[i].Items.Bitmap().GetCardinality())
+				// li = len(*matches[i].Items)
 			}
 			lj := 0
 			if matches[j].Items != nil {
-				lj = len(*matches[j].Items)
+				lj = int(matches[j].Items.Bitmap().GetCardinality())
+				// lj = len(*matches[j].Items)
 			}
 			return li > lj
 		})
@@ -164,11 +167,13 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 			}
 			li := 0
 			if scoredMatches[i].m.Items != nil {
-				li = len(*scoredMatches[i].m.Items)
+				li = int(scoredMatches[i].m.Items.Bitmap().GetCardinality())
+				//li = len(*scoredMatches[i].m.Items)
 			}
 			lj := 0
 			if scoredMatches[j].m.Items != nil {
-				lj = len(*scoredMatches[j].m.Items)
+				lj = int(scoredMatches[j].m.Items.Bitmap().GetCardinality())
+				//lj = len(*scoredMatches[j].m.Items)
 			}
 			return li > lj
 		})
@@ -177,11 +182,13 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 		sort.SliceStable(scoredMatches, func(i, j int) bool {
 			li := 0
 			if scoredMatches[i].m.Items != nil {
-				li = len(*scoredMatches[i].m.Items)
+				li = int(scoredMatches[i].m.Items.Bitmap().GetCardinality())
+				//li = len(*scoredMatches[i].m.Items)
 			}
 			lj := 0
 			if scoredMatches[j].m.Items != nil {
-				lj = len(*scoredMatches[j].m.Items)
+				lj = int(scoredMatches[j].m.Items.Bitmap().GetCardinality())
+				//lj = len(*scoredMatches[j].m.Items)
 			}
 			return li > lj
 		})
@@ -200,7 +207,7 @@ func (t *Trie) findMatches(node *Node, prefix string) []Match {
 		matches = append(matches, Match{
 			Prefix: prefix,
 			Word:   node.Word,
-			Items:  &node.Items,
+			Items:  types.FromBitmap(node.Items),
 		})
 	}
 	for r, child := range node.Children {
@@ -242,7 +249,7 @@ func (t *Trie) PredictSequence(prev Token, prefix Token, maxWords int) []string 
 			}
 			pop := 0
 			if n := t.Search(string(cand)); n != nil && n.IsLeaf && n.Items != nil {
-				pop = len(n.Items)
+				pop = int(n.Items.GetCardinality()) // len(n.Items)
 			}
 			if cnt > bestCount || (cnt == bestCount && pop > bestPop) {
 				best = cand
@@ -317,16 +324,16 @@ func (t *Trie) predictChildren(current Token, remainingDepth int, k int, visited
 	type cand struct {
 		tok Token
 		cnt int
-		pop int
+		pop uint64
 	}
 	cands := make([]cand, 0, len(nextMap))
 	for tok, cnt := range nextMap {
 		if _, seen := visited[tok]; seen {
 			continue
 		}
-		pop := 0
+		pop := uint64(0)
 		if n := t.Search(string(tok)); n != nil && n.IsLeaf && n.Items != nil {
-			pop = len(n.Items)
+			pop = n.Items.GetCardinality()
 		}
 		cands = append(cands, cand{tok: tok, cnt: cnt, pop: pop})
 	}

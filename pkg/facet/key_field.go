@@ -10,7 +10,7 @@ import (
 
 type KeyField struct {
 	*types.BaseField
-	Keys map[string]types.ItemList
+	Keys map[string]*types.ItemList
 }
 
 func (f KeyField) GetType() uint {
@@ -40,7 +40,7 @@ func (f KeyField) GetValues() []any {
 	for value := range f.Keys {
 		ret[idx] = ValueWithCount{
 			Value: value,
-			Count: len(f.Keys[value]),
+			Count: int(f.Keys[value].Bitmap().GetCardinality()),
 		}
 		idx++
 	}
@@ -49,18 +49,18 @@ func (f KeyField) GetValues() []any {
 
 func (f *KeyField) match(value string) *types.ItemList {
 	if value == "!nil" {
-		ret := &types.ItemList{}
+		ret := types.NewItemList()
 		for v, ids := range f.Keys {
 			if v == "" {
 				continue
 			}
-			ret.Merge(&ids)
+			ret.Merge(ids)
 		}
 		return ret
 	}
 	ids, ok := f.Keys[value]
 	if ok {
-		return &ids
+		return ids
 	}
 
 	return &types.ItemList{}
@@ -75,7 +75,7 @@ func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemLi
 	if value == nil {
 		return &types.ItemList{}
 	}
-	ret := make(types.ItemList)
+	ret := types.NewItemList()
 	for _, v := range value {
 		r := f.match(v)
 
@@ -84,7 +84,7 @@ func (f *KeyField) MatchFilterValue(value types.StringFilterValue) *types.ItemLi
 		}
 
 	}
-	return &ret
+	return ret
 }
 
 func (f KeyField) Match(input any) *types.ItemList {
@@ -135,7 +135,7 @@ func (f KeyField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
-func (f *KeyField) addString(value string, id uint) {
+func (f *KeyField) addString(value string, id types.ItemId) {
 	v := strings.TrimSpace(value)
 	if v == "" {
 		return
@@ -155,28 +155,31 @@ func (f *KeyField) addString(value string, id uint) {
 	}
 
 	if k, ok := f.Keys[v]; ok {
-		k.AddId(id)
+		k.AddId(uint32(id))
 	} else {
-		f.Keys[v] = types.ItemList{id: struct{}{}}
+		k := types.NewItemList()
+		k.AddId(uint32(id))
+		f.Keys[v] = k
 	}
 
 }
 
-func (f *KeyField) removeString(value string, id uint) {
+func (f *KeyField) removeString(value string, id types.ItemId) {
 	v := strings.TrimSpace(value)
 	if v == "" {
 		return
 	}
 
 	if k, ok := f.Keys[v]; ok {
-		delete(k, id)
-		if len(k) == 0 {
+		k.RemoveId(uint32(id))
+
+		if k.IsEmpty() {
 			delete(f.Keys, v)
 		}
 	}
 }
 
-func (f KeyField) AddValueLink(data any, itemId uint) bool {
+func (f KeyField) AddValueLink(data any, itemId types.ItemId) bool {
 	if !f.Searchable || data == nil {
 		return false
 	}
@@ -216,7 +219,7 @@ func (f KeyField) AddValueLink(data any, itemId uint) bool {
 	return false
 }
 
-func (f KeyField) RemoveValueLink(data any, id uint) {
+func (f KeyField) RemoveValueLink(data any, id types.ItemId) {
 	switch typed := data.(type) {
 	case nil:
 		return
@@ -252,7 +255,7 @@ func (f KeyField) RemoveValueLink(data any, id uint) {
 func (f *KeyField) TotalCount() int {
 	total := 0
 	for _, ids := range f.Keys {
-		total += len(ids)
+		total += int(ids.Bitmap().GetCardinality())
 	}
 	return total
 }
@@ -264,6 +267,6 @@ func (f *KeyField) UniqueCount() int {
 func EmptyKeyValueField(field *types.BaseField) KeyField {
 	return KeyField{
 		BaseField: field,
-		Keys:      map[string]types.ItemList{},
+		Keys:      map[string]*types.ItemList{},
 	}
 }

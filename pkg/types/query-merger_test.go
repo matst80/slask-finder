@@ -1,31 +1,33 @@
 package types
 
 import (
-	"maps"
 	"testing"
 )
 
 func TestQueuedMerger(t *testing.T) {
-	// Create a new QueryMerger instance
-	result := make(ItemList)
+	// Create a new QueryMerger instance (roaring-backed ItemList)
+	var result ItemList
 	merger := NewQueryMerger(&result)
 
-	// Add a function to the merger that returns an ItemList
+	// First constraint: {1,2}
 	merger.Add(func() *ItemList {
-		return &ItemList{1: {}, 2: {}}
+		l := &ItemList{}
+		l.AddId(1)
+		l.AddId(2)
+		return l
 	})
 
-	// Add another function to the merger that returns an ItemList
+	// Second constraint: {2,3} -> intersection should be {2}
 	merger.Add(func() *ItemList {
-		return &ItemList{2: {}, 3: {}}
+		l := &ItemList{}
+		l.AddId(2)
+		l.AddId(3)
+		return l
 	})
 
-	// Wait for all goroutines to finish
 	merger.Wait()
 
-	// Check the result
-	expected := ItemList{2: {}}
-	if !maps.Equal(result, expected) {
-		t.Errorf("Expected %v, got %v", expected, result)
+	if result.Len() != 1 || !result.Contains(2) {
+		t.Errorf("expected intersection to be {2}, got len=%d contains2=%v", result.Len(), result.Contains(2))
 	}
 }

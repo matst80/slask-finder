@@ -1,109 +1,60 @@
 package index
 
 import (
-	"sync/atomic"
+	"sync"
 
-	"github.com/matst80/slask-finder/pkg/types"
+	"github.com/RoaringBitmap/roaring/v2"
 )
 
-// stockEntry is a lock-free container for a set of item IDs (types.ItemList).
-// It uses an atomic pointer to an immutable map. Each mutation (add/remove)
-// builds a fresh copy and attempts a CAS. Readers obtain a snapshot without locks.
+// stockEntry is a simplified concurrency wrapper around a single mutable
+// roaring.Bitmap protected by an RWMutex. This replaces the previous
+// lock-free copy-on-write (atomic pointer) design with something easier
+// to reason about.
 //
 // Rationale:
-// - Avoids per-entry mutex contention when there are many readers.
-// - Writers pay a copy cost proportional to the size of the set (expected small for stock locations).
-// - Readers see a consistent view (the map referenced by the atomic pointer never mutates).
+//   - Writes are expected to be relatively low compared to reads, but the
+//     previous design cloned the bitmap on every mutation which can become
+//     more expensive if writes are not extremely rare.
+//   - A single bitmap + RWMutex keeps code straightforward while still
+//     allowing parallel readers.
+//   - To preserve the "immutable to callers" contract that existing code
+//     (e.g. GetStockResult) relied on, bitmap() returns a CLONE of the
+//     underlying bitmap. This avoids external mutation & data races while
+//     keeping internal representation mutable.
+//
+// If performance profiling later shows bitmap cloning to be a hotspot,
+// an alternative API could expose a read-locked callback instead of
+// returning a clone.
 type stockEntry struct {
-	data atomic.Pointer[types.ItemList]
+	mu sync.RWMutex
+	bm *roaring.Bitmap
 }
 
-// newStockEntry creates a stockEntry with an empty immutable set.
+// newStockEntry returns an initialized, empty stockEntry.
 func newStockEntry() *stockEntry {
-	se := &stockEntry{}
-	empty := make(types.ItemList)
-	se.data.Store(&empty)
-	return se
-}
-
-// add inserts an ID if absent (idempotent).
-func (s *stockEntry) add(id uint) {
-	for {
-		curPtr := s.data.Load()
-		if curPtr == nil {
-			// Initialize if somehow uninitialized (defensive, should not happen after constructor).
-			empty := make(types.ItemList)
-			if s.data.CompareAndSwap(nil, &empty) {
-				curPtr = &empty
-			} else {
-				continue
-			}
-		}
-		cur := *curPtr
-		if _, exists := cur[id]; exists {
-			return // already present; no mutation needed
-		}
-
-		// Create a new copy with additional id
-		next := make(types.ItemList, len(cur)+1)
-		for k := range cur {
-			next[k] = struct{}{}
-		}
-		next[id] = struct{}{}
-
-		if s.data.CompareAndSwap(curPtr, &next) {
-			return
-		}
-		// CAS failed -> retry
+	return &stockEntry{
+		bm: roaring.NewBitmap(),
 	}
 }
 
-// remove deletes an ID if present (idempotent).
-func (s *stockEntry) remove(id uint) {
-	for {
-		curPtr := s.data.Load()
-		if curPtr == nil {
-			return // nothing to remove
-		}
-		cur := *curPtr
-		if _, exists := cur[id]; !exists {
-			return // not present
-		}
-
-		if len(cur) == 1 {
-			// Resulting set would be empty
-			empty := make(types.ItemList)
-			if s.data.CompareAndSwap(curPtr, &empty) {
-				return
-			}
-			continue
-		}
-
-		next := make(types.ItemList, len(cur)-1)
-		for k := range cur {
-			if k != id {
-				next[k] = struct{}{}
-			}
-		}
-
-		if s.data.CompareAndSwap(curPtr, &next) {
-			return
-		}
-		// CAS failed -> retry
-	}
+// add inserts id (idempotent).
+func (s *stockEntry) add(id uint32) {
+	s.mu.Lock()
+	s.bm.Add(id) // roaring.Add is idempotent; no need to check existence
+	s.mu.Unlock()
 }
 
-// snapshot returns a shallow copy of the current set.
-// The returned map can be freely mutated by the caller.
-func (s *stockEntry) snapshot() types.ItemList {
-	curPtr := s.data.Load()
-	if curPtr == nil {
-		return make(types.ItemList)
-	}
-	cur := *curPtr
-	cp := make(types.ItemList, len(cur))
-	for id := range cur {
-		cp[id] = struct{}{}
-	}
-	return cp
+// remove deletes id if present (idempotent).
+func (s *stockEntry) remove(id uint32) {
+	s.mu.Lock()
+	s.bm.Remove(id)
+	s.mu.Unlock()
+}
+
+// bitmap returns a CLONE of the underlying bitmap to keep callers from
+// mutating internal state and to avoid data races during concurrent writes.
+func (s *stockEntry) bitmap() *roaring.Bitmap {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.bm
 }

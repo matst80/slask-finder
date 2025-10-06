@@ -29,7 +29,7 @@ var (
 // EmbeddingJob represents a job to generate embeddings for an item
 type EmbeddingJob struct {
 	Text      string
-	Id        uint
+	Id        types.ItemId
 	CreatedAt time.Time
 	StartedAt time.Time
 }
@@ -39,7 +39,7 @@ type EmbeddingJob struct {
 type EmbeddingsQueue struct {
 	engine      types.EmbeddingsEngine
 	queue       chan EmbeddingJob
-	storeFunc   func(uint, types.Embeddings)
+	storeFunc   func(types.ItemId, types.Embeddings)
 	doneFunc    func() error
 	workerCount int
 	wg          sync.WaitGroup
@@ -54,7 +54,7 @@ type EmbeddingsQueue struct {
 // number of workers and buffer size
 func NewEmbeddingsQueue(
 	engine types.EmbeddingsEngine,
-	storeFunc func(uint, types.Embeddings),
+	storeFunc func(types.ItemId, types.Embeddings),
 	whenQueueIsDone func() error,
 	workerCount int,
 	queueSize int,

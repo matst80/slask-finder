@@ -2,46 +2,44 @@ package index
 
 import (
 	"iter"
-	"log"
 	"sync"
-	"time"
 
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type ItemIndex struct {
 	mu    sync.RWMutex
-	Items map[uint]types.Item
+	Items map[types.ItemId]types.Item
 }
 
 func NewItemIndex() *ItemIndex {
 	idx := &ItemIndex{
 		mu:    sync.RWMutex{},
-		Items: make(map[uint]types.Item, 350_000),
+		Items: make(map[types.ItemId]types.Item, 350_000),
 		//categories:   make(map[uint]*Category),
 	}
 
 	return idx
 }
 
-func (i *ItemIndex) StartEviction() {
-	t := time.NewTicker(time.Minute)
-	go func() {
-		for range t.C {
-			j := 0
-			i.mu.Lock()
-			for _, item := range i.Items {
-				raw, ok := item.(*RawDataItem)
-				if ok {
-					j++
-					raw.Evict()
-				}
-			}
-			i.mu.Unlock()
-			log.Printf("Index evicted %d", j)
-		}
-	}()
-}
+// func (i *ItemIndex) StartEviction() {
+// 	t := time.NewTicker(time.Minute)
+// 	go func() {
+// 		for range t.C {
+// 			j := 0
+// 			i.mu.Lock()
+// 			for _, item := range i.Items {
+// 				raw, ok := item.(*RawDataItem)
+// 				if ok {
+// 					j++
+// 					raw.Evict()
+// 				}
+// 			}
+// 			i.mu.Unlock()
+// 			log.Printf("Index evicted %d", j)
+// 		}
+// 	}()
+// }
 
 func (i *ItemIndex) HandleItem(item types.Item) {
 	i.mu.Lock()
@@ -84,14 +82,14 @@ func (i *ItemIndex) handleItemUnsafe(item types.Item) {
 	// go noUpdates.Inc()
 }
 
-func (i *ItemIndex) GetItem(id uint) (types.Item, bool) {
+func (i *ItemIndex) GetItem(id types.ItemId) (types.Item, bool) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	item, ok := i.Items[id]
 	return item, ok
 }
 
-func (i *ItemIndex) HasItem(id uint) bool {
+func (i *ItemIndex) HasItem(id types.ItemId) bool {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	_, ok := i.Items[id]

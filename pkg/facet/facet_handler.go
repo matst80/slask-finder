@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"iter"
 	"log"
-	"maps"
 	"slices"
 	"sync"
 
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/types"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -19,9 +19,9 @@ type FacetItemHandler struct {
 	sortMap      types.SortOverride
 	sortValues   types.ByValue
 	override     types.SortOverride
-	Facets       map[uint]types.Facet
-	ItemFieldIds map[uint]types.ItemList
-	AllFacets    types.ItemList
+	Facets       map[types.FacetId]types.Facet
+	ItemFieldIds map[types.ItemId]*types.ItemList
+	AllFacets    *types.ItemList
 }
 
 func (h *FacetItemHandler) HandleFieldChanges(items []types.FieldChange) {
@@ -60,12 +60,12 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 
 func NewFacetItemHandler(facets []types.StorageFacet, overrides *types.SortOverride) *FacetItemHandler {
 	r := &FacetItemHandler{
-		Facets:       make(map[uint]types.Facet),
-		ItemFieldIds: make(map[uint]types.ItemList),
+		Facets:       make(map[types.FacetId]types.Facet),
+		ItemFieldIds: make(map[types.ItemId]*types.ItemList),
 		sortMap:      make(types.SortOverride),
 		mu:           sync.RWMutex{},
 		override:     make(types.SortOverride),
-		AllFacets:    make(types.ItemList),
+		AllFacets:    types.NewItemList(),
 		//All:          types.ItemList{},
 	}
 	if overrides != nil {
@@ -88,7 +88,7 @@ func NewFacetItemHandler(facets []types.StorageFacet, overrides *types.SortOverr
 			continue
 		}
 		if f.BaseField.Searchable || !f.BaseField.HideFacet {
-			r.AllFacets.AddId(f.Id)
+			r.AllFacets.AddId(uint32(f.Id))
 		}
 	}
 
@@ -108,11 +108,11 @@ func (h *FacetItemHandler) updateSortMap() {
 			if base.HideFacet {
 				continue
 			}
-			v := base.Priority + j + h.override[base.Id]
+			v := base.Priority + j + h.override[uint32(base.Id)]
 			j += 0.000000000001
-			h.sortMap[id] = v
+			h.sortMap[uint32(id)] = v
 			if !yield(types.Lookup{
-				Id:    id,
+				Id:    uint32(id),
 				Value: v,
 			}) {
 				break
@@ -122,7 +122,7 @@ func (h *FacetItemHandler) updateSortMap() {
 	h.sortValues = values
 }
 
-func (h *FacetItemHandler) GetFacet(id uint) (types.Facet, bool) {
+func (h *FacetItemHandler) GetFacet(id types.FacetId) (types.Facet, bool) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	f, ok := h.Facets[id]
@@ -149,6 +149,7 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 		defer h.mu.Unlock()
 
 		if item.IsDeleted() {
+
 			delete(h.ItemFieldIds, itemId)
 
 			for fieldId, fieldValue := range item.GetStringFields() {
@@ -165,7 +166,7 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 		} else {
 			fid, ok := h.ItemFieldIds[itemId]
 			if !ok {
-				fid = types.ItemList{}
+				fid = types.NewItemList()
 				h.ItemFieldIds[itemId] = fid
 			}
 
@@ -174,7 +175,7 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 					b := f.GetBaseField()
 					if b.Searchable && f.AddValueLink(fieldValue, itemId) {
 						if !b.HideFacet {
-							fid.AddId(fieldId)
+							fid.AddId(uint32(fieldId))
 						}
 					}
 				}
@@ -184,7 +185,7 @@ func (h *FacetItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 					b := f.GetBaseField()
 					if b.Searchable && f.AddValueLink(fieldValue, itemId) {
 						if !b.HideFacet {
-							fid.AddId(fieldId)
+							fid.AddId(uint32(fieldId))
 						}
 					}
 				}
@@ -207,7 +208,7 @@ func (h *FacetItemHandler) AddIntegerField(field *types.BaseField) {
 	h.Facets[field.Id] = EmptyIntegerField(field)
 }
 
-func (h *FacetItemHandler) GetKeyFacet(id uint) (*KeyField, bool) {
+func (h *FacetItemHandler) GetKeyFacet(id types.FacetId) (*KeyField, bool) {
 	if f, ok := h.Facets[id]; ok {
 		switch tf := f.(type) {
 		case KeyField:
@@ -251,7 +252,7 @@ func (h *FacetItemHandler) UpdateFields(changes []types.FieldChange) {
 func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, wg *sync.WaitGroup, selected any) {
 	defer wg.Done()
 
-	l := len(*baseIds)
+	l := baseIds.Cardinality()
 	returnAll := l == 0
 
 	baseField := f.GetBaseField()
@@ -262,16 +263,15 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 
 	switch field := f.(type) {
 	case KeyField:
+		kf := field
 		hasValues := returnAll
-		r := make(map[string]int, len(field.Keys))
-		count := 0
-		//var ok bool
-		for key, sourceIds := range field.Keys {
+		r := make(map[string]uint64, len(kf.Keys))
+		var count uint64
+		for key, sourceIds := range kf.Keys {
 			if returnAll {
-				r[key] = len(sourceIds)
+				r[key] = sourceIds.Cardinality()
 			} else {
-				count = sourceIds.IntersectionLen(*baseIds)
-
+				count = sourceIds.IntersectionLen(baseIds)
 				if count > 0 {
 					hasValues = true
 					r[key] = count
@@ -279,7 +279,6 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 			}
 		}
 		if !hasValues {
-			//c <- nil
 			return
 		}
 		c <- &JsonFacet{
@@ -291,19 +290,19 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 		}
 
 	case IntegerField:
+		intField := field
 		if returnAll {
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,
 				Result: &IntegerFieldResult{
-					Min: field.Min,
-					Max: field.Max,
+					Min: intField.Min,
+					Max: intField.Max,
 				},
 			}
 		} else {
-			r := field.GetExtents(baseIds)
+			r := intField.GetExtents(baseIds)
 			if r == nil {
-				//c <- nil
 				return
 			}
 			c <- &JsonFacet{
@@ -313,21 +312,18 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 			}
 		}
 	case DecimalField:
+		decField := field
 		if returnAll {
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,
 				Result: &DecimalFieldResult{
-					Min: field.Min,
-					Max: field.Max,
+					Min: decField.Min,
+					Max: decField.Max,
 				},
 			}
 		} else {
-			r := field.GetExtents(baseIds)
-			// if r == nil {
-			// 	c <- nil
-			// 	return
-			// }
+			r := decField.GetExtents(baseIds)
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,
@@ -409,38 +405,32 @@ func (ws *FacetItemHandler) GetSuggestFacets(baseIds *types.ItemList, sr *types.
 
 func (ws *FacetItemHandler) SortJsonFacets(facets []*JsonFacet) {
 	slices.SortFunc(facets, func(a, b *JsonFacet) int {
-		return cmp.Compare(ws.sortMap[b.Id], ws.sortMap[a.Id])
+		return cmp.Compare(ws.sortMap[uint32(b.Id)], ws.sortMap[uint32(a.Id)])
 	})
 }
 
 func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *JsonFacet, wg *sync.WaitGroup) {
 
-	fieldIds := make(map[uint]struct{})
+	fieldIds := roaring.Bitmap{}
 	limit := 30
 
-	t := 0
-	for id := range *baseIds {
-		var itemFieldIds types.ItemList
-		var ok bool
-
-		itemFieldIds, ok = ws.ItemFieldIds[id]
-
-		if ok {
-			maps.Copy(fieldIds, itemFieldIds)
-			t++
+	baseIds.ForEach(func(id uint32) bool {
+		itemFieldIds, ok := ws.ItemFieldIds[types.ItemId(id)]
+		if !ok {
+			return true
 		}
-		if t > 2500 {
-			break
-		}
-	}
+		fieldIds.And(itemFieldIds.Bitmap())
+		return fieldIds.GetCardinality() < 2500
+	})
 
 	count := 0
 
-	if len(fieldIds) == 0 {
-		fieldIds = ws.AllFacets
+	if fieldIds.GetCardinality() == 0 {
+		fieldIds = *ws.AllFacets.Bitmap()
 	}
 
-	for id := range ws.sortValues.SortMap(fieldIds) {
+	for uid := range ws.sortValues.SortBitmap(fieldIds) {
+		id := types.FacetId(uid)
 		if count > limit {
 			break
 		}

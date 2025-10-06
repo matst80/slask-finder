@@ -9,7 +9,7 @@ const (
 )
 
 type FieldData struct {
-	Id          uint   `json:"id"`
+	Id          uint32 `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
 	//Identifier  string   `json:"identifier"`
