@@ -71,10 +71,9 @@ func (i *ItemIndex) HandleItems(it iter.Seq[types.Item]) {
 }
 
 func (i *ItemIndex) GetAllItems() iter.Seq[types.Item] {
-	i.mu.RLock()
-	defer i.mu.RUnlock()
-
 	return func(yield func(types.Item) bool) {
+		i.mu.RLock()
+		defer i.mu.RUnlock()
 		for _, item := range i.Items {
 			if !yield(item) {
 				break
