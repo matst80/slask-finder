@@ -7,19 +7,6 @@ import (
 	"time"
 
 	"github.com/matst80/slask-finder/pkg/types"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-)
-
-var (
-	noUpdates = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "slaskfinder_index_updates_total",
-		Help: "The total number of item updates",
-	})
-	noDeletes = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "slaskfinder_index_deletes_total",
-		Help: "The total number of item deletions",
-	})
 )
 
 type ItemIndex struct {
@@ -80,7 +67,6 @@ func (i *ItemIndex) GetAllItems() iter.Seq[types.Item] {
 			}
 		}
 	}
-
 }
 
 func (i *ItemIndex) handleItemUnsafe(item types.Item) {
@@ -90,12 +76,12 @@ func (i *ItemIndex) handleItemUnsafe(item types.Item) {
 	if item.IsDeleted() {
 		delete(i.Items, id)
 
-		go noDeletes.Inc()
+		//		go noDeletes.Inc()
 		return
 	}
 
 	i.Items[id] = item
-	go noUpdates.Inc()
+	// go noUpdates.Inc()
 }
 
 func (i *ItemIndex) GetItem(id uint) (types.Item, bool) {

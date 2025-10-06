@@ -5,94 +5,125 @@ import (
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+var (
+	noUpdates = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_index_updates_total",
+		Help: "The total number of item updates",
+	})
+	noDeletes = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_index_deletes_total",
+		Help: "The total number of item deletions",
+	})
+)
+
+// stockEntry is defined in stock_entry.go:
+// type stockEntry struct { mu sync.RWMutex; items types.ItemList }
+// with helper methods: add(id uint), remove(id uint), snapshot() types.ItemList
+
+// ItemIndexWithStock maintains item and stock indexes using only sync.Map
+// for concurrency (no outer RWMutex layer).
+// - Items:       sync.Map mapping uint -> types.Item
+// - ItemsBySku:  sync.Map mapping string -> uint
+// - ItemsInStock: sync.Map mapping string -> *stockEntry (set of item IDs)
 type ItemIndexWithStock struct {
-	*ItemIndex
-	ItemsBySku   map[string]uint
-	ItemsInStock map[string]types.ItemList
+	Items        sync.Map // map[uint]types.Item
+	ItemsBySku   sync.Map // map[string]uint
+	ItemsInStock sync.Map // map[string]*stockEntry
 }
 
 func NewIndexWithStock() *ItemIndexWithStock {
-	idx := &ItemIndexWithStock{
-		ItemIndex:    NewItemIndex(),
-		ItemsBySku:   make(map[string]uint),
-		ItemsInStock: make(map[string]types.ItemList),
-	}
-
-	return idx
+	return &ItemIndexWithStock{}
 }
 
+// addItemValues indexes the item in stock locations.
 func (i *ItemIndexWithStock) addItemValues(item types.Item) {
 	itemId := item.GetId()
-
-	for id := range item.GetStock() {
-		// if stock == "" || stock == "0" {
-		// 	continue
-		// }
-		stockLocation, ok := i.ItemsInStock[id]
-		if !ok {
-			i.ItemsInStock[id] = types.ItemList{itemId: struct{}{}}
+	for stockLocId := range item.GetStock() {
+		entryAny, loaded := i.ItemsInStock.Load(stockLocId)
+		var entry *stockEntry
+		if !loaded {
+			entry = newStockEntry()
+			actual, double := i.ItemsInStock.LoadOrStore(stockLocId, entry)
+			if double {
+				entry = actual.(*stockEntry)
+			}
 		} else {
-			stockLocation[itemId] = struct{}{}
+			entry = entryAny.(*stockEntry)
 		}
+		entry.add(itemId)
 	}
 }
 
+// removeItemValues removes an item id from all stock entries.
 func (i *ItemIndexWithStock) removeItemValues(item types.Item) {
-
 	itemId := item.GetId()
-	for _, stock := range i.ItemsInStock {
-		delete(stock, itemId)
-	}
+	i.ItemsInStock.Range(func(_, value any) bool {
+		entry := value.(*stockEntry)
+		entry.remove(itemId)
+		return true
+	})
 }
 
+// HandleItem processes a single item asynchronously using wg.Go.
 func (i *ItemIndexWithStock) HandleItem(item types.Item, wg *sync.WaitGroup) {
 	wg.Go(func() {
-		i.mu.Lock()
-		defer i.mu.Unlock()
 		i.handleItemUnsafe(item)
 	})
 }
 
+// HandleItems processes a sequence of items without a global lock.
 func (i *ItemIndexWithStock) HandleItems(it iter.Seq[types.Item]) {
-	i.mu.Lock()
-	defer i.mu.Unlock()
 	for item := range it {
 		i.handleItemUnsafe(item)
 	}
 }
 
+// handleItemUnsafe performs the mutation; concurrency safety relies on sync.Map and per-stockEntry locks.
 func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
-
-	i.ItemIndex.handleItemUnsafe(item)
-
 	id := item.GetId()
-	current, isUpdate := i.Items[id]
-	if isUpdate {
-		i.removeItemValues(current)
-	}
-	if item.IsDeleted() {
-		delete(i.ItemsBySku, item.GetSku())
+
+	if existingAny, isUpdate := i.Items.Load(id); isUpdate {
+		existing := existingAny.(types.Item)
+		i.removeItemValues(existing)
+		if item.IsDeleted() {
+			i.Items.Delete(id)
+			i.ItemsBySku.Delete(existing.GetSku())
+			noDeletes.Inc()
+			return
+		}
+	} else if item.IsDeleted() {
+		// Deleting a non-existent item; nothing to do.
 		return
 	}
 
-	i.ItemsBySku[item.GetSku()] = id
+	if item.IsDeleted() {
+		// Already handled above; guard for clarity.
+		return
+	}
 
+	i.Items.Store(id, item)
+	i.ItemsBySku.Store(item.GetSku(), id)
 	i.addItemValues(item)
+	noUpdates.Inc()
 }
 
+// GetStockResult merges item sets for provided stock location IDs.
 func (i *ItemIndexWithStock) GetStockResult(stockLocations []string) *types.ItemList {
-	resultStockIds := &types.ItemList{}
+	result := types.ItemList{}
 	for _, stockId := range stockLocations {
-		stockIds, ok := i.ItemsInStock[stockId]
-		if ok {
-			resultStockIds.Merge(&stockIds)
+		if entryAny, ok := i.ItemsInStock.Load(stockId); ok {
+			snap := entryAny.(*stockEntry).snapshot()
+			result.Merge(&snap)
 		}
 	}
-	return resultStockIds
+	return &result
 }
 
+// MatchStock integrates stock filtering into a QueryMerger.
 func (i *ItemIndexWithStock) MatchStock(stockLocations []string, qm *types.QueryMerger) {
 	if len(stockLocations) > 0 {
 		qm.Add(func() *types.ItemList {
@@ -101,13 +132,40 @@ func (i *ItemIndexWithStock) MatchStock(stockLocations []string, qm *types.Query
 	}
 }
 
+// GetAllItems returns a sequence iterating over all items.
+func (i *ItemIndexWithStock) GetAllItems() iter.Seq[types.Item] {
+	return func(yield func(types.Item) bool) {
+		// Direct iteration over sync.Map.
+		i.Items.Range(func(_, value any) bool {
+			return yield(value.(types.Item))
+		})
+	}
+}
+
+// GetItemBySku retrieves an item by SKU.
 func (i *ItemIndexWithStock) GetItemBySku(sku string) (types.Item, bool) {
-	if id, ok := i.ItemsBySku[sku]; ok {
+	if idAny, ok := i.ItemsBySku.Load(sku); ok {
+		id := idAny.(uint)
 		return i.GetItem(id)
 	}
 	return nil, false
 }
 
+// GetItem retrieves an item by id.
+func (i *ItemIndexWithStock) GetItem(id uint) (types.Item, bool) {
+	if val, ok := i.Items.Load(id); ok {
+		return val.(types.Item), true
+	}
+	return nil, false
+}
+
+// HasItem checks if an item exists.
+func (i *ItemIndexWithStock) HasItem(id uint) bool {
+	_, ok := i.Items.Load(id)
+	return ok
+}
+
+// GetItems returns a sequence for a set of ids.
 func (i *ItemIndexWithStock) GetItems(ids iter.Seq[uint]) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
 		for id := range ids {
