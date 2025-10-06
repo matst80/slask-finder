@@ -7,6 +7,8 @@ import (
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/RoaringBitmap/roaring/v2"
 )
 
 type SortIndex []uint
@@ -55,63 +57,74 @@ func (s *SortIndex) ToString() string {
 	return buffer.String()
 }
 
-func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map[int]uint) iter.Seq[uint] {
+// func (s *SortIndex) SortMapWithStaticPositions(ids ItemList, staticPositions map[int]uint) iter.Seq[uint] {
+
+// 	if s == nil {
+// 		log.Printf("SortIndex is nil")
+// 		return func(yield func(uint) bool) {
+// 			for id := range ids {
+// 				if !yield(id) {
+// 					break
+// 				}
+
+// 			}
+// 		}
+// 	}
+
+// 	return func(yield func(uint) bool) {
+// 		idx := 0
+// 		for _, id := range *s {
+
+// 			if sp, ok := staticPositions[idx]; ok {
+// 				_, ok := ids[sp]
+// 				if ok {
+// 					if !yield(sp) {
+// 						break
+// 					}
+// 					idx++
+// 				}
+// 			}
+
+// 			_, ok := ids[id]
+// 			if ok {
+// 				if !yield(id) {
+// 					break
+// 				}
+// 				idx++
+// 			}
+// 		}
+// 	}
+// 	//return sortedIds
+// }
+
+func (s *ByValue) SortMap(ids ItemList) iter.Seq[uint32] {
 
 	if s == nil {
 		log.Printf("SortIndex is nil")
-		return func(yield func(uint) bool) {
-			for id := range ids {
-				if !yield(id) {
-					break
-				}
-
-			}
+		return func(yield func(uint32) bool) {
+			ids.ForEach(yield)
 		}
 	}
 
-	return func(yield func(uint) bool) {
-		idx := 0
-		for _, id := range *s {
+	return func(yield func(uint32) bool) {
 
-			if sp, ok := staticPositions[idx]; ok {
-				_, ok := ids[sp]
-				if ok {
-					if !yield(sp) {
-						break
-					}
-					idx++
-				}
-			}
+		for _, v := range *s {
 
-			_, ok := ids[id]
-			if ok {
-				if !yield(id) {
+			if ids.Contains(v.Id) {
+				if !yield(v.Id) {
 					break
 				}
-				idx++
 			}
 		}
 	}
-	//return sortedIds
 }
 
-func (s *ByValue) SortMap(ids ItemList) iter.Seq[uint] {
+func (s *ByValue) SortBitmap(ids roaring.Bitmap) iter.Seq[uint32] {
+	return func(yield func(uint32) bool) {
 
-	if s == nil {
-		log.Printf("SortIndex is nil")
-		return func(yield func(uint) bool) {
-			for id := range ids {
-				if !yield(id) {
-					break
-				}
-			}
-		}
-	}
-
-	return func(yield func(uint) bool) {
 		for _, v := range *s {
-			_, ok := ids[v.Id]
-			if ok {
+
+			if ids.Contains(v.Id) {
 				if !yield(v.Id) {
 					break
 				}
@@ -121,7 +134,7 @@ func (s *ByValue) SortMap(ids ItemList) iter.Seq[uint] {
 }
 
 type Lookup struct {
-	Id    uint
+	Id    uint32
 	Value float64
 }
 

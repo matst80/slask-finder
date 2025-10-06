@@ -5,15 +5,15 @@ import "log"
 type StringFilterValue = []string
 
 type StringFilter struct {
-	Id    uint              `json:"id"`
+	Id    FacetId           `json:"id"`
 	Value StringFilterValue `json:"value"`
 	Not   bool              `json:"exclude"`
 }
 
 type RangeFilter struct {
-	Min any  `json:"min"`
-	Max any  `json:"max"`
-	Id  uint `json:"id"`
+	Id  FacetId `json:"id"`
+	Min any     `json:"min"`
+	Max any     `json:"max"`
 }
 
 func AsKeyFilterValue(value any) (StringFilterValue, bool) {
@@ -36,7 +36,7 @@ func AsKeyFilterValue(value any) (StringFilterValue, bool) {
 	}
 }
 
-type FilterIds map[uint]struct{}
+type FilterIds map[FacetId]struct{}
 
 type Filters struct {
 	ids          *FilterIds
@@ -44,7 +44,7 @@ type Filters struct {
 	RangeFilter  []RangeFilter  `json:"range" schema:"-"`
 }
 
-func (f *Filters) WithOut(id uint, dontExclude bool) *Filters {
+func (f *Filters) WithOut(id FacetId, dontExclude bool) *Filters {
 	if dontExclude {
 		return f
 	}
@@ -83,7 +83,7 @@ func (f *Filters) getIds() *FilterIds {
 	return f.ids
 }
 
-func (f *Filters) HasField(id uint) bool {
+func (f *Filters) HasField(id FacetId) bool {
 	ids := f.getIds()
 	_, ok := (*ids)[id]
 	return ok

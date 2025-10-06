@@ -14,7 +14,7 @@ type FreeTextItemHandler struct {
 	Trie         *Trie
 	TokenMap     map[Token]*types.ItemList
 	WordMappings map[Token]Token
-	All          types.ItemList
+	All          *types.ItemList
 }
 
 type FreeTextItemHandlerOptions struct {
@@ -34,7 +34,7 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 		Trie:         NewTrie(),
 		TokenMap:     make(map[Token]*types.ItemList),
 		WordMappings: make(map[Token]Token),
-		All:          make(types.ItemList),
+		All:          types.NewItemList(),
 	}
 
 	return handler
@@ -48,36 +48,41 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 		id := item.GetId()
 		if item.IsDeleted() {
 			h.RemoveDocument(id)
-			delete(h.All, id)
+			h.All.RemoveId(uint32(id))
+
 			// h.Trie.RemoveDocument(id)
 		} else {
-			if _, exists := h.All[id]; !exists {
-				h.All[id] = struct{}{}
+
+			if !h.All.Contains(uint32(id)) {
+				h.All.AddId(uint32(id))
+
 				h.CreateDocumentUnsafe(id, item.ToStringList()...)
 			}
 		}
 	})
 }
 
-func (i *FreeTextItemHandler) RemoveDocument(id uint) {
+func (i *FreeTextItemHandler) RemoveDocument(id types.ItemId) {
 	for token := range i.TokenMap {
 		if ids, ok := i.TokenMap[token]; ok {
-			delete(*ids, id)
+			ids.RemoveId(uint32(id))
+			//delete(*ids, id)
 		}
 	}
 	maps.DeleteFunc(i.TokenMap, func(_ Token, ids *types.ItemList) bool {
-		return len(*ids) == 0
+		return ids.Bitmap().GetCardinality() == 0
+		//return len(*ids) == 0
 	})
 }
 
-func (i *FreeTextItemHandler) CreateDocumentUnsafe(id uint, text ...string) {
+func (i *FreeTextItemHandler) CreateDocumentUnsafe(id types.ItemId, text ...string) {
 
 	for j, property := range text {
 		var prev Token
 		var hasPrev bool
 		i.tokenizer.Tokenize(property, func(token Token, original string, _ int, last bool) bool {
 			if j == 0 {
-				i.Trie.Insert(token, original, id)
+				i.Trie.Insert(token, original, uint32(id))
 				// Record bigram transitions from the same field that feeds the Trie
 				if hasPrev {
 					i.Trie.AddTransition(prev, token)
@@ -86,9 +91,11 @@ func (i *FreeTextItemHandler) CreateDocumentUnsafe(id uint, text ...string) {
 				hasPrev = true
 			}
 			if l, ok := i.TokenMap[token]; !ok {
-				i.TokenMap[token] = &types.ItemList{id: struct{}{}}
+				l := types.NewItemList()
+				l.AddId(uint32(id))
+				i.TokenMap[token] = l
 			} else {
-				l.AddId(id)
+				l.AddId(uint32(id))
 			}
 			return true
 		})
@@ -101,8 +108,9 @@ func (h *FreeTextItemHandler) MatchQuery(query string, qm *types.QueryMerger) {
 	}
 	if query == "*" {
 		qm.Add(func() *types.ItemList {
-			clone := maps.Clone(h.All)
-			return &clone
+
+			// todo check is clone needed
+			return h.All
 		})
 	} else {
 		qm.Add(func() *types.ItemList {
@@ -171,7 +179,7 @@ func (i *FreeTextItemHandler) Filter(query string, res *types.ItemList) {
 		ids, found := i.TokenMap[token]
 		if found && ids != nil {
 			if res.HasIntersection(ids) {
-				res.Intersect(*ids)
+				res.Intersect(ids)
 			} else {
 				found = false
 			}
@@ -179,13 +187,13 @@ func (i *FreeTextItemHandler) Filter(query string, res *types.ItemList) {
 		if word, ok := mappings[string(token)]; ok {
 			ids, found = i.TokenMap[Token(word)]
 			if res.HasIntersection(ids) {
-				res.Intersect(*ids)
+				res.Intersect(ids)
 				found = true
 			}
 		}
 
 		if !found {
-			tries := types.ItemList{}
+			tries := &types.ItemList{}
 			for _, match := range i.Trie.FindMatches(token) {
 				if match.Items != nil && res.HasIntersection(match.Items) {
 					tries.Merge(match.Items)
@@ -202,7 +210,7 @@ func (i *FreeTextItemHandler) Filter(query string, res *types.ItemList) {
 			res.Intersect(tries)
 		}
 
-		return len(*res) > 0
+		return !res.Bitmap().IsEmpty()
 	})
 }
 
@@ -220,7 +228,7 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 			if count == 0 {
 				res.Merge(ids)
 			} else if res.HasIntersection(ids) {
-				res.Intersect(*ids)
+				res.Intersect(ids)
 			} else {
 				found = false
 			}
@@ -230,7 +238,7 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 			if !found || count == 0 {
 				res.Merge(ids)
 			} else if res.HasIntersection(ids) {
-				res.Intersect(*ids)
+				res.Intersect(ids)
 			} else {
 				found = false
 			}
@@ -253,7 +261,7 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 			}
 		}
 
-		return len(*res) > 0
+		return !res.Bitmap().IsEmpty()
 	})
 
 	return res

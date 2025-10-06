@@ -37,7 +37,7 @@ func (m *QueryMerger) GetClone(output *ItemList) {
 	if output == nil {
 		return
 	}
-	output.AddAllFrom(m.result)
+	output.Merge(m.result)
 }
 
 // NewQueryMerger builds a QueryMerger with default (seed + intersect) semantics.
@@ -54,7 +54,7 @@ func NewQueryMerger(result *ItemList) *QueryMerger {
 			if isFirst {
 				current.Merge(next)
 			} else {
-				current.Intersect(*next)
+				current.Intersect(next)
 			}
 		},
 		exclude: &ItemList{},
@@ -97,7 +97,7 @@ func (m *QueryMerger) Intersect(getResult func() *ItemList) {
 			return
 		}
 		m.l.Lock()
-		m.result.Intersect(*items)
+		m.result.Intersect(items)
 		m.isFirst = false
 		m.l.Unlock()
 	})

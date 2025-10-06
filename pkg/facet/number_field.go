@@ -1,8 +1,9 @@
 package facet
 
 import (
-	"maps"
+	"math"
 
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -12,11 +13,10 @@ type FieldNumberValue interface {
 
 type DecimalField struct {
 	*types.BaseField
-	*NumberRange[float64]
-	buckets   map[int]Bucket[float64]
-	AllValues map[uint]float64
-	//all     *types.ItemList
-	Count int `json:"count"`
+	*NumberRange[float64]                      // Public min/max in original float domain
+	buckets               map[int]*ValueBucket // Coarse bucket -> sorted value entries (integer cents)
+	AllValuesCents        map[uint32]int64     // Raw value per item in integer cents
+	Count                 int                  `json:"count"`
 }
 
 type DecimalFieldResult struct {
@@ -33,20 +33,32 @@ func (f DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
 	if matchIds == nil {
 		return nil
 	}
-	minV := f.Max
-	maxV := f.Min
-	for id := range *matchIds {
-		if v, ok := f.AllValues[id]; ok {
-			if v < minV {
-				minV = v
-			} else if v > maxV {
-				maxV = v
+	if f.Count == 0 {
+		return &DecimalFieldResult{Min: 0, Max: 0}
+	}
+	minC := int64(math.MaxInt64)
+	maxC := int64(math.MinInt64)
+
+	matchIds.ForEach(func(id uint32) bool {
+		if v, ok := f.AllValuesCents[id]; ok {
+			if v < minC {
+				minC = v
+			}
+			if v > maxC {
+				maxC = v
 			}
 		}
+		return true
+	})
+
+	if minC == int64(math.MaxInt64) {
+		// no matches had values
+		return &DecimalFieldResult{Min: 0, Max: 0}
 	}
+
 	return &DecimalFieldResult{
-		Min: minV,
-		Max: maxV,
+		Min: float64(minC) / 100.0,
+		Max: float64(maxC) / 100.0,
 	}
 }
 
@@ -67,41 +79,62 @@ func (f DecimalField) IsCategory() bool {
 
 func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
 	if minValue > maxValue {
-		return &types.ItemList{}
+		return types.NewItemList()
 	}
+	if f.Count == 0 {
+		return types.NewItemList()
+	}
+	// Full range shortcut
 	if minValue <= f.Min && maxValue >= f.Max {
 		return nil
 	}
-	minBucket := GetBucket(max(minValue, f.Min))
-	maxBucket := GetBucket(min(maxValue, f.Max))
-	found := make(types.ItemList, f.Count)
 
-	for v, ids := range f.buckets[minBucket].values {
-		if v >= minValue && v <= maxValue {
-			maps.Copy(found, ids)
+	// Convert to integer cents (round outward to be inclusive)
+	minC := int64(math.Floor(minValue*100.0 + 0.0000001))
+	maxC := int64(math.Ceil(maxValue*100.0 - 0.0000001))
+	if minC > maxC {
+		return types.NewItemList()
+	}
+
+	minBucket := GetBucketFromCents(minC)
+	maxBucket := GetBucketFromCents(maxC)
+
+	acc := roaring.NewBitmap()
+
+	// Single bucket case
+	if minBucket == maxBucket {
+		if b, ok := f.buckets[minBucket]; ok {
+			b.RangeUnion(minC, maxC, acc)
+		}
+		return types.FromBitmap(acc)
+	}
+
+	// Partial start bucket
+	if b, ok := f.buckets[minBucket]; ok {
+		upper := f.bucketUpperBoundCents(minBucket)
+		if upper > maxC {
+			upper = maxC
+		}
+		b.RangeUnion(minC, upper, acc)
+	}
+
+	// Full middle buckets
+	for bId := minBucket + 1; bId < maxBucket; bId++ {
+		if b, ok := f.buckets[bId]; ok {
+			acc.Or(b.merged)
 		}
 	}
 
-	if minBucket < maxBucket {
-
-		for id := minBucket + 1; id < maxBucket; id++ {
-			if bucket, ok := f.buckets[id]; ok {
-				for _, ids := range bucket.values {
-					maps.Copy(found, ids)
-				}
-				//maps.Copy(found, *bucket.all)
-			}
-
+	// Partial end bucket
+	if b, ok := f.buckets[maxBucket]; ok {
+		lower := f.bucketLowerBoundCents(maxBucket)
+		if lower < minC {
+			lower = minC
 		}
-
-		for v, ids := range f.buckets[maxBucket].values {
-			if v <= maxValue {
-				maps.Copy(found, ids)
-			}
-		}
-
+		b.RangeUnion(lower, maxC, acc)
 	}
-	return &found
+
+	return types.FromBitmap(acc)
 }
 
 func (f DecimalField) Match(input any) *types.ItemList {
@@ -109,13 +142,11 @@ func (f DecimalField) Match(input any) *types.ItemList {
 	if ok {
 		min, minOk := value.Min.(float64)
 		max, maxOk := value.Max.(float64)
-
 		if minOk && maxOk {
 			return f.MatchesRange(min, max)
 		}
 	}
-
-	return &types.ItemList{}
+	return types.NewItemList()
 }
 
 func (f *DecimalField) updateBaseField(field *types.BaseField) {
@@ -147,42 +178,67 @@ func (f DecimalField) GetValues() []any {
 	return []any{f.NumberRange}
 }
 
-func (f DecimalField) AddValueLink(data any, itemId uint) bool {
+// Helper bounds (coarse bucket) in integer cents domain (extracted from misplaced inline definitions)
+func (f *DecimalField) bucketLowerBoundCents(bucket int) int64 {
+	return int64(bucket << Bits_To_Shift)
+}
+
+func (f *DecimalField) bucketUpperBoundCents(bucket int) int64 {
+	// Upper inclusive bound: next bucket start - 1
+	return int64(((bucket + 1) << Bits_To_Shift) - 1)
+}
+
+func (f *DecimalField) AddValueLink(data any, id types.ItemId) bool {
 	if !f.Searchable {
 		return false
 	}
-	value, ok := data.(float64)
+	val, ok := data.(float64)
 	if !ok {
 		return false
 	}
+	itemId := uint32(id)
+	cents := int64(math.Round(val * 100.0))
 
-	f.Min = min(f.Min, value)
-	f.Max = max(f.Max, value)
-	f.Count++
-	f.AllValues[itemId] = value
-
-	bucket := GetBucket(value)
-	bucketValues, ok := f.buckets[bucket]
-	if !ok {
-		f.buckets[bucket] = MakeBucket(value, itemId)
+	if f.Count == 0 {
+		f.Min, f.Max = val, val
 	} else {
-		bucketValues.AddValueLink(value, itemId)
+		if val < f.Min {
+			f.Min = val
+		} else if val > f.Max {
+			f.Max = val
+		}
 	}
+	f.Count++
+	f.AllValuesCents[itemId] = cents
+
+	bId := GetBucketFromCents(cents)
+	b, ok := f.buckets[bId]
+	if !ok {
+		b = NewValueBucket()
+		f.buckets[bId] = b
+	}
+
+	// Add value to bucket (helper bound methods now defined outside this function)
+	b.AddValue(cents, itemId)
 	return true
 }
 
-func (f DecimalField) RemoveValueLink(data any, id uint) {
-	value, ok := data.(float64)
+func (f *DecimalField) RemoveValueLink(data any, itemId types.ItemId) {
+	val, ok := data.(float64)
 	if !ok {
 		return
 	}
+	id := uint32(itemId)
+	cents := int64(math.Round(val * 100.0))
 
-	bucket := GetBucket(value)
-	bucketValues, ok := f.buckets[bucket]
-	delete(f.AllValues, id)
-	if ok {
-		(&f).Count--
-		bucketValues.RemoveValueLink(value, id)
+	delete(f.AllValuesCents, id)
+	bId := GetBucketFromCents(cents)
+	if b, ok := f.buckets[bId]; ok {
+		b.RemoveValue(cents, id)
+		if f.Count > 0 {
+			f.Count--
+		}
+		// (Optional) Lazy: not rebuilding merged; acceptable if removals are rare.
 	}
 }
 
@@ -198,11 +254,12 @@ func (DecimalField) GetType() uint {
 	return types.FacetNumberType
 }
 
-func EmptyDecimalField(field *types.BaseField) DecimalField {
-	return DecimalField{
-		AllValues:   map[uint]float64{},
-		BaseField:   field,
-		NumberRange: &NumberRange[float64]{Min: 0, Max: 0},
-		buckets:     map[int]Bucket[float64]{},
+func EmptyDecimalField(field *types.BaseField) *DecimalField {
+	return &DecimalField{
+		BaseField:      field,
+		NumberRange:    &NumberRange[float64]{Min: 0, Max: 0},
+		buckets:        make(map[int]*ValueBucket),
+		AllValuesCents: make(map[uint32]int64),
+		Count:          0,
 	}
 }

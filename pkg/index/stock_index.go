@@ -55,7 +55,7 @@ func (i *ItemIndexWithStock) addItemValues(item types.Item) {
 		} else {
 			entry = entryAny.(*stockEntry)
 		}
-		entry.add(itemId)
+		entry.add(uint32(itemId))
 	}
 }
 
@@ -64,7 +64,7 @@ func (i *ItemIndexWithStock) removeItemValues(item types.Item) {
 	itemId := item.GetId()
 	i.ItemsInStock.Range(func(_, value any) bool {
 		entry := value.(*stockEntry)
-		entry.remove(itemId)
+		entry.remove(uint32(itemId))
 		return true
 	})
 }
@@ -149,14 +149,14 @@ func (i *ItemIndexWithStock) GetAllItems() iter.Seq[types.Item] {
 // GetItemBySku retrieves an item by SKU.
 func (i *ItemIndexWithStock) GetItemBySku(sku string) (types.Item, bool) {
 	if idAny, ok := i.ItemsBySku.Load(sku); ok {
-		id := idAny.(uint)
+		id := idAny.(types.ItemId)
 		return i.GetItem(id)
 	}
 	return nil, false
 }
 
 // GetItem retrieves an item by id.
-func (i *ItemIndexWithStock) GetItem(id uint) (types.Item, bool) {
+func (i *ItemIndexWithStock) GetItem(id types.ItemId) (types.Item, bool) {
 	if val, ok := i.Items.Load(id); ok {
 		return val.(types.Item), true
 	}
@@ -170,7 +170,7 @@ func (i *ItemIndexWithStock) HasItem(id uint) bool {
 }
 
 // GetItems returns a sequence for a set of ids.
-func (i *ItemIndexWithStock) GetItems(ids iter.Seq[uint]) iter.Seq[types.Item] {
+func (i *ItemIndexWithStock) GetItems(ids iter.Seq[types.ItemId]) iter.Seq[types.Item] {
 	return func(yield func(types.Item) bool) {
 		for id := range ids {
 			if item, ok := i.GetItem(id); ok {

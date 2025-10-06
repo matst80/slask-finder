@@ -5,17 +5,19 @@ import (
 	"io"
 	"sync"
 	"time"
+
+	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type RawDataItem struct {
 	mu         sync.RWMutex
-	Id         uint
+	Id         types.ItemId
 	Data       []byte
 	cache      *DataItem // decoded object
 	lastAccess time.Time
 }
 
-func NewRawDataItem(id uint, data []byte) *RawDataItem {
+func NewRawDataItem(id types.ItemId, data []byte) *RawDataItem {
 	return &RawDataItem{
 		Id:         id,
 		Data:       data,
@@ -36,7 +38,7 @@ func NewRawConverted(item *DataItem) *RawDataItem {
 	}
 }
 
-func (r *RawDataItem) GetId() uint {
+func (r *RawDataItem) GetId() types.ItemId {
 	return r.Id
 }
 
@@ -102,23 +104,23 @@ func (item *RawDataItem) GetStock() map[string]uint {
 	return item.getItem().GetStock()
 }
 
-func (item *RawDataItem) GetStringFields() map[uint]string {
+func (item *RawDataItem) GetStringFields() map[types.FacetId]string {
 	return item.getItem().GetStringFields()
 }
 
-func (item *RawDataItem) GetNumberFields() map[uint]float64 {
+func (item *RawDataItem) GetNumberFields() map[types.FacetId]float64 {
 	return item.getItem().GetNumberFields()
 }
 
-func (item *RawDataItem) GetStringFieldValue(id uint) (string, bool) {
+func (item *RawDataItem) GetStringFieldValue(id types.FacetId) (string, bool) {
 	return item.getItem().GetStringFieldValue(id)
 }
 
-func (item *RawDataItem) GetStringsFieldValue(id uint) ([]string, bool) {
+func (item *RawDataItem) GetStringsFieldValue(id types.FacetId) ([]string, bool) {
 	return item.getItem().GetStringsFieldValue(id)
 }
 
-func (item *RawDataItem) GetNumberFieldValue(id uint) (float64, bool) {
+func (item *RawDataItem) GetNumberFieldValue(id types.FacetId) (float64, bool) {
 	return item.getItem().GetNumberFieldValue(id)
 }
 

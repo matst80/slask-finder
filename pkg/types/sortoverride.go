@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type SortOverride map[uint]float64
+type SortOverride map[uint32]float64
 
 func (s *SortOverride) ToString() string {
 	ret := ""
@@ -16,12 +16,12 @@ func (s *SortOverride) ToString() string {
 	return ret
 }
 
-func (s *SortOverride) Set(id uint, value float64) {
+func (s *SortOverride) Set(id uint32, value float64) {
 	(*s)[id] = value
 }
 
 func (s *SortOverride) FromString(data string) error {
-	var key uint
+	var key uint32
 	var value float64
 	for item := range strings.SplitSeq(data, ",") {
 		_, err := fmt.Sscanf(item, "%d:%f", &key, &value)

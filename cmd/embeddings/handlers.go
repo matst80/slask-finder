@@ -28,7 +28,7 @@ func (ws *app) CosineSimilar(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
-	iid := uint(id)
+	iid := types.ItemId(id)
 	item, ok := ws.index.GetEmbeddings(iid)
 	if !ok {
 		http.Error(w, fmt.Sprintf("item not found with id: %d", id), http.StatusNotFound)
@@ -71,7 +71,7 @@ func (ws *app) SearchEmbeddings(w http.ResponseWriter, r *http.Request) {
 	ws.proxyIdsToStream(w, r, ids)
 }
 
-func (ws *app) proxyIdsToStream(w http.ResponseWriter, _ *http.Request, ids []uint) {
+func (ws *app) proxyIdsToStream(w http.ResponseWriter, _ *http.Request, ids []uint32) {
 	if len(ids) == 0 {
 		w.WriteHeader(http.StatusOK)
 		//w.Write([]byte("[]"))

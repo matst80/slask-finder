@@ -80,11 +80,11 @@ func (d *DiskStorage) SaveFacets(facets *[]types.StorageFacet) error {
 	return d.SaveJson(facets, facetsFile)
 }
 
-func (d *DiskStorage) LoadEmbeddings(output *map[uint]types.Embeddings) error {
+func (d *DiskStorage) LoadEmbeddings(output *map[types.ItemId]types.Embeddings) error {
 	return d.LoadGzippedGob(output, embeddingsFile)
 }
 
-func (d *DiskStorage) SaveEmbeddings(embeddings *map[uint]types.Embeddings) error {
+func (d *DiskStorage) SaveEmbeddings(embeddings *map[types.ItemId]types.Embeddings) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 

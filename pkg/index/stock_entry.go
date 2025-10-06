@@ -30,7 +30,7 @@ func (s *stockEntry) load() *roaring.Bitmap {
 }
 
 // add inserts id if not already present (idempotent).
-func (s *stockEntry) add(id uint) {
+func (s *stockEntry) add(id uint32) {
 	uid := uint32(id)
 	for {
 		cur := s.load()
@@ -51,15 +51,15 @@ func (s *stockEntry) add(id uint) {
 }
 
 // remove deletes id if present (idempotent).
-func (s *stockEntry) remove(id uint) {
-	uid := uint32(id)
+func (s *stockEntry) remove(id uint32) {
+
 	for {
 		cur := s.load()
-		if !cur.Contains(uid) {
+		if !cur.Contains(id) {
 			return
 		}
 		next := cur.Clone()
-		next.Remove(uid)
+		next.Remove(id)
 		if s.ptr.CompareAndSwap(cur, next) {
 			return
 		}
@@ -74,7 +74,7 @@ func (s *stockEntry) snapshot() types.ItemList {
 	var result types.ItemList
 	it := cur.Iterator()
 	for it.HasNext() {
-		result.AddId(uint(it.Next()))
+		result.AddId(it.Next())
 	}
 	return result
 }

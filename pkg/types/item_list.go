@@ -78,6 +78,10 @@ func FromBitmap(bm *roaring.Bitmap) *ItemList {
 	return &ItemList{bm: bm.Clone()}
 }
 
+func (l *ItemList) RemoveId(id uint32) {
+	l.bm.Remove(id)
+}
+
 // Bitmap exposes the internal bitmap (read-only!). Never mutate it directly.
 func (l *ItemList) Bitmap() *roaring.Bitmap {
 	if l == nil {
@@ -87,12 +91,12 @@ func (l *ItemList) Bitmap() *roaring.Bitmap {
 }
 
 // AddId adds a single id.
-func (l *ItemList) AddId(id uint) {
+func (l *ItemList) AddId(id uint32) {
 	if l == nil {
 		return
 	}
 	l.ensure()
-	l.bm.Add(uint32(id))
+	l.bm.Add(id)
 }
 
 // Merge (union) with other (A = A ∪ B).
@@ -102,11 +106,6 @@ func (l *ItemList) Merge(other *ItemList) {
 	}
 	l.ensure()
 	l.bm.Or(other.bm)
-}
-
-// AddAllFrom is an alias to Merge for compatibility.
-func (l *ItemList) AddAllFrom(other *ItemList) {
-	l.Merge(other)
 }
 
 // Intersect in-place (A = A ∩ B).
@@ -143,7 +142,7 @@ func (l *ItemList) HasIntersection(other *ItemList) bool {
 }
 
 // IntersectionLen returns |A ∩ B|.
-func (l *ItemList) IntersectionLen(other *ItemList) int {
+func (l *ItemList) IntersectionLen(other *ItemList) uint64 {
 	if l == nil || other == nil || l.bm == nil || other.bm == nil || l.bm.IsEmpty() || other.bm.IsEmpty() {
 		return 0
 	}
@@ -152,7 +151,7 @@ func (l *ItemList) IntersectionLen(other *ItemList) int {
 	}
 	tmp := l.bm.Clone()
 	tmp.And(other.bm)
-	return int(tmp.GetCardinality())
+	return tmp.GetCardinality()
 }
 
 // Len returns cardinality as int.
@@ -172,21 +171,21 @@ func (l *ItemList) Cardinality() uint64 {
 }
 
 // Contains tests membership.
-func (l *ItemList) Contains(id uint) bool {
+func (l *ItemList) Contains(id uint32) bool {
 	if l == nil || l.bm == nil {
 		return false
 	}
-	return l.bm.Contains(uint32(id))
+	return l.bm.Contains(id)
 }
 
 // ForEach iterates in ascending order; stop early if fn returns false.
-func (l *ItemList) ForEach(fn func(id uint) bool) {
+func (l *ItemList) ForEach(fn func(id uint32) bool) {
 	if l == nil || l.bm == nil || fn == nil {
 		return
 	}
 	it := l.bm.Iterator()
 	for it.HasNext() {
-		if !fn(uint(it.Next())) {
+		if !fn(it.Next()) {
 			return
 		}
 	}
@@ -205,40 +204,30 @@ func (l *ItemList) ToSlice() []uint {
 	return out
 }
 
-// ToMap converts to map[uint]struct{} (only use when legacy APIs demand it).
-func (l *ItemList) ToMap() map[uint]struct{} {
-	m := make(map[uint]struct{}, l.Len())
-	l.ForEach(func(id uint) bool {
-		m[id] = struct{}{}
-		return true
-	})
-	return m
-}
+// // MergeMap merges keys from a map[uint]struct{}.
+// func (l *ItemList) MergeMap(m map[uint]struct{}) {
+// 	if l == nil || len(m) == 0 {
+// 		return
+// 	}
+// 	l.ensure()
+// 	// Copy keys into slice for potential batch addition improvements (keeps sorted insert stable)
+// 	keys := make([]uint32, 0, len(m))
+// 	for k := range m {
+// 		keys = append(keys, uint32(k))
+// 	}
+// 	// roaring.AddMany does not guarantee deduped order; sort for compression effectiveness.
+// 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
+// 	l.bm.AddMany(keys)
+// }
 
-// MergeMap merges keys from a map[uint]struct{}.
-func (l *ItemList) MergeMap(m map[uint]struct{}) {
-	if l == nil || len(m) == 0 {
-		return
-	}
-	l.ensure()
-	// Copy keys into slice for potential batch addition improvements (keeps sorted insert stable)
-	keys := make([]uint32, 0, len(m))
-	for k := range m {
-		keys = append(keys, uint32(k))
-	}
-	// roaring.AddMany does not guarantee deduped order; sort for compression effectiveness.
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	l.bm.AddMany(keys)
-}
-
-// OrBitmap unions an external roaring bitmap.
-func (l *ItemList) OrBitmap(bm *roaring.Bitmap) {
-	if bm == nil || bm.IsEmpty() || l == nil {
-		return
-	}
-	l.ensure()
-	l.bm.Or(bm)
-}
+// // OrBitmap unions an external roaring bitmap.
+// func (l *ItemList) OrBitmap(bm *roaring.Bitmap) {
+// 	if bm == nil || bm.IsEmpty() || l == nil {
+// 		return
+// 	}
+// 	l.ensure()
+// 	l.bm.Or(bm)
+// }
 
 // FromSlice builds an ItemList from ids (deduplicates & sorts).
 func FromSlice(ids []uint) *ItemList {
