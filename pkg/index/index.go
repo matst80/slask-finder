@@ -3,7 +3,6 @@ package index
 import (
 	"iter"
 	"log"
-	"maps"
 	"sync"
 	"time"
 
@@ -75,7 +74,13 @@ func (i *ItemIndex) GetAllItems() iter.Seq[types.Item] {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
-	return maps.Values(i.Items)
+	return func(yield func(types.Item) bool) {
+		for _, item := range i.Items {
+			if !yield(item) {
+				break
+			}
+		}
+	}
 
 }
 
