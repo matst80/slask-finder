@@ -9,21 +9,33 @@ import (
 )
 
 type MapStock struct {
-	data map[string]uint
+	data map[string]uint32
 }
 
 type Stock interface {
-	GetStock(string) map[string]uint
+	GetStock(string) map[string]uint32
 }
 
 func NewMapStock() *MapStock {
 	return &MapStock{
-		data: make(map[string]uint),
+		data: make(map[string]uint32),
 	}
 }
 
-func (f *MapStock) GetStock() map[string]uint {
+func (f *MapStock) GetStock() map[string]uint32 {
 	return f.data
+}
+
+func (f *MapStock) SetStock(id string, value uint32) error {
+	if id == "" {
+		return errors.New("id cannot be empty")
+	}
+	if value == 0 {
+		delete(f.data, id)
+		return nil
+	}
+	f.data[id] = value
+	return nil
 }
 
 // MarshalJSON implements a low-allocation JSON object serializer.
@@ -62,7 +74,7 @@ func (f MapStock) MarshalJSON() ([]byte, error) {
 // Accepts values: string, number, or array of strings (joined with ", ").
 func (f *MapStock) UnmarshalJSON(data []byte) error {
 	// Reset slices (allow reuse of underlying arrays).
-	f.data = map[string]uint{}
+	f.data = map[string]uint32{}
 
 	i := 0
 	skipWS := func() {
@@ -154,7 +166,7 @@ func (f *MapStock) UnmarshalJSON(data []byte) error {
 				}
 			}
 			if id64 > 0 {
-				f.data[keyStr] = uint(id64)
+				f.data[keyStr] = uint32(id64)
 			}
 
 		}
