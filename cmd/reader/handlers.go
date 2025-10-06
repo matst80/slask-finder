@@ -90,7 +90,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 	end := start + sr.PageSize
 
 	qm.Wait()
-	log.Printf("start: %d", start)
+
 	sortedItemsItr := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, *ids, start)
 
 	idx := 0

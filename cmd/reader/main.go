@@ -118,6 +118,13 @@ func main() {
 	mux.HandleFunc("GET /api/save-trigger", common.JsonHandler(tracker, app.SaveTrigger))
 	mux.HandleFunc("GET /api/relation-groups", common.JsonHandler(tracker, app.GetRelationGroups))
 	mux.HandleFunc("GET /api/facet-groups", common.JsonHandler(tracker, app.GetFacetGroups))
+	mux.HandleFunc("GET /api/stores", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Expires", time.Now().Add(time.Hour).Format(time.RFC1123))
+		w.WriteHeader(http.StatusOK)
+		diskStorage.StreamContent(w, "stores.json")
+	})
 	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
 	debugMux := http.NewServeMux()

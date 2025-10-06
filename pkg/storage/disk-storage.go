@@ -114,6 +114,17 @@ func (d *DiskStorage) SaveEmbeddings(embeddings any) error {
 	return d.SaveGzippedGob(embeddings, embeddingsFile)
 }
 
+func (d *DiskStorage) StreamContent(w io.Writer, fileName string) (int64, error) {
+	osFileName, _ := d.GetFileName(fileName)
+	file, err := os.Open(osFileName)
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+	return file.WriteTo(w)
+
+}
+
 // func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandler) error {
 // 	file, err := os.Open(fileName)
 // 	if err != nil {
