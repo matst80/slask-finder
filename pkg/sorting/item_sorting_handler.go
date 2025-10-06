@@ -165,24 +165,21 @@ func (h *SortingItemHandler) GetSort(id string) types.ByValue {
 	return nil
 }
 
-func (s *SortingItemHandler) GetSortedItemsIterator(sessionId int, sort string, items types.ItemList, start int) iter.Seq[uint] {
+func (s *SortingItemHandler) GetSortedItemsIterator(sessionId int, sort string, items *types.ItemList, start int) iter.Seq[uint] {
 	precalculated := s.GetSort(sort)
 	c := 0
 	return func(yield func(uint) bool) {
 		for _, v := range precalculated {
-			if _, ok := items[v.Id]; !ok {
+			if items == nil || !items.Contains(v.Id) {
 				continue
 			}
 			if c < start {
 				c++
 				continue
 			}
-
 			if !yield(v.Id) {
 				break
 			}
 		}
-
 	}
-
 }

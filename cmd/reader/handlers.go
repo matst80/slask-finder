@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -39,9 +38,8 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	wg := &sync.WaitGroup{}
 
 	qm.Wait()
-	if len(*baseIds) == 0 {
-		maps.Copy(*baseIds, ws.searchIndex.All)
-
+	if baseIds.Len() == 0 {
+		baseIds.AddAllFrom(&ws.searchIndex.All)
 	}
 	ws.facetHandler.GetOtherFacets(ids, sr, ch, wg)
 	ws.facetHandler.GetSearchedFacets(baseIds, sr, ch, wg)
@@ -91,7 +89,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 
 	qm.Wait()
 
-	sortedItemsItr := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, *ids, start)
+	sortedItemsItr := ws.sortingHandler.GetSortedItemsIterator(sessionId, sr.Sort, ids, start)
 
 	idx := 0
 
@@ -112,7 +110,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 	if err != nil {
 		return err
 	}
-	l := len(*ids)
+	l := ids.Len()
 
 	if ws.tracker != nil && !sr.SkipTracking {
 		go ws.tracker.TrackSearch(sessionId, sr.Filters, l, sr.Query, sr.Page, r)
@@ -200,7 +198,7 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 	i := 0
 	related := <-relatedChan
 
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", related, 0)) {
 		if ok && item.GetId() != uint(id64) {
 			_, err = item.Write(w)
 			i++
@@ -259,7 +257,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 	}
 	i := 0
 
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", *related, 0)) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", related, 0)) {
 
 		if len(excludedProductTypes) > 0 {
 			if productType, typeOk := item.GetStringFieldValue(types.CurrentSettings.ProductTypeId); typeOk {
@@ -319,7 +317,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 			return err
 		}
 		max := 30
-		for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
+		for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", &ws.searchIndex.All, 0)) {
 
 			_, err := item.Write(w)
 			if err != nil {
@@ -351,7 +349,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	docResult := ws.searchIndex.Search(query)
 
-	types.Merge(results, *docResult)
+	(&results).AddAllFrom(docResult)
 
 	// Use previous word to rank suggestions via Markov chain if available
 	prevWord := ""
@@ -367,12 +365,12 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 
 	suggestResult := &SuggestResult{}
 	suggestResult.Other = other
-	hasResults := len(results) > 0
+	hasResults := results.Len() > 0
 	var err error
 	for _, s := range <-wordMatchesChan {
 		suggestResult.Prefix = lastWord
 		suggestResult.Word = s.Word
-		totalHits := len(*s.Items)
+		totalHits := s.Items.Len()
 		if totalHits > 0 {
 			if !hasResults {
 				suggestResult.Hits = totalHits
@@ -396,7 +394,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 	}
 
 	idx := 0
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", results, 0)) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", &results, 0)) {
 		idx++
 		_, err = item.Write(w)
 		if idx >= 20 || err != nil {
@@ -437,7 +435,7 @@ func (ws *app) Popular(w http.ResponseWriter, r *http.Request, sessionId int, en
 		return err
 	}
 	max := 60
-	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", ws.searchIndex.All, 0)) {
+	for item := range ws.itemIndex.GetItems(ws.sortingHandler.GetSortedItemsIterator(sessionId, "popular", &ws.searchIndex.All, 0)) {
 
 		_, err := item.Write(w)
 		if err != nil {
