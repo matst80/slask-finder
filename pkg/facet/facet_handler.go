@@ -262,7 +262,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 	}
 
 	switch field := f.(type) {
-	case *KeyField:
+	case KeyField:
 		kf := field
 		hasValues := returnAll
 		r := make(map[string]uint64, len(kf.Keys))
@@ -289,7 +289,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 			},
 		}
 
-	case *IntegerField:
+	case IntegerField:
 		intField := field
 		if returnAll {
 			c <- &JsonFacet{
@@ -311,7 +311,7 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 				Result:    r,
 			}
 		}
-	case *DecimalField:
+	case DecimalField:
 		decField := field
 		if returnAll {
 			c <- &JsonFacet{

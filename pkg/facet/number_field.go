@@ -188,12 +188,8 @@ func (f *DecimalField) bucketUpperBoundCents(bucket int) int64 {
 	return int64(((bucket + 1) << Bits_To_Shift) - 1)
 }
 
-func (f *DecimalField) AddValueLink(data any, id types.ItemId) bool {
+func (f *DecimalField) addValueLink(val float64, id uint32) bool {
 	if !f.Searchable {
-		return false
-	}
-	val, ok := data.(float64)
-	if !ok {
 		return false
 	}
 	itemId := uint32(id)
@@ -221,14 +217,29 @@ func (f *DecimalField) AddValueLink(data any, id types.ItemId) bool {
 	// Add value to bucket (helper bound methods now defined outside this function)
 	b.AddValue(cents, itemId)
 	return true
+
 }
 
-func (f *DecimalField) RemoveValueLink(data any, itemId types.ItemId) {
+func (f DecimalField) AddValueLink(data any, id types.ItemId) bool {
+	if !f.Searchable {
+		return false
+	}
+	val, ok := data.(float64)
+	if !ok {
+		return false
+	}
+	return f.addValueLink(val, uint32(id))
+}
+
+func (f DecimalField) RemoveValueLink(data any, itemId types.ItemId) {
 	val, ok := data.(float64)
 	if !ok {
 		return
 	}
-	id := uint32(itemId)
+	f.removeValueLink(val, uint32(itemId))
+}
+
+func (f *DecimalField) removeValueLink(val float64, id uint32) {
 	cents := int64(math.Round(val * 100.0))
 
 	delete(f.AllValuesCents, id)
