@@ -88,21 +88,18 @@ func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
 	id := item.GetId()
 
 	if existingAny, isUpdate := i.Items.Load(id); isUpdate {
-		existing := existingAny.(types.Item)
-		i.removeItemValues(existing)
+		if existing, ok := existingAny.(types.Item); ok {
+			i.removeItemValues(existing)
+		}
 		if item.IsDeleted() {
 			i.Items.Delete(id)
-			i.ItemsBySku.Delete(existing.GetSku())
+			i.ItemsBySku.Delete(item.GetSku())
 			noDeletes.Inc()
 			return
 		}
-	} else if item.IsDeleted() {
-		// Deleting a non-existent item; nothing to do.
-		return
 	}
 
 	if item.IsDeleted() {
-		// Already handled above; guard for clarity.
 		return
 	}
 
