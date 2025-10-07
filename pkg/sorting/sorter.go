@@ -97,41 +97,8 @@ func (s *BaseSorter) GetSort() types.ByValue {
 	isReversed := s.isReversed
 	s.mu.RUnlock() // release before the (potentially) more expensive sort
 
-	if !isReversed {
-		// Descending by Value, tie-break by Id (stable deterministic)
-		slices.SortFunc(sortMap, func(a, b types.Lookup) int {
-			if a.Value > b.Value {
-				return -1
-			}
-			if a.Value < b.Value {
-				return 1
-			}
-			if a.Id < b.Id {
-				return -1
-			}
-			if a.Id > b.Id {
-				return 1
-			}
-			return 0
-		})
-	} else {
-		// Ascending by Value, tie-break by Id
-		slices.SortFunc(sortMap, func(a, b types.Lookup) int {
-			if a.Value < b.Value {
-				return -1
-			}
-			if a.Value > b.Value {
-				return 1
-			}
-			if a.Id < b.Id {
-				return -1
-			}
-			if a.Id > b.Id {
-				return 1
-			}
-			return 0
-		})
-	}
+	// Use shared comparator helper: descending by default, ascending if isReversed.
+	slices.SortFunc(sortMap, LookupSortFunc(isReversed))
 
 	// Mark clean under write lock.
 	s.mu.Lock()

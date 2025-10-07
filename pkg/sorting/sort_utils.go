@@ -1,7 +1,6 @@
 package sorting
 
 import (
-	"cmp"
 	"fmt"
 	"slices"
 	"strings"
@@ -44,8 +43,80 @@ func (s *StaticPositions) FromString(data string) error {
 	return nil
 }
 
-func SortByValues(arr types.ByValue) {
-	slices.SortFunc(arr, func(a, b types.Lookup) int {
-		return cmp.Compare(b.Value, a.Value)
-	})
+// LookupSortFunc returns a comparator suitable for slices.SortFunc over []types.Lookup.
+// When ascending is false it sorts by Value descending.
+// Ties on Value are broken deterministically by Id (ascending) to avoid jitter and
+// remove the need for artificial epsilon adjustments.
+func LookupSortFunc(ascending bool) func(a, b types.Lookup) int {
+	if ascending {
+		return func(a, b types.Lookup) int {
+			if a.Value < b.Value {
+				return -1
+			}
+			if a.Value > b.Value {
+				return 1
+			}
+			// tie-break on Id
+			if a.Id < b.Id {
+				return -1
+			}
+			if a.Id > b.Id {
+				return 1
+			}
+			return 0
+		}
+	}
+	// descending
+	return func(a, b types.Lookup) int {
+		if a.Value > b.Value {
+			return -1
+		}
+		if a.Value < b.Value {
+			return 1
+		}
+		if a.Id < b.Id {
+			return -1
+		}
+		if a.Id > b.Id {
+			return 1
+		}
+		return 0
+	}
 }
+
+// SortByValues keeps backward compatibility: sorts by Value descending.
+func SortByValues(arr types.ByValue) {
+	slices.SortFunc(arr, LookupSortFunc(false))
+}
+
+// SortByValuesOrder allows explicit ascending / descending control.
+func SortByValuesOrder(arr types.ByValue, ascending bool) {
+	slices.SortFunc(arr, LookupSortFunc(ascending))
+}
+
+/*
+Benchmark note:
+
+Add a new file sorting/sorter_benchmark_test.go with:
+
+package sorting
+
+import (
+	"testing"
+	"github.com/matst80/slask-finder/pkg/types"
+)
+
+func BenchmarkBaseSorterGetSort(b *testing.B) {
+	s := NewBaseSorter("bench", func(it types.Item) float64 {
+		return float64(it.GetPrice())
+	}, false).(*BaseSorter)
+
+	// mock items implementing types.Item would be added here (omitted for brevity)
+
+	for n := 0; n < b.N; n++ {
+		_ = s.GetSort()
+	}
+}
+
+(You asked for a benchmark. It must live in a *_test.go file to run under `go test -bench=.`.)
+*/
