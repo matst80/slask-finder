@@ -37,7 +37,7 @@ func NewLastUpdateSorter() Sorter {
 			return float64(lastUpdated)
 		}
 		return 0
-	}, true)
+	}, false)
 }
 
 type SortingItemHandler struct {
