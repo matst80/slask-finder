@@ -19,6 +19,10 @@ var (
 		Name: "slaskfinder_index_deletes_total",
 		Help: "The total number of item deletions",
 	})
+	noInserts = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "slaskfinder_index_inserts_total",
+		Help: "The total number of item insertions",
+	})
 )
 
 // stockEntry is defined in stock_entry.go:
@@ -87,7 +91,8 @@ func (i *ItemIndexWithStock) HandleItems(it iter.Seq[types.Item]) {
 func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
 	id := item.GetId()
 
-	if existingAny, isUpdate := i.Items.Load(id); isUpdate {
+	existingAny, isUpdate := i.Items.Load(id)
+	if isUpdate {
 		if existing, ok := existingAny.(types.Item); ok {
 			i.removeItemValues(existing)
 		}
@@ -101,6 +106,9 @@ func (i *ItemIndexWithStock) handleItemUnsafe(item types.Item) {
 
 	if item.IsDeleted() {
 		return
+	}
+	if !isUpdate {
+		noInserts.Inc()
 	}
 
 	i.Items.Store(id, item)

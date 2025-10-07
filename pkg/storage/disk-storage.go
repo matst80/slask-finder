@@ -356,6 +356,8 @@ func (p *DiskStorage) SaveItems(items iter.Seq[types.Item]) error {
 	err = os.Rename(tmpFileName, fileName)
 	if err != nil {
 		log.Printf("Error renaming file: %v", err)
+	} else {
+		log.Print("Save completed.")
 	}
 	return err
 }
