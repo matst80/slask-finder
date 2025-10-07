@@ -9,7 +9,7 @@
       "type": "go",
       "request": "launch",
       "args": ["-profile-startup=startup.prof"],
-      "mode": "auto",
+      //"mode": "auto",
       "envFile": "${workspaceFolder}/.env",
       "program": "./cmd/reader"
     }

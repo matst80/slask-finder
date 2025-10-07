@@ -67,40 +67,11 @@ type IntegerField struct {
 	Count     int `json:"count"`
 }
 
-func (f IntegerField) IsExcludedFromFacets() bool {
+func (f *IntegerField) IsExcludedFromFacets() bool {
 	return f.HideFacet || f.BaseField.InternalOnly
 }
 
-// func (f *IntegerField) GetExtents2(matchIds *types.ItemList) *IntegerFieldResult {
-
-// 	minV := 9999999999999999
-// 	maxV := -9999999999999999
-
-// 	//hasValues := false
-// 	v := 0
-// 	ok := false
-// 	for id := range *matchIds {
-// 		if v, ok = f.AllValues[id]; ok {
-// 			minV = min(minV, v)
-// 			maxV = max(maxV, v)
-// 		}
-// 	}
-
-// 	// if useRealBuckets {
-// 	// 	slices.Sort(values)
-// 	// 	fieldResult.Buckets = facet.NormalizeResults(values)
-// 	// } else {
-// 	//fieldResult.Buckets = facet.NormalizeResults(field.GetBucketSizes(fieldResult.Min, fieldResult.Max))
-// 	//}
-
-// 	return &IntegerFieldResult{
-// 		//Count: uint(count),
-// 		Min: minV,
-// 		Max: maxV,
-// 	}
-// }
-
-func (f IntegerField) IsCategory() bool {
+func (f *IntegerField) IsCategory() bool {
 	return false
 }
 
@@ -206,7 +177,7 @@ func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList 
 	return types.FromBitmap(acc)
 }
 
-func (f IntegerField) Match(input any) *types.ItemList {
+func (f *IntegerField) Match(input any) *types.ItemList {
 	value, ok := input.(types.RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
@@ -229,24 +200,23 @@ func (f *IntegerField) bucketUpperBoundInt(bucket int) int64 {
 	return int64(((bucket + 1) << Bits_To_Shift) - 1)
 }
 
-func (f IntegerField) UpdateBaseField(field *types.BaseField) {
+func (f *IntegerField) UpdateBaseField(field *types.BaseField) {
 	f.BaseField.UpdateFrom(field)
 }
 
-func (f IntegerField) MatchAsync(input any, ch chan<- *types.ItemList) {
+func (f *IntegerField) MatchAsync(input any, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }
 
-func (f IntegerField) GetBaseField() *types.BaseField {
+func (f *IntegerField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
 func (f *IntegerField) Bounds() NumberRange[int] {
-
 	return *f.NumberRange
 }
 
-func (f IntegerField) GetValues() []any {
+func (f *IntegerField) GetValues() []any {
 	return []any{f.NumberRange}
 }
 
@@ -272,7 +242,7 @@ func (f *IntegerField) addValueLink(value int, itemId uint32) {
 	b.AddValue(int64(value), itemId)
 }
 
-func (f IntegerField) AddValueLink(data any, itemId types.ItemId) bool {
+func (f *IntegerField) AddValueLink(data any, itemId types.ItemId) bool {
 	if !f.Searchable {
 		return false
 	}
@@ -291,11 +261,13 @@ func (f IntegerField) AddValueLink(data any, itemId types.ItemId) bool {
 			return true
 		}
 	case []string:
-		first := value[0]
-		intValue, err := strconv.Atoi(first)
-		if err == nil {
-			f.addValueLink(intValue, id)
-			return true
+		if len(value) > 0 {
+			first := value[0]
+			intValue, err := strconv.Atoi(first)
+			if err == nil {
+				f.addValueLink(intValue, id)
+				return true
+			}
 		}
 	default:
 		log.Printf("'%v': AddValueLink: %T %d (%s)", data, value, f.Id, f.Name)
@@ -316,7 +288,7 @@ func (f *IntegerField) removeValueLink(value int, id uint32) {
 	}
 }
 
-func (f IntegerField) RemoveValueLink(data any, itemId types.ItemId) {
+func (f *IntegerField) RemoveValueLink(data any, itemId types.ItemId) {
 	id := uint32(itemId)
 	switch value := data.(type) {
 	case int:
@@ -328,16 +300,18 @@ func (f IntegerField) RemoveValueLink(data any, itemId types.ItemId) {
 		if err == nil {
 			f.removeValueLink(intValue, id)
 		}
+	case []string:
+		if len(value) > 0 {
+			if intValue, err := strconv.Atoi(value[0]); err == nil {
+				f.removeValueLink(intValue, id)
+			}
+		}
 	}
 }
 
 func (f *IntegerField) TotalCount() int {
 	return f.Count
 }
-
-// func (f *IntegerField) GetRangeForIds(ids *IdList) NumberRange[int] {
-// 	return NumberRange[int]{Min: f.Min, Max: f.Max}
-// }
 
 func (IntegerField) GetType() uint {
 	return types.FacetIntegerType

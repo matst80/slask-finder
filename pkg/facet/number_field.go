@@ -29,7 +29,7 @@ func (k *DecimalFieldResult) HasValues() bool {
 	return k.Min < k.Max
 }
 
-func (f DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
+func (f *DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
 	if matchIds == nil {
 		return nil
 	}
@@ -62,18 +62,11 @@ func (f DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
 	}
 }
 
-// func (f *DecimalField) ValueForItemId(id uint) *float64 {
-// 	if v, ok := f.AllValues[id]; ok {
-// 		return &v
-// 	}
-// 	return nil
-// }
-
-func (f DecimalField) IsExcludedFromFacets() bool {
+func (f *DecimalField) IsExcludedFromFacets() bool {
 	return f.HideFacet || f.BaseField.InternalOnly
 }
 
-func (f DecimalField) IsCategory() bool {
+func (f *DecimalField) IsCategory() bool {
 	return false
 }
 
@@ -137,7 +130,7 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 	return types.FromBitmap(acc)
 }
 
-func (f DecimalField) Match(input any) *types.ItemList {
+func (f *DecimalField) Match(input any) *types.ItemList {
 	value, ok := input.(types.RangeFilter)
 	if ok {
 		min, minOk := value.Min.(float64)
@@ -153,15 +146,15 @@ func (f *DecimalField) updateBaseField(field *types.BaseField) {
 	f.BaseField.UpdateFrom(field)
 }
 
-func (f DecimalField) UpdateBaseField(field *types.BaseField) {
+func (f *DecimalField) UpdateBaseField(field *types.BaseField) {
 	f.updateBaseField(field)
 }
 
-func (f DecimalField) MatchAsync(input any, ch chan<- *types.ItemList) {
+func (f *DecimalField) MatchAsync(input any, ch chan<- *types.ItemList) {
 	ch <- f.Match(input)
 }
 
-func (f DecimalField) GetBaseField() *types.BaseField {
+func (f *DecimalField) GetBaseField() *types.BaseField {
 	return f.BaseField
 }
 
@@ -174,11 +167,11 @@ func (f *DecimalField) Bounds() NumberRange[float64] {
 	return *f.NumberRange
 }
 
-func (f DecimalField) GetValues() []any {
+func (f *DecimalField) GetValues() []any {
 	return []any{f.NumberRange}
 }
 
-// Helper bounds (coarse bucket) in integer cents domain (extracted from misplaced inline definitions)
+// Helper bounds (coarse bucket) in integer cents domain
 func (f *DecimalField) bucketLowerBoundCents(bucket int) int64 {
 	return int64(bucket << Bits_To_Shift)
 }
@@ -214,13 +207,11 @@ func (f *DecimalField) addValueLink(val float64, id uint32) bool {
 		f.buckets[bId] = b
 	}
 
-	// Add value to bucket (helper bound methods now defined outside this function)
 	b.AddValue(cents, itemId)
 	return true
-
 }
 
-func (f DecimalField) AddValueLink(data any, id types.ItemId) bool {
+func (f *DecimalField) AddValueLink(data any, id types.ItemId) bool {
 	if !f.Searchable {
 		return false
 	}
@@ -231,7 +222,7 @@ func (f DecimalField) AddValueLink(data any, id types.ItemId) bool {
 	return f.addValueLink(val, uint32(id))
 }
 
-func (f DecimalField) RemoveValueLink(data any, itemId types.ItemId) {
+func (f *DecimalField) RemoveValueLink(data any, itemId types.ItemId) {
 	val, ok := data.(float64)
 	if !ok {
 		return
@@ -249,7 +240,6 @@ func (f *DecimalField) removeValueLink(val float64, id uint32) {
 		if f.Count > 0 {
 			f.Count--
 		}
-		// (Optional) Lazy: not rebuilding merged; acceptable if removals are rare.
 	}
 }
 

@@ -211,10 +211,14 @@ func (h *FacetItemHandler) AddIntegerField(field *types.BaseField) {
 func (h *FacetItemHandler) GetKeyFacet(id types.FacetId) (*KeyField, bool) {
 	if f, ok := h.Facets[id]; ok {
 		switch tf := f.(type) {
-		case KeyField:
-			return &tf, true
 		case *KeyField:
 			return tf, true
+
+		case KeyField:
+			return &tf, true
+
+		default:
+			log.Printf("not a key facet type %T", f)
 		}
 	}
 	return nil, false
@@ -262,12 +266,11 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 	}
 
 	switch field := f.(type) {
-	case KeyField:
-		kf := field
+	case *KeyField:
 		hasValues := returnAll
-		r := make(map[string]uint64, len(kf.Keys))
+		r := make(map[string]uint64, len(field.Keys))
 		var count uint64
-		for key, sourceIds := range kf.Keys {
+		for key, sourceIds := range field.Keys {
 			if returnAll {
 				r[key] = sourceIds.Cardinality()
 			} else {
@@ -289,19 +292,18 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 			},
 		}
 
-	case IntegerField:
-		intField := field
+	case *IntegerField:
 		if returnAll {
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,
 				Result: &IntegerFieldResult{
-					Min: intField.Min,
-					Max: intField.Max,
+					Min: field.Min,
+					Max: field.Max,
 				},
 			}
 		} else {
-			r := intField.GetExtents(baseIds)
+			r := field.GetExtents(baseIds)
 			if r == nil {
 				return
 			}
@@ -311,19 +313,19 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 				Result:    r,
 			}
 		}
-	case DecimalField:
-		decField := field
+	case *DecimalField:
+
 		if returnAll {
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,
 				Result: &DecimalFieldResult{
-					Min: decField.Min,
-					Max: decField.Max,
+					Min: field.Min,
+					Max: field.Max,
 				},
 			}
 		} else {
-			r := decField.GetExtents(baseIds)
+			r := field.GetExtents(baseIds)
 			c <- &JsonFacet{
 				BaseField: baseField,
 				Selected:  selected,

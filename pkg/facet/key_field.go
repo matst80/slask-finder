@@ -264,8 +264,8 @@ func (f *KeyField) UniqueCount() int {
 	return len(f.Keys)
 }
 
-func EmptyKeyValueField(field *types.BaseField) KeyField {
-	return KeyField{
+func EmptyKeyValueField(field *types.BaseField) *KeyField {
+	return &KeyField{
 		BaseField: field,
 		Keys:      map[string]*types.ItemList{},
 	}

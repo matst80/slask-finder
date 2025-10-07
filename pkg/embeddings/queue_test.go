@@ -30,9 +30,9 @@ func (m *MockEmbeddingsEngine) GenerateEmbeddings(text string) (types.Embeddings
 func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 	mockEngine := &MockEmbeddingsEngine{}
 
-	storedEmbeddings := make(map[uint]types.Embeddings)
+	storedEmbeddings := make(map[types.ItemId]types.Embeddings)
 	var storeMutex sync.Mutex
-	storeFunc := func(id uint, embeddings types.Embeddings) {
+	storeFunc := func(id types.ItemId, embeddings types.Embeddings) {
 		storeMutex.Lock()
 		storedEmbeddings[id] = embeddings
 		storeMutex.Unlock()
@@ -57,7 +57,7 @@ func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 	// First batch
 	wg.Add(1)
 	for i := range 5 {
-		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
+		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: types.ItemId(i)}})
 	}
 	wg.Wait()
 
@@ -72,7 +72,7 @@ func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 	// Second batch
 	wg.Add(1)
 	for i := 5; i < 10; i++ {
-		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
+		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: types.ItemId(i)}})
 	}
 	wg.Wait()
 
@@ -87,9 +87,9 @@ func TestEmbeddingsQueue_IdleHandling(t *testing.T) {
 
 func TestEmbeddingsQueue_StopWithRemainingItems(t *testing.T) {
 	mockEngine := &MockEmbeddingsEngine{}
-	storedEmbeddings := make(map[uint]types.Embeddings)
+	storedEmbeddings := make(map[types.ItemId]types.Embeddings)
 	var storeMutex sync.Mutex
-	storeFunc := func(id uint, embeddings types.Embeddings) {
+	storeFunc := func(id types.ItemId, embeddings types.Embeddings) {
 		storeMutex.Lock()
 		storedEmbeddings[id] = embeddings
 		storeMutex.Unlock()
@@ -111,7 +111,7 @@ func TestEmbeddingsQueue_StopWithRemainingItems(t *testing.T) {
 
 	wg.Add(1)
 	for i := range 10 {
-		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: uint(i)}})
+		queue.QueueItem(&index.DataItem{BaseItem: &index.BaseItem{Id: types.ItemId(i)}})
 	}
 	wg.Wait() // wait for idle first time
 
@@ -143,7 +143,7 @@ func TestEmbeddingsQueue_DoneFuncError(t *testing.T) {
 		return errors.New("done func error")
 	}
 
-	queue := NewEmbeddingsQueue(mockEngine, func(u uint, e types.Embeddings) {}, erroringDoneFunc, 1, 5)
+	queue := NewEmbeddingsQueue(mockEngine, func(u types.ItemId, e types.Embeddings) {}, erroringDoneFunc, 1, 5)
 	queue.Start()
 
 	wg.Add(1)
