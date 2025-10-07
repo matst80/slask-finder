@@ -46,15 +46,19 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 	wg.Go(func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		id := item.GetId()
+		itemId := item.GetId()
+		id := uint32(itemId)
+		exists := h.All.Contains(id)
 		if item.IsDeleted() {
-			h.RemoveDocument(id)
+			if exists {
+				h.RemoveDocument(itemId)
+			}
 			h.All.RemoveId(uint32(id))
 
 			// h.Trie.RemoveDocument(id)
 		} else {
 
-			if !h.All.Contains(uint32(id)) {
+			if !exists) {
 				h.All.AddId(uint32(id))
 
 				h.CreateDocumentUnsafe(id, item.ToStringList()...)
