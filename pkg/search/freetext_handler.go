@@ -69,7 +69,7 @@ func (i *FreeTextItemHandler) RemoveDocument(itemId types.ItemId) {
 	for token := range i.TokenMap {
 		if ids, ok := i.TokenMap[token]; ok {
 			if ids.Contains(id) {
-				ids.Remove(uint32(id))
+				ids.Remove(id)
 				deleted = true
 			}
 			//delete(*ids, id)
