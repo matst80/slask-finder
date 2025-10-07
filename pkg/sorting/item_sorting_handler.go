@@ -66,7 +66,7 @@ func NewSortingItemHandler(itemPopularity *types.SortOverride) *SortingItemHandl
 			Data: *itemPopularity,
 		})
 	}
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(time.Minute * 2)
 	go func() {
 		for range ticker.C {
 			handler.UpdateSorts()

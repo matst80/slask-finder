@@ -49,7 +49,7 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 
 	log.Printf("Listening for item upserts")
 
-	ticker := time.NewTicker(time.Minute * 1)
+	ticker := time.NewTicker(time.Minute * 3)
 	go func() {
 		for range ticker.C {
 			if a.gotSaveTrigger {
