@@ -28,16 +28,16 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 	err = messaging.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
 		var items []*index.DataItem
 		if err := json.Unmarshal(d.Body, &items); err == nil {
-			log.Printf("Got upserts %d", len(items))
+			log.Printf("Got upserts %d, message count %d", len(items), d.MessageCount)
 			wg := &sync.WaitGroup{}
 			for _, item := range items {
-				a.itemIndex.HandleItem(item, wg)
-				a.facetHandler.HandleItem(item, wg)
-				a.sortingHandler.HandleItem(item, wg)
-				a.searchIndex.HandleItem(item, wg)
+				go a.itemIndex.HandleItem(item, wg)
+				go a.facetHandler.HandleItem(item, wg)
+				go a.sortingHandler.HandleItem(item, wg)
+				go a.searchIndex.HandleItem(item, wg)
 			}
 			wg.Wait()
-
+			log.Print("Batch done...")
 		} else {
 			log.Printf("Failed to unmarshal upset message %v", err)
 		}
