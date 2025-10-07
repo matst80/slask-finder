@@ -81,31 +81,62 @@ func (s *BaseSorter) ProcessItem(item types.Item) {
 	if current, ok := s.scores[id]; ok && current == newscore {
 		return
 	}
-	s.scores[id] = newscore + s.override[uint32(id)]
+	s.scores[id] = newscore // + s.override[uint32(id)]
 	s.dirty = true
 }
 
 func (s *BaseSorter) GetSort() types.ByValue {
+	// Acquire read lock to snapshot scores & overrides quickly.
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 	l := len(s.scores)
-	j := 0.0
-	sortMap := make(types.ByValue, l)
-	i := 0
-	var id types.ItemId
-	var score float64
-	var o float64
-	for id, score = range s.scores {
-		j += 0.0000000000001
-		o = s.override[uint32(id)]
-		sortMap[i] = types.Lookup{Id: uint32(id), Value: score + o + j}
-		i++
+	sortMap := make(types.ByValue, 0, l)
+	for id, score := range s.scores {
+		ov := s.override[uint32(id)]
+		sortMap = append(sortMap, types.Lookup{Id: uint32(id), Value: score + ov})
 	}
-	sortMap = sortMap[:i]
-	SortByValues(sortMap)
-	if s.isReversed {
-		slices.Reverse(sortMap)
+	isReversed := s.isReversed
+	s.mu.RUnlock() // release before the (potentially) more expensive sort
+
+	if !isReversed {
+		// Descending by Value, tie-break by Id (stable deterministic)
+		slices.SortFunc(sortMap, func(a, b types.Lookup) int {
+			if a.Value > b.Value {
+				return -1
+			}
+			if a.Value < b.Value {
+				return 1
+			}
+			if a.Id < b.Id {
+				return -1
+			}
+			if a.Id > b.Id {
+				return 1
+			}
+			return 0
+		})
+	} else {
+		// Ascending by Value, tie-break by Id
+		slices.SortFunc(sortMap, func(a, b types.Lookup) int {
+			if a.Value < b.Value {
+				return -1
+			}
+			if a.Value > b.Value {
+				return 1
+			}
+			if a.Id < b.Id {
+				return -1
+			}
+			if a.Id > b.Id {
+				return 1
+			}
+			return 0
+		})
 	}
+
+	// Mark clean under write lock.
+	s.mu.Lock()
 	s.dirty = false
+	s.mu.Unlock()
+
 	return sortMap
 }
