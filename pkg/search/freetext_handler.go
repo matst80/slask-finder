@@ -63,17 +63,24 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 	})
 }
 
-func (i *FreeTextItemHandler) RemoveDocument(id types.ItemId) {
+func (i *FreeTextItemHandler) RemoveDocument(itemId types.ItemId) {
+	id := uint32(itemId)
+	deleted := false
 	for token := range i.TokenMap {
 		if ids, ok := i.TokenMap[token]; ok {
-			ids.Remove(uint32(id))
+			if ids.Contains(id) {
+				ids.Remove(uint32(id))
+				deleted = true
+			}
 			//delete(*ids, id)
 		}
 	}
-	maps.DeleteFunc(i.TokenMap, func(_ Token, ids *roaring.Bitmap) bool {
-		return ids.IsEmpty()
-		//return len(*ids) == 0
-	})
+	if deleted {
+		maps.DeleteFunc(i.TokenMap, func(_ Token, ids *roaring.Bitmap) bool {
+			return ids.IsEmpty()
+			//return len(*ids) == 0
+		})
+	}
 }
 
 func (i *FreeTextItemHandler) CreateDocumentUnsafe(id types.ItemId, text ...string) {
