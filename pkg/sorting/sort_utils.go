@@ -11,7 +11,7 @@ import (
 func ToMap(f *types.ByValue) map[uint32]float64 {
 	m := make(map[uint32]float64)
 	for _, item := range *f {
-		m[uint32(item.Id)] = item.Value
+		m[item.Id] = item.Value
 	}
 	return m
 }

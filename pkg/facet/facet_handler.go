@@ -44,8 +44,6 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 				h.mu.Unlock()
 				log.Printf("Got field overrides")
 				h.updateSortMap()
-			} else {
-				// log.Printf("Discarding field sort override %s", item.Key)
 			}
 
 		} else {

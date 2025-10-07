@@ -181,11 +181,11 @@ func (f *DecimalField) bucketUpperBoundCents(bucket int) int64 {
 	return int64(((bucket + 1) << Bits_To_Shift) - 1)
 }
 
-func (f *DecimalField) addValueLink(val float64, id uint32) bool {
+func (f *DecimalField) addValueLink(val float64, itemId uint32) bool {
 	if !f.Searchable {
 		return false
 	}
-	itemId := uint32(id)
+
 	cents := int64(math.Round(val * 100.0))
 
 	if f.Count == 0 {
