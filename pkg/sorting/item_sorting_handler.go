@@ -17,7 +17,7 @@ import (
 func NewPopularitySorter() Sorter {
 	return NewBaseSorter("popular", func(item types.Item) float64 {
 		return types.CollectPopularity(item, *types.CurrentSettings.PopularityRules...)
-	})
+	}, false)
 }
 
 func NewPriceSorter() Sorter {
@@ -27,7 +27,7 @@ func NewPriceSorter() Sorter {
 			return float64(price)
 		}
 		return 0
-	})
+	}, true)
 }
 
 func NewLastUpdateSorter() Sorter {
@@ -37,7 +37,7 @@ func NewLastUpdateSorter() Sorter {
 			return float64(lastUpdated)
 		}
 		return 0
-	})
+	}, true)
 }
 
 type SortingItemHandler struct {

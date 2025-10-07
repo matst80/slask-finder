@@ -1,6 +1,7 @@
 package sorting
 
 import (
+	"slices"
 	"sync"
 
 	"github.com/matst80/slask-finder/pkg/types"
@@ -18,17 +19,19 @@ type BaseSorter struct {
 	mu          sync.RWMutex
 	override    types.SortOverride
 	scores      map[types.ItemId]float64
+	isReversed  bool
 	name        string
 	overrideKey string
 	dirty       bool
 	fn          func(item types.Item) float64
 }
 
-func NewBaseSorter(name string, fn func(item types.Item) float64) Sorter {
+func NewBaseSorter(name string, fn func(item types.Item) float64, isReversed bool) Sorter {
 	return &BaseSorter{
 		mu:          sync.RWMutex{},
 		override:    types.SortOverride{},
 		scores:      make(map[types.ItemId]float64),
+		isReversed:  isReversed,
 		name:        name,
 		dirty:       false,
 		fn:          fn,
@@ -36,11 +39,12 @@ func NewBaseSorter(name string, fn func(item types.Item) float64) Sorter {
 	}
 }
 
-func NewBaseSorterWithCustomOverrideKey(name string, fn func(item types.Item) float64, overrideKey string) Sorter {
+func NewBaseSorterWithCustomOverrideKey(name string, fn func(item types.Item) float64, isReversed bool, overrideKey string) Sorter {
 	return &BaseSorter{
 		mu:          sync.RWMutex{},
 		override:    types.SortOverride{},
 		scores:      make(map[types.ItemId]float64),
+		isReversed:  isReversed,
 		name:        name,
 		dirty:       false,
 		fn:          fn,
@@ -99,6 +103,9 @@ func (s *BaseSorter) GetSort() types.ByValue {
 	}
 	sortMap = sortMap[:i]
 	SortByValues(sortMap)
+	if s.isReversed {
+		slices.Reverse(sortMap)
+	}
 	s.dirty = false
 	return sortMap
 }

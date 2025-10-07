@@ -46,6 +46,7 @@ func NormalizeResults(input []uint) []uint {
 	if l <= EXPECTED_RESULT_SIZE {
 		return NormalizeValues(input)
 	}
+
 	result := make([]uint, 0, EXPECTED_RESULT_SIZE)
 	itemsToGroup := l / EXPECTED_RESULT_SIZE
 	sum := uint(0)
