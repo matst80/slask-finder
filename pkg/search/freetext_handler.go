@@ -2,7 +2,6 @@ package search
 
 import (
 	"log"
-	"maps"
 	"sync"
 
 	"github.com/RoaringBitmap/roaring/v2"
@@ -46,34 +45,46 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 	wg.Go(func() {
 		h.mu.Lock()
 		defer h.mu.Unlock()
-		id := item.GetId()
+		itemId := item.GetId()
+		id := uint32(itemId)
+		exists := h.All.Contains(id)
 		if item.IsDeleted() {
-			h.RemoveDocument(id)
-			h.All.RemoveId(uint32(id))
+			if exists {
+				h.RemoveDocument(itemId)
+			}
+			h.All.RemoveId(id)
 
 			// h.Trie.RemoveDocument(id)
 		} else {
 
-			if !h.All.Contains(uint32(id)) {
-				h.All.AddId(uint32(id))
+			if !exists {
+				h.All.AddId(id)
 
-				h.CreateDocumentUnsafe(id, item.ToStringList()...)
+				h.CreateDocumentUnsafe(itemId, item.ToStringList()...)
 			}
 		}
 	})
 }
 
-func (i *FreeTextItemHandler) RemoveDocument(id types.ItemId) {
+func (i *FreeTextItemHandler) RemoveDocument(itemId types.ItemId) {
+	id := uint32(itemId)
+	tokensToDelete := make([]Token, 0)
 	for token := range i.TokenMap {
 		if ids, ok := i.TokenMap[token]; ok {
-			ids.Remove(uint32(id))
+			if ids.Contains(id) {
+				ids.Remove(id)
+				if ids.IsEmpty() {
+					tokensToDelete = append(tokensToDelete, token)
+				}
+			}
 			//delete(*ids, id)
 		}
 	}
-	maps.DeleteFunc(i.TokenMap, func(_ Token, ids *roaring.Bitmap) bool {
-		return ids.IsEmpty()
-		//return len(*ids) == 0
-	})
+	if len(tokensToDelete) > 0 {
+		for _, token := range tokensToDelete {
+			delete(i.TokenMap, token)
+		}
+	}
 }
 
 func (i *FreeTextItemHandler) CreateDocumentUnsafe(id types.ItemId, text ...string) {
@@ -188,9 +199,11 @@ func (i *FreeTextItemHandler) Filter(query string, res *types.ItemList) {
 		}
 		if word, ok := mappings[string(token)]; ok {
 			ids, found = i.TokenMap[Token(word)]
-			//if res.HasIntersection(ids) {
-			bm.And(ids)
-			found = true
+			if found && ids != nil {
+				bm.And(ids)
+				found = true
+			}
+
 			//}
 		}
 

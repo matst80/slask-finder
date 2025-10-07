@@ -37,15 +37,13 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 	err = messaging.ListenToTopic(ch, "global", "field_sort_override", func(d amqp.Delivery) error {
 		var item types.SortOverrideUpdate
 		if err := json.Unmarshal(d.Body, &item); err == nil {
-			log.Printf("Got sort override")
+
 			if item.Key == "popular-fields" {
 				h.mu.Lock()
 				h.override = item.Data
 				h.mu.Unlock()
 				log.Printf("Got field overrides")
 				h.updateSortMap()
-			} else {
-				log.Printf("Discarding field sort override %s", item.Key)
 			}
 
 		} else {

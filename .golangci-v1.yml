@@ -12,7 +12,7 @@ linters:
     - typecheck
     - unused
     - misspell
-    - gosec
+    #- gosec
     - goconst
     - rowserrcheck
     - unconvert

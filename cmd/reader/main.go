@@ -123,7 +123,9 @@ func main() {
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		w.Header().Set("Expires", time.Now().Add(time.Hour).Format(time.RFC1123))
 		w.WriteHeader(http.StatusOK)
-		diskStorage.StreamContent(w, "stores.json")
+		if _, err := diskStorage.StreamContent(w, "stores.json"); err != nil {
+			log.Printf("Failed to stream stores.json: %v", err)
+		}
 	})
 	mux.HandleFunc("POST /api/stream-items", app.StreamItemsFromIds)
 
