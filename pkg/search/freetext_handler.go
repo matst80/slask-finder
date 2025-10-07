@@ -5,6 +5,7 @@ import (
 	"maps"
 	"sync"
 
+	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
 )
 
@@ -12,7 +13,7 @@ type FreeTextItemHandler struct {
 	mu           sync.RWMutex
 	tokenizer    *Tokenizer
 	Trie         *Trie
-	TokenMap     map[Token]*types.ItemList
+	TokenMap     map[Token]*roaring.Bitmap
 	WordMappings map[Token]Token
 	All          *types.ItemList
 }
@@ -32,7 +33,7 @@ func NewFreeTextItemHandler(opts FreeTextItemHandlerOptions) *FreeTextItemHandle
 		mu:           sync.RWMutex{},
 		tokenizer:    opts.Tokenizer,
 		Trie:         NewTrie(),
-		TokenMap:     make(map[Token]*types.ItemList),
+		TokenMap:     make(map[Token]*roaring.Bitmap),
 		WordMappings: make(map[Token]Token),
 		All:          types.NewItemList(),
 	}
@@ -65,12 +66,12 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 func (i *FreeTextItemHandler) RemoveDocument(id types.ItemId) {
 	for token := range i.TokenMap {
 		if ids, ok := i.TokenMap[token]; ok {
-			ids.RemoveId(uint32(id))
+			ids.Remove(uint32(id))
 			//delete(*ids, id)
 		}
 	}
-	maps.DeleteFunc(i.TokenMap, func(_ Token, ids *types.ItemList) bool {
-		return ids.Bitmap().GetCardinality() == 0
+	maps.DeleteFunc(i.TokenMap, func(_ Token, ids *roaring.Bitmap) bool {
+		return ids.IsEmpty()
 		//return len(*ids) == 0
 	})
 }
@@ -91,11 +92,11 @@ func (i *FreeTextItemHandler) CreateDocumentUnsafe(id types.ItemId, text ...stri
 				hasPrev = true
 			}
 			if l, ok := i.TokenMap[token]; !ok {
-				l := types.NewItemList()
-				l.AddId(uint32(id))
+				l := roaring.New()
+				l.Add(uint32(id))
 				i.TokenMap[token] = l
 			} else {
-				l.AddId(uint32(id))
+				l.Add(uint32(id))
 			}
 			return true
 		})
@@ -171,6 +172,7 @@ func (i *FreeTextItemHandler) getBestFuzzyMatch(token Token, max int) []Token {
 func (i *FreeTextItemHandler) Filter(query string, res *types.ItemList) {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
+	bm := res.Bitmap()
 
 	mappings := types.CurrentSettings.WordMappings
 
@@ -178,44 +180,44 @@ func (i *FreeTextItemHandler) Filter(query string, res *types.ItemList) {
 		log.Printf("filter on token %s", token)
 		ids, found := i.TokenMap[token]
 		if found && ids != nil {
-			if res.HasIntersection(ids) {
-				res.Intersect(ids)
+			if !ids.IsEmpty() {
+				bm.And(ids)
 			} else {
 				found = false
 			}
 		}
 		if word, ok := mappings[string(token)]; ok {
 			ids, found = i.TokenMap[Token(word)]
-			if res.HasIntersection(ids) {
-				res.Intersect(ids)
-				found = true
-			}
+			//if res.HasIntersection(ids) {
+			bm.And(ids)
+			found = true
+			//}
 		}
 
 		if !found {
-			tries := &types.ItemList{}
+			tries := roaring.New()
 			for _, match := range i.Trie.FindMatches(token) {
-				if match.Items != nil && res.HasIntersection(match.Items) {
-					tries.Merge(match.Items)
+				if match.Items != nil && types.HasIntersection(match.Items, bm) {
+					tries.Or(match.Items)
 				}
 			}
 
 			// fuzzy
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
-				if fuzzyIds, ok := i.TokenMap[match]; ok && fuzzyIds != nil && res.HasIntersection(fuzzyIds) {
-					tries.Merge(fuzzyIds)
+				if fuzzyIds, ok := i.TokenMap[match]; ok && fuzzyIds != nil && types.HasIntersection(fuzzyIds, bm) {
+					tries.Or(fuzzyIds)
 				}
 			}
-			res.Intersect(tries)
+			bm.And(tries)
 		}
 
-		return !res.Bitmap().IsEmpty()
+		return !bm.IsEmpty()
 	})
 }
 
 func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
-	res := &types.ItemList{}
+	res := roaring.New()
 	//mergeLimit := types.CurrentSettings.SearchMergeLimit
 	i.mu.RLock()
 	defer i.mu.RUnlock()
@@ -226,9 +228,9 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 		ids, found := i.TokenMap[token]
 		if found {
 			if count == 0 {
-				res.Merge(ids)
-			} else if res.HasIntersection(ids) {
-				res.Intersect(ids)
+				res.Or(ids)
+			} else if types.HasIntersection(ids, res) {
+				res.And(ids)
 			} else {
 				found = false
 			}
@@ -236,9 +238,9 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 		if word, ok := mappings[string(token)]; ok {
 			ids, found = i.TokenMap[Token(word)]
 			if !found || count == 0 {
-				res.Merge(ids)
-			} else if res.HasIntersection(ids) {
-				res.Intersect(ids)
+				res.Or(ids)
+			} else if types.HasIntersection(ids, res) {
+				res.And(ids)
 			} else {
 				found = false
 			}
@@ -248,7 +250,7 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 		if !found {
 			for _, match := range i.Trie.FindMatches(token) {
 				foundTrie = true
-				res.Merge(match.Items)
+				res.And(match.Items)
 			}
 		}
 		if !foundTrie {
@@ -256,15 +258,15 @@ func (i *FreeTextItemHandler) Search(query string) *types.ItemList {
 			fuzzyMatches := i.getBestFuzzyMatch(token, 3)
 			for _, match := range fuzzyMatches {
 				if fuzzyIds, ok := i.TokenMap[match]; ok {
-					res.Merge(fuzzyIds)
+					res.Or(fuzzyIds)
 				}
 			}
 		}
 
-		return !res.Bitmap().IsEmpty()
+		return !res.IsEmpty()
 	})
 
-	return res
+	return types.FromBitmap(res)
 
 }
 

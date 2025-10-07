@@ -75,7 +75,7 @@ func FromBitmap(bm *roaring.Bitmap) *ItemList {
 	if bm == nil {
 		return NewItemList()
 	}
-	return &ItemList{bm: bm.Clone()}
+	return &ItemList{bm: bm}
 }
 
 func (l *ItemList) RemoveId(id uint32) {
@@ -133,11 +133,20 @@ func (l *ItemList) HasIntersection(other *ItemList) bool {
 		return false
 	}
 	// Optimize by cloning smaller
-	if l.bm.GetCardinality() > other.bm.GetCardinality() {
-		l, other = other, l
-	}
+	// if l.bm.GetCardinality() > other.bm.GetCardinality() {
+	// 	l, other = other, l
+	// }
 	tmp := l.bm.Clone()
 	tmp.And(other.bm)
+	return !tmp.IsEmpty()
+}
+
+func HasIntersection(a *roaring.Bitmap, b *roaring.Bitmap) bool {
+	if a.IsEmpty() || b.IsEmpty() {
+		return false
+	}
+	tmp := a.Clone()
+	tmp.And(b)
 	return !tmp.IsEmpty()
 }
 
@@ -146,9 +155,9 @@ func (l *ItemList) IntersectionLen(other *ItemList) uint64 {
 	if l == nil || other == nil || l.bm == nil || other.bm == nil || l.bm.IsEmpty() || other.bm.IsEmpty() {
 		return 0
 	}
-	if l.bm.GetCardinality() > other.bm.GetCardinality() {
-		l, other = other, l
-	}
+	// if l.bm.GetCardinality() > other.bm.GetCardinality() {
+	// 	l, other = other, l
+	// }
 	tmp := l.bm.Clone()
 	tmp.And(other.bm)
 	return tmp.GetCardinality()

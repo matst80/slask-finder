@@ -4,7 +4,6 @@ import (
 	"sort"
 
 	"github.com/RoaringBitmap/roaring/v2"
-	"github.com/matst80/slask-finder/pkg/types"
 )
 
 type Trie struct {
@@ -103,7 +102,7 @@ func (t *Trie) Search(word string) *Node {
 type Match struct {
 	Prefix string          `json:"prefix"`
 	Word   string          `json:"word"`
-	Items  *types.ItemList `json:"ids"`
+	Items  *roaring.Bitmap `json:"ids"`
 }
 
 func (t *Trie) FindMatches(prefix Token) []Match {
@@ -131,12 +130,12 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 		sort.SliceStable(matches, func(i, j int) bool {
 			li := 0
 			if matches[i].Items != nil {
-				li = int(matches[i].Items.Bitmap().GetCardinality())
+				li = int(matches[i].Items.GetCardinality())
 				// li = len(*matches[i].Items)
 			}
 			lj := 0
 			if matches[j].Items != nil {
-				lj = int(matches[j].Items.Bitmap().GetCardinality())
+				lj = int(matches[j].Items.GetCardinality())
 				// lj = len(*matches[j].Items)
 			}
 			return li > lj
@@ -167,12 +166,12 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 			}
 			li := 0
 			if scoredMatches[i].m.Items != nil {
-				li = int(scoredMatches[i].m.Items.Bitmap().GetCardinality())
+				li = int(scoredMatches[i].m.Items.GetCardinality())
 				//li = len(*scoredMatches[i].m.Items)
 			}
 			lj := 0
 			if scoredMatches[j].m.Items != nil {
-				lj = int(scoredMatches[j].m.Items.Bitmap().GetCardinality())
+				lj = int(scoredMatches[j].m.Items.GetCardinality())
 				//lj = len(*scoredMatches[j].m.Items)
 			}
 			return li > lj
@@ -182,12 +181,12 @@ func (t *Trie) FindMatchesWithPrev(prefix Token, prev Token) []Match {
 		sort.SliceStable(scoredMatches, func(i, j int) bool {
 			li := 0
 			if scoredMatches[i].m.Items != nil {
-				li = int(scoredMatches[i].m.Items.Bitmap().GetCardinality())
+				li = int(scoredMatches[i].m.Items.GetCardinality())
 				//li = len(*scoredMatches[i].m.Items)
 			}
 			lj := 0
 			if scoredMatches[j].m.Items != nil {
-				lj = int(scoredMatches[j].m.Items.Bitmap().GetCardinality())
+				lj = int(scoredMatches[j].m.Items.GetCardinality())
 				//lj = len(*scoredMatches[j].m.Items)
 			}
 			return li > lj
@@ -207,7 +206,7 @@ func (t *Trie) findMatches(node *Node, prefix string) []Match {
 		matches = append(matches, Match{
 			Prefix: prefix,
 			Word:   node.Word,
-			Items:  types.FromBitmap(node.Items),
+			Items:  node.Items,
 		})
 	}
 	for r, child := range node.Children {

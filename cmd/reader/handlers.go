@@ -368,15 +368,18 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 	for _, s := range <-wordMatchesChan {
 		suggestResult.Prefix = lastWord
 		suggestResult.Word = s.Word
-		totalHits := s.Items.Cardinality()
+		totalHits := s.Items.GetCardinality()
 		if totalHits > 0 {
 			if !hasResults {
 				suggestResult.Hits = totalHits
 				err = enc.Encode(suggestResult)
 				//results.Merge(s.Items)
-			} else if results.HasIntersection(s.Items) {
-				suggestResult.Hits = results.IntersectionLen(s.Items)
-				err = enc.Encode(suggestResult)
+			} else {
+
+				suggestResult.Hits = results.Bitmap().AndCardinality(s.Items)
+				if suggestResult.Hits > 0 {
+					err = enc.Encode(suggestResult)
+				}
 				// dont intersect with the other words yet since partial
 				//results.Intersect(*s.Items)
 			}
