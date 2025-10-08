@@ -223,8 +223,13 @@ func (f KeyField) RemoveValueLink(data any, id types.ItemId) {
 	switch typed := data.(type) {
 	case nil:
 		return
+	case float64:
+		f.addString(fmt.Sprintf("%f", typed), id)
+	case int:
+		f.addString(fmt.Sprintf("%d", typed), id)
+	case int64:
+		f.removeString(fmt.Sprintf("%d", typed), id)
 	case []any:
-
 		for _, v := range typed {
 			if str, ok := v.(string); ok {
 				f.removeString(str, id)
@@ -232,23 +237,18 @@ func (f KeyField) RemoveValueLink(data any, id types.ItemId) {
 		}
 		return
 	case []string:
-
 		for _, v := range typed {
 			f.removeString(v, id)
 		}
-
 		return
 	case string:
-
 		parts := strings.Split(typed, ";")
-
 		for _, partData := range parts {
 			f.removeString(partData, id)
 		}
-
 		return
 	default:
-		log.Printf("KeyField: AddValueLink: Unknown type %T, fieldId: %d", typed, f.Id)
+		log.Printf("KeyField: RemoveValueLink: Unknown type %T, fieldId: %d", typed, f.Id)
 	}
 }
 
