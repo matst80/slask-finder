@@ -77,30 +77,81 @@ func (f *IntegerField) IsCategory() bool {
 }
 
 func (f *IntegerField) GetExtents(matchIds *types.ItemList) *IntegerFieldResult {
+	// No values stored
+	if f.Count == 0 {
+		return &IntegerFieldResult{Min: 0, Max: 0}
+	}
+	// Nil or empty means "no filtering" -> full extents
+	if matchIds == nil || matchIds.Len() == 0 {
+		return &IntegerFieldResult{Min: f.Min, Max: f.Max}
+	}
+	// Full coverage (all known value items included)
+	if int(matchIds.Cardinality()) == f.Count {
+		return &IntegerFieldResult{Min: f.Min, Max: f.Max}
+	}
 
-	if matchIds == nil || f.Count == 0 {
+	bm := matchIds.Bitmap()
+	if bm == nil || bm.IsEmpty() {
 		return &IntegerFieldResult{Min: 0, Max: 0}
 	}
 
-	minV := f.Max
-	maxV := f.Min
+	startBucket := GetBucket(f.Min)
+	endBucket := GetBucket(f.Max)
 
-	matchIds.ForEach(func(id uint32) bool {
-		if v, ok := f.AllValues[id]; ok {
-			if v < minV {
-				minV = v
-			}
-			if v > maxV {
-				maxV = v
+	// Ascending scan to find minimum matching value
+	foundMin := false
+	minV := 0
+	for bId := startBucket; bId <= endBucket; bId++ {
+		b, ok := f.buckets[bId]
+		if !ok || b.merged == nil || b.merged.IsEmpty() {
+			continue
+		}
+		if !b.merged.Intersects(bm) {
+			continue
+		}
+		for _, ve := range b.entries {
+			if ve.ids.Intersects(bm) {
+				minV = int(ve.value)
+				foundMin = true
+				break
 			}
 		}
-		return true
-	})
-
-	return &IntegerFieldResult{
-		Min: minV,
-		Max: maxV,
+		if foundMin {
+			break
+		}
 	}
+	if !foundMin {
+		return &IntegerFieldResult{Min: 0, Max: 0}
+	}
+
+	// Descending scan to find maximum matching value
+	foundMax := false
+	maxV := 0
+	for bId := endBucket; bId >= startBucket; bId-- {
+		b, ok := f.buckets[bId]
+		if !ok || b.merged == nil || b.merged.IsEmpty() {
+			continue
+		}
+		if !b.merged.Intersects(bm) {
+			continue
+		}
+		for i := len(b.entries) - 1; i >= 0; i-- {
+			ve := b.entries[i]
+			if ve.ids.Intersects(bm) {
+				maxV = int(ve.value)
+				foundMax = true
+				break
+			}
+		}
+		if foundMax || bId == startBucket {
+			break
+		}
+	}
+	if !foundMax {
+		return &IntegerFieldResult{Min: 0, Max: 0}
+	}
+
+	return &IntegerFieldResult{Min: minV, Max: maxV}
 }
 
 func (f *IntegerField) ValueForItemId(id uint32) *int {
@@ -130,49 +181,66 @@ func (f *IntegerField) GetBucketSizes(minValue int, maxValue int) []uint {
 }
 
 func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList {
-	if minValue > maxValue {
+	if minValue > maxValue || f.Count == 0 {
 		return types.NewItemList()
 	}
-	if f.Count == 0 {
-		return types.NewItemList()
-	}
+	// Full coverage shortcut
 	if minValue <= f.Min && maxValue >= f.Max {
 		return nil
 	}
-	// Clamp to existing bounds
+	// Clamp
 	if minValue < f.Min {
 		minValue = f.Min
 	}
 	if maxValue > f.Max {
 		maxValue = f.Max
 	}
+
 	minBucket := GetBucket(minValue)
 	maxBucket := GetBucket(maxValue)
-	acc := roaring.NewBitmap()
 
-	// Single bucket case
+	// Single bucket fast path
 	if minBucket == maxBucket {
+		acc := roaring.NewBitmap()
 		if b, ok := f.buckets[minBucket]; ok {
 			b.RangeUnion(int64(minValue), int64(maxValue), acc)
 		}
 		return types.FromBitmap(acc)
 	}
 
+	acc := roaring.NewBitmap()
+
 	// Partial start bucket
 	if b, ok := f.buckets[minBucket]; ok {
-		b.RangeUnion(int64(minValue), f.bucketUpperBoundInt(minBucket), acc)
+		upper := f.bucketUpperBoundInt(minBucket)
+		if upper > int64(maxValue) {
+			upper = int64(maxValue)
+		}
+		b.RangeUnion(int64(minValue), upper, acc)
 	}
 
-	// Middle buckets
-	for id := minBucket + 1; id < maxBucket; id++ {
-		if b, ok := f.buckets[id]; ok {
-			acc.Or(b.merged)
+	// Middle buckets (batch OR)
+	if maxBucket > minBucket+1 {
+		mids := make([]*roaring.Bitmap, 0, (maxBucket-minBucket)-1)
+		for id := minBucket + 1; id < maxBucket; id++ {
+			if b, ok := f.buckets[id]; ok && b.merged != nil && !b.merged.IsEmpty() {
+				mids = append(mids, b.merged)
+			}
+		}
+		if len(mids) == 1 {
+			acc.Or(mids[0])
+		} else if len(mids) > 1 {
+			acc.Or(roaring.FastOr(mids...))
 		}
 	}
 
 	// Partial end bucket
 	if b, ok := f.buckets[maxBucket]; ok {
-		b.RangeUnion(f.bucketLowerBoundInt(maxBucket), int64(maxValue), acc)
+		lower := f.bucketLowerBoundInt(maxBucket)
+		if lower < int64(minValue) {
+			lower = int64(minValue)
+		}
+		b.RangeUnion(lower, int64(maxValue), acc)
 	}
 
 	return types.FromBitmap(acc)

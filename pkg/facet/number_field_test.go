@@ -89,3 +89,50 @@ func BenchmarkRangeFunction(b *testing.B) {
 	// Removed obsolete GetExtents2 benchmark (method no longer exists)
 
 }
+
+func BenchmarkIntegerFieldGetExtents(b *testing.B) {
+	field := makeNumberField()
+
+	// Build "all" set
+	all := types.NewItemList()
+	for id := range field.AllValues {
+		all.AddId(id)
+	}
+
+	// Half of the ids (even)
+	half := types.NewItemList()
+	// Sparse sample (every 1000th)
+	sparse := types.NewItemList()
+
+	for id := range field.AllValues {
+		if id%2 == 0 {
+			half.AddId(id)
+		}
+		if id%1000 == 0 {
+			sparse.AddId(id)
+		}
+	}
+
+	empty := types.NewItemList()
+
+	b.Run("Extents/All", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			field.GetExtents(all)
+		}
+	})
+	b.Run("Extents/Half", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			field.GetExtents(half)
+		}
+	})
+	b.Run("Extents/Sparse", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			field.GetExtents(sparse)
+		}
+	})
+	b.Run("Extents/Empty", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			field.GetExtents(empty)
+		}
+	})
+}

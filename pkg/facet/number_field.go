@@ -30,29 +30,84 @@ func (k *DecimalFieldResult) HasValues() bool {
 }
 
 func (f *DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult {
+	// Preserve legacy semantics: if caller passed nil, we return nil (caller checks).
 	if matchIds == nil {
 		return nil
 	}
+	// No values indexed
 	if f.Count == 0 {
 		return &DecimalFieldResult{Min: 0, Max: 0}
 	}
-	minC := int64(math.MaxInt64)
-	maxC := int64(math.MinInt64)
+	// Empty filter => no results
+	if matchIds.Len() == 0 {
+		return &DecimalFieldResult{Min: 0, Max: 0}
+	}
+	// Full coverage (all items that have a value)
+	if int(matchIds.Cardinality()) == f.Count {
+		return &DecimalFieldResult{Min: f.Min, Max: f.Max}
+	}
 
-	matchIds.ForEach(func(id uint32) bool {
-		if v, ok := f.AllValuesCents[id]; ok {
-			if v < minC {
-				minC = v
-			}
-			if v > maxC {
-				maxC = v
+	bm := matchIds.Bitmap()
+	if bm == nil || bm.IsEmpty() {
+		return &DecimalFieldResult{Min: 0, Max: 0}
+	}
+
+	// Recover bucket span using the stored min/max (convert to the same cents representation used in buckets)
+	minCentsField := int64(math.Round(f.Min * 100.0))
+	maxCentsField := int64(math.Round(f.Max * 100.0))
+	startBucket := GetBucketFromCents(minCentsField)
+	endBucket := GetBucketFromCents(maxCentsField)
+
+	// Ascending scan to find minimum matching value
+	foundMin := false
+	minC := int64(0)
+	for bId := startBucket; bId <= endBucket; bId++ {
+		b, ok := f.buckets[bId]
+		if !ok || b.merged == nil || b.merged.IsEmpty() {
+			continue
+		}
+		if !b.merged.Intersects(bm) {
+			continue
+		}
+		for _, ve := range b.entries { // ascending
+			if ve.ids.Intersects(bm) {
+				minC = ve.value
+				foundMin = true
+				break
 			}
 		}
-		return true
-	})
+		if foundMin {
+			break
+		}
+	}
+	if !foundMin {
+		return &DecimalFieldResult{Min: 0, Max: 0}
+	}
 
-	if minC == int64(math.MaxInt64) {
-		// no matches had values
+	// Descending scan to find maximum matching value
+	foundMax := false
+	maxC := int64(0)
+	for bId := endBucket; bId >= startBucket; bId-- {
+		b, ok := f.buckets[bId]
+		if !ok || b.merged == nil || b.merged.IsEmpty() {
+			continue
+		}
+		if !b.merged.Intersects(bm) {
+			continue
+		}
+		for i := len(b.entries) - 1; i >= 0; i-- { // descending
+			ve := b.entries[i]
+			if ve.ids.Intersects(bm) {
+				maxC = ve.value
+				foundMax = true
+				break
+			}
+		}
+		if foundMax || bId == startBucket {
+			break
+		}
+	}
+	if !foundMax {
 		return &DecimalFieldResult{Min: 0, Max: 0}
 	}
 
@@ -71,36 +126,39 @@ func (f *DecimalField) IsCategory() bool {
 }
 
 func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.ItemList {
-	if minValue > maxValue {
+	if minValue > maxValue || f.Count == 0 {
 		return types.NewItemList()
 	}
-	if f.Count == 0 {
-		return types.NewItemList()
-	}
-	// Full range shortcut
+	// Full range shortcut (return nil sentinel meaning "all")
 	if minValue <= f.Min && maxValue >= f.Max {
 		return nil
 	}
-
-	// Convert to integer cents (round outward to be inclusive)
+	// Clamp to stored extents to avoid unnecessary bucket scans
+	if minValue < f.Min {
+		minValue = f.Min
+	}
+	if maxValue > f.Max {
+		maxValue = f.Max
+	}
+	// Inclusive outward rounding to cents (matching previous logic)
 	minC := int64(math.Floor(minValue*100.0 + 0.0000001))
 	maxC := int64(math.Ceil(maxValue*100.0 - 0.0000001))
 	if minC > maxC {
 		return types.NewItemList()
 	}
-
 	minBucket := GetBucketFromCents(minC)
 	maxBucket := GetBucketFromCents(maxC)
 
-	acc := roaring.NewBitmap()
-
-	// Single bucket case
+	// Single bucket fast path
 	if minBucket == maxBucket {
+		acc := roaring.NewBitmap()
 		if b, ok := f.buckets[minBucket]; ok {
 			b.RangeUnion(minC, maxC, acc)
 		}
 		return types.FromBitmap(acc)
 	}
+
+	acc := roaring.NewBitmap()
 
 	// Partial start bucket
 	if b, ok := f.buckets[minBucket]; ok {
@@ -111,10 +169,18 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 		b.RangeUnion(minC, upper, acc)
 	}
 
-	// Full middle buckets
-	for bId := minBucket + 1; bId < maxBucket; bId++ {
-		if b, ok := f.buckets[bId]; ok {
-			acc.Or(b.merged)
+	// Middle buckets batched OR
+	if maxBucket > minBucket+1 {
+		mids := make([]*roaring.Bitmap, 0, (maxBucket-minBucket)-1)
+		for bId := minBucket + 1; bId < maxBucket; bId++ {
+			if b, ok := f.buckets[bId]; ok && b.merged != nil && !b.merged.IsEmpty() {
+				mids = append(mids, b.merged)
+			}
+		}
+		if len(mids) == 1 {
+			acc.Or(mids[0])
+		} else if len(mids) > 1 {
+			acc.Or(roaring.FastOr(mids...))
 		}
 	}
 
