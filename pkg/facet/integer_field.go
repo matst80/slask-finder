@@ -98,60 +98,16 @@ func (f *IntegerField) GetExtents(matchIds *types.ItemList) *IntegerFieldResult 
 	startBucket := GetBucket(f.Min)
 	endBucket := GetBucket(f.Max)
 
-	// Ascending scan to find minimum matching value
-	foundMin := false
-	minV := 0
-	for bId := startBucket; bId <= endBucket; bId++ {
-		b, ok := f.buckets[bId]
-		if !ok || b.merged == nil || b.merged.IsEmpty() {
-			continue
-		}
-		if !b.merged.Intersects(bm) {
-			continue
-		}
-		for _, ve := range b.entries {
-			if ve.ids.Intersects(bm) {
-				minV = int(ve.value)
-				foundMin = true
-				break
-			}
-		}
-		if foundMin {
-			break
-		}
-	}
-	if !foundMin {
+	// Use shared helpers to scan for min/max across buckets
+	minValue, okMin := ScanMinValue(f.buckets, startBucket, endBucket, bm)
+	if !okMin {
 		return &IntegerFieldResult{Min: 0, Max: 0}
 	}
-
-	// Descending scan to find maximum matching value
-	foundMax := false
-	maxV := 0
-	for bId := endBucket; bId >= startBucket; bId-- {
-		b, ok := f.buckets[bId]
-		if !ok || b.merged == nil || b.merged.IsEmpty() {
-			continue
-		}
-		if !b.merged.Intersects(bm) {
-			continue
-		}
-		for i := len(b.entries) - 1; i >= 0; i-- {
-			ve := b.entries[i]
-			if ve.ids.Intersects(bm) {
-				maxV = int(ve.value)
-				foundMax = true
-				break
-			}
-		}
-		if foundMax || bId == startBucket {
-			break
-		}
-	}
-	if !foundMax {
+	maxValue, okMax := ScanMaxValue(f.buckets, startBucket, endBucket, bm)
+	if !okMax {
 		return &IntegerFieldResult{Min: 0, Max: 0}
 	}
-
-	return &IntegerFieldResult{Min: minV, Max: maxV}
+	return &IntegerFieldResult{Min: int(minValue), Max: int(maxValue)}
 }
 
 func (f *IntegerField) ValueForItemId(id uint32) *int {
@@ -212,7 +168,7 @@ func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList 
 
 	// Partial start bucket
 	if b, ok := f.buckets[minBucket]; ok {
-		upper := f.bucketUpperBoundInt(minBucket)
+		upper := BucketUpperBound(minBucket)
 		if upper > int64(maxValue) {
 			upper = int64(maxValue)
 		}
@@ -236,7 +192,7 @@ func (f *IntegerField) MatchesRange(minValue int, maxValue int) *types.ItemList 
 
 	// Partial end bucket
 	if b, ok := f.buckets[maxBucket]; ok {
-		lower := f.bucketLowerBoundInt(maxBucket)
+		lower := BucketLowerBound(maxBucket)
 		if lower < int64(minValue) {
 			lower = int64(minValue)
 		}
@@ -258,15 +214,6 @@ func (f *IntegerField) Match(input any) *types.ItemList {
 	}
 
 	return types.NewItemList()
-}
-
-// Helper bounds (coarse bucket) for integer field (reuse same bit-shift logic)
-func (f *IntegerField) bucketLowerBoundInt(bucket int) int64 {
-	return int64(bucket << Bits_To_Shift)
-}
-
-func (f *IntegerField) bucketUpperBoundInt(bucket int) int64 {
-	return int64(((bucket + 1) << Bits_To_Shift) - 1)
 }
 
 func (f *IntegerField) UpdateBaseField(field *types.BaseField) {

@@ -60,56 +60,13 @@ func (f *DecimalField) GetExtents(matchIds *types.ItemList) *DecimalFieldResult 
 	startBucket := GetBucketFromCents(minCentsField)
 	endBucket := GetBucketFromCents(maxCentsField)
 
-	// Ascending scan to find minimum matching value
-	foundMin := false
-	minC := int64(0)
-	for bId := startBucket; bId <= endBucket; bId++ {
-		b, ok := f.buckets[bId]
-		if !ok || b.merged == nil || b.merged.IsEmpty() {
-			continue
-		}
-		if !b.merged.Intersects(bm) {
-			continue
-		}
-		for _, ve := range b.entries { // ascending
-			if ve.ids.Intersects(bm) {
-				minC = ve.value
-				foundMin = true
-				break
-			}
-		}
-		if foundMin {
-			break
-		}
-	}
-	if !foundMin {
+	// Use shared helpers to scan for min/max (values stored as integer cents)
+	minC, okMin := ScanMinValue(f.buckets, startBucket, endBucket, bm)
+	if !okMin {
 		return &DecimalFieldResult{Min: 0, Max: 0}
 	}
-
-	// Descending scan to find maximum matching value
-	foundMax := false
-	maxC := int64(0)
-	for bId := endBucket; bId >= startBucket; bId-- {
-		b, ok := f.buckets[bId]
-		if !ok || b.merged == nil || b.merged.IsEmpty() {
-			continue
-		}
-		if !b.merged.Intersects(bm) {
-			continue
-		}
-		for i := len(b.entries) - 1; i >= 0; i-- { // descending
-			ve := b.entries[i]
-			if ve.ids.Intersects(bm) {
-				maxC = ve.value
-				foundMax = true
-				break
-			}
-		}
-		if foundMax || bId == startBucket {
-			break
-		}
-	}
-	if !foundMax {
+	maxC, okMax := ScanMaxValue(f.buckets, startBucket, endBucket, bm)
+	if !okMax {
 		return &DecimalFieldResult{Min: 0, Max: 0}
 	}
 
@@ -164,7 +121,7 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 
 	// Partial start bucket
 	if b, ok := f.buckets[minBucket]; ok {
-		upper := f.bucketUpperBoundCents(minBucket)
+		upper := BucketUpperBound(minBucket)
 		if upper > maxC {
 			upper = maxC
 		}
@@ -188,7 +145,7 @@ func (f *DecimalField) MatchesRange(minValue float64, maxValue float64) *types.I
 
 	// Partial end bucket
 	if b, ok := f.buckets[maxBucket]; ok {
-		lower := f.bucketLowerBoundCents(maxBucket)
+		lower := BucketLowerBound(maxBucket)
 		if lower < minC {
 			lower = minC
 		}
@@ -239,15 +196,7 @@ func (f *DecimalField) GetValues() []any {
 	return []any{f.NumberRange}
 }
 
-// Helper bounds (coarse bucket) in integer cents domain
-func (f *DecimalField) bucketLowerBoundCents(bucket int) int64 {
-	return int64(bucket << Bits_To_Shift)
-}
-
-func (f *DecimalField) bucketUpperBoundCents(bucket int) int64 {
-	// Upper inclusive bound: next bucket start - 1
-	return int64(((bucket + 1) << Bits_To_Shift) - 1)
-}
+// (bucket bound helpers moved to number_helpers.go)
 
 func (f *DecimalField) addValueLink(val float64, itemId uint32) bool {
 	if !f.Searchable {
