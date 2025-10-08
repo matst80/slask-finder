@@ -40,7 +40,7 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 			wg.Wait()
 			log.Print("Batch done...")
 		} else {
-			log.Printf("Failed to unmarshal upset message %v", err)
+			log.Printf("Failed to unmarshal upsert message %v", err)
 		}
 		return err
 	})

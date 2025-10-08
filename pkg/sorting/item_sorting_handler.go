@@ -10,8 +10,17 @@ import (
 
 	"github.com/matst80/slask-finder/pkg/messaging"
 	"github.com/matst80/slask-finder/pkg/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+var (
+	totalItems = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "slaskfinder_items_total",
+		Help: "The total number of items in index",
+	})
 )
 
 func NewPopularitySorter() Sorter {
@@ -142,6 +151,9 @@ func (h *SortingItemHandler) updateSorter(s Sorter) {
 	if len(sort) > 0 {
 		h.mu.Lock()
 		h.sortValues[name] = sort
+		if name == "popular" {
+			totalItems.Set(float64(len(sort)))
+		}
 		h.mu.Unlock()
 
 		log.Printf("Updated sort: %s, items: %d", name, len(sort))
