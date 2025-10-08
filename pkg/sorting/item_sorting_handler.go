@@ -82,13 +82,14 @@ func (h *SortingItemHandler) Connect(conn *amqp.Connection) {
 	}
 	err = messaging.ListenToTopic(ch, "global", "sort_override", func(d amqp.Delivery) error {
 		var item types.SortOverrideUpdate
-		if err := json.Unmarshal(d.Body, &item); err == nil {
+		err := json.Unmarshal(d.Body, &item)
+		if err == nil {
 			//log.Printf("Got sort override")
 			h.HandleSortOverrideUpdate(item)
 		} else {
 			log.Printf("Failed to unmarshal facet change message %v", err)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatalf("Failed to listen to facet_change topic: %v", err)

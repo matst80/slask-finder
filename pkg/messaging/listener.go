@@ -14,7 +14,8 @@ func DeclareBindAndConsume(ch *amqp.Channel, prefix string, topic ChangeTopic) (
 		false, // delete when unused
 		true,  // exclusive
 		false, // no-wait
-		nil,   // arguments
+
+		nil, // arguments
 	)
 	if err != nil {
 		return nil, err
@@ -26,7 +27,7 @@ func DeclareBindAndConsume(ch *amqp.Channel, prefix string, topic ChangeTopic) (
 	return ch.Consume(
 		q.Name,
 		"",
-		true,
+		false,
 		false,
 		false,
 		false,
@@ -46,6 +47,8 @@ func ListenToTopic(ch *amqp.Channel, prefix string, topic ChangeTopic, filter fu
 			if err := filter(d); err != nil {
 				log.Printf("Error processing message: %v", err)
 				return // Exit the goroutine on error
+			} else {
+				d.Ack(false)
 			}
 		}
 

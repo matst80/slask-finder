@@ -90,13 +90,14 @@ func main() {
 	}
 	err = messaging.ListenToTopic(itemCh, country, "item_added", func(d amqp.Delivery) error {
 		items := []index.DataItem{}
-		if err := json.Unmarshal(d.Body, &items); err == nil {
+		err := json.Unmarshal(d.Body, &items)
+		if err == nil {
 			log.Printf("Got upserts %d", len(items))
 			for _, item := range items {
 				embeddingsIndex.HandleItem(&item)
 			}
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatalf("Failed to register a listener: %v", err)

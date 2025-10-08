@@ -36,7 +36,8 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 	}
 	err = messaging.ListenToTopic(ch, "global", "field_sort_override", func(d amqp.Delivery) error {
 		var item types.SortOverrideUpdate
-		if err := json.Unmarshal(d.Body, &item); err == nil {
+		err := json.Unmarshal(d.Body, &item)
+		if err == nil {
 
 			if item.Key == "popular-fields" {
 				h.mu.Lock()
@@ -49,7 +50,7 @@ func (h *FacetItemHandler) Connect(conn *amqp.Connection) {
 		} else {
 			log.Printf("Failed to unmarshal facet change message %v", err)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatalf("Failed to listen to facet_change topic: %v", err)

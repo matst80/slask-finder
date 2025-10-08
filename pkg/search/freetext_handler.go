@@ -6,6 +6,15 @@ import (
 
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+var (
+	totalItems = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "slaskfinder_items_total",
+		Help: "The total number of items in index",
+	})
 )
 
 type FreeTextItemHandler struct {
@@ -63,6 +72,7 @@ func (h *FreeTextItemHandler) HandleItem(item types.Item, wg *sync.WaitGroup) {
 				h.CreateDocumentUnsafe(itemId, item.ToStringList()...)
 			}
 		}
+
 	})
 }
 

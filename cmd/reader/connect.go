@@ -27,7 +27,8 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 	// items listener
 	err = messaging.ListenToTopic(ch, country, "item_added", func(d amqp.Delivery) error {
 		var items []*index.DataItem
-		if err := json.Unmarshal(d.Body, &items); err == nil {
+		err := json.Unmarshal(d.Body, &items)
+		if err == nil {
 			log.Printf("Got upserts %d, message count %d", len(items), d.MessageCount)
 			wg := &sync.WaitGroup{}
 			for _, item := range items {
@@ -41,7 +42,7 @@ func (a *app) ConnectAmqp(amqpUrl string) {
 		} else {
 			log.Printf("Failed to unmarshal upset message %v", err)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatalf("Failed to listen to item_added topic: %v", err)
@@ -76,13 +77,14 @@ func (a *app) ConnectFacetChange(conn *amqp.Connection) {
 	}
 	err = messaging.ListenToTopic(ch, country, "facet_change", func(d amqp.Delivery) error {
 		var items []types.FieldChange
-		if err := json.Unmarshal(d.Body, &items); err == nil {
+		err := json.Unmarshal(d.Body, &items)
+		if err == nil {
 			log.Printf("Got fieldchanges %d", len(items))
 			a.facetHandler.HandleFieldChanges(items)
 		} else {
 			log.Printf("Failed to unmarshal facet change message %v", err)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatalf("Failed to listen to facet_change topic: %v", err)
@@ -97,7 +99,8 @@ func (a *app) ConnectSettingsChange(conn *amqp.Connection) {
 	// items listener
 	err = messaging.ListenToTopic(ch, country, "settings_change", func(d amqp.Delivery) error {
 		var item types.SettingsChange
-		if err := json.Unmarshal(d.Body, &item); err == nil {
+		err := json.Unmarshal(d.Body, &item)
+		if err == nil {
 			log.Printf("Got settings %v", item)
 			err := a.storage.LoadSettings()
 			if err != nil {
@@ -106,7 +109,7 @@ func (a *app) ConnectSettingsChange(conn *amqp.Connection) {
 		} else {
 			log.Printf("Failed to unmarshal upset message %v", err)
 		}
-		return nil
+		return err
 	})
 	if err != nil {
 		log.Fatalf("Failed to listen to settings_change topic: %v", err)
