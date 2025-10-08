@@ -87,6 +87,7 @@ func main() {
 	go func() {
 		wg.Wait()
 		loading = false
+		sortingHandler.UpdateSorts()
 		log.Printf("Finished loading items, now serving requests")
 		if ok {
 			app.ConnectAmqp(amqpUrl)
