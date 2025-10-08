@@ -1,7 +1,9 @@
 package facet
 
 import (
+	"log"
 	"math"
+	"strconv"
 
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
@@ -277,15 +279,37 @@ func (f *DecimalField) addValueLink(val float64, itemId uint32) bool {
 	return true
 }
 
-func (f *DecimalField) AddValueLink(data any, id types.ItemId) bool {
+func (f *DecimalField) AddValueLink(data any, itemId types.ItemId) bool {
 	if !f.Searchable {
 		return false
 	}
-	val, ok := data.(float64)
-	if !ok {
-		return false
+	id := uint32(itemId)
+	switch value := data.(type) {
+	case int:
+		f.addValueLink(float64(value), id)
+		return true
+	case float64:
+		f.addValueLink(value, id)
+		return true
+	case string:
+		floatValue, err := strconv.ParseFloat(value, 64)
+		if err == nil {
+			f.addValueLink(float64(floatValue), id)
+			return true
+		}
+	case []string:
+		if len(value) > 0 {
+			first := value[0]
+			floatValue, err := strconv.ParseFloat(first, 64)
+			if err == nil {
+				f.addValueLink(float64(floatValue), id)
+				return true
+			}
+		}
+	default:
+		log.Printf("'%v': AddValueLink: %T %d (%s)", data, value, f.Id, f.Name)
 	}
-	return f.addValueLink(val, uint32(id))
+	return false
 }
 
 func (f *DecimalField) RemoveValueLink(data any, itemId types.ItemId) {

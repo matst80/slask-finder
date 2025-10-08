@@ -420,13 +420,13 @@ func (ws *FacetItemHandler) GetOtherFacets(baseIds *types.ItemList, sr *types.Fa
 		if !ok {
 			return true
 		}
-		fieldIds.And(itemFieldIds.Bitmap())
-		return fieldIds.GetCardinality() < 2500
+		fieldIds.Or(itemFieldIds.Bitmap())
+		return fieldIds.GetCardinality() < 2900
 	})
 
 	count := 0
 
-	if fieldIds.GetCardinality() == 0 {
+	if fieldIds.IsEmpty() {
 		fieldIds = *ws.AllFacets.Bitmap()
 	}
 
