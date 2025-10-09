@@ -96,7 +96,7 @@ func getLocationFromRequest(r *http.Request, db *geoip2.Reader, zipMap map[strin
 	}
 	locationCookie, err := r.Cookie("location")
 	if err == nil && locationCookie.Value != "" {
-		parts := strings.Split(locationCookie.Value, ";")
+		parts := strings.Split(locationCookie.Value, ",")
 		if len(parts) >= 2 {
 			lat, err := parseCoordinate(parts[0], -90, 90)
 			if err == nil {
