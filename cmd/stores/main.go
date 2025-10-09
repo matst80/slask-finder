@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -156,7 +157,7 @@ func main() {
 
 	zip2Location := make(map[string]Location)
 
-	f, _ := os.Open("data/se/postcode-map.csv")
+	f, _ := os.Open(fmt.Sprintf("data/%s/postcode-map.csv", country))
 	defer f.Close()
 	ctx := context.Background()
 	err = StreamPostalCodeLocationsWithConfig(ctx, f, func(p PostalCodeLocation) error {
