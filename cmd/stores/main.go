@@ -157,7 +157,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/stores", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /location/stores", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		w.Header().Set("Expires", time.Now().Add(time.Hour).Format(time.RFC1123))
@@ -169,7 +169,7 @@ func main() {
 		// 	log.Printf("Failed to stream stores.json: %v", err)
 		// }
 	})
-	mux.HandleFunc("GET /api/lookup", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /location/lookup", func(w http.ResponseWriter, r *http.Request) {
 		parsedIP, err := getIpFromRequest(r)
 		if err != nil {
 			http.Error(w, "invalid ip", http.StatusBadRequest)
@@ -191,7 +191,7 @@ func main() {
 			log.Printf("failed to encode location response: %v", err)
 		}
 	})
-	mux.HandleFunc("GET /api/location", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /location", func(w http.ResponseWriter, r *http.Request) {
 		location, err := getLocationFromRequest(r, db, zip2Location)
 		if err != nil {
 			http.Error(w, "no location found", http.StatusBadRequest)
@@ -208,7 +208,7 @@ func main() {
 			log.Printf("Could not stream location %v", err)
 		}
 	})
-	mux.HandleFunc("GET /api/closest-stores", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /location/closest-stores", func(w http.ResponseWriter, r *http.Request) {
 		location, err := getLocationFromRequest(r, db, zip2Location)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
