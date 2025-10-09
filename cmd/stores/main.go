@@ -129,6 +129,18 @@ func getLocationFromRequest(r *http.Request, db *geoip2.Reader, zipMap map[strin
 	return &Location{Latitude: *rec.Location.Latitude, Longitude: *rec.Location.Longitude}, nil
 }
 
+func getCsvConfig(country string) PostalCodeCSVConfig {
+	switch country {
+	case "se":
+		return SwedenPostalCodeCSVConfig()
+	case "no":
+		return NorwayPostalCodeCSVConfig()
+	default:
+		log.Fatalf("no config found for %s", country)
+	}
+	return SwedenPostalCodeCSVConfig()
+}
+
 func main() {
 	diskStorage := storage.NewDiskStorage(country, "data")
 	stores := []Store{}
@@ -147,11 +159,11 @@ func main() {
 	f, _ := os.Open("data/se/postcode-map.csv")
 	defer f.Close()
 	ctx := context.Background()
-	err = StreamPostalCodeLocations(ctx, f, func(p PostalCodeLocation) error {
+	err = StreamPostalCodeLocationsWithConfig(ctx, f, func(p PostalCodeLocation) error {
 		// fmt.Printf("%s %s (%f,%f)\n", p.PostalCode, p.City, p.Location.Latitude, p.Location.Longitude)
 		zip2Location[p.PostalCode] = p.Location
 		return nil
-	})
+	}, getCsvConfig(country))
 	if err != nil {
 		log.Fatal(err)
 	}
