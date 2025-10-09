@@ -36,6 +36,7 @@ func getIpFromRequest(r *http.Request) (*netip.Addr, error) {
 	if rawIP == "" {
 		for _, h := range []string{"CF-Connecting-IP", "X-Real-IP", "X-Forwarded-For"} {
 			if v := r.Header.Get(h); v != "" {
+				log.Printf("found ip in %s: %s", h, v)
 				if h == "X-Forwarded-For" {
 					// May be a list; take the first
 					if idx := strings.IndexByte(v, ','); idx >= 0 {
@@ -47,6 +48,8 @@ func getIpFromRequest(r *http.Request) (*netip.Addr, error) {
 			}
 		}
 	}
+
+	log.Printf("result ip: %s", rawIP)
 
 	// 3. Fall back to RemoteAddr
 	if rawIP == "" {
