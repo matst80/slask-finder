@@ -185,6 +185,22 @@ func main() {
 		// 	log.Printf("Failed to stream stores.json: %v", err)
 		// }
 	})
+	mux.HandleFunc("GET /location/store/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		for _, store := range stores {
+			if store.ID == id {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Cache-Control", "public, max-age=3600")
+				w.Header().Set("Expires", time.Now().Add(time.Hour).Format(time.RFC1123))
+				w.WriteHeader(http.StatusOK)
+				if err := json.NewEncoder(w).Encode(store); err != nil {
+					log.Printf("Could not stream store %v", err)
+				}
+				return
+			}
+		}
+		http.Error(w, "store not found", http.StatusNotFound)
+	})
 	mux.HandleFunc("GET /location/lookup", func(w http.ResponseWriter, r *http.Request) {
 		parsedIP, err := getIpFromRequest(r)
 		if err != nil {
