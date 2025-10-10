@@ -17,9 +17,10 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /slask-reader ./cmd/reader
 RUN CGO_ENABLED=0 GOOS=linux go build -o /slask-writer ./cmd/writer
 RUN CGO_ENABLED=0 GOOS=linux go build -o /price-watcher ./cmd/pricewatcher
 RUN CGO_ENABLED=0 GOOS=linux go build -o /embeddings ./cmd/embeddings
+RUN CGO_ENABLED=0 GOOS=linux go build -o /stores ./cmd/stores
 
 # Final stage with distroless image
-FROM gcr.io/distroless/base-debian11 
+FROM gcr.io/distroless/base-debian11
 WORKDIR /
 
 # Expose port 8080 (both services use this port)
@@ -30,6 +31,7 @@ COPY --from=build-stage /slask-reader /slask-reader
 COPY --from=build-stage /slask-writer /slask-writer
 COPY --from=build-stage /price-watcher /price-watcher
 COPY --from=build-stage /embeddings /embeddings
+COPY --from=build-stage /stores /stores
 
 # Default entrypoint (can be overridden during deployment)
 ENTRYPOINT ["/slask-reader"]
