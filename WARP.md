@@ -8,7 +8,7 @@ Slask-finder is a Go-based e-commerce search system built with microservices arc
 
 ## Architecture
 
-### Core Services (4 microservices)
+### Core Services (6 microservices)
 
 1. **Reader Service** (`cmd/reader/`) - Read-only search and retrieval API
    - Handles search queries, faceting, item retrieval, suggestions
@@ -21,12 +21,18 @@ Slask-finder is a Go-based e-commerce search system built with microservices arc
    - RabbitMQ integration for data updates
 
 3. **Embeddings Service** (`cmd/embeddings/`) - AI-powered semantic search
-   - Uses Ollama for generating embeddings with configurable models
+   - Uses Ollama for generating embeddings with configurable models (default: "elkjop-ecom")
    - Supports multiple Ollama endpoints with round-robin load balancing  
    - Listens to RabbitMQ for new items to embed
 
 4. **Price Watcher Service** (`cmd/pricewatcher/`) - Price monitoring
    - Tracks price changes for items
+
+5. **Converter Service** (`cmd/converter/`) - Data transformation utility
+   - Converts data between different formats
+
+6. **Stores Service** (`cmd/stores/`) - Store management service
+   - Handles store-specific operations and data
 
 ### Key Packages
 
@@ -37,6 +43,9 @@ Slask-finder is a Go-based e-commerce search system built with microservices arc
 - `pkg/storage/` - Disk persistence layer with gzip compression
 - `pkg/common/` - Shared utilities including graceful shutdown, HTTP helpers, session management
 - `pkg/types/` - Core data structures and business logic
+- `pkg/messaging/` - RabbitMQ message handling and routing
+- `pkg/sorting/` - Search result sorting and ranking algorithms
+- `pkg/tracking/` - User analytics and behavior tracking
 
 ### Data Flow
 
