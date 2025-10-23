@@ -76,7 +76,15 @@ func (f *ItemFields) upsertString(id uint, val string) {
 // upsertNumber inserts / updates a numeric facet.
 func (f *ItemFields) upsertNumber(id uint, val float64) {
 	f.numberFacets[FacetId(id)] = val
+}
 
+func (f *ItemFields) Remove(id FacetId) {
+	delete(f.keyFacets, id)
+	delete(f.numberFacets, id)
+}
+
+func (f *ItemFields) SetKeyFacet(id FacetId, values []string) {
+	f.keyFacets[id] = strings.Join(values, ";")
 }
 
 // MarshalJSON implements a low-allocation JSON object serializer.

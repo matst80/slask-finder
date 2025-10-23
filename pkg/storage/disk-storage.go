@@ -100,39 +100,6 @@ func (d *DiskStorage) StreamContent(w io.Writer, fileName string) (int64, error)
 
 }
 
-// func (d *DiskStorage) loadNewItems(fileName string, handlers ...types.ItemHandler) error {
-// 	file, err := os.Open(fileName)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer runtime.GC()
-// 	defer file.Close()
-
-// 	zipReader, err := gzip.NewReader(file)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	defer zipReader.Close()
-
-// 	decoder := gob.NewDecoder(zipReader)
-// 	defer zipReader.Close()
-
-// 	tmp := make([]*index.RawDataItem, 0)
-
-// 	err = decoder.Decode(&tmp)
-// 	log.Printf("Loaded %d items from %s", len(tmp), fileName)
-// 	for _, hs := range handlers {
-// 		go hs.HandleItems(asSeq(tmp))
-// 	}
-// 	decoder = nil
-// 	tmp = nil
-
-// 	if errors.Is(err, io.EOF) {
-// 		return nil
-// 	}
-
-//		return err
-//	}
 func (d *DiskStorage) LoadSortOverride(name string) (*types.SortOverride, error) {
 	fileName := d.GetOverrideFilename(name)
 
@@ -143,6 +110,32 @@ func (d *DiskStorage) LoadSortOverride(name string) (*types.SortOverride, error)
 	tmp := &types.SortOverride{}
 	err = tmp.FromString(string(b))
 	return tmp, err
+}
+
+func convertCategory(item *index.DataItem) *index.DataItem {
+	cat := make([]string, 0, 5)
+	v, ok := item.GetStringFieldValue(10)
+	if ok {
+		cat = append(cat, v)
+	}
+	v, ok = item.GetStringFieldValue(11)
+	if ok {
+		cat = append(cat, v)
+	}
+	v, ok = item.GetStringFieldValue(12)
+	if ok {
+		cat = append(cat, v)
+	}
+	v, ok = item.GetStringFieldValue(13)
+	if ok {
+		cat = append(cat, v)
+	}
+	item.Fields.Remove(10)
+	item.Fields.Remove(11)
+	item.Fields.Remove(12)
+	item.Fields.Remove(13)
+
+	return item
 }
 
 func (d *DiskStorage) LoadItems(wg *sync.WaitGroup, handlers ...types.ItemHandler) error {
@@ -175,17 +168,10 @@ func (d *DiskStorage) LoadItems(wg *sync.WaitGroup, handlers ...types.ItemHandle
 			if tmp.IsDeleted() && !tmp.IsSoftDeleted() {
 				continue
 			}
-			// cgm, ok := tmp.Fields[35]
-			// if ok {
-			// 	cgmString, isString := cgm.(string)
-			// 	if isString {
-			// 		tmp.Fields[37] = cgmString[:3]
-			// 	}
-			// }
+
 			for _, hs := range handlers {
 				go hs.HandleItem(tmp, wg)
 			}
-			//items = append(items, tmp)
 
 			tmp = &index.DataItem{}
 		} else if strings.Contains(err.Error(), "json: cannot unmarshal number") {

@@ -136,6 +136,7 @@ func (t *TreeField) RemoveValueLink(value any, id types.ItemId) {
 }
 
 func (t *TreeField) UpdateBaseField(data *types.BaseField) {
+	t.BaseField.UpdateFrom(data)
 }
 
 func (t *TreeField) GetValues() []any {
@@ -147,5 +148,5 @@ func (t *TreeField) IsExcludedFromFacets() bool {
 }
 
 func (t *TreeField) IsCategory() bool {
-	return false
+	return true
 }
