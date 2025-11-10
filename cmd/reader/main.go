@@ -108,12 +108,14 @@ func main() {
 			},
 		})
 		inventory_listener := inventory.NewInventoryChangeListener(rdb, context.Background(), itemIndex.HandleStockUpdate)
-		err := inventory_listener.Start()
-		if err != nil {
-			log.Printf("Failed to start inventory listener: %v", err)
-		} else {
-			log.Printf("Started inventory listener")
-		}
+		go func() {
+			err := inventory_listener.Start()
+			if err != nil {
+				log.Fatalf("Failed to start inventory listener: %v", err)
+			} else {
+				log.Printf("Started inventory listener")
+			}
+		}()
 	}
 
 	var tracker types.Tracking = nil
