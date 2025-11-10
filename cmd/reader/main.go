@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"git.tornberg.me/mats/go-redis-inventory/pkg/inventory"
 	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
@@ -18,6 +19,8 @@ import (
 	"github.com/matst80/slask-finder/pkg/tracking"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
+	"github.com/redis/go-redis/v9/maintnotifications"
 )
 
 var country = "se"
@@ -93,6 +96,25 @@ func main() {
 			app.ConnectAmqp(amqpUrl)
 		}
 	}()
+
+	inventoryRedisUrl, ok := os.LookupEnv("INVENTORY_REDIS_URL")
+	if ok {
+		rdb := redis.NewClient(&redis.Options{
+			Addr:     inventoryRedisUrl,
+			Password: os.Getenv("INVENTORY_REDIS_PASSWORD"), // no password set
+			DB:       0,                                     // use default DB
+			MaintNotificationsConfig: &maintnotifications.Config{
+				Mode: maintnotifications.ModeDisabled,
+			},
+		})
+		inventory_listener := inventory.NewInventoryChangeListener(rdb, context.Background(), itemIndex.HandleStockUpdate)
+		err := inventory_listener.Start()
+		if err != nil {
+			log.Printf("Failed to start inventory listener: %v", err)
+		} else {
+			log.Printf("Started inventory listener")
+		}
+	}
 
 	var tracker types.Tracking = nil
 	if amqpUrl != "" {

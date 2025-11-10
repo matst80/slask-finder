@@ -4,6 +4,7 @@ import (
 	"iter"
 	"sync"
 
+	"git.tornberg.me/mats/go-redis-inventory/pkg/inventory"
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
@@ -78,6 +79,42 @@ func (i *ItemIndexWithStock) HandleItem(item types.Item, wg *sync.WaitGroup) {
 	wg.Go(func() {
 		i.handleItemUnsafe(item)
 	})
+}
+
+func (i *ItemIndexWithStock) HandleStockUpdate(changes []inventory.InventoryChange) {
+	for _, change := range changes {
+		v, ok := i.ItemsBySku.Load(change.SKU)
+		if ok {
+			item, found := i.GetItem(v.(types.ItemId))
+			if found {
+				stock := item.GetStock()
+				currentValue := stock[change.StockLocationID]
+				newValue := uint32(change.Value)
+				if currentValue == 0 && newValue > 0 {
+					// Add to stock location
+					entryAny, loaded := i.ItemsInStock.Load(change.StockLocationID)
+					var entry *stockEntry
+					if !loaded {
+						entry = newStockEntry()
+						actual, double := i.ItemsInStock.LoadOrStore(change.StockLocationID, entry)
+						if double {
+							entry = actual.(*stockEntry)
+						}
+					} else {
+						entry = entryAny.(*stockEntry)
+					}
+					entry.add(uint32(item.GetId()))
+				} else if currentValue > 0 && newValue == 0 {
+					// Remove from stock location
+					if entryAny, ok := i.ItemsInStock.Load(change.StockLocationID); ok {
+						entry := entryAny.(*stockEntry)
+						entry.remove(uint32(item.GetId()))
+					}
+				}
+				stock[change.StockLocationID] = newValue
+			}
+		}
+	}
 }
 
 // HandleItems processes a sequence of items without a global lock.

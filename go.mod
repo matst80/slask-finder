@@ -4,6 +4,7 @@ go 1.25.3
 
 require (
 	firebase.google.com/go/v4 v4.18.0
+	git.tornberg.me/mats/go-redis-inventory v0.0.0-20251110193851-19d7ad0de6e5
 	github.com/RoaringBitmap/roaring/v2 v2.13.0
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/gorilla/schema v1.4.1
@@ -35,6 +36,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20251022180443-0feb69152e9f // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.35.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
@@ -55,6 +57,7 @@ require (
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.1 // indirect
 	github.com/prometheus/procfs v0.18.0 // indirect
+	github.com/redis/go-redis/v9 v9.16.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0 // indirect
