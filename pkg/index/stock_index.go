@@ -2,6 +2,7 @@ package index
 
 import (
 	"iter"
+	"log"
 	"sync"
 
 	"git.tornberg.me/mats/go-redis-inventory/pkg/inventory"
@@ -83,6 +84,7 @@ func (i *ItemIndexWithStock) HandleItem(item types.Item, wg *sync.WaitGroup) {
 
 func (i *ItemIndexWithStock) HandleStockUpdate(changes []inventory.InventoryChange) {
 	for _, change := range changes {
+		log.Printf("got stock update: %v", change)
 		v, ok := i.ItemsBySku.Load(change.SKU)
 		if ok {
 			item, found := i.GetItem(v.(types.ItemId))

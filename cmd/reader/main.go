@@ -99,6 +99,7 @@ func main() {
 
 	inventoryRedisUrl, ok := os.LookupEnv("INVENTORY_REDIS_URL")
 	if ok {
+		log.Printf("Starting inventory listener")
 		rdb := redis.NewClient(&redis.Options{
 			Addr:     inventoryRedisUrl,
 			Password: os.Getenv("INVENTORY_REDIS_PASSWORD"), // no password set
@@ -113,9 +114,10 @@ func main() {
 			if err != nil {
 				log.Fatalf("Failed to start inventory listener: %v", err)
 			} else {
-				log.Printf("Started inventory listener")
+
 			}
 		}()
+
 	}
 
 	var tracker types.Tracking = nil
