@@ -37,6 +37,11 @@ func (m *MockItem) HasStock() bool {
 	return true
 }
 
+func (m *MockItem) UpdateStock(stockLocationID string, newValue uint32) error {
+	m.Stock[stockLocationID] = newValue
+	return nil
+}
+
 func (m *MockItem) GetBasePopularity() float64 {
 	return m.Popularity
 }

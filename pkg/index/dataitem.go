@@ -200,6 +200,11 @@ func (item *DataItem) GetStock() map[string]uint32 {
 	return item.Stock.GetStock()
 }
 
+func (item *DataItem) UpdateStock(stockLocationID string, newValue uint32) error {
+	item.Stock.SetStock(stockLocationID, newValue)
+	return nil
+}
+
 func (m *DataItem) GetStringFields() map[types.FacetId]string {
 	return m.Fields.GetStringFields()
 }

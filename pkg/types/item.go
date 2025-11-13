@@ -9,6 +9,7 @@ type Item interface {
 	GetId() ItemId
 	GetSku() string
 	GetStock() map[string]uint32
+	UpdateStock(locationId string, quantity uint32) error
 	HasStock() bool
 	IsDeleted() bool
 	IsSoftDeleted() bool

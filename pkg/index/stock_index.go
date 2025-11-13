@@ -89,10 +89,10 @@ func (i *ItemIndexWithStock) HandleStockUpdate(changes []inventory.InventoryChan
 		if ok {
 			item, found := i.GetItem(v.(types.ItemId))
 			if found {
-				stock := item.GetStock()
-				currentValue := stock[change.StockLocationID]
 				newValue := uint32(change.Value)
-				if currentValue == 0 && newValue > 0 {
+				item.UpdateStock(change.StockLocationID, newValue)
+
+				if newValue > 0 {
 					// Add to stock location
 					entryAny, loaded := i.ItemsInStock.Load(change.StockLocationID)
 					var entry *stockEntry
@@ -106,14 +106,14 @@ func (i *ItemIndexWithStock) HandleStockUpdate(changes []inventory.InventoryChan
 						entry = entryAny.(*stockEntry)
 					}
 					entry.add(uint32(item.GetId()))
-				} else if currentValue > 0 && newValue == 0 {
+				} else if newValue == 0 {
 					// Remove from stock location
 					if entryAny, ok := i.ItemsInStock.Load(change.StockLocationID); ok {
 						entry := entryAny.(*stockEntry)
 						entry.remove(uint32(item.GetId()))
 					}
 				}
-				stock[change.StockLocationID] = newValue
+
 			}
 		}
 	}
