@@ -184,7 +184,7 @@ func (d *DiskStorage) LoadItems(wg *sync.WaitGroup, handlers ...types.ItemHandle
 	// }
 	decoder = nil
 
-	if errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return nil
 	}
 
