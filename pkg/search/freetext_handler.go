@@ -1,11 +1,13 @@
 package search
 
 import (
+	"context"
 	"log"
 	"sync"
 
 	"github.com/RoaringBitmap/roaring/v2"
 	"github.com/matst80/slask-finder/pkg/types"
+	"go.opentelemetry.io/otel"
 )
 
 type FreeTextItemHandler struct {
@@ -115,18 +117,26 @@ func (i *FreeTextItemHandler) CreateDocumentUnsafe(id types.ItemId, text ...stri
 	}
 }
 
+var (
+	name   = "slask-finder-freetext"
+	tracer = otel.Tracer(name)
+)
+
 func (h *FreeTextItemHandler) MatchQuery(query string, qm *types.QueryMerger) {
 	if query == "" {
 		return
 	}
 	if query == "*" {
-		qm.Add(func() *types.ItemList {
-
+		qm.Add(func(ctx context.Context) *types.ItemList {
+			_, span := tracer.Start(ctx, "MatchQuery All")
+			defer span.End()
 			// todo check is clone needed
 			return h.All
 		})
 	} else {
-		qm.Add(func() *types.ItemList {
+		qm.Add(func(ctx context.Context) *types.ItemList {
+			_, span := tracer.Start(ctx, "MatchQuery Search")
+			defer span.End()
 			return h.Search(query)
 		})
 	}

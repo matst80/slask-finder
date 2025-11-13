@@ -21,6 +21,9 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"github.com/redis/go-redis/v9/maintnotifications"
+	"go.opentelemetry.io/contrib/bridges/otelslog"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 )
 
 var country = "se"
@@ -44,9 +47,22 @@ type app struct {
 	facetHandler   *facet.FacetItemHandler
 }
 
+var (
+	name   = "slask-finder-reader"
+	tracer = otel.Tracer(name)
+
+	meter  = otel.Meter(name)
+	logger = otelslog.NewLogger(name)
+)
+
 func main() {
+	shutdown, err := common.SetupOTelSDK(context.Background())
+	if err != nil {
+		log.Printf("Failed to set up OpenTelemetry SDK: %v", err)
+	}
+
 	diskStorage := storage.NewDiskStorage(country, "data")
-	err := diskStorage.LoadSettings()
+	err = diskStorage.LoadSettings()
 	if err != nil {
 		log.Printf("Could not load settings from file: %v", err)
 	}
@@ -130,6 +146,7 @@ func main() {
 			defer tracker.Close()
 		}
 	}
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/api/stream", common.JsonHandler(tracker, app.SearchStreamed))
@@ -183,7 +200,7 @@ func main() {
 		Shutdown:   15 * time.Second,
 		Hook:       5 * time.Second,
 	})
-	server := common.NewServerWithTimeouts(&http.Server{Addr: ":8080", Handler: mux, ReadHeaderTimeout: cfg.ReadHeader}, cfg)
+	server := common.NewServerWithTimeouts(&http.Server{Addr: ":8080", Handler: otelhttp.NewHandler(mux, "/"), ReadHeaderTimeout: cfg.ReadHeader}, cfg)
 
 	saveHook := func(ctx context.Context) error {
 		if app.gotSaveTrigger {
@@ -192,5 +209,5 @@ func main() {
 		}
 		return nil
 	}
-	common.RunServerWithShutdown(server, "reader server", cfg.Shutdown, cfg.Hook, saveHook)
+	common.RunServerWithShutdown(server, "reader server", cfg.Shutdown, cfg.Hook, saveHook, shutdown)
 }

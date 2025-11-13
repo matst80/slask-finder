@@ -15,6 +15,7 @@ import (
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/search"
 	"github.com/matst80/slask-finder/pkg/types"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
@@ -27,7 +28,7 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	ids := &types.ItemList{}
 	baseIds := &types.ItemList{}
 
-	qm := types.NewQueryMerger(ids)
+	qm := types.NewQueryMerger(r.Context(), ids)
 
 	ws.searchIndex.MatchQuery(sr.Query, qm)
 	ws.itemIndex.MatchStock(sr.Stock, qm)
@@ -42,7 +43,7 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 		baseIds.Merge(ws.searchIndex.All)
 	}
 	ws.facetHandler.GetOtherFacets(ids, sr, ch, wg)
-	ws.facetHandler.GetSearchedFacets(baseIds, sr, ch, wg)
+	ws.facetHandler.GetSearchedFacets(r.Context(), baseIds, sr, ch, wg)
 	// todo optimize
 	go func() {
 		wg.Wait()
@@ -75,7 +76,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 		return err
 	}
 	ids := &types.ItemList{}
-	qm := types.NewQueryMerger(ids)
+	qm := types.NewQueryMerger(r.Context(), ids)
 	ws.searchIndex.MatchQuery(sr.Query, qm)
 	ws.itemIndex.MatchStock(sr.Stock, qm)
 
@@ -154,6 +155,9 @@ func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, en
 func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
 	sku := r.PathValue("sku")
 	publicHeaders(w, r, true, "120")
+	_, span := tracer.Start(r.Context(), "get item by sku")
+	defer span.End()
+	span.SetAttributes(attribute.String("sku", sku))
 	item, ok := ws.itemIndex.GetItemBySku(sku)
 	if !ok {
 		w.WriteHeader(http.StatusNotFound)
@@ -185,7 +189,7 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 	go func(ch chan *types.ItemList) {
-		related, err := ws.facetHandler.Related(item)
+		related, err := ws.facetHandler.Related(r.Context(), item)
 		if err != nil {
 			ch <- &types.ItemList{}
 			return
@@ -249,7 +253,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 
-	related, err := ws.facetHandler.Compatible(item)
+	related, err := ws.facetHandler.Compatible(r.Context(), item)
 	if err != nil {
 		return err
 	}

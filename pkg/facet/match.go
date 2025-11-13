@@ -1,11 +1,13 @@
 package facet
 
 import (
+	"context"
 	"log"
 	"slices"
 	"strings"
 
 	"github.com/matst80/slask-finder/pkg/types"
+	"go.opentelemetry.io/otel"
 )
 
 type CleanKeyFacet struct {
@@ -46,13 +48,27 @@ func (i *FacetItemHandler) RemoveDuplicateCategoryFilters(stringFilters []types.
 	})
 }
 
+var (
+	name   = "slask-finder-facets"
+	tracer = otel.Tracer(name)
+)
+
+func SpannedFetcher(fn func() *types.ItemList, name string) func(ctx context.Context) *types.ItemList {
+	return func(ctx context.Context) *types.ItemList {
+		// Here you could add tracing or logging using the name parameter.
+		_, span := tracer.Start(ctx, name)
+		defer span.End()
+		return fn()
+	}
+}
+
 func (i *FacetItemHandler) MatchStringsSync(filter []types.StringFilter, qm *types.QueryMerger) {
 
 	for _, fld := range filter {
 		if keyFacet, ok := i.GetKeyFacet(fld.Id); ok {
-			qm.Add(func() *types.ItemList {
+			qm.Add(SpannedFetcher(func() *types.ItemList {
 				return keyFacet.MatchFilterValue(fld.Value)
-			})
+			}, "MatchStringsSync"))
 		}
 	}
 
@@ -66,17 +82,17 @@ func (i *FacetItemHandler) Match(search *types.Filters, qm *types.QueryMerger) {
 				return fld.Facet.MatchFilterValue(fld.Value)
 			})
 		} else {
-			qm.Add(func() *types.ItemList {
+			qm.Add(SpannedFetcher(func() *types.ItemList {
 				return fld.Facet.MatchFilterValue(fld.Value)
-			})
+			}, "Match filter value"))
 		}
 	}
 
 	for _, fld := range search.RangeFilter {
 		if f, ok := i.Facets[fld.Id]; ok && f != nil {
-			qm.Add(func() *types.ItemList {
+			qm.Add(SpannedFetcher(func() *types.ItemList {
 				return f.Match(fld)
-			})
+			}, "Match range filter"))
 		}
 	}
 
@@ -87,7 +103,7 @@ type KeyFieldWithValue struct {
 	Value types.StringFilterValue
 }
 
-func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) {
+func (i *FacetItemHandler) Compatible(ctx context.Context, item types.Item) (*types.ItemList, error) {
 
 	//fields := make([]KeyFieldWithValue, 0)
 	result := types.ItemList{}
@@ -96,7 +112,7 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 	rel := types.CurrentSettings.FacetRelations
 	//types.CurrentSettings.RUnlock()
 
-	outerMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
+	outerMerger := types.NewCustomMerger(ctx, &result, func(ctx context.Context, current *types.ItemList, next *types.ItemList, isFirst bool) {
 		current.Merge(next)
 	})
 	hasRealRelations := false
@@ -104,16 +120,20 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 		if relation.Matches(item) {
 			// match all items for this relation
 
-			outerMerger.Add(func() *types.ItemList {
+			outerMerger.Add(func(ctx context.Context) *types.ItemList {
+				_, span := tracer.Start(ctx, "FacetRelationMatch")
+				defer span.End()
 				relationResult := types.NewItemList()
-				merger := types.NewQueryMerger(relationResult)
+				merger := types.NewQueryMerger(ctx, relationResult)
 				i.MatchStringsSync(relation.GetFilter(item), merger)
 				merger.Wait()
 				return relationResult
 			})
 
 			if len(relation.Include) > 0 {
-				outerMerger.Add(func() *types.ItemList {
+				outerMerger.Add(func(ctx context.Context) *types.ItemList {
+					_, span := tracer.Start(ctx, "Includes")
+					defer span.End()
 					ret := types.NewItemList()
 					for _, id := range relation.Include {
 						ret.AddId(uint32(id))
@@ -143,7 +163,7 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 		}
 	}
 	mergedProperties := 0
-	maybeMerger := types.NewCustomMerger(&result, func(current *types.ItemList, next *types.ItemList, isFirst bool) {
+	maybeMerger := types.NewCustomMerger(ctx, &result, func(ctx context.Context, current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if current.IsEmpty() && next != nil {
 			current.Merge(next)
 			mergedProperties++
@@ -183,7 +203,7 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 		// 	continue
 		// }
 
-		maybeMerger.Add(func() *types.ItemList {
+		maybeMerger.Add(func(ctx context.Context) *types.ItemList {
 			return target.MatchFilterValue(strings.Split(fieldValue, ";"))
 		})
 
@@ -196,11 +216,11 @@ func (i *FacetItemHandler) Compatible(item types.Item) (*types.ItemList, error) 
 	return &types.ItemList{}, nil
 }
 
-func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
+func (i *FacetItemHandler) Related(ctx context.Context, item types.Item) (*types.ItemList, error) {
 
 	result := types.ItemList{}
 	var base *types.BaseField
-	qm := types.NewCustomMerger(&result, func(current, next *types.ItemList, isFirst bool) {
+	qm := types.NewCustomMerger(ctx, &result, func(ctx context.Context, current *types.ItemList, next *types.ItemList, isFirst bool) {
 		if current.Cardinality() < 10 && next != nil {
 			result.Merge(next)
 			return
@@ -218,9 +238,9 @@ func (i *FacetItemHandler) Related(item types.Item) (*types.ItemList, error) {
 		base = field.GetBaseField()
 		if (base.CategoryLevel > 0 && base.CategoryLevel != 1) || base.Type != "" || base.LinkedId != 0 {
 			//if keyValue, ok := types.AsKeyFilterValue(itemField); ok {
-			qm.Add(func() *types.ItemList {
+			qm.Add(SpannedFetcher(func() *types.ItemList {
 				return field.MatchFilterValue(strings.Split(fieldValue, ";"))
-			})
+			}, "Related MatchFilterValue"))
 			//}
 		}
 	}
