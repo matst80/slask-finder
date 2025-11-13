@@ -19,6 +19,8 @@ import (
 )
 
 func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	ictx, span := tracer.Start(r.Context(), "Facet Handler")
+	defer span.End()
 	s := time.Now()
 	sr, err := types.GetFacetQueryFromRequest(r)
 	if err != nil {
@@ -28,7 +30,7 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 	ids := &types.ItemList{}
 	baseIds := &types.ItemList{}
 
-	qm := types.NewQueryMerger(r.Context(), ids)
+	qm := types.NewQueryMerger(ictx, ids)
 
 	ws.searchIndex.MatchQuery(sr.Query, qm)
 	ws.itemIndex.MatchStock(sr.Stock, qm)
@@ -43,7 +45,7 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 		baseIds.Merge(ws.searchIndex.All)
 	}
 	ws.facetHandler.GetOtherFacets(ids, sr, ch, wg)
-	ws.facetHandler.GetSearchedFacets(r.Context(), baseIds, sr, ch, wg)
+	ws.facetHandler.GetSearchedFacets(ictx, baseIds, sr, ch, wg)
 	// todo optimize
 	go func() {
 		wg.Wait()
@@ -69,6 +71,8 @@ func (ws *app) GetFacets(w http.ResponseWriter, r *http.Request, sessionId int, 
 }
 
 func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	ictx, span := tracer.Start(r.Context(), "SearchStreamed Handler")
+	defer span.End()
 	s := time.Now()
 	sr, err := types.GetQueryFromRequest(r)
 
@@ -76,7 +80,7 @@ func (ws *app) SearchStreamed(w http.ResponseWriter, r *http.Request, sessionId 
 		return err
 	}
 	ids := &types.ItemList{}
-	qm := types.NewQueryMerger(r.Context(), ids)
+	qm := types.NewQueryMerger(ictx, ids)
 	ws.searchIndex.MatchQuery(sr.Query, qm)
 	ws.itemIndex.MatchStock(sr.Stock, qm)
 
@@ -153,10 +157,10 @@ func (ws *app) GetItem(w http.ResponseWriter, r *http.Request, sessionId int, en
 }
 
 func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-	sku := r.PathValue("sku")
-	publicHeaders(w, r, true, "120")
 	_, span := tracer.Start(r.Context(), "get item by sku")
 	defer span.End()
+	sku := r.PathValue("sku")
+	publicHeaders(w, r, true, "120")
 	span.SetAttributes(attribute.String("sku", sku))
 	item, ok := ws.itemIndex.GetItemBySku(sku)
 	if !ok {
@@ -170,6 +174,8 @@ func (ws *app) GetItemBySku(w http.ResponseWriter, r *http.Request, sessionId in
 }
 
 func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	ictx, span := tracer.Start(r.Context(), "Related Handler")
+	defer span.End()
 	idString := r.PathValue("id")
 	id64, err := strconv.ParseUint(idString, 10, 64)
 	if err != nil {
@@ -182,14 +188,14 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 	if !ok {
 		return fmt.Errorf("item %s not found", idString)
 	}
-
+	span.SetAttributes(attribute.String("id", idString))
 	relatedChan := make(chan *types.ItemList)
 	defer close(relatedChan)
 
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 	go func(ch chan *types.ItemList) {
-		related, err := ws.facetHandler.Related(r.Context(), item)
+		related, err := ws.facetHandler.Related(ictx, item)
 		if err != nil {
 			ch <- &types.ItemList{}
 			return
@@ -213,6 +219,8 @@ func (ws *app) Related(w http.ResponseWriter, r *http.Request, sessionId int, en
 }
 
 func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	ictx, span := tracer.Start(r.Context(), "Compatible Handler")
+	defer span.End()
 	excludedProductTypes := make([]string, 0)
 	maxItems := 60
 	limitString := r.URL.Query().Get("limit")
@@ -253,7 +261,7 @@ func (ws *app) Compatible(w http.ResponseWriter, r *http.Request, sessionId int,
 	publicHeaders(w, r, false, "600")
 	w.WriteHeader(http.StatusOK)
 
-	related, err := ws.facetHandler.Compatible(r.Context(), item)
+	related, err := ws.facetHandler.Compatible(ictx, item)
 	if err != nil {
 		return err
 	}
@@ -308,7 +316,8 @@ func (ws *app) Facets(w http.ResponseWriter, r *http.Request, sessionId int, enc
 }
 
 func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
-
+	_, span := tracer.Start(r.Context(), "Suggest Handler")
+	defer span.End()
 	query := r.URL.Query().Get("q")
 	if query == "" {
 
@@ -337,6 +346,7 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 		return nil
 	}
 	query = strings.TrimSpace(query)
+	span.SetAttributes(attribute.String("query", query))
 	words := strings.Split(query, " ")
 	results := types.ItemList{}
 	lastWord := words[len(words)-1]
@@ -432,6 +442,8 @@ func (ws *app) Suggest(w http.ResponseWriter, r *http.Request, sessionId int, en
 }
 
 func (ws *app) Popular(w http.ResponseWriter, r *http.Request, sessionId int, enc *json.Encoder) error {
+	_, span := tracer.Start(r.Context(), "Popular Handler")
+	defer span.End()
 	//items, _ := ws.Sorting.GetSessionData(uint(sessionId))
 	defaultHeaders(w, r, true, "60")
 
@@ -475,6 +487,8 @@ func (ws *app) GetFacetGroups(w http.ResponseWriter, r *http.Request, sessionId 
 
 func (ws *app) StreamItemsFromIds(w http.ResponseWriter, r *http.Request) {
 	// Set appropriate headers for JSONL streaming
+	_, span := tracer.Start(r.Context(), "Stream items Handler")
+	defer span.End()
 	w.Header().Set("Content-Type", "application/jsonl+json; charset=UTF-8")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.WriteHeader(http.StatusOK)
