@@ -89,7 +89,7 @@ func (i *ItemIndexWithStock) HandleStockUpdate(changes []inventory.InventoryChan
 		if ok {
 			item, found := i.GetItem(v.(types.ItemId))
 			if found {
-				newValue := uint32(change.Value)
+				newValue := uint16(change.Value)
 				item.UpdateStock(change.StockLocationID, newValue)
 
 				if newValue > 0 {

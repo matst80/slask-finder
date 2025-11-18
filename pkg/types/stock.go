@@ -9,24 +9,24 @@ import (
 )
 
 type MapStock struct {
-	data map[string]uint32
+	data map[string]uint16
 }
 
 type Stock interface {
-	GetStock(string) map[string]uint32
+	GetStock(string) map[string]uint16
 }
 
 func NewMapStock() *MapStock {
 	return &MapStock{
-		data: make(map[string]uint32),
+		data: make(map[string]uint16),
 	}
 }
 
-func (f *MapStock) GetStock() map[string]uint32 {
+func (f *MapStock) GetStock() map[string]uint16 {
 	return f.data
 }
 
-func (f *MapStock) SetStock(id string, value uint32) error {
+func (f *MapStock) SetStock(id string, value uint16) error {
 	if id == "" {
 		return errors.New("id cannot be empty")
 	}
@@ -74,8 +74,8 @@ func (f MapStock) MarshalJSON() ([]byte, error) {
 // Accepts values: string, number, or array of strings (joined with ", ").
 func (f *MapStock) UnmarshalJSON(data []byte) error {
 	// Reset slices (allow reuse of underlying arrays).
-	f.data = map[string]uint32{}
-
+	f.data = map[string]uint16{}
+	var id64 uint64
 	i := 0
 	skipWS := func() {
 		for i < len(data) {
@@ -143,7 +143,7 @@ func (f *MapStock) UnmarshalJSON(data []byte) error {
 			if err != nil {
 				return err
 			}
-			var id64 uint64
+
 			switch s {
 			case "100+":
 				id64 = 100
@@ -166,7 +166,7 @@ func (f *MapStock) UnmarshalJSON(data []byte) error {
 				}
 			}
 			if id64 > 0 {
-				f.data[keyStr] = uint32(id64)
+				f.data[keyStr] = uint16(id64)
 			}
 
 		}

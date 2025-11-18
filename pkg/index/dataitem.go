@@ -196,11 +196,11 @@ func (item *DataItem) GetPrice() int {
 	return getNumberValue[int](priceField)
 }
 
-func (item *DataItem) GetStock() map[string]uint32 {
+func (item *DataItem) GetStock() map[string]uint16 {
 	return item.Stock.GetStock()
 }
 
-func (item *DataItem) UpdateStock(stockLocationID string, newValue uint32) error {
+func (item *DataItem) UpdateStock(stockLocationID string, newValue uint16) error {
 	item.Stock.SetStock(stockLocationID, newValue)
 	return nil
 }
