@@ -1,6 +1,7 @@
 package index
 
 import (
+	"context"
 	"iter"
 	"log"
 	"sync"
@@ -10,6 +11,7 @@ import (
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	"go.opentelemetry.io/otel"
 )
 
 var (
@@ -171,12 +173,26 @@ func (i *ItemIndexWithStock) GetStockResult(stockLocations []string) *types.Item
 	return types.FromBitmap(acc)
 }
 
+var (
+	name   = "slask-finder-index"
+	tracer = otel.Tracer(name)
+)
+
+func SpannedFetcher(fn func() *types.ItemList, name string) func(ctx context.Context) *types.ItemList {
+	return func(ctx context.Context) *types.ItemList {
+		// Here you could add tracing or logging using the name parameter.
+		_, span := tracer.Start(ctx, name)
+		defer span.End()
+		return fn()
+	}
+}
+
 // MatchStock integrates stock filtering into a QueryMerger.
 func (i *ItemIndexWithStock) MatchStock(stockLocations []string, qm *types.QueryMerger) {
 	if len(stockLocations) > 0 {
-		qm.Add(func() *types.ItemList {
+		qm.Add(SpannedFetcher(func() *types.ItemList {
 			return i.GetStockResult(stockLocations)
-		})
+		}, "MatchStock"))
 	}
 }
 

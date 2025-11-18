@@ -2,6 +2,7 @@ package facet
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"iter"
 	"log"
@@ -336,12 +337,12 @@ func getFacetResult(f types.Facet, baseIds *types.ItemList, c chan *JsonFacet, w
 	}
 }
 
-func (ws *FacetItemHandler) GetSearchedFacets(baseIds *types.ItemList, sr *types.FacetRequest, ch chan *JsonFacet, wg *sync.WaitGroup) {
+func (ws *FacetItemHandler) GetSearchedFacets(ctx context.Context, baseIds *types.ItemList, sr *types.FacetRequest, ch chan *JsonFacet, wg *sync.WaitGroup) {
 
 	makeQm := func(list *types.ItemList) *types.QueryMerger {
-		qm := types.NewQueryMerger(list)
+		qm := types.NewQueryMerger(ctx, list)
 		if baseIds != nil {
-			qm.Add(func() *types.ItemList {
+			qm.Add(func(_ context.Context) *types.ItemList {
 				return baseIds
 			})
 		}

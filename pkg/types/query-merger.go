@@ -1,6 +1,7 @@
 package types
 
 import (
+	"context"
 	"sync"
 )
 
@@ -12,7 +13,7 @@ type IQueryMerger interface {
 }
 
 // Merger is a custom merging strategy hook.
-type Merger = func(current *ItemList, next *ItemList, isFirst bool)
+type Merger = func(ctx context.Context, current *ItemList, next *ItemList, isFirst bool)
 
 // QueryMerger coordinates concurrent set operations over ItemLists.
 // Semantics (default constructor):
@@ -22,6 +23,7 @@ type Merger = func(current *ItemList, next *ItemList, isFirst bool)
 //	Add with nil on first call -> treated as 'universe' (no-op).
 //	Exclusions are accumulated and applied once in Wait().
 type QueryMerger struct {
+	ctx        context.Context
 	wg         *sync.WaitGroup
 	MergeFirst bool // retained for compatibility (not actively used)
 	isFirst    bool
@@ -41,12 +43,13 @@ func (m *QueryMerger) GetClone(output *ItemList) {
 }
 
 // NewQueryMerger builds a QueryMerger with default (seed + intersect) semantics.
-func NewQueryMerger(result *ItemList) *QueryMerger {
+func NewQueryMerger(ctx context.Context, result *ItemList) *QueryMerger {
 	return &QueryMerger{
+		ctx:     ctx,
 		wg:      &sync.WaitGroup{},
 		isFirst: true,
 		result:  result,
-		merger: func(current *ItemList, next *ItemList, isFirst bool) {
+		merger: func(ctx context.Context, current *ItemList, next *ItemList, isFirst bool) {
 			if next == nil {
 				// nil means "no restriction"
 				return
@@ -62,8 +65,9 @@ func NewQueryMerger(result *ItemList) *QueryMerger {
 }
 
 // NewCustomMerger allows providing a custom merge strategy.
-func NewCustomMerger(result *ItemList, merger Merger) *QueryMerger {
+func NewCustomMerger(ctx context.Context, result *ItemList, merger Merger) *QueryMerger {
 	return &QueryMerger{
+		ctx:     ctx,
 		wg:      &sync.WaitGroup{},
 		isFirst: true,
 		result:  result,
@@ -73,11 +77,11 @@ func NewCustomMerger(result *ItemList, merger Merger) *QueryMerger {
 }
 
 // Add applies the default seeded-intersection merge semantics.
-func (m *QueryMerger) Add(getResult func() *ItemList) {
+func (m *QueryMerger) Add(getResult func(ctx context.Context) *ItemList) {
 	m.wg.Go(func() {
-		items := getResult()
+		items := getResult(m.ctx)
 		m.l.Lock()
-		m.merger(m.result, items, m.isFirst)
+		m.merger(m.ctx, m.result, items, m.isFirst)
 		// Flip isFirst after first meaningful evaluation
 		if m.isFirst && (items != nil) {
 			m.isFirst = false
