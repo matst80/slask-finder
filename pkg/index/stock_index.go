@@ -6,8 +6,8 @@ import (
 	"log"
 	"sync"
 
-	"git.tornberg.me/mats/go-redis-inventory/pkg/inventory"
 	"github.com/RoaringBitmap/roaring/v2"
+	"github.com/matst80/go-redis-inventory/pkg/inventory"
 	"github.com/matst80/slask-finder/pkg/types"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"

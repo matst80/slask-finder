@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"git.tornberg.me/mats/go-redis-inventory/pkg/inventory"
+	"github.com/matst80/go-redis-inventory/pkg/inventory"
 	"github.com/matst80/slask-finder/pkg/common"
 	"github.com/matst80/slask-finder/pkg/facet"
 	"github.com/matst80/slask-finder/pkg/index"
